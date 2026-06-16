@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: teacher-ai
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: waitress-serve --port=$PORT app:app
+    envVars:
+      - key: FLASK_DEBUG
+        value: "0"
+      # Secrets — set the actual values in the Render dashboard (never commit them).
+      - key: TEACHER_PASSWORD
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_HOST
+        sync: false
+      # Paste the full contents of firebase_credentials.json as the value.
+      - key: FIREBASE_CREDENTIALS_JSON
+        sync: false

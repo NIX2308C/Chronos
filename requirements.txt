@@ -1,0 +1,10 @@
+flask
+flask-cors
+python-dotenv
+google-genai
+pinecone
+firebase-admin
+certifi
+waitress
+pypdf
+python-docx

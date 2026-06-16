@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tutor — Knowledge</title>
+<script>
+  (function(){try{var t=localStorage.getItem('teacherai_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f7f8fa;--panel:#ffffff;--panel-2:#f9fafb;
+    --border:#e5e7eb;--border-2:#d8dce2;
+    --text:#101828;--muted:#667085;--faint:#98a2b3;
+    --accent:#4f46e5;--accent-hover:#4338ca;--accent-weak:#eef2ff;--accent-text:#4338ca;
+    --ring:rgba(79,70,229,.16);
+    --ok:#067647;--ok-bg:#ecfdf3;--ok-border:#abefc6;
+    --danger:#b42318;--danger-bg:#fef3f2;--danger-border:#fecdca;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);
+    --scroll:#dfe3e8;--scroll-hover:#cbd2dc;
+  }
+  [data-theme="dark"]{
+    --bg:#0e1014;--panel:#16181d;--panel-2:#1b1e24;
+    --border:#262a31;--border-2:#323742;
+    --text:#e7e9ee;--muted:#9aa3b2;--faint:#6b7280;
+    --accent:#6366f1;--accent-hover:#818cf8;--accent-weak:#1e1b33;--accent-text:#a5b4fc;
+    --ring:rgba(99,102,241,.3);
+    --ok:#6ee7b7;--ok-bg:#0d2419;--ok-border:#1c4532;
+    --danger:#fca5a5;--danger-bg:#2a1714;--danger-border:#5b201a;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 1px 3px rgba(0,0,0,.35);
+    --scroll:#2b2f37;--scroll-hover:#3a3f49;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  ::selection{background:var(--accent-weak);}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;transition:background-color .3s ease,color .3s ease;}
+  .card,.topbar,.file-info,.help,.rule,.count-pill,input,textarea,.btn-ghost,.theme-toggle,.drop-zone{transition:background-color .3s ease,border-color .3s ease,color .3s ease;}
+
+  .topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 26px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+  .topbar h1{font-size:15px;font-weight:600;letter-spacing:-.01em;display:flex;align-items:center;gap:10px;}
+  .topbar h1 .logo{width:28px;height:28px;border-radius:7px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;}
+  .topbar h1 .logo svg{width:15px;height:15px;}
+  .topnav{display:flex;align-items:center;gap:6px;}
+  .topnav a{font-size:13px;color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:7px;transition:color .12s,background .12s;font-weight:500;}
+  .topnav a:hover{color:var(--text);background:var(--panel-2);}
+  .wrap{max-width:840px;margin:0 auto;padding:28px 24px 60px;}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:18px;box-shadow:var(--shadow);animation:fadeUp .45s ease backwards;}
+  .card h2{font-size:15px;font-weight:600;margin-bottom:4px;letter-spacing:-.01em;display:flex;align-items:center;}
+  .card .sub{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
+  label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;}
+  input[type=text],input[type=password],textarea{width:100%;border:1px solid var(--border-2);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:14px;outline:none;background:var(--panel);color:var(--text);transition:border-color .15s,box-shadow .15s;}
+  input::placeholder,textarea::placeholder{color:var(--faint);}
+  input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring);}
+  textarea{resize:vertical;min-height:94px;line-height:1.55;}
+
+  .drop-zone{border:1.5px dashed var(--border-2);border-radius:11px;padding:30px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s,transform .15s;margin-bottom:14px;}
+  .drop-zone:hover,.drop-zone.drag-over{border-color:var(--accent);background:var(--accent-weak);}
+  .drop-zone.drag-over{transform:scale(1.008);}
+  .drop-icon{width:34px;height:34px;margin:0 auto 10px;color:var(--muted);}
+  .drop-icon svg{width:34px;height:34px;}
+  .drop-text{font-size:14px;color:var(--text);margin-bottom:4px;}
+  .drop-link{color:var(--accent-text);cursor:pointer;text-decoration:underline;font-weight:500;}
+  .drop-hint{font-size:12px;color:var(--faint);letter-spacing:.01em;}
+  .file-info{background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:11px 14px;font-size:13px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;animation:fadeUp .25s ease;}
+  .file-info .fname{font-weight:500;display:flex;align-items:center;gap:8px;}
+  .file-info .fname svg{width:15px;height:15px;color:var(--muted);flex-shrink:0;}
+  .file-info .fsize{color:var(--muted);}
+  .spinner{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:7px;}
+
+  .row{display:flex;gap:12px;margin-bottom:14px;}
+  .row>div{flex:1;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--accent);color:#fff;border:none;border-radius:9px;padding:10px 18px;font-size:14px;font-weight:550;cursor:pointer;font-family:inherit;transition:background .12s,opacity .12s,transform .12s;}
+  .btn:hover:not(:disabled){background:var(--accent-hover);}
+  .btn:active:not(:disabled){transform:scale(.97);}
+  .btn:disabled{opacity:.45;cursor:default;}
+  .btn svg{width:15px;height:15px;}
+  .btn-ghost{background:var(--panel);color:var(--text);border:1px solid var(--border-2);}
+  .btn-ghost:hover:not(:disabled){background:var(--panel-2);}
+  .btn-sm{padding:7px 13px;font-size:12.5px;border-radius:8px;}
+  .btn-danger{background:var(--panel);color:var(--danger);border:1px solid var(--danger-border);}
+  .btn-danger:hover:not(:disabled){background:var(--danger-bg);}
+
+  .toast{padding:11px 14px;border-radius:9px;font-size:13px;margin-bottom:16px;display:none;border:1px solid transparent;}
+  .toast.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok-border);display:block;animation:slideDown .25s ease;}
+  .toast.err{background:var(--danger-bg);color:var(--danger);border-color:var(--danger-border);display:block;animation:slideDown .25s ease;}
+
+  .rule{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:9px;display:flex;justify-content:space-between;gap:14px;align-items:flex-start;transition:border-color .12s,transform .12s;animation:fadeUp .3s ease backwards;}
+  .rule:hover{border-color:var(--border-2);}
+  .rule .txt{font-size:13.5px;line-height:1.55;}
+  .rule .id{font-size:11px;color:var(--faint);margin-top:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+  .count-pill{display:inline-block;background:var(--panel-2);color:var(--muted);font-size:12px;font-weight:600;padding:2px 10px;border-radius:20px;margin-left:10px;border:1px solid var(--border);}
+
+  .theme-toggle{width:34px;height:34px;border-radius:8px;border:1px solid var(--border-2);background:var(--panel);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;margin-left:6px;transition:background .12s,color .12s,border-color .12s,transform .12s;}
+  .theme-toggle:hover{background:var(--panel-2);color:var(--text);}
+  .theme-toggle:active{transform:scale(.94);}
+  .theme-toggle svg{width:16px;height:16px;}
+  .theme-toggle .sun{display:none;}
+  [data-theme="dark"] .theme-toggle .sun{display:block;}
+  [data-theme="dark"] .theme-toggle .moon{display:none;}
+
+  .gate{max-width:400px;margin:96px auto;animation:fadeUp .4s ease;}
+  .gate .card{padding:30px 28px;text-align:center;}
+  .gate .lock{width:48px;height:48px;border-radius:12px;background:var(--accent-weak);color:var(--accent-text);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+  .gate .lock svg{width:24px;height:24px;}
+  .gate h2{margin-bottom:16px;justify-content:center;}
+  .hidden{display:none;}
+  .help{font-size:12.5px;color:var(--muted);background:var(--panel-2);border:1px solid var(--border);border-radius:9px;padding:13px 15px;margin-top:6px;line-height:1.6;}
+  .help b{color:var(--text);}
+
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes slideDown{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;}}
+
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:8px;border:2px solid transparent;background-clip:padding-box;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--scroll-hover);background-clip:padding-box;}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <h1><span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg></span>Knowledge Base</h1>
+    <div class="topnav">
+      <a href="teacherstats.html">Stats</a>
+      <a href="student.html">Student view</a>
+      <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme" title="Toggle theme">
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Password gate -->
+  <div class="gate" id="gate">
+    <div class="card">
+      <div class="lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+      <h2>Teacher Access</h2>
+      <input type="password" id="pwInput" placeholder="Enter teacher password">
+      <div class="toast" id="gateToast"></div>
+      <button class="btn" id="pwBtn" style="margin-top:14px;width:100%;">Unlock</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="wrap hidden" id="panel">
+    <div class="toast" id="toast"></div>
+
+    <div class="card" style="animation-delay:.04s">
+      <h2>Add a rule or document</h2>
+      <p class="sub">Define what the AI can and can't do, and what information it's allowed to use. Each entry becomes a retrievable rule.</p>
+      <label>Optional ID (leave blank to auto-generate)</label>
+      <input type="text" id="ruleId" placeholder="e.g. rule_no_personal_advice" style="margin-bottom:14px;">
+      <label>Rule / document text</label>
+      <textarea id="ruleText" placeholder="e.g. Rule: The AI may explain concepts but must NOT complete assignments for students."></textarea>
+      <div style="margin-top:14px;display:flex;gap:10px;">
+        <button class="btn" id="addBtn">Add rule</button>
+        <button class="btn btn-ghost" id="bulkBtn">Bulk add (one per line)</button>
+      </div>
+      <div class="help" style="margin-top:14px;">
+        <b>Writing good rules:</b> Be explicit and self-contained. Phrase permissions and prohibitions clearly — "The AI may…", "The AI must not…". Each rule is matched to student questions by meaning, so one focused idea per rule works best.
+      </div>
+    </div>
+
+    <div class="card" style="animation-delay:.09s">
+      <h2>Upload a file</h2>
+      <p class="sub">Extract and store content from a PDF, Word document, or text file. Large files are split into chunks automatically.</p>
+      <div class="drop-zone" id="dropZone">
+        <div class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg></div>
+        <div class="drop-text">Drag &amp; drop a file here, or <label for="fileInput" class="drop-link">browse</label></div>
+        <div class="drop-hint">PDF · DOCX · TXT · MD · CSV</div>
+        <input type="file" id="fileInput" accept=".pdf,.docx,.txt,.md,.csv" style="display:none">
+      </div>
+      <div class="file-info hidden" id="fileInfo">
+        <span class="fname" id="fileName"></span>
+        <span class="fsize" id="fileSize"></span>
+      </div>
+      <button class="btn" id="uploadBtn" disabled>Upload &amp; extract</button>
+    </div>
+
+    <div class="card" style="animation-delay:.14s">
+      <h2>Current rules <span class="count-pill" id="countPill">0</span></h2>
+      <p class="sub">Stored in Pinecone. Click refresh to reload.</p>
+      <button class="btn btn-ghost btn-sm" id="refreshBtn" style="margin-bottom:14px;">Refresh</button>
+      <div id="rulesList"></div>
+    </div>
+  </div>
+
+<script>
+  // Same-origin when served by Flask (deployed); dev server when via Live Server / file://.
+  const BASE=(location.port==="5500"||location.protocol==="file:")?"http://127.0.0.1:5000":"";
+  let PW="";
+  const $=id=>document.getElementById(id);
+  function showToast(el,msg,ok){el.textContent=msg;el.className="toast "+(ok?"ok":"err");setTimeout(()=>{el.className="toast";},4000);}
+
+  async function api(path,body){
+    let res;
+    try{res=await fetch(BASE+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,password:PW})});}
+    catch{throw new Error("Cannot reach server — is app.py running on port 5000?");}
+    const data=await res.json();
+    if(res.status===401)throw new Error("Wrong password");
+    if(!res.ok||data.error)throw new Error(data.details||data.error||"Request failed");
+    return data;
+  }
+
+  async function unlock(){
+    PW=$("pwInput").value;
+    try{
+      await api("/rules",{});           // validates password
+      $("gate").classList.add("hidden");
+      $("panel").classList.remove("hidden");
+      loadRules();
+    }catch(e){
+      showToast($("gateToast"),e.message,false);
+    }
+  }
+
+  async function addRule(){
+    const text=$("ruleText").value.trim();
+    const id=$("ruleId").value.trim();
+    if(!text){showToast($("toast"),"Rule text is empty",false);return;}
+    $("addBtn").disabled=true;
+    try{
+      const d=await api("/ingest",{items:[{id:id||undefined,text}]});
+      showToast($("toast"),"Added. Total rules: "+d.total_vectors,true);
+      $("ruleText").value="";$("ruleId").value="";
+      loadRules();
+    }catch(e){showToast($("toast"),e.message,false);}
+    $("addBtn").disabled=false;
+  }
+
+  async function bulkAdd(){
+    const raw=$("ruleText").value.trim();
+    if(!raw){showToast($("toast"),"Nothing to add",false);return;}
+    const lines=raw.split("\n").map(l=>l.trim()).filter(Boolean);
+    if(!lines.length){showToast($("toast"),"No lines found",false);return;}
+    $("bulkBtn").disabled=true;
+    try{
+      const d=await api("/ingest",{items:lines.map(t=>({text:t}))});
+      showToast($("toast"),"Added "+lines.length+" rules. Total: "+d.total_vectors,true);
+      $("ruleText").value="";
+      loadRules();
+    }catch(e){showToast($("toast"),e.message,false);}
+    $("bulkBtn").disabled=false;
+  }
+
+  async function loadRules(){
+    try{
+      const d=await api("/rules",{});
+      $("countPill").textContent=d.total_vectors||0;
+      const list=$("rulesList");list.innerHTML="";
+      if(!d.rules||!d.rules.length){list.innerHTML='<p class="sub">No rules yet.</p>';return;}
+      d.rules.forEach((r,i)=>{
+        const div=document.createElement("div");div.className="rule";div.style.animationDelay=(i*0.025)+"s";
+        const left=document.createElement("div");
+        const txt=document.createElement("div");txt.className="txt";txt.textContent=r.text;
+        const idEl=document.createElement("div");idEl.className="id";idEl.textContent=r.id;
+        left.appendChild(txt);left.appendChild(idEl);
+        const btn=document.createElement("button");btn.className="btn btn-danger btn-sm";btn.textContent="Delete";
+        btn.onclick=()=>delRule(r.id);
+        div.appendChild(left);div.appendChild(btn);list.appendChild(div);
+      });
+    }catch(e){showToast($("toast"),e.message,false);}
+  }
+
+  async function delRule(id){
+    if(!confirm("Delete this rule?"))return;
+    try{await api("/delete_rule",{id});showToast($("toast"),"Deleted",true);loadRules();}
+    catch(e){showToast($("toast"),e.message,false);}
+  }
+
+  function fmtSize(b){return b<1024?b+"B":b<1048576?(b/1024).toFixed(1)+"KB":(b/1048576).toFixed(1)+"MB";}
+  const FILE_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>';
+
+  function pickFile(file){
+    if(!file)return;
+    $("fileName").innerHTML=FILE_SVG+"<span></span>";
+    $("fileName").querySelector("span").textContent=file.name;
+    $("fileSize").textContent=fmtSize(file.size);
+    $("fileInfo").classList.remove("hidden");
+    $("uploadBtn").disabled=false;
+  }
+
+  $("fileInput").addEventListener("change",()=>pickFile($("fileInput").files[0]));
+  $("dropZone").addEventListener("dragover",e=>{e.preventDefault();$("dropZone").classList.add("drag-over");});
+  $("dropZone").addEventListener("dragleave",()=>$("dropZone").classList.remove("drag-over"));
+  $("dropZone").addEventListener("drop",e=>{e.preventDefault();$("dropZone").classList.remove("drag-over");const f=e.dataTransfer.files[0];if(f){$("fileInput").files=e.dataTransfer.files;pickFile(f);}});
+  $("dropZone").addEventListener("click",e=>{if(e.target.tagName!=="LABEL")$("fileInput").click();});
+
+  async function uploadFile(){
+    const file=$("fileInput").files[0];
+    if(!file)return;
+    const form=new FormData();
+    form.append("file",file);
+    form.append("password",PW);
+    $("uploadBtn").disabled=true;
+    $("uploadBtn").innerHTML='<span class="spinner"></span>Extracting…';
+    try{
+      let res;
+      try{res=await fetch(BASE+"/upload",{method:"POST",body:form});}
+      catch{throw new Error("Cannot reach server — is app.py running on port 5000?");}
+      const data=await res.json();
+      if(res.status===401)throw new Error("Wrong password");
+      if(!res.ok||data.error)throw new Error(data.details||data.error||"Upload failed");
+      showToast($("toast"),`"${file.name}" → ${data.chunks} chunks stored. Total rules: ${data.total_vectors}`,true);
+      $("fileInput").value="";
+      $("fileInfo").classList.add("hidden");
+      $("uploadBtn").disabled=true;
+      loadRules();
+    }catch(e){showToast($("toast"),e.message,false);}
+    $("uploadBtn").disabled=false;
+    $("uploadBtn").textContent="Upload & extract";
+  }
+
+  // theme
+  function toggleTheme(){const cur=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",cur);try{localStorage.setItem("teacherai_theme",cur);}catch(e){}}
+  $("themeToggle").onclick=toggleTheme;
+  addEventListener("storage",e=>{if(e.key==="teacherai_theme"&&e.newValue)document.documentElement.setAttribute("data-theme",e.newValue);});
+
+  $("pwBtn").onclick=unlock;
+  $("pwInput").addEventListener("keydown",e=>{if(e.key==="Enter")unlock();});
+  $("addBtn").onclick=addRule;
+  $("bulkBtn").onclick=bulkAdd;
+  $("refreshBtn").onclick=loadRules;
+  $("uploadBtn").onclick=uploadFile;
+</script>
+</body>
+</html>

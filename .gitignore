@@ -1,0 +1,22 @@
+# --- Secrets: never commit these ---
+.env
+.env.*
+!.env.example
+firebase_credentials.json
+*.pem
+*.key
+*.p12
+serviceAccount*.json
+
+# --- Python ---
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

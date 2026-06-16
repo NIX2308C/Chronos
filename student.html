@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tutor — Student</title>
+<title>AI Tutor</title>
 <script>
   (function(){try{var t=localStorage.getItem('teacherai_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();
 </script>
@@ -214,10 +214,25 @@
   function scrollBottom(){els.messages.scrollTop=els.messages.scrollHeight;}
   function typeOut(b,text,done){let i=0;const cur=document.createElement("span");cur.className="cursor";b.appendChild(cur);const speed=Math.max(8,Math.min(28,1200/Math.max(text.length,1)));const t=setInterval(()=>{cur.remove();b.textContent=text.slice(0,i);b.appendChild(cur);scrollBottom();i++;if(i>text.length){clearInterval(t);cur.remove();b.innerHTML=renderMarkdown(text);if(done)done();}},speed);}
   async function send(){const text=els.input.value.trim();if(!text)return;if(!activeChat())newChat();const c=activeChat();c.messages.push({role:"student",content:text});if(c.messages.length===1){c.title=text.length>30?text.slice(0,30)+"…":text;renderSidebar();}els.input.value="";els.input.style.height="auto";renderMessages();setSending(true);const tm={role:"teacher",content:"",rules:[]};c.messages.push(tm);const el=buildMsgEl(tm);els.messagesInner.appendChild(el);const b=el.querySelector(".bubble");b.innerHTML='<span class="cursor"></span>';scrollBottom();
-    try{const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text,session_id:c.sessionId})});const data=await res.json();if(!res.ok||data.error){b.textContent="⚠️ "+(data.details||data.error||"Server error");tm.content=b.textContent;setSending(false);return;}tm.content=data.response||"";tm.rules=data.rules_used||[];b.textContent="";typeOut(b,tm.content,()=>{if(tm.rules.length){b.parentElement.appendChild(buildRules(tm.rules));scrollBottom();}setSending(false);});}
-    catch(err){b.textContent="⚠️ Can't reach the server. Is app.py running on port 5000?";tm.content=b.textContent;setSending(false);}}
+    try{const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text,session_id:c.sessionId})});setStatus("online");const data=await res.json();if(!res.ok||data.error){b.textContent="⚠️ "+(data.details||data.error||"Server error");tm.content=b.textContent;setSending(false);return;}tm.content=data.response||"";tm.rules=data.rules_used||[];b.textContent="";typeOut(b,tm.content,()=>{if(tm.rules.length){b.parentElement.appendChild(buildRules(tm.rules));scrollBottom();}setSending(false);});}
+    catch(err){setStatus("offline");b.textContent="⚠️ Can't reach the server. Is app.py running on port 5000?";tm.content=b.textContent;setSending(false);}}
   function setSending(on){els.sendBtn.disabled=on;els.input.disabled=on;if(!on)els.input.focus();}
-  async function checkServer(){try{const r=await fetch(API_BASE+"/health");if(r.ok){els.statusDot.className="status-dot online";els.statusText.textContent="Server online";return;}throw 0;}catch{els.statusDot.className="status-dot offline";els.statusText.textContent="Server offline";}}
+  function setStatus(state){
+    if(state==="online"){els.statusDot.className="status-dot online";els.statusText.textContent="Server online";}
+    else if(state==="waking"){els.statusDot.className="status-dot";els.statusText.textContent="Waking server…";}
+    else{els.statusDot.className="status-dot offline";els.statusText.textContent="Server offline";}
+  }
+  async function checkServer(){
+    // Free hosting (e.g. Render) sleeps after inactivity and can take ~50s to wake,
+    // erroring meanwhile. Retry a few times and show "Waking…" so a sleeping-but-
+    // reachable server isn't misreported as a hard "Server offline".
+    for(let i=0;i<3;i++){
+      try{const r=await fetch(API_BASE+"/health",{cache:"no-store"});if(r.ok){setStatus("online");return;}}catch{}
+      setStatus("waking");
+      await new Promise(res=>setTimeout(res,2500));
+    }
+    setStatus("offline");
+  }
 
   // theme
   function toggleTheme(){const cur=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";document.documentElement.setAttribute("data-theme",cur);try{localStorage.setItem("teacherai_theme",cur);}catch(e){}}

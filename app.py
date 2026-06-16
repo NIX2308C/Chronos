@@ -469,7 +469,9 @@ def health():
 
 
 if __name__ == '__main__':
-    # Bind to loopback only so the dev server isn't exposed to the local network.
-    # Debug is off unless FLASK_DEBUG is explicitly set (see top of file).
+    # Bind to 0.0.0.0 and the host-provided PORT (Render/Heroku set this; default
+    # 5000 locally). Debug is off unless FLASK_DEBUG is explicitly set (top of file).
+    # NOTE: this dev server is only a fallback — production should run waitress
+    # (see startCommand in render.yaml).
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=DEBUG)

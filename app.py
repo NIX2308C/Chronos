@@ -385,18 +385,31 @@ def delete_rule():
 
 # ---------- teacher: stats ----------
 
-def categorize_questions(questions):
-    """Ask Gemini to tag each question with a short topic category."""
-    if not questions:
+def _ts_seconds(ts):
+    """Sortable seconds for a Firestore timestamp; missing/odd values sort first."""
+    try:
+        return ts.timestamp()
+    except Exception:
+        return 0.0
+
+
+def categorize_conversations(convos):
+    """Ask Gemini to tag each whole conversation with ONE short topic category.
+
+    `convos` is a list of strings, each the representative text of one
+    conversation (opening question plus a little follow-up context).
+    """
+    if not convos:
         return []
-    numbered = "\n".join(f"{i+1}. {q}" for i, q in enumerate(questions))
+    numbered = "\n".join(f"{i+1}. {c}" for i, c in enumerate(convos))
     prompt = (
-        "You are categorizing student questions for a tutoring class. "
-        "For each numbered question, give a SHORT topic category (1-3 words), "
-        "like 'Gear ratios', 'Sensors', 'Wiring', 'Off-topic', 'Documentation'. "
-        "Respond ONLY with a JSON array of strings, one per question, in order. "
+        "You are categorizing student tutoring conversations. Each numbered item is "
+        "ONE conversation (it may include follow-up turns). Give a SHORT topic "
+        "category (1-3 words) for the whole conversation based on what it is mainly "
+        "about, like 'Quadratic formula', 'Gear ratios', 'Sensors', 'Off-topic'. "
+        "Respond ONLY with a JSON array of strings, one per conversation, in order. "
         "No markdown, no extra text.\n\n"
-        f"Questions:\n{numbered}"
+        f"Conversations:\n{numbered}"
     )
     try:
         resp = client.models.generate_content(
@@ -405,11 +418,11 @@ def categorize_questions(questions):
         )
         text = resp.text.strip().replace("```json", "").replace("```", "").strip()
         cats = json.loads(text)
-        if isinstance(cats, list) and len(cats) == len(questions):
+        if isinstance(cats, list) and len(cats) == len(convos):
             return [str(c) for c in cats]
     except Exception:
         pass
-    return ["Uncategorized"] * len(questions)
+    return ["Uncategorized"] * len(convos)
 
 
 @app.route('/stats', methods=['POST'])
@@ -429,33 +442,54 @@ def stats():
         # Use a collection-group query so we pick up every Messages doc even if its
         # parent session document is a Firestore "phantom" (subcollection only, no fields).
         # Filtering role in Python avoids needing a composite index.
-        questions = []
+        #
+        # Group student messages by their parent session: each session is one
+        # conversation/assignment. A follow-up answer in the same conversation must
+        # NOT add another question or topic count — the whole conversation counts once.
+        sessions = {}          # session id -> list of (timestamp, content)
         session_ids = set()
         for m in db.collection_group('Messages').stream():
             d = m.to_dict()
+            sess_ref = m.reference.parent.parent
+            sid = sess_ref.id if sess_ref is not None else None
+            if sid is not None:
+                session_ids.add(sid)
             if d.get("role") != "student":
                 continue
-            sess_ref = m.reference.parent.parent
-            if sess_ref is not None:
-                session_ids.add(sess_ref.id)
-            content = d.get("content", "")
-            if content:
-                questions.append(content)
+            content = (d.get("content") or "").strip()
+            if not content:
+                continue
+            # Orphan messages (no parent session) each stand alone.
+            key = sid if sid is not None else f"_orphan_{m.id}"
+            sessions.setdefault(key, []).append((d.get("timestamp"), content))
 
         session_count = len(session_ids)
-        questions = questions[:limit]
-        total_questions = len(questions)
 
-        categories = categorize_questions(questions)
+        # Collapse each conversation to one representative question + a little context.
+        convos = []
+        for msgs in sessions.values():
+            msgs.sort(key=lambda x: _ts_seconds(x[0]))
+            opening = msgs[0][1]                       # the question that started it
+            context = " ".join(c for _, c in msgs[:4])[:600]
+            last_ts = max(_ts_seconds(t) for t, _ in msgs)
+            convos.append({"opening": opening, "context": context, "last_ts": last_ts})
+
+        # Keep the most recent `limit` conversations (caps categorization cost).
+        convos.sort(key=lambda c: c["last_ts"])
+        convos = convos[-limit:]
+        total_questions = len(convos)
+
+        categories = categorize_conversations([c["context"] for c in convos])
         cat_counts = {}
         for c in categories:
             cat_counts[c] = cat_counts.get(c, 0) + 1
 
         sorted_cats = sorted(cat_counts.items(), key=lambda x: x[1], reverse=True)
 
+        # One row per conversation, most recent first.
         recent = [
-            {"question": q, "category": categories[i]}
-            for i, q in enumerate(questions)
+            {"question": convos[i]["opening"], "category": categories[i]}
+            for i in range(len(convos))
         ][-25:][::-1]
 
         return jsonify({

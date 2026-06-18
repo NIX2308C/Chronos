@@ -221,8 +221,14 @@
   let chats=[],activeChatId=null;
   const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),statusDot:document.getElementById("statusDot"),statusText:document.getElementById("statusText"),messages:document.getElementById("messages"),contextBody:document.getElementById("contextBody")};
 
+  // Persist chats (and their backend session IDs) so conversations — and the
+  // server-side memory keyed on sessionId — survive page reloads.
+  const STORE_KEY="chronos_chats_v1";
+  function save(){try{localStorage.setItem(STORE_KEY,JSON.stringify({chats,activeChatId}));}catch(e){}}
+  function load(){try{const d=JSON.parse(localStorage.getItem(STORE_KEY));if(d&&Array.isArray(d.chats)&&d.chats.length){chats=d.chats;activeChatId=d.activeChatId||chats[0].id;return true;}}catch(e){}return false;}
+
   function uid(){return"s_"+Math.random().toString(36).slice(2,10);}
-  function newChat(){const c={id:uid(),title:"New chat",sessionId:uid(),messages:[]};chats.unshift(c);activeChatId=c.id;renderSidebar();renderMessages();els.input.focus();}
+  function newChat(){const c={id:uid(),title:"New chat",sessionId:uid(),messages:[]};chats.unshift(c);activeChatId=c.id;save();renderSidebar();renderMessages();els.input.focus();}
   function activeChat(){return chats.find(c=>c.id===activeChatId);}
 
   function renderSidebar(){
@@ -232,7 +238,7 @@
       const on=c.id===activeChatId;
       it.className="w-full text-left px-3 py-2.5 rounded-xl font-label-md text-label-md truncate transition-colors "+(on?"bg-secondary-container text-on-secondary-container":"text-on-surface-variant hover:bg-surface-container-high");
       it.textContent=c.title;
-      it.onclick=()=>{activeChatId=c.id;renderSidebar();renderMessages();};
+      it.onclick=()=>{activeChatId=c.id;save();renderSidebar();renderMessages();};
       els.chatList.appendChild(it);
     });
   }
@@ -325,6 +331,7 @@
     const c=activeChat();
     c.messages.push({role:"student",content:text});
     if(c.messages.length===1){c.title=text.length>30?text.slice(0,30)+"…":text;renderSidebar();}
+    save();
     els.input.value="";els.input.style.height="auto";
     renderMessages();
     setSending(true);
@@ -335,8 +342,9 @@
       const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text,session_id:c.sessionId})});
       setStatus("online");
       const data=await res.json();
-      if(!res.ok||data.error){b.textContent=(data.details||data.error||"Something went wrong. Please try again.");tm.content=b.textContent;setSending(false);return;}
+      if(!res.ok||data.error){b.textContent=(data.details||data.error||"Something went wrong. Please try again.");tm.content=b.textContent;save();setSending(false);return;}
       tm.content=data.response||"";tm.rules=data.rules_used||[];
+      save();
       b.textContent="";
       typeOut(b,tm.content,()=>{
         if(tm.rules.length){el.appendChild(buildRulesInline(tm.rules));}
@@ -345,7 +353,7 @@
       });
     }catch(err){
       setStatus("offline");
-      b.textContent="Can't reach the server. Is app.py running on port 5000?";tm.content=b.textContent;setSending(false);
+      b.textContent="Can't reach the server. Is app.py running on port 5000?";tm.content=b.textContent;save();setSending(false);
     }
   }
 
@@ -375,7 +383,9 @@
   els.newChatBtnMobile.onclick=newChat;
   els.input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}});
   els.input.addEventListener("input",()=>{els.input.style.height="auto";els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";});
-  newChat();checkServer();setInterval(checkServer,15000);
+  // Restore previous conversations on load; only start a fresh one if none exist.
+  if(load()){renderSidebar();renderMessages();}else{newChat();}
+  checkServer();setInterval(checkServer,15000);
 </script>
 <script src="theme.js"></script>
 </body></html>

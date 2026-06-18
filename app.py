@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from google import genai
+from google.genai import types
 import firebase_admin
 from firebase_admin import credentials, firestore
 from pinecone import Pinecone
@@ -62,6 +63,10 @@ MAX_MESSAGE_CHARS = 8000
 # Lightweight per-IP rate limit for the unauthenticated /chat endpoint.
 CHAT_RATE_LIMIT = int(os.getenv("CHAT_RATE_LIMIT", "20"))     # requests
 CHAT_RATE_WINDOW = int(os.getenv("CHAT_RATE_WINDOW", "60"))   # seconds
+
+# How many past messages to replay into the model so it remembers the conversation.
+# Each Q&A is 2 messages, so 20 ≈ the last 10 exchanges. Capped to bound tokens/latency.
+HISTORY_TURNS = int(os.getenv("HISTORY_TURNS", "20"))
 _rate_hits = {}
 _rate_lock = Lock()
 
@@ -154,6 +159,38 @@ def server_error(msg, exc, status=500):
     return jsonify(payload), status
 
 
+def load_history(chat_ref, limit=HISTORY_TURNS):
+    """Return the most recent stored messages as Gemini 'contents' turns
+    (oldest first) so the model can see the conversation so far.
+
+    Roles map student->'user', teacher->'model'. Any leading model turns are
+    dropped because Gemini expects the conversation to start with a user turn.
+    """
+    try:
+        docs = list(
+            chat_ref.order_by("timestamp", direction=firestore.Query.DESCENDING)
+            .limit(limit)
+            .stream()
+        )
+    except Exception:
+        # Never let a history read failure break the actual answer.
+        logger.exception("Could not load chat history; answering without it.")
+        return []
+
+    docs.reverse()  # back into chronological order
+    contents = []
+    for d in docs:
+        m = d.to_dict()
+        text = m.get("content")
+        if not text:
+            continue
+        role = "user" if m.get("role") == "student" else "model"
+        if not contents and role == "model":
+            continue  # skip any leading model turn
+        contents.append({"role": role, "parts": [{"text": text}]})
+    return contents
+
+
 def rate_limited(ip):
     """Sliding-window in-memory rate limit, per client IP."""
     now = time.time()
@@ -230,19 +267,31 @@ def chat():
         teacher_rules = [m['metadata']['text'] for m in pinecone_resp['matches'] if 'metadata' in m]
         context_block = "\n".join(teacher_rules)
 
-        system_prompt = f"Answer using ONLY these rules:\n{context_block}\n\nQuestion: {user_message}"
+        session_doc = db.collection('Chat_Sessions').document(session_id)
+        chat_ref = session_doc.collection('Messages')
+
+        # Replay the recent conversation so the AI remembers earlier turns, then
+        # append the new question as the latest user turn.
+        history = load_history(chat_ref)
+        contents = history + [{"role": "user", "parts": [{"text": user_message}]}]
+
+        system_instruction = (
+            "You are Chronos, a helpful tutor. Use ONLY the teacher rules below and "
+            "the conversation so far to answer. If the rules don't cover the question, "
+            "say you don't have that in your knowledge base rather than guessing.\n\n"
+            f"Teacher rules:\n{context_block}"
+        )
 
         ai_response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=system_prompt,
+            contents=contents,
+            config=types.GenerateContentConfig(system_instruction=system_instruction),
         )
         final_answer = ai_response.text
 
-        session_doc = db.collection('Chat_Sessions').document(session_id)
         # Write a field on the parent doc so it actually "exists" and shows up in
         # collection queries (a doc with only subcollections is a phantom in Firestore).
         session_doc.set({"last_active": firestore.SERVER_TIMESTAMP}, merge=True)
-        chat_ref = session_doc.collection('Messages')
         chat_ref.add({"role": "student", "content": user_message, "timestamp": firestore.SERVER_TIMESTAMP})
         chat_ref.add({"role": "teacher", "content": final_answer, "timestamp": firestore.SERVER_TIMESTAMP})
 

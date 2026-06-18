@@ -1,4 +1,4 @@
-// Shared dark-mode toggle for all TeacherAI pages.
+// Shared dark-mode toggle for all Chronos pages.
 // The early inline snippet in each page's <head> already applies the saved
 // theme (adds the `dark` class) before paint to avoid a flash. This file wires
 // the toggle button, keeps the icon in sync, and mirrors changes across tabs.

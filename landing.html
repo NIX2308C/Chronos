@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TeacherAI — Your Teacher's Intelligence, Scaled with AI</title>
+<script>(function(){try{var t=localStorage.getItem('teacherai_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+        darkMode: "class",
+        theme: {
+            extend: {
+                "colors": {
+                    "primary-container": "#131b2e",
+                    "error-container": "#ffdad6",
+                    "surface-container-low": "#f2f4f6",
+                    "surface-dim": "#d8dadc",
+                    "surface-bright": "#f7f9fb",
+                    "background": "#f7f9fb",
+                    "inverse-surface": "#2d3133",
+                    "on-tertiary": "#ffffff",
+                    "surface-container": "#eceef0",
+                    "surface-container-highest": "#e0e3e5",
+                    "on-error": "#ffffff",
+                    "on-primary-fixed": "#131b2e",
+                    "on-secondary": "#ffffff",
+                    "on-primary-container": "#7c839b",
+                    "inverse-on-surface": "#eff1f3",
+                    "tertiary-container": "#001a42",
+                    "on-error-container": "#93000a",
+                    "inverse-primary": "#bec6e0",
+                    "on-tertiary-fixed-variant": "#004395",
+                    "surface-container-high": "#e6e8ea",
+                    "primary-fixed": "#dae2fd",
+                    "on-tertiary-container": "#3980f4",
+                    "surface": "#f7f9fb",
+                    "on-primary-fixed-variant": "#3f465c",
+                    "on-background": "#191c1e",
+                    "secondary-fixed": "#c8ebca",
+                    "on-secondary-fixed": "#03210c",
+                    "surface-tint": "#565e74",
+                    "outline": "#76777d",
+                    "primary": "#000000",
+                    "tertiary-fixed-dim": "#adc6ff",
+                    "on-primary": "#ffffff",
+                    "on-secondary-fixed-variant": "#304d35",
+                    "on-secondary-container": "#4b6a4f",
+                    "on-tertiary-fixed": "#001a42",
+                    "on-surface": "#191c1e",
+                    "secondary-fixed-dim": "#adcfaf",
+                    "secondary": "#47664b",
+                    "error": "#ba1a1a",
+                    "outline-variant": "#c6c6cd",
+                    "tertiary-fixed": "#d8e2ff",
+                    "secondary-container": "#c6e9c7",
+                    "primary-fixed-dim": "#bec6e0",
+                    "surface-variant": "#e0e3e5",
+                    "on-surface-variant": "#45464d",
+                    "tertiary": "#000000",
+                    "surface-container-lowest": "#ffffff"
+                },
+                "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+                },
+                "spacing": {
+                    "stack-sm": "0.5rem",
+                    "gutter": "1.5rem",
+                    "margin-mobile": "1rem",
+                    "margin-desktop": "2rem",
+                    "stack-lg": "2rem",
+                    "stack-md": "1rem",
+                    "container-max": "1280px"
+                },
+                "fontFamily": {
+                    "headline-xl": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "label-md": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "body-md": ["Inter"]
+                },
+                "fontSize": {
+                    "headline-xl": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+                }
+            }
+        }
+    }
+</script>
+<style>
+    body { font-family: 'Inter', sans-serif; }
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .material-symbols-outlined[data-weight="fill"] { font-variation-settings: 'FILL' 1; }
+
+    .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.5rem; }
+    .bento-item-large { grid-column: span 12; }
+    .bento-item-medium { grid-column: span 12; }
+    .bento-item-small { grid-column: span 12; }
+    @media (min-width: 768px) {
+        .bento-item-large { grid-column: span 8; }
+        .bento-item-medium { grid-column: span 4; }
+        .bento-item-small { grid-column: span 6; }
+    }
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+</style>
+<link href="theme.css" rel="stylesheet"/>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased selection:bg-primary-container selection:text-on-primary-container overflow-x-hidden">
+<!-- Header -->
+<header class="fixed top-0 w-full z-50 bg-surface-container-lowest/80 backdrop-blur-md border-b border-surface-container-highest transition-all duration-300" id="main-header">
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop h-16 flex items-center justify-between">
+<a class="flex items-center gap-2" href="#top">
+<span class="w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]" data-weight="fill">school</span>
+</span>
+<span class="font-headline-md text-headline-md font-bold text-primary">TeacherAI</span>
+</a>
+<nav class="hidden md:flex items-center gap-6">
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#features">Features</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#how-it-works">How it Works</a>
+<a class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="teacherstats.html">Analytics</a>
+</nav>
+<div class="flex items-center gap-3">
+<button aria-label="Toggle dark mode" class="w-9 h-9 flex items-center justify-center rounded-DEFAULT text-on-surface-variant hover:bg-surface-container transition-colors" onclick="toggleTheme()" title="Toggle dark mode">
+<span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
+</button>
+<a class="hidden md:inline-flex items-center justify-center px-4 py-2 font-label-md text-label-md text-primary border border-outline rounded-DEFAULT hover:bg-surface-container transition-colors" href="teacherknowledge.html">
+    Teacher Portal
+</a>
+<a class="inline-flex items-center justify-center px-4 py-2 font-label-md text-label-md bg-primary text-on-primary rounded-DEFAULT hover:bg-primary/90 transition-colors shadow-sm" href="student.html">
+    Open Tutor
+</a>
+</div>
+</div>
+</header>
+<main class="pt-16" id="top">
+<!-- Hero -->
+<section class="relative pt-24 pb-32 md:pt-32 md:pb-40 px-margin-mobile md:px-margin-desktop overflow-hidden">
+<div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-surface-container-high/40 via-background to-background -z-10"></div>
+<div class="max-w-4xl mx-auto text-center flex flex-col items-center">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container border border-surface-container-highest mb-8">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Academic AI Intelligence</span>
+</div>
+<h1 class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-xl md:text-headline-xl text-primary mb-6 max-w-3xl leading-tight">
+    Your Teacher's Intelligence,<br/>
+<span class="text-tertiary-container relative inline-block">
+    Scaled with AI
+    <svg class="absolute -bottom-2 left-0 w-full h-3 text-secondary/30" fill="none" preserveAspectRatio="none" viewBox="0 0 200 12" xmlns="http://www.w3.org/2000/svg"><path d="M2 10C50 -2 150 -2 198 10" stroke="currentColor" stroke-linecap="round" stroke-width="4"></path></svg>
+</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-10 max-w-2xl">
+    An AI tutor that only answers using your teacher-defined knowledge base. Safe, focused, and aligned perfectly with your curriculum.
+</p>
+<div class="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+<a class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 font-label-md text-label-md bg-primary text-on-primary rounded-DEFAULT hover:bg-primary/90 transition-colors shadow-sm group" href="student.html">
+    Ask the Tutor
+    <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</a>
+<a class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 font-label-md text-label-md text-primary bg-surface border border-outline rounded-DEFAULT hover:bg-surface-container transition-colors group" href="teacherknowledge.html">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+    Teacher Portal
+</a>
+</div>
+<div class="mt-16 flex items-center justify-center gap-8 text-on-surface-variant/60">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined">menu_book</span>
+<span class="font-label-sm text-label-sm font-semibold">Curriculum-grounded</span>
+</div>
+<div class="hidden sm:flex items-center gap-2">
+<span class="material-symbols-outlined">lock</span>
+<span class="font-label-sm text-label-sm font-semibold">Private — link only</span>
+</div>
+</div>
+</div>
+<!-- Hero product graphic -->
+<div class="mt-20 max-w-5xl mx-auto relative h-[400px] w-full rounded-xl overflow-hidden border border-surface-container-highest bg-surface shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="relative w-full max-w-3xl aspect-[16/9] flex items-center justify-center">
+<!-- Mock chat -->
+<div class="absolute bottom-8 left-1/2 -translate-x-1/2 w-3/4 bg-surface-container-lowest rounded-lg border border-surface-container-highest shadow-sm p-4 z-20 glass-card">
+<div class="flex items-center gap-3 mb-3">
+<div class="w-8 h-8 rounded-DEFAULT bg-primary-container flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-[16px]">smart_toy</span>
+</div>
+<div class="font-label-sm text-label-sm bg-surface-container-low px-3 py-2 rounded-lg rounded-tl-none">
+    Based on the lecture notes, the gear ratio is driven divided by driver...
+</div>
+</div>
+<div class="flex items-center gap-3 justify-end">
+<div class="font-label-sm text-label-sm bg-primary text-on-primary px-3 py-2 rounded-lg rounded-tr-none">
+    Can you show me an example calculation?
+</div>
+<div class="w-8 h-8 rounded-DEFAULT bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined text-[16px]">person</span>
+</div>
+</div>
+</div>
+<!-- Knowledge nodes -->
+<div class="absolute top-1/4 left-1/4 w-32 h-32 rounded-full border border-primary/10 flex items-center justify-center bg-surface-container-lowest/50 backdrop-blur animate-[pulse_4s_ease-in-out_infinite]">
+<div class="w-16 h-16 rounded-full bg-secondary-container/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary">menu_book</span>
+</div>
+</div>
+<div class="absolute top-1/3 right-1/4 w-24 h-24 rounded-full border border-primary/10 flex items-center justify-center bg-surface-container-lowest/50 backdrop-blur animate-[pulse_3s_ease-in-out_infinite_0.5s]">
+<div class="w-12 h-12 rounded-full bg-primary-container/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">picture_as_pdf</span>
+</div>
+</div>
+<svg class="absolute inset-0 w-full h-full pointer-events-none opacity-20" xmlns="http://www.w3.org/2000/svg">
+<line stroke="#0f172a" stroke-dasharray="4 4" stroke-width="1" x1="30%" x2="50%" y1="35%" y2="60%"></line>
+<line stroke="#0f172a" stroke-dasharray="4 4" stroke-width="1" x1="70%" x2="50%" y1="40%" y2="60%"></line>
+</svg>
+</div>
+</div>
+</div>
+</section>
+<!-- Features (Bento) -->
+<section class="py-24 px-margin-mobile md:px-margin-desktop bg-surface-container-low" id="features">
+<div class="max-w-container-max mx-auto">
+<div class="text-center mb-16">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg text-primary mb-4">Intelligent Simplicity for Education</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">Bridging the gap between traditional academic authority and cutting-edge AI assistance.</p>
+</div>
+<div class="bento-grid">
+<!-- Feature 1: grounded AI -->
+<div class="bento-item-large bg-surface-container-lowest rounded-xl border border-surface-container-highest p-8 relative overflow-hidden group hover:shadow-[0_4px_12px_rgba(15,23,42,0.05)] transition-shadow duration-300 flex flex-col justify-between">
+<div class="relative z-10 max-w-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container mb-6 flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-primary">shield</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-3">Safe, Grounded AI Help</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6">For students: get instant help that never strays outside the curriculum. The AI answers strictly from the rules and materials the teacher has uploaded.</p>
+</div>
+<div class="mt-8 relative h-48 w-full bg-surface-container rounded-lg border border-surface-container-highest overflow-hidden flex items-end justify-center pb-4">
+<div class="absolute inset-x-8 bottom-4 top-8 border-2 border-dashed border-secondary/50 rounded-lg flex items-center justify-center bg-secondary/5">
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-widest font-semibold">Teacher Knowledge Base</span>
+</div>
+<div class="absolute w-8 h-8 bg-primary rounded-full animate-bounce flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary text-[16px]">auto_awesome</span>
+</div>
+</div>
+</div>
+<!-- Feature 2: teacher control -->
+<div class="bento-item-medium bg-surface-container-lowest rounded-xl border border-surface-container-highest p-8 relative overflow-hidden group hover:shadow-[0_4px_12px_rgba(15,23,42,0.05)] transition-shadow duration-300">
+<div class="w-12 h-12 rounded-lg bg-surface-container mb-6 flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-primary">tune</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-3 text-xl">Total Control</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">For teachers: you decide what the AI knows. Upload PDFs, Word docs, or paste rules directly. Update the knowledge base any time.</p>
+<div class="mt-8 space-y-3">
+<div class="flex items-center gap-3 p-3 bg-surface rounded border border-surface-container-highest">
+<span class="material-symbols-outlined text-secondary">check_circle</span>
+<span class="font-label-sm text-label-sm">Syllabus.pdf</span>
+</div>
+<div class="flex items-center gap-3 p-3 bg-surface rounded border border-surface-container-highest">
+<span class="material-symbols-outlined text-secondary">check_circle</span>
+<span class="font-label-sm text-label-sm">Lecture_Notes_W1.docx</span>
+</div>
+</div>
+</div>
+<!-- Feature 3: analytics -->
+<div class="bento-item-small bg-surface-container-lowest rounded-xl border border-surface-container-highest p-8 hover:shadow-[0_4px_12px_rgba(15,23,42,0.05)] transition-shadow duration-300">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-primary">insights</span>
+</div>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-3 text-xl">Learning Analytics</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6">See what students ask most. Questions are auto-categorized by topic so you can adjust your next lesson.</p>
+<div class="h-24 w-full flex items-end gap-2 mt-auto">
+<div class="w-1/4 bg-surface-container-highest h-[40%] rounded-t-sm"></div>
+<div class="w-1/4 bg-primary/40 h-[60%] rounded-t-sm"></div>
+<div class="w-1/4 bg-surface-container-highest h-[30%] rounded-t-sm"></div>
+<div class="w-1/4 bg-secondary/60 h-[85%] rounded-t-sm"></div>
+</div>
+</div>
+<!-- Feature 4: private by design -->
+<div class="bento-item-small bg-surface-container-lowest rounded-xl border border-surface-container-highest p-8 hover:shadow-[0_4px_12px_rgba(15,23,42,0.05)] transition-shadow duration-300">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-primary">lock</span>
+</div>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-3 text-xl">Private by Design</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-6">Only people with the link can reach the tutor, and the teacher portal is locked behind a password. Your class data stays your class's.</p>
+<div class="flex items-center gap-3 p-3 bg-surface rounded border border-surface-container-highest">
+<span class="material-symbols-outlined text-secondary">vpn_key</span>
+<span class="font-label-sm text-label-sm">Password-gated teacher tools</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- How it Works -->
+<section class="py-24 px-margin-mobile md:px-margin-desktop" id="how-it-works">
+<div class="max-w-container-max mx-auto">
+<div class="text-center mb-16">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg text-primary mb-4">How it Works</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">Three steps from your course materials to grounded, on-topic answers.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<div class="bg-surface-container-lowest rounded-xl border border-surface-container-highest p-8">
+<span class="font-headline-lg text-headline-lg text-primary/20">01</span>
+<div class="w-12 h-12 rounded-lg bg-surface-container my-4 flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-primary">upload_file</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-3 text-xl">Teacher adds knowledge</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Upload documents or type rules in the Teacher Portal. Each one is converted into a searchable "meaning" and stored.</p>
+</div>
+<div class="bg-surface-container-lowest rounded-xl border border-surface-container-highest p-8">
+<span class="font-headline-lg text-headline-lg text-primary/20">02</span>
+<div class="w-12 h-12 rounded-lg bg-surface-container my-4 flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-primary">search</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-3 text-xl">Student asks a question</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">The system finds the most relevant teacher rules for that exact question — by meaning, not just keywords.</p>
+</div>
+<div class="bg-surface-container-lowest rounded-xl border border-surface-container-highest p-8">
+<span class="font-headline-lg text-headline-lg text-primary/20">03</span>
+<div class="w-12 h-12 rounded-lg bg-surface-container my-4 flex items-center justify-center border border-outline-variant">
+<span class="material-symbols-outlined text-primary">auto_awesome</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary mb-3 text-xl">AI answers from those rules</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Gemini writes an answer using only the retrieved rules, then the exchange is logged for the analytics dashboard.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Final CTA -->
+<section class="px-margin-mobile md:px-margin-desktop pb-24">
+<div class="max-w-container-max mx-auto rounded-xl bg-primary-container text-white p-12 md:p-16 text-center relative overflow-hidden">
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile md:font-headline-lg md:text-headline-lg mb-4">Ready to try the tutor?</h2>
+<p class="font-body-lg text-body-lg text-white/70 mb-8 max-w-xl mx-auto">Ask a question grounded in your class materials, or open the teacher portal to manage the knowledge base.</p>
+<div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+<a class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 font-label-md text-label-md bg-white text-[#131b2e] rounded-DEFAULT hover:opacity-90 transition-opacity" href="student.html">
+    Ask the Tutor
+    <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</a>
+<a class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 font-label-md text-label-md text-white border border-white/40 rounded-DEFAULT hover:bg-white/10 transition-colors" href="teacherknowledge.html">
+    Teacher Portal
+</a>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="border-t border-surface-container-highest bg-surface-container-low">
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-10 flex flex-col md:flex-row items-center justify-between gap-4">
+<div class="flex items-center gap-2">
+<span class="w-7 h-7 rounded-lg bg-primary text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]" data-weight="fill">school</span>
+</span>
+<span class="font-label-md text-label-md font-bold text-primary">TeacherAI</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="student.html">Student Tutor</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="teacherknowledge.html">Knowledge Base</a>
+<a class="font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="teacherstats.html">Analytics</a>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant/70">Built with Flask, Gemini &amp; Pinecone</p>
+</div>
+</footer>
+<script src="theme.js"></script>
+</body></html>

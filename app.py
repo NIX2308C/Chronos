@@ -170,6 +170,11 @@ def rate_limited(ip):
 # ---------- static pages ----------
 
 @app.route('/')
+@app.route('/landing.html')
+def page_landing():
+    return send_from_directory(BASE_DIR, 'landing.html')
+
+
 @app.route('/student.html')
 def page_student():
     return send_from_directory(BASE_DIR, 'student.html')
@@ -183,6 +188,16 @@ def page_knowledge():
 @app.route('/teacherstats.html')
 def page_stats():
     return send_from_directory(BASE_DIR, 'teacherstats.html')
+
+
+@app.route('/theme.css')
+def theme_css():
+    return send_from_directory(BASE_DIR, 'theme.css')
+
+
+@app.route('/theme.js')
+def theme_js():
+    return send_from_directory(BASE_DIR, 'theme.js')
 
 
 # ---------- student endpoint ----------

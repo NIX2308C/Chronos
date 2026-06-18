@@ -1,0 +1,113 @@
+/* ============================================================
+   Shared theme overrides for all TeacherAI pages.
+   1) Smaller headings (the per-page Tailwind config sizes were too big)
+   2) Dark mode — activated by a `dark` class on <html>, overriding the
+      Material color utilities. Uses !important so it wins over the
+      Tailwind CDN's runtime-injected styles regardless of order.
+   ============================================================ */
+
+/* ---------- 1. Heading sizes ---------- */
+.text-headline-lg-mobile { font-size: 20px !important; line-height: 26px !important; }
+.text-headline-md        { font-size: 18px !important; line-height: 24px !important; }
+.text-headline-lg        { font-size: 24px !important; line-height: 30px !important; }
+@media (min-width: 768px) {
+  .md\:text-headline-lg  { font-size: 24px !important; line-height: 30px !important; }
+  .md\:text-headline-xl  { font-size: 30px !important; line-height: 38px !important; }
+}
+
+/* ---------- 2. Dark mode ---------- */
+/* Backgrounds */
+.dark .bg-background                 { background-color: #111416 !important; }
+.dark .bg-surface                    { background-color: #111416 !important; }
+.dark .bg-surface-bright             { background-color: #37393b !important; }
+.dark .bg-surface-container-lowest   { background-color: #0c0f10 !important; }
+.dark .bg-surface-container-lowest\/80 { background-color: rgba(12,15,16,.8) !important; }
+.dark .bg-surface-container-low      { background-color: #191c1d !important; }
+.dark .bg-surface-container          { background-color: #1d2021 !important; }
+.dark .bg-surface-container-high     { background-color: #282a2c !important; }
+.dark .bg-surface-container-highest  { background-color: #333537 !important; }
+.dark .bg-surface-variant            { background-color: #43474a !important; }
+.dark .bg-primary                    { background-color: #e3e2e6 !important; }
+.dark .bg-secondary                  { background-color: #add1b0 !important; }
+.dark .bg-secondary-container        { background-color: #2e4b33 !important; }
+.dark .bg-error-container            { background-color: #93000a !important; }
+
+/* Text */
+.dark .text-primary                  { color: #e3e2e6 !important; }
+.dark .text-on-primary               { color: #1a1c1e !important; }
+.dark .text-on-background            { color: #e2e2e5 !important; }
+.dark .text-on-surface               { color: #e2e2e5 !important; }
+.dark .text-on-surface-variant       { color: #c3c7c9 !important; }
+.dark .text-secondary                { color: #add1b0 !important; }
+.dark .text-on-secondary             { color: #173820 !important; }
+.dark .text-on-secondary-container   { color: #c8ebca !important; }
+.dark .text-error                    { color: #ffb4ab !important; }
+.dark .text-on-error-container       { color: #ffdad6 !important; }
+
+/* Placeholders */
+.dark .placeholder\:text-on-surface-variant::placeholder { color: #8d9194 !important; }
+
+/* Borders */
+.dark .border-outline-variant        { border-color: #3a3d40 !important; }
+.dark .border-outline                { border-color: #5c6064 !important; }
+.dark .border-surface-container-highest { border-color: #333537 !important; }
+.dark .border-error                  { border-color: #ffb4ab !important; }
+.dark .border-l                      { border-color: #3a3d40 !important; }
+
+/* Hover states */
+.dark .hover\:bg-surface-container-high:hover    { background-color: #282a2c !important; }
+.dark .hover\:bg-surface-container-highest:hover { background-color: #333537 !important; }
+.dark .hover\:bg-surface-container-low:hover     { background-color: #191c1d !important; }
+.dark .hover\:bg-surface-bright:hover            { background-color: #1d2021 !important; }
+.dark .hover\:text-primary:hover                 { color: #e3e2e6 !important; }
+.dark .hover\:border-primary:hover               { border-color: #e3e2e6 !important; }
+.dark .focus\:border-primary:focus               { border-color: #e3e2e6 !important; }
+
+/* Custom scrollbars */
+.dark .chat-scroll::-webkit-scrollbar-thumb { background-color: #333537; }
+
+/* Markdown rendered inside AI chat bubbles */
+.dark .ai-prose code       { background: rgba(255,255,255,.08); border-color: #3a3d40; color: #e2e2e5; }
+.dark .ai-prose pre        { background: #1d2021; border-color: #3a3d40; }
+.dark .ai-prose pre code   { color: #e2e2e5; }
+.dark .ai-prose blockquote { border-color: #3a3d40; color: #c3c7c9; }
+.dark .ai-prose a          { color: #adc6ff; }
+
+/* Typing cursor */
+.dark .cursor { background: #8d9194; }
+
+/* ---------- 3. Dark-mode fixes for utilities that kept their light value ---------- */
+
+/* The brand navy highlight word ("Scaled with AI") is near-black in light mode;
+   on a dark background it disappears, so flip it to a light tint. */
+.dark .text-tertiary-container { color: #adc6ff !important; }
+
+/* File-rule icon chips render the error container at 40% opacity. The plain
+   `.bg-error-container` override doesn't match the `/40` variant, leaving a pale
+   pink patch in dark mode — re-tint it to a dark red so the salmon icon reads. */
+.dark .bg-error-container\/40 { background-color: rgba(147, 0, 10, .35) !important; }
+
+/* Gradient color stops. The `*-background` gradient utilities aren't overridden
+   by the `bg-background` rule, so they keep their light value (#f7f9fb) and paint
+   a bright fade over dark content — the chat-input fade on the student page and
+   the hero glow on the landing page. Re-point them at the dark background. */
+.dark .from-background {
+  --tw-gradient-from: #111416 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(17 20 22 / 0) var(--tw-gradient-to-position) !important;
+}
+.dark .via-background {
+  --tw-gradient-stops: var(--tw-gradient-from), #111416 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+.dark .to-background {
+  --tw-gradient-to: #111416 var(--tw-gradient-to-position) !important;
+}
+.dark .from-surface-container-high\/40 {
+  --tw-gradient-from: rgb(40 42 44 / .4) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(40 42 44 / 0) var(--tw-gradient-to-position) !important;
+}
+
+/* Landing hero mock-chat card — the glass effect was a bright white pane in dark. */
+.dark .glass-card {
+  background: rgba(29, 32, 33, .7) !important;
+  border-color: rgba(255, 255, 255, .08) !important;
+}

@@ -79,6 +79,9 @@
     .chat-scroll::-webkit-scrollbar-track { background: transparent; }
     .chat-scroll::-webkit-scrollbar-thumb { background-color: #e0e3e5; border-radius: 10px; }
 
+    .spin { animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     /* typing cursor */
     .cursor { display:inline-block; width:6px; height:1rem; background:#76777d; border-radius:1px; margin-left:2px; vertical-align:text-bottom; animation:blink 1s steps(2) infinite; }
     @keyframes blink { 0%,50%{opacity:1} 50.01%,100%{opacity:0} }
@@ -104,6 +107,11 @@
 </head>
 <body class="bg-background text-on-background h-full antialiased overflow-hidden flex">
 
+<!-- Auth loading gate: shown until we know the user is a signed-in student -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-background" id="authGate">
+<span class="material-symbols-outlined text-on-surface-variant text-3xl spin">progress_activity</span>
+</div>
+
 <!-- Sidebar -->
 <nav class="hidden md:flex h-full w-64 fixed left-0 top-0 bg-surface-container-low flex-col p-stack-md z-10 border-r border-outline-variant">
 <a class="mb-stack-lg flex items-center gap-3 px-1" href="landing.html">
@@ -120,18 +128,24 @@
 </button>
 <p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider px-2 mb-2">Conversations</p>
 <div class="flex-1 overflow-y-auto chat-scroll -mx-1 px-1 space-y-1" id="chatList"></div>
-<div class="mt-auto pt-stack-md border-t border-outline-variant flex items-center justify-between">
-<span class="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
-<span class="w-2 h-2 rounded-full bg-outline" id="statusDot"></span>
-<span id="statusText">Checking…</span>
+<div class="mt-auto pt-stack-md border-t border-outline-variant">
+<div class="flex items-center justify-between mb-2">
+<span class="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant min-w-0">
+<span class="material-symbols-outlined text-[18px] flex-shrink-0">account_circle</span>
+<span class="truncate" id="userEmail" title="">…</span>
 </span>
-<span class="flex items-center gap-1">
+<span class="flex items-center gap-1 flex-shrink-0">
 <button aria-label="Toggle dark mode" class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" onclick="toggleTheme()" title="Toggle dark mode">
 <span class="material-symbols-outlined text-[18px]" data-theme-icon>dark_mode</span>
 </button>
-<a class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" href="landing.html" title="Home">
-<span class="material-symbols-outlined text-[18px]">home</span>
-</a>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="logoutBtn" title="Sign out">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+</button>
+</span>
+</div>
+<span class="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
+<span class="w-2 h-2 rounded-full bg-outline" id="statusDot"></span>
+<span id="statusText">Checking…</span>
 </span>
 </div>
 </nav>
@@ -176,11 +190,13 @@
 </aside>
 </main>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="auth.js"></script>
 <script>
-  // Same-origin when served by Flask (deployed); point at the dev server when
-  // the page is opened via Live Server (port 5500) or directly from disk.
-  const API_BASE=(location.port==="5500"||location.protocol==="file:")?"http://127.0.0.1:5000":"";
-  const API_URL=API_BASE+"/chat";
+  // Backend base (same-origin in deployment; dev server via Live Server/file://).
+  // Chronos.BASE comes from auth.js and uses the same detection.
+  const API_BASE=Chronos.BASE;
 
   // --- tiny self-contained markdown renderer (bold, italics, lists, code, headings, links) ---
   function escapeHtml(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
@@ -218,28 +234,70 @@
     return html;
   }
 
-  let chats=[],activeChatId=null;
+  // Conversations are now stored server-side per signed-in student (cloud sync),
+  // so they follow the user across devices instead of living in localStorage.
+  // Local chat shape: {id, title, messages:[], loaded:bool, isNew:bool}
+  //   id      — the server chat_id once saved; a temp id before the first message
+  //   loaded  — whether this chat's messages have been fetched from the server
+  //   isNew   — a blank conversation not yet persisted on the server
+  let chats=[],activeChatId=null,USER=null;
   const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),statusDot:document.getElementById("statusDot"),statusText:document.getElementById("statusText"),messages:document.getElementById("messages"),contextBody:document.getElementById("contextBody")};
 
-  // Persist chats (and their backend session IDs) so conversations — and the
-  // server-side memory keyed on sessionId — survive page reloads.
-  const STORE_KEY="chronos_chats_v1";
-  function save(){try{localStorage.setItem(STORE_KEY,JSON.stringify({chats,activeChatId}));}catch(e){}}
-  function load(){try{const d=JSON.parse(localStorage.getItem(STORE_KEY));if(d&&Array.isArray(d.chats)&&d.chats.length){chats=d.chats;activeChatId=d.activeChatId||chats[0].id;return true;}}catch(e){}return false;}
-
-  function uid(){return"s_"+Math.random().toString(36).slice(2,10);}
-  function newChat(){const c={id:uid(),title:"New chat",sessionId:uid(),messages:[]};chats.unshift(c);activeChatId=c.id;save();renderSidebar();renderMessages();els.input.focus();}
+  function tempId(){return"new_"+Math.random().toString(36).slice(2,10);}
   function activeChat(){return chats.find(c=>c.id===activeChatId);}
+
+  function newChat(){
+    // Don't stack blank chats — reuse an existing empty one if present.
+    const blank=chats.find(c=>c.isNew&&c.messages.length===0);
+    const c=blank||{id:tempId(),title:"New chat",messages:[],loaded:true,isNew:true};
+    if(!blank)chats.unshift(c);
+    selectChat(c.id);els.input.focus();
+  }
+
+  async function selectChat(id){
+    activeChatId=id;renderSidebar();renderMessages();
+    const c=activeChat();
+    if(c&&!c.loaded){await loadMessages(c);}
+  }
+
+  async function loadMessages(c){
+    try{
+      const d=await Chronos.apiJson("/chats/"+encodeURIComponent(c.id)+"/messages",undefined,"GET");
+      c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[]}));
+      c.loaded=true;
+      if(c.id===activeChatId)renderMessages();
+    }catch(e){setStatus("offline");}
+  }
+
+  async function deleteChat(id){
+    const c=chats.find(x=>x.id===id);if(!c)return;
+    if(!c.isNew){
+      if(!confirm("Delete this conversation?"))return;
+      try{await Chronos.apiJson("/chats/"+encodeURIComponent(id),undefined,"DELETE");}
+      catch(e){setStatus("offline");return;}
+    }
+    chats=chats.filter(x=>x.id!==id);
+    if(activeChatId===id){ if(chats.length)selectChat(chats[0].id); else newChat(); }
+    else renderSidebar();
+  }
 
   function renderSidebar(){
     els.chatList.innerHTML="";
     chats.forEach(c=>{
-      const it=document.createElement("button");
       const on=c.id===activeChatId;
-      it.className="w-full text-left px-3 py-2.5 rounded-xl font-label-md text-label-md truncate transition-colors "+(on?"bg-secondary-container text-on-secondary-container":"text-on-surface-variant hover:bg-surface-container-high");
+      const row=document.createElement("div");
+      row.className="group flex items-center rounded-xl transition-colors "+(on?"bg-secondary-container text-on-secondary-container":"text-on-surface-variant hover:bg-surface-container-high");
+      const it=document.createElement("button");
+      it.className="flex-1 min-w-0 text-left px-3 py-2.5 font-label-md text-label-md truncate";
       it.textContent=c.title;
-      it.onclick=()=>{activeChatId=c.id;save();renderSidebar();renderMessages();};
-      els.chatList.appendChild(it);
+      it.onclick=()=>selectChat(c.id);
+      const del=document.createElement("button");
+      del.className="px-2 opacity-0 group-hover:opacity-100 transition-opacity hover:text-error flex-shrink-0";
+      del.title="Delete conversation";
+      del.innerHTML='<span class="material-symbols-outlined text-[18px]">delete</span>';
+      del.onclick=(e)=>{e.stopPropagation();deleteChat(c.id);};
+      row.appendChild(it);row.appendChild(del);
+      els.chatList.appendChild(row);
     });
   }
 
@@ -331,7 +389,6 @@
     const c=activeChat();
     c.messages.push({role:"student",content:text});
     if(c.messages.length===1){c.title=text.length>30?text.slice(0,30)+"…":text;renderSidebar();}
-    save();
     els.input.value="";els.input.style.height="auto";
     renderMessages();
     setSending(true);
@@ -339,12 +396,16 @@
     const el=buildMsgEl(tm);els.messagesInner.appendChild(el);
     const b=el.querySelector(".ai-prose");b.innerHTML='<span class="cursor"></span>';scrollBottom();
     try{
-      const res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:text,session_id:c.sessionId})});
+      // Omit chat_id for a not-yet-saved conversation; the server creates one.
+      const body={message:text};
+      if(!c.isNew)body.chat_id=c.id;
+      const res=await Chronos.apiFetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       setStatus("online");
       const data=await res.json();
-      if(!res.ok||data.error){b.textContent=(data.details||data.error||"Something went wrong. Please try again.");tm.content=b.textContent;save();setSending(false);return;}
+      if(!res.ok||data.error){b.textContent=(data.details||data.error||"Something went wrong. Please try again.");tm.content=b.textContent;setSending(false);return;}
+      // Adopt the server's chat id/title for a freshly-created conversation.
+      if(data.chat_id&&c.isNew){c.id=data.chat_id;c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId&&activeChatId.startsWith("new_"))activeChatId=c.id;renderSidebar();}
       tm.content=data.response||"";tm.rules=data.rules_used||[];
-      save();
       b.textContent="";
       typeOut(b,tm.content,()=>{
         if(tm.rules.length){el.appendChild(buildRulesInline(tm.rules));}
@@ -353,7 +414,7 @@
       });
     }catch(err){
       setStatus("offline");
-      b.textContent="Can't reach the server. Is app.py running on port 5000?";tm.content=b.textContent;save();setSending(false);
+      b.textContent=(err&&err.message)||"Can't reach the server. Is app.py running on port 5000?";tm.content=b.textContent;setSending(false);
     }
   }
 
@@ -383,9 +444,28 @@
   els.newChatBtnMobile.onclick=newChat;
   els.input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}});
   els.input.addEventListener("input",()=>{els.input.style.height="auto";els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";});
-  // Restore previous conversations on load; only start a fresh one if none exist.
-  if(load()){renderSidebar();renderMessages();}else{newChat();}
-  checkServer();setInterval(checkServer,15000);
+  document.getElementById("logoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}location.replace("login.html?role=student");};
+
+  // Load this student's saved conversations from the server.
+  async function loadChats(){
+    try{
+      const d=await Chronos.apiJson("/chats",undefined,"GET");
+      chats=(d.chats||[]).map(c=>({id:c.id,title:c.title,messages:[],loaded:false,isNew:false}));
+    }catch(e){chats=[];}
+    if(chats.length){renderSidebar();await selectChat(chats[0].id);}
+    else newChat();
+  }
+
+  // Gate the page on a signed-in student, then boot.
+  Chronos.requireRole("student").then(async(info)=>{
+    USER=info;
+    const em=document.getElementById("userEmail");em.textContent=info.email||"Account";em.title=info.email||"";
+    document.getElementById("authGate").remove();
+    await loadChats();
+    checkServer();setInterval(checkServer,15000);
+  }).catch(e=>{
+    document.getElementById("authGate").innerHTML='<p class="font-body-md text-body-md text-error text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>';
+  });
 </script>
 <script src="theme.js"></script>
 </body></html>

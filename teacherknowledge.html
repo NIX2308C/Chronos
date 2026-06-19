@@ -84,18 +84,9 @@
 </head>
 <body class="bg-background text-on-background font-body-md min-h-screen">
 
-<!-- ============ PASSWORD GATE ============ -->
+<!-- ============ AUTH LOADING GATE ============ -->
 <div class="min-h-screen flex items-center justify-center p-margin-mobile" id="gate">
-<div class="w-full max-w-sm bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-stack-lg text-center">
-<div class="w-14 h-14 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center mx-auto mb-stack-md">
-<span class="material-symbols-outlined text-[28px]">lock</span>
-</div>
-<h1 class="font-headline-md text-headline-md text-primary mb-1">Teacher Access</h1>
-<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Enter your password to manage the knowledge base.</p>
-<input class="w-full rounded-lg border-outline-variant bg-surface-container-low text-on-background font-body-md text-body-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary transition-colors" id="pwInput" placeholder="Teacher password" type="password"/>
-<button class="w-full mt-stack-md py-3 bg-primary text-on-primary rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:opacity-90 transition-opacity" id="pwBtn">Unlock</button>
-<a class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="landing.html">← Back to home</a>
-</div>
+<span class="material-symbols-outlined text-on-surface-variant text-3xl spin">progress_activity</span>
 </div>
 
 <!-- ============ APP ============ -->
@@ -123,8 +114,12 @@
 </a>
 </div>
 <div class="mt-auto pt-stack-md border-t border-outline-variant">
+<div class="flex items-center gap-2 px-4 mb-1 font-label-sm text-label-sm text-on-surface-variant min-w-0">
+<span class="material-symbols-outlined text-[18px] flex-shrink-0">account_circle</span>
+<span class="truncate" id="userEmail" title="">…</span>
+</div>
 <button class="w-full flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-xl font-label-md text-label-md transition-colors" id="lockBtn">
-<span class="material-symbols-outlined">logout</span> Lock
+<span class="material-symbols-outlined">logout</span> Sign out
 </button>
 </div>
 </nav>
@@ -221,10 +216,12 @@
 <!-- Toast -->
 <div class="hidden fixed bottom-6 right-6 z-50 max-w-sm px-4 py-3 rounded-lg shadow-lg font-label-md text-label-md flex items-center gap-2" id="toast"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="auth.js"></script>
 <script>
-  // Same-origin when served by Flask (deployed); dev server when via Live Server / file://.
-  const BASE=(location.port==="5500"||location.protocol==="file:")?"http://127.0.0.1:5000":"";
-  let PW="";
+  // Backend base comes from auth.js (same-origin deployed; dev server otherwise).
+  const BASE=Chronos.BASE;
   let RULES=[];
   const $=id=>document.getElementById(id);
 
@@ -237,31 +234,23 @@
     showToast._t=setTimeout(()=>{t.className="hidden";},4000);
   }
 
+  // Authenticated JSON call — the Firebase ID token is attached by auth.js.
   async function api(path,body){
-    let res;
-    try{res=await fetch(BASE+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...body,password:PW})});}
-    catch{throw new Error("Cannot reach server — is app.py running on port 5000?");}
-    const data=await res.json();
-    if(res.status===401)throw new Error("Wrong password");
-    if(!res.ok||data.error)throw new Error(data.details||data.error||"Request failed");
-    return data;
+    return Chronos.apiJson(path,body||{});
   }
 
-  async function unlock(){
-    PW=$("pwInput").value;
-    try{
-      await api("/rules",{});           // validates password
-      $("gate").classList.add("hidden");
-      $("app").classList.remove("hidden");
-      loadRules();
-    }catch(e){ showToast(e.message,false); }
+  async function lock(){
+    try{await Chronos.logout();}catch(e){}
+    location.replace("login.html?role=teacher");
   }
 
-  function lock(){
-    PW=""; $("pwInput").value="";
-    $("app").classList.add("hidden");
-    $("gate").classList.remove("hidden");
-  }
+  // Gate the page: require a signed-in teacher, then reveal the app.
+  Chronos.requireRole("teacher").then(info=>{
+    const em=$("userEmail");if(em){em.textContent=info.email||"Teacher";em.title=info.email||"";}
+    $("gate").classList.add("hidden");
+    $("app").classList.remove("hidden");
+    loadRules();
+  }).catch(e=>{ $("gate").innerHTML='<p class="font-body-md text-body-md text-error text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>'; });
 
   async function addRule(){
     const text=$("ruleText").value.trim();
@@ -353,15 +342,14 @@
     if(!file)return;
     const form=new FormData();
     form.append("file",file);
-    form.append("password",PW);
     $("uploadBtn").disabled=true;
     $("uploadBtn").innerHTML='<span class="material-symbols-outlined text-[18px] spin">progress_activity</span>Extracting…';
     try{
       let res;
-      try{res=await fetch(BASE+"/upload",{method:"POST",body:form});}
+      try{res=await Chronos.apiFetch("/upload",{method:"POST",body:form});}
       catch{throw new Error("Cannot reach server — is app.py running on port 5000?");}
       const data=await res.json();
-      if(res.status===401)throw new Error("Wrong password");
+      if(res.status===401||res.status===403)throw new Error(data.error||"Not authorized");
       if(!res.ok||data.error)throw new Error(data.details||data.error||"Upload failed");
       showToast(`"${file.name}" → ${data.chunks} chunks stored. Total rules: ${data.total_vectors}`,true);
       $("fileInput").value="";
@@ -374,8 +362,6 @@
   }
 
   // wiring
-  $("pwBtn").onclick=unlock;
-  $("pwInput").addEventListener("keydown",e=>{if(e.key==="Enter")unlock();});
   $("lockBtn").onclick=lock;
   $("addBtn").onclick=addRule;
   $("bulkBtn").onclick=bulkAdd;

@@ -9,7 +9,8 @@ services:
       - key: FLASK_DEBUG
         value: "0"
       # Secrets — set the actual values in the Render dashboard (never commit them).
-      - key: TEACHER_PASSWORD
+      # Code required to register a teacher account (replaces TEACHER_PASSWORD).
+      - key: TEACHER_SIGNUP_CODE
         sync: false
       - key: GEMINI_API_KEY
         sync: false
@@ -20,3 +21,10 @@ services:
       # Paste the full contents of firebase_credentials.json as the value.
       - key: FIREBASE_CREDENTIALS_JSON
         sync: false
+      # Firebase Web SDK config served to the browser (apiKey is not secret).
+      - key: FIREBASE_WEB_API_KEY
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        value: teacheraifrontend
+      - key: FIREBASE_AUTH_DOMAIN
+        value: teacheraifrontend.firebaseapp.com

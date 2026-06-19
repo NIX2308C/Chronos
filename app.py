@@ -12,7 +12,7 @@ from flask_cors import CORS
 from google import genai
 from google.genai import types
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, firestore, auth as fb_auth
 from pinecone import Pinecone
 try:
     import pypdf
@@ -31,19 +31,30 @@ logger = logging.getLogger("teacherai")
 GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 PINE_KEY = os.getenv("PINECONE_API_KEY")
 
-# Password the teacher panels must send (sent in the JSON/form body).
-TEACHER_PASSWORD = os.getenv("TEACHER_PASSWORD", "")
+# Secret code someone must enter to register a *teacher* account. Replaces the
+# old shared TEACHER_PASSWORD: instead of every teacher typing one password on
+# every request, they create a real Firebase email/password account once, and
+# this code only gates whether that account is granted the teacher role.
+TEACHER_SIGNUP_CODE = os.getenv("TEACHER_SIGNUP_CODE", "")
+
+# Firebase Web SDK config served to the browser so the front-end can sign users
+# in with email/password. These values are NOT secret (they ship in every
+# Firebase web app), but we keep them configurable per-deployment. apiKey is
+# required; the rest default from the service-account project id.
+FIREBASE_PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID", "teacheraifrontend")
+FIREBASE_WEB_API_KEY = os.getenv("FIREBASE_WEB_API_KEY", "")
+FIREBASE_AUTH_DOMAIN = os.getenv("FIREBASE_AUTH_DOMAIN", f"{FIREBASE_PROJECT_ID}.firebaseapp.com")
 
 # Run with the interactive debugger ONLY when explicitly enabled. Leaving the
 # Werkzeug debugger on in a reachable deployment is a remote-code-execution risk.
 DEBUG = os.getenv("FLASK_DEBUG", "").lower() in ("1", "true", "yes", "on")
 
-# Refuse to start with a missing or well-known default password — otherwise the
-# teacher endpoints (which can read all chat logs and edit the knowledge base)
-# would be wide open.
-if not TEACHER_PASSWORD or TEACHER_PASSWORD.lower() in ("changeme", "password", "admin"):
+# Refuse to start with a missing or well-known default teacher code — otherwise
+# anyone could self-register as a teacher and read all chat logs / edit the
+# knowledge base.
+if not TEACHER_SIGNUP_CODE or TEACHER_SIGNUP_CODE.lower() in ("changeme", "password", "admin", "skibidi"):
     raise SystemExit(
-        "Refusing to start: set a strong TEACHER_PASSWORD in your .env "
+        "Refusing to start: set a strong TEACHER_SIGNUP_CODE in your .env "
         "(it is missing or set to an insecure default)."
     )
 
@@ -133,18 +144,63 @@ def embed(text):
     return result.embeddings[0].values
 
 
-def check_password(supplied):
-    """Constant-time password comparison to avoid timing side-channels."""
-    return bool(supplied) and hmac.compare_digest(str(supplied), TEACHER_PASSWORD)
+def _bearer_token():
+    """Pull the Firebase ID token out of the Authorization: Bearer <token> header."""
+    header = request.headers.get("Authorization", "")
+    if header.startswith("Bearer "):
+        return header[7:].strip()
+    return None
+
+
+def verify_user():
+    """Verify the request's Firebase ID token and return its decoded claims, or
+    None if missing/invalid/expired. Never raises."""
+    token = _bearer_token()
+    if not token:
+        return None
+    try:
+        return fb_auth.verify_id_token(token)
+    except Exception:
+        logger.info("Rejected an invalid/expired Firebase ID token.")
+        return None
+
+
+def get_role(uid):
+    """Return the stored role ('teacher'/'student') for a user, or None."""
+    try:
+        doc = db.collection("Users").document(uid).get()
+        if doc.exists:
+            return (doc.to_dict() or {}).get("role")
+    except Exception:
+        logger.exception("Could not read user role for %s", uid)
+    return None
+
+
+def require_auth(fn):
+    """Gate: any signed-in Firebase user. Stashes the decoded token + uid on
+    `request` so the handler can use them."""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        decoded = verify_user()
+        if not decoded:
+            return jsonify({"error": "Unauthorized. Please sign in."}), 401
+        request.user = decoded
+        request.uid = decoded["uid"]
+        return fn(*args, **kwargs)
+    return wrapper
 
 
 def require_teacher(fn):
-    """Simple password gate. Frontend sends {'password': '...'} in the JSON body."""
+    """Gate: a signed-in user whose stored role is 'teacher'."""
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        data = request.get_json(silent=True) or {}
-        if not check_password(data.get("password")):
-            return jsonify({"error": "Unauthorized. Wrong teacher password."}), 401
+        decoded = verify_user()
+        if not decoded:
+            return jsonify({"error": "Unauthorized. Please sign in."}), 401
+        if get_role(decoded["uid"]) != "teacher":
+            return jsonify({"error": "Forbidden. Teacher access only."}), 403
+        request.user = decoded
+        request.uid = decoded["uid"]
         return fn(*args, **kwargs)
     return wrapper
 
@@ -217,6 +273,16 @@ def page_student():
     return send_from_directory(BASE_DIR, 'student.html')
 
 
+@app.route('/login.html')
+def page_login():
+    return send_from_directory(BASE_DIR, 'login.html')
+
+
+@app.route('/auth.js')
+def auth_js():
+    return send_from_directory(BASE_DIR, 'auth.js')
+
+
 @app.route('/teacherknowledge.html')
 def page_knowledge():
     return send_from_directory(BASE_DIR, 'teacherknowledge.html')
@@ -237,17 +303,156 @@ def theme_js():
     return send_from_directory(BASE_DIR, 'theme.js')
 
 
+# ---------- auth ----------
+
+@app.route('/auth/config', methods=['GET'])
+def auth_config():
+    """Public Firebase Web SDK config the browser needs to sign users in.
+    apiKey is not a secret (it ships in every Firebase web app)."""
+    return jsonify({
+        "apiKey": FIREBASE_WEB_API_KEY,
+        "authDomain": FIREBASE_AUTH_DOMAIN,
+        "projectId": FIREBASE_PROJECT_ID,
+    })
+
+
+@app.route('/auth/register', methods=['POST'])
+@require_auth
+def auth_register():
+    """Finish account setup after the browser has created a Firebase account.
+    Records the user's role in Firestore. Becoming a teacher requires the
+    correct teacher signup code; everyone else is a student.
+    Body: { role: 'teacher'|'student', teacher_code? }
+    """
+    data = request.get_json(silent=True) or {}
+    role = data.get("role")
+    if role not in ("teacher", "student"):
+        return jsonify({"error": "role must be 'teacher' or 'student'"}), 400
+
+    if role == "teacher":
+        supplied = str(data.get("teacher_code") or "")
+        if not supplied or not hmac.compare_digest(supplied, TEACHER_SIGNUP_CODE):
+            return jsonify({"error": "Wrong teacher code."}), 403
+
+    uid = request.uid
+    user_ref = db.collection("Users").document(uid)
+    existing = user_ref.get()
+    # Don't let an existing student silently re-register as a teacher without the
+    # code (the code check above already guards the teacher path); preserve role
+    # on repeat student calls so we don't clobber a teacher back down to student.
+    if existing.exists and role == "student":
+        current = (existing.to_dict() or {}).get("role")
+        if current == "teacher":
+            role = "teacher"
+
+    user_ref.set({
+        "email": request.user.get("email"),
+        "role": role,
+        "updated_at": firestore.SERVER_TIMESTAMP,
+    }, merge=True)
+    return jsonify({"uid": uid, "email": request.user.get("email"), "role": role})
+
+
+@app.route('/auth/me', methods=['GET'])
+@require_auth
+def auth_me():
+    """Return the signed-in user's identity and role."""
+    return jsonify({
+        "uid": request.uid,
+        "email": request.user.get("email"),
+        "role": get_role(request.uid),
+    })
+
+
+# ---------- student: chat (cloud-synced per user) ----------
+
+def _user_chats(uid):
+    return db.collection("Users").document(uid).collection("Chats")
+
+
+@app.route('/chats', methods=['GET'])
+@require_auth
+def list_chats():
+    """List the signed-in student's saved conversations, newest first."""
+    try:
+        docs = list(
+            _user_chats(request.uid)
+            .order_by("last_active", direction=firestore.Query.DESCENDING)
+            .stream()
+        )
+    except Exception:
+        # Missing index / no docs yet — fall back to an unordered read.
+        docs = list(_user_chats(request.uid).stream())
+    chats = []
+    for d in docs:
+        m = d.to_dict() or {}
+        chats.append({
+            "id": d.id,
+            "title": m.get("title") or "New chat",
+            "last_active": _ts_seconds(m.get("last_active")),
+        })
+    chats.sort(key=lambda c: c["last_active"], reverse=True)
+    return jsonify({"chats": chats})
+
+
+@app.route('/chats/<chat_id>/messages', methods=['GET'])
+@require_auth
+def chat_messages(chat_id):
+    """Return all messages for one of the user's conversations, oldest first."""
+    chat_ref = _user_chats(request.uid).document(chat_id)
+    if not chat_ref.get().exists:
+        return jsonify({"error": "Chat not found"}), 404
+    docs = list(chat_ref.collection("Messages").order_by("timestamp").stream())
+    messages = []
+    for d in docs:
+        m = d.to_dict() or {}
+        messages.append({
+            "role": m.get("role"),
+            "content": m.get("content", ""),
+            "rules": m.get("rules") or [],
+        })
+    return jsonify({"messages": messages})
+
+
+@app.route('/chats/<chat_id>', methods=['DELETE'])
+@require_auth
+def delete_chat(chat_id):
+    """Delete one of the user's conversations (and its messages)."""
+    chat_ref = _user_chats(request.uid).document(chat_id)
+    snap = chat_ref.get()
+    if not snap.exists:
+        return jsonify({"error": "Chat not found"}), 404
+    try:
+        # Delete messages in batches, then the chat doc itself.
+        msgs = chat_ref.collection("Messages")
+        while True:
+            batch_docs = list(msgs.limit(400).stream())
+            if not batch_docs:
+                break
+            batch = db.batch()
+            for d in batch_docs:
+                batch.delete(d.reference)
+            batch.commit()
+        chat_ref.delete()
+        return jsonify({"status": "deleted", "id": chat_id})
+    except Exception as e:
+        return server_error("Could not delete that conversation.", e)
+
+
 # ---------- student endpoint ----------
 
 @app.route('/chat', methods=['POST'])
+@require_auth
 def chat():
     ip = request.remote_addr or "unknown"
     if rate_limited(ip):
         return jsonify({"error": "Too many requests. Please slow down and try again shortly."}), 429
 
     data = request.get_json(silent=True) or {}
-    session_id = str(data.get("session_id", "default_session"))[:128]
     user_message = data.get("message")
+    # Conversations now live under the signed-in user. chat_id picks an existing
+    # conversation; omit it (or pass a new id) to start a fresh one.
+    chat_id = str(data.get("chat_id") or "").strip()[:128]
 
     if not user_message or not isinstance(user_message, str) or not user_message.strip():
         return jsonify({"error": "No message provided"}), 400
@@ -267,12 +472,17 @@ def chat():
         teacher_rules = [m['metadata']['text'] for m in pinecone_resp['matches'] if 'metadata' in m]
         context_block = "\n".join(teacher_rules)
 
-        session_doc = db.collection('Chat_Sessions').document(session_id)
-        chat_ref = session_doc.collection('Messages')
+        # Resolve (or create) the conversation document for this user.
+        chats_col = _user_chats(request.uid)
+        chat_doc = chats_col.document(chat_id) if chat_id else chats_col.document()
+        chat_id = chat_doc.id
+        msgs_ref = chat_doc.collection('Messages')
+
+        is_new = not chat_doc.get().exists
 
         # Replay the recent conversation so the AI remembers earlier turns, then
         # append the new question as the latest user turn.
-        history = load_history(chat_ref)
+        history = load_history(msgs_ref)
         contents = history + [{"role": "user", "parts": [{"text": user_message}]}]
 
         system_instruction = (
@@ -289,13 +499,24 @@ def chat():
         )
         final_answer = ai_response.text
 
-        # Write a field on the parent doc so it actually "exists" and shows up in
-        # collection queries (a doc with only subcollections is a phantom in Firestore).
-        session_doc.set({"last_active": firestore.SERVER_TIMESTAMP}, merge=True)
-        chat_ref.add({"role": "student", "content": user_message, "timestamp": firestore.SERVER_TIMESTAMP})
-        chat_ref.add({"role": "teacher", "content": final_answer, "timestamp": firestore.SERVER_TIMESTAMP})
+        # Title a brand-new conversation from its opening question.
+        chat_meta = {"last_active": firestore.SERVER_TIMESTAMP}
+        title = None
+        if is_new:
+            title = user_message[:40] + ("…" if len(user_message) > 40 else "")
+            chat_meta["title"] = title
+            chat_meta["created_at"] = firestore.SERVER_TIMESTAMP
+        chat_doc.set(chat_meta, merge=True)
 
-        return jsonify({"response": final_answer, "rules_used": teacher_rules})
+        msgs_ref.add({"role": "student", "content": user_message, "timestamp": firestore.SERVER_TIMESTAMP})
+        msgs_ref.add({"role": "teacher", "content": final_answer, "rules": teacher_rules, "timestamp": firestore.SERVER_TIMESTAMP})
+
+        return jsonify({
+            "response": final_answer,
+            "rules_used": teacher_rules,
+            "chat_id": chat_id,
+            "title": title,
+        })
 
     except Exception as e:
         return server_error("Server issue while answering.", e)
@@ -503,10 +724,8 @@ def stats():
 
 
 @app.route('/upload', methods=['POST'])
+@require_teacher
 def upload():
-    if not check_password(request.form.get("password", "")):
-        return jsonify({"error": "Unauthorized. Wrong teacher password."}), 401
-
     file = request.files.get("file")
     if not file or not file.filename:
         return jsonify({"error": "No file provided"}), 400

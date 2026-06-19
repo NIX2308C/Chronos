@@ -132,6 +132,8 @@
 <p class="font-body-md text-body-md text-on-surface-variant mt-1">From student chat logs. Each conversation is counted once and auto-categorized by topic.</p>
 </div>
 <div class="flex items-center gap-3">
+<!-- Class selector: analytics are shown for one class at a time -->
+<select class="rounded-lg border-outline-variant bg-surface-container-low text-on-background font-label-md text-label-md px-3 py-2.5 focus:border-primary focus:ring-1 focus:ring-primary transition-colors max-w-[180px]" id="classSelect" title="Class"></select>
 <button aria-label="Toggle dark mode" class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" onclick="toggleTheme()" title="Toggle dark mode">
 <span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
 </button>
@@ -228,6 +230,8 @@
   const BASE=Chronos.BASE;
   const $=id=>document.getElementById(id);
   const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let CLASSES=[],ACTIVE_CLASS=null;
+  const CLASS_KEY="chronos_teacher_class";       // shared with the knowledge page
 
   function showToast(msg,ok){
     const t=$("toast");
@@ -258,19 +262,32 @@
     location.replace("login.html?role=teacher");
   }
 
+  async function loadClasses(){
+    CLASSES=await Chronos.listClasses();
+    const sel=$("classSelect");sel.innerHTML="";
+    CLASSES.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
+    let pick=localStorage.getItem(CLASS_KEY);
+    if(!CLASSES.find(c=>c.id===pick))pick=CLASSES.length?CLASSES[0].id:null;
+    ACTIVE_CLASS=pick;
+    if(ACTIVE_CLASS){sel.value=ACTIVE_CLASS;localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);}
+  }
+
   // Gate the page: require a signed-in teacher, then reveal and load analytics.
   Chronos.requireRole("teacher").then(async info=>{
     const em=$("userEmail");if(em){em.textContent=info.email||"Teacher";em.title=info.email||"";}
     $("gate").classList.add("hidden");
     $("app").classList.remove("hidden");
+    await loadClasses();
+    if(!ACTIVE_CLASS){showToast("Create a class on the Knowledge Base page first.",true);return;}
     try{await load();}catch(e){showToast(e.message,false);}
   }).catch(e=>{ $("gate").innerHTML='<p class="font-body-md text-body-md text-error text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>'; });
 
   async function load(){
+    if(!ACTIVE_CLASS){showToast("No class selected.",false);return;}
     $("refreshBtn").disabled=true;
     $("refreshIcon").classList.add("spin");
     try{
-      const d=await api("/stats",{limit:200});
+      const d=await api("/stats",{class_id:ACTIVE_CLASS,limit:200});
       animateCount($("qTotal"),d.total_questions);
       animateCount($("sTotal"),d.total_sessions);
       animateCount($("cTotal"),d.categories.length);
@@ -349,6 +366,7 @@
   // wiring
   $("lockBtn").onclick=lock;
   $("refreshBtn").onclick=()=>{load().catch(e=>showToast(e.message,false));};
+  $("classSelect").onchange=e=>{ACTIVE_CLASS=e.target.value;localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);load().catch(err=>showToast(err.message,false));};
 </script>
 <script src="theme.js"></script>
 </body></html>

@@ -174,9 +174,23 @@
     });
   }
 
+  // --- classes ---
+  // List the caller's classes (teacher: owned + join codes; student: joined).
+  async function listClasses() {
+    const d = await apiJson("/classes", undefined, "GET");
+    return d.classes || [];
+  }
+  // Teacher: create a class. Returns { id, name, join_code, migrated_rules }.
+  function createClass(name) { return apiJson("/classes", { name }); }
+  // Student/teacher: join a class by its code. Returns { id, name }.
+  function joinClass(code) { return apiJson("/classes/join", { join_code: code }); }
+  // Teacher: delete a class and its rules.
+  function deleteClass(id) { return apiJson("/classes/" + encodeURIComponent(id), undefined, "DELETE"); }
+
   window.Chronos = {
     BASE, ready, onUser, idToken, apiFetch, apiJson,
     login, signup, logout, me, requireRole, friendlyAuthError,
+    listClasses, createClass, joinClass, deleteClass,
     get auth() { return _auth; },
   };
 })();

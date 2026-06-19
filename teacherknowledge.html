@@ -132,6 +132,17 @@
 <p class="font-body-md text-body-md text-on-surface-variant mt-1">Manage the rules and documents the AI is allowed to use.</p>
 </div>
 <div class="flex items-center gap-3">
+<!-- Class selector: which class's knowledge base you're editing -->
+<select class="rounded-lg border-outline-variant bg-surface-container-low text-on-background font-label-md text-label-md px-3 py-2.5 focus:border-primary focus:ring-1 focus:ring-primary transition-colors max-w-[180px]" id="classSelect" title="Active class"></select>
+<button class="flex items-center gap-1 px-3 py-2.5 rounded-lg border border-outline text-on-surface-variant hover:bg-surface-container-high font-label-md text-label-md transition-colors" id="newClassBtn" title="Create a class">
+<span class="material-symbols-outlined text-[18px]">add</span> New class
+</button>
+<span class="hidden items-center gap-1.5 px-3 py-2 rounded-lg bg-secondary-container text-on-secondary-container font-label-md text-label-md" id="joinCodePill" title="Share this code with students so they can join">
+<span class="material-symbols-outlined text-[16px]">key</span> <span id="joinCodeVal"></span>
+</span>
+<button class="hidden w-10 h-10 items-center justify-center rounded-lg text-on-surface-variant hover:text-error hover:bg-surface-container-high transition-colors" id="deleteClassBtn" title="Delete this class">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
 <button aria-label="Toggle dark mode" class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" onclick="toggleTheme()" title="Toggle dark mode">
 <span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
 </button>
@@ -222,7 +233,8 @@
 <script>
   // Backend base comes from auth.js (same-origin deployed; dev server otherwise).
   const BASE=Chronos.BASE;
-  let RULES=[];
+  let RULES=[],CLASSES=[],ACTIVE_CLASS=null;
+  const CLASS_KEY="chronos_teacher_class";       // remember the selected class
   const $=id=>document.getElementById(id);
 
   function showToast(msg,ok){
@@ -244,21 +256,71 @@
     location.replace("login.html?role=teacher");
   }
 
+  // Merge the active class into a request body (rule ops are class-scoped).
+  function withClass(body){return Object.assign({},body||{},{class_id:ACTIVE_CLASS});}
+  function activeClassObj(){return CLASSES.find(c=>c.id===ACTIVE_CLASS);}
+
+  function paintClassMeta(){
+    const c=activeClassObj(),has=!!c;
+    $("joinCodePill").classList.toggle("hidden",!has);
+    $("joinCodePill").classList.toggle("flex",has);
+    $("deleteClassBtn").classList.toggle("hidden",!has);
+    $("deleteClassBtn").classList.toggle("flex",has);
+    if(has)$("joinCodeVal").textContent=c.join_code||"";
+  }
+
+  async function loadClasses(preferId){
+    CLASSES=await Chronos.listClasses();
+    const sel=$("classSelect");sel.innerHTML="";
+    CLASSES.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
+    let pick=preferId||localStorage.getItem(CLASS_KEY);
+    if(!CLASSES.find(c=>c.id===pick))pick=CLASSES.length?CLASSES[0].id:null;
+    ACTIVE_CLASS=pick;
+    if(ACTIVE_CLASS){sel.value=ACTIVE_CLASS;localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);}
+    paintClassMeta();
+  }
+
+  async function newClass(){
+    const name=prompt("Name your class (e.g. 'Physics 101'):");
+    if(!name||!name.trim())return;
+    try{
+      const c=await Chronos.createClass(name.trim());
+      showToast("Class created"+(c.migrated_rules?` — moved ${c.migrated_rules} existing rules in`:"")+". Code: "+c.join_code,true);
+      await loadClasses(c.id);
+      loadRules();
+    }catch(e){showToast(e.message,false);}
+  }
+
+  async function removeClass(){
+    const c=activeClassObj();if(!c)return;
+    if(!confirm(`Delete "${c.name}" and all its rules? This cannot be undone.`))return;
+    try{await Chronos.deleteClass(c.id);showToast("Class deleted",true);await loadClasses();loadRules();}
+    catch(e){showToast(e.message,false);}
+  }
+
   // Gate the page: require a signed-in teacher, then reveal the app.
-  Chronos.requireRole("teacher").then(info=>{
+  Chronos.requireRole("teacher").then(async info=>{
     const em=$("userEmail");if(em){em.textContent=info.email||"Teacher";em.title=info.email||"";}
     $("gate").classList.add("hidden");
     $("app").classList.remove("hidden");
+    await loadClasses();
+    if(!ACTIVE_CLASS)showToast("Create your first class to start adding rules.",true);
     loadRules();
   }).catch(e=>{ $("gate").innerHTML='<p class="font-body-md text-body-md text-error text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>'; });
 
+  function ensureClass(){
+    if(!ACTIVE_CLASS){showToast("Create or pick a class first.",false);return false;}
+    return true;
+  }
+
   async function addRule(){
+    if(!ensureClass())return;
     const text=$("ruleText").value.trim();
     const id=$("ruleId").value.trim();
     if(!text){showToast("Rule text is empty",false);return;}
     $("addBtn").disabled=true;
     try{
-      const d=await api("/ingest",{items:[{id:id||undefined,text}]});
+      const d=await api("/ingest",withClass({items:[{id:id||undefined,text}]}));
       showToast("Added. Total rules: "+d.total_vectors,true);
       $("ruleText").value="";$("ruleId").value="";
       loadRules();
@@ -267,13 +329,14 @@
   }
 
   async function bulkAdd(){
+    if(!ensureClass())return;
     const raw=$("ruleText").value.trim();
     if(!raw){showToast("Nothing to add",false);return;}
     const lines=raw.split("\n").map(l=>l.trim()).filter(Boolean);
     if(!lines.length){showToast("No lines found",false);return;}
     $("bulkBtn").disabled=true;
     try{
-      const d=await api("/ingest",{items:lines.map(t=>({text:t}))});
+      const d=await api("/ingest",withClass({items:lines.map(t=>({text:t}))}));
       showToast("Added "+lines.length+" rules. Total: "+d.total_vectors,true);
       $("ruleText").value="";
       loadRules();
@@ -282,9 +345,10 @@
   }
 
   async function loadRules(){
+    if(!ACTIVE_CLASS){RULES=[];$("countPill").textContent="0 rules";renderRules();return;}
     $("refreshIcon").classList.add("spin");
     try{
-      const d=await api("/rules",{});
+      const d=await api("/rules",withClass({}));
       RULES=d.rules||[];
       $("countPill").textContent=(d.total_vectors||0)+" rule"+((d.total_vectors||0)===1?"":"s");
       renderRules();
@@ -321,8 +385,9 @@
   }
 
   async function delRule(id){
+    if(!ensureClass())return;
     if(!confirm("Delete this rule?"))return;
-    try{await api("/delete_rule",{id});showToast("Deleted",true);loadRules();}
+    try{await api("/delete_rule",withClass({id}));showToast("Deleted",true);loadRules();}
     catch(e){showToast(e.message,false);}
   }
 
@@ -338,10 +403,12 @@
   }
 
   async function uploadFile(){
+    if(!ensureClass())return;
     const file=$("fileInput").files[0];
     if(!file)return;
     const form=new FormData();
     form.append("file",file);
+    form.append("class_id",ACTIVE_CLASS);
     $("uploadBtn").disabled=true;
     $("uploadBtn").innerHTML='<span class="material-symbols-outlined text-[18px] spin">progress_activity</span>Extracting…';
     try{
@@ -363,6 +430,9 @@
 
   // wiring
   $("lockBtn").onclick=lock;
+  $("newClassBtn").onclick=newClass;
+  $("deleteClassBtn").onclick=removeClass;
+  $("classSelect").onchange=e=>{ACTIVE_CLASS=e.target.value;localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);paintClassMeta();loadRules();};
   $("addBtn").onclick=addRule;
   $("bulkBtn").onclick=bulkAdd;
   $("refreshBtn").onclick=loadRules;

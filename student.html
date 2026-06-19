@@ -112,6 +112,21 @@
 <span class="material-symbols-outlined text-on-surface-variant text-3xl spin">progress_activity</span>
 </div>
 
+<!-- Join-class gate: the tutor is unusable until the student joins a class -->
+<div class="hidden fixed inset-0 z-40 flex items-center justify-center bg-background p-margin-mobile" id="joinGate">
+<div class="w-full max-w-sm bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-stack-lg text-center">
+<div class="w-14 h-14 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center mx-auto mb-stack-md">
+<span class="material-symbols-outlined text-[28px]">group_add</span>
+</div>
+<h1 class="font-headline-md text-headline-md text-primary mb-1">Join a class</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Enter the code your teacher gave you to start using the tutor.</p>
+<input class="w-full rounded-lg border-outline-variant bg-surface-container-low text-on-background font-body-md text-body-md px-4 py-3 text-center tracking-widest uppercase focus:border-primary focus:ring-1 focus:ring-primary transition-colors" id="joinCodeInput" maxlength="12" placeholder="CLASS CODE" type="text"/>
+<p class="hidden mt-stack-md font-label-md text-label-md text-on-error-container bg-error-container rounded-lg px-3 py-2" id="joinErr"></p>
+<button class="w-full mt-stack-md py-3 bg-primary text-on-primary rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50" id="joinBtn">Join</button>
+<button class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" id="joinLogoutBtn">Sign out</button>
+</div>
+</div>
+
 <!-- Sidebar -->
 <nav class="hidden md:flex h-full w-64 fixed left-0 top-0 bg-surface-container-low flex-col p-stack-md z-10 border-r border-outline-variant">
 <a class="mb-stack-lg flex items-center gap-3 px-1" href="landing.html">
@@ -123,6 +138,16 @@
 <span class="font-label-sm text-label-sm text-on-surface-variant">Student Mode</span>
 </div>
 </a>
+<!-- Class switcher: which class's tutor you're talking to -->
+<div class="mb-stack-md">
+<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider px-2 mb-1">Class</p>
+<div class="flex gap-1">
+<select class="flex-1 min-w-0 rounded-xl border-outline-variant bg-surface-container-low text-on-background font-label-md text-label-md px-3 py-2.5 focus:border-primary focus:ring-1 focus:ring-primary transition-colors" id="classSwitcher" title="Active class"></select>
+<button class="flex-shrink-0 w-10 flex items-center justify-center rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container-high transition-colors" id="joinAnotherBtn" title="Join another class">
+<span class="material-symbols-outlined text-[18px]">add</span>
+</button>
+</div>
+</div>
 <button class="w-full bg-primary text-on-primary font-label-md text-label-md py-3 px-4 rounded-xl mb-stack-md flex items-center justify-center gap-2 hover:opacity-90 transition-opacity" id="newChatBtn">
 <span class="material-symbols-outlined text-lg">add</span> New Chat
 </button>
@@ -237,22 +262,25 @@
     return html;
   }
 
-  // Conversations are now stored server-side per signed-in student (cloud sync),
-  // so they follow the user across devices instead of living in localStorage.
-  // Local chat shape: {id, title, messages:[], loaded:bool, isNew:bool}
+  // Conversations are stored server-side per signed-in student (cloud sync) and
+  // each belongs to a class. The tutor answers from the active class's rules.
+  // Local chat shape: {id, title, classId, messages:[], loaded:bool, isNew:bool}
   //   id      — the server chat_id once saved; a temp id before the first message
   //   loaded  — whether this chat's messages have been fetched from the server
   //   isNew   — a blank conversation not yet persisted on the server
   let chats=[],activeChatId=null,USER=null;
+  let ALL_CHATS=[],CLASSES=[],ACTIVE_CLASS=null;     // class state
+  const CLASS_KEY="chronos_student_class";
   const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),statusDot:document.getElementById("statusDot"),statusText:document.getElementById("statusText"),messages:document.getElementById("messages"),contextBody:document.getElementById("contextBody")};
 
   function tempId(){return"new_"+Math.random().toString(36).slice(2,10);}
   function activeChat(){return chats.find(c=>c.id===activeChatId);}
 
   function newChat(){
+    if(!ACTIVE_CLASS)return;
     // Don't stack blank chats — reuse an existing empty one if present.
     const blank=chats.find(c=>c.isNew&&c.messages.length===0);
-    const c=blank||{id:tempId(),title:"New chat",messages:[],loaded:true,isNew:true};
+    const c=blank||{id:tempId(),title:"New chat",classId:ACTIVE_CLASS,messages:[],loaded:true,isNew:true};
     if(!blank)chats.unshift(c);
     selectChat(c.id);els.input.focus();
   }
@@ -399,15 +427,16 @@
     const el=buildMsgEl(tm);els.messagesInner.appendChild(el);
     const b=el.querySelector(".ai-prose");b.innerHTML='<span class="cursor"></span>';scrollBottom();
     try{
-      // Omit chat_id for a not-yet-saved conversation; the server creates one.
-      const body={message:text};
+      // The tutor answers from this chat's class. Omit chat_id for a not-yet-saved
+      // conversation; the server creates one.
+      const body={message:text,class_id:c.classId||ACTIVE_CLASS};
       if(!c.isNew)body.chat_id=c.id;
       const res=await Chronos.apiFetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       setStatus("online");
       const data=await res.json();
       if(!res.ok||data.error){b.textContent=(data.details||data.error||"Something went wrong. Please try again.");tm.content=b.textContent;setSending(false);return;}
       // Adopt the server's chat id/title for a freshly-created conversation.
-      if(data.chat_id&&c.isNew){c.id=data.chat_id;c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId&&activeChatId.startsWith("new_"))activeChatId=c.id;renderSidebar();}
+      if(data.chat_id&&c.isNew){c.id=data.chat_id;c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId&&activeChatId.startsWith("new_"))activeChatId=c.id;ALL_CHATS.unshift(c);renderSidebar();}
       tm.content=data.response||"";tm.rules=data.rules_used||[];
       b.textContent="";
       typeOut(b,tm.content,()=>{
@@ -441,36 +470,101 @@
     setStatus("offline");
   }
 
+  const $s=id=>document.getElementById(id);
+
   // wiring
   els.sendBtn.onclick=send;
   els.newChatBtn.onclick=newChat;
   els.newChatBtnMobile.onclick=newChat;
   els.input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}});
   els.input.addEventListener("input",()=>{els.input.style.height="auto";els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";});
-  document.getElementById("logoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}location.replace("login.html?role=student");};
+  $s("logoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}location.replace("login.html?role=student");};
+  $s("joinLogoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}location.replace("login.html?role=student");};
+  $s("classSwitcher").onchange=e=>switchClass(e.target.value);
+  $s("joinAnotherBtn").onclick=()=>showJoinGate();
+  $s("joinBtn").onclick=submitJoin;
+  $s("joinCodeInput").addEventListener("keydown",e=>{if(e.key==="Enter")submitJoin();});
 
-  // Load this student's saved conversations from the server.
+  function paintClassSwitcher(){
+    const sel=$s("classSwitcher");sel.innerHTML="";
+    CLASSES.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
+    if(ACTIVE_CLASS)sel.value=ACTIVE_CLASS;
+  }
+
+  // Load classes; returns true if the student is in at least one.
+  async function loadClasses(){
+    try{CLASSES=await Chronos.listClasses();}catch(e){CLASSES=[];}
+    let pick=localStorage.getItem(CLASS_KEY);
+    if(!CLASSES.find(c=>c.id===pick))pick=CLASSES.length?CLASSES[0].id:null;
+    ACTIVE_CLASS=pick;
+    if(ACTIVE_CLASS)localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);
+    paintClassSwitcher();
+    return CLASSES.length>0;
+  }
+
+  function switchClass(id){
+    if(!id||id===ACTIVE_CLASS)return;
+    ACTIVE_CLASS=id;localStorage.setItem(CLASS_KEY,id);
+    paintClassSwitcher();
+    applyClassFilter();
+  }
+
+  // Show only the active class's conversations.
+  function applyClassFilter(){
+    chats=ALL_CHATS.filter(c=>c.classId===ACTIVE_CLASS);
+    activeChatId=null;
+    if(chats.length){renderSidebar();selectChat(chats[0].id);}
+    else newChat();
+  }
+
+  // Load this student's saved conversations (all classes) from the server.
   async function loadChats(){
     try{
       const d=await Chronos.apiJson("/chats",undefined,"GET");
-      chats=(d.chats||[]).map(c=>({id:c.id,title:c.title,messages:[],loaded:false,isNew:false}));
-    }catch(e){chats=[];}
-    if(chats.length){renderSidebar();await selectChat(chats[0].id);}
-    else newChat();
+      ALL_CHATS=(d.chats||[]).map(c=>({id:c.id,title:c.title,classId:c.class_id,messages:[],loaded:false,isNew:false}));
+    }catch(e){ALL_CHATS=[];}
+    applyClassFilter();
+  }
+
+  function showJoinGate(){
+    $s("joinErr").classList.add("hidden");
+    $s("joinCodeInput").value="";
+    $s("joinGate").classList.remove("hidden");
+    $s("joinCodeInput").focus();
+  }
+  function hideJoinGate(){$s("joinGate").classList.add("hidden");}
+
+  async function submitJoin(){
+    const code=$s("joinCodeInput").value.trim().toUpperCase();
+    if(!code){$s("joinErr").textContent="Enter a class code.";$s("joinErr").classList.remove("hidden");return;}
+    $s("joinBtn").disabled=true;
+    try{
+      const cls=await Chronos.joinClass(code);
+      ACTIVE_CLASS=cls.id;localStorage.setItem(CLASS_KEY,cls.id);
+      await loadClasses();
+      ACTIVE_CLASS=cls.id;localStorage.setItem(CLASS_KEY,cls.id);paintClassSwitcher();
+      hideJoinGate();
+      await loadChats();
+    }catch(e){
+      $s("joinErr").textContent=(e&&e.message)||"Could not join.";$s("joinErr").classList.remove("hidden");
+    }
+    $s("joinBtn").disabled=false;
   }
 
   // Gate the page on a signed-in user. Teachers can use the tutor too, so both
   // roles are allowed here (the backend /chat accepts any signed-in user).
   Chronos.requireRole(["student","teacher"]).then(async(info)=>{
     USER=info;
-    const em=document.getElementById("userEmail");em.textContent=info.email||"Account";em.title=info.email||"";
+    const em=$s("userEmail");em.textContent=info.email||"Account";em.title=info.email||"";
     // Show a way back to the teacher panels when a teacher is using the tutor.
-    if(info.role==="teacher"){document.getElementById("teacherBackLink").classList.remove("hidden");}
-    document.getElementById("authGate").remove();
-    await loadChats();
+    if(info.role==="teacher"){$s("teacherBackLink").classList.remove("hidden");}
+    $s("authGate").remove();
+    const hasClass=await loadClasses();
+    if(!hasClass){ showJoinGate(); }
+    else { await loadChats(); }
     checkServer();setInterval(checkServer,15000);
   }).catch(e=>{
-    document.getElementById("authGate").innerHTML='<p class="font-body-md text-body-md text-error text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>';
+    $s("authGate").innerHTML='<p class="font-body-md text-body-md text-error text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>';
   });
 </script>
 <script src="theme.js"></script>

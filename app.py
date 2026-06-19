@@ -2,6 +2,8 @@ import os
 import json
 import time
 import hmac
+import random
+import string
 import logging
 from functools import wraps
 from collections import deque
@@ -215,6 +217,111 @@ def server_error(msg, exc, status=500):
     return jsonify(payload), status
 
 
+# ---------- classes ----------
+# Each class is an isolated knowledge base: its rules live in a Pinecone
+# *namespace* equal to the class id, so a query/upsert/delete only ever touches
+# that one class. Legacy (pre-classes) rules sit in the default namespace ("").
+
+def gen_join_code():
+    """A short, human-friendly class code, guaranteed unique. Avoids easily
+    confused characters (0/O, 1/I)."""
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    for _ in range(20):
+        code = "".join(random.choice(alphabet) for _ in range(6))
+        hit = list(db.collection("Classes").where("join_code", "==", code).limit(1).stream())
+        if not hit:
+            return code
+    # Extremely unlikely fallback — widen with a timestamp suffix.
+    return "".join(random.choice(alphabet) for _ in range(4)) + str(int(time.time()))[-4:]
+
+
+def class_to_dict(doc, include_code=False):
+    d = doc.to_dict() or {}
+    out = {"id": doc.id, "name": d.get("name") or "Untitled class"}
+    if include_code:
+        out["join_code"] = d.get("join_code")
+    return out
+
+
+def get_user_classes(uid, role):
+    """Classes the user can act in. Teachers see the classes they own (with join
+    codes); students see the classes they've joined."""
+    if role == "teacher":
+        docs = db.collection("Classes").where("teacher_uid", "==", uid).stream()
+        return [class_to_dict(d, include_code=True) for d in docs]
+    # student: ids stored on the user doc
+    user = db.collection("Users").document(uid).get()
+    ids = (user.to_dict() or {}).get("class_ids", []) if user.exists else []
+    classes = []
+    for cid in ids:
+        doc = db.collection("Classes").document(cid).get()
+        if doc.exists:
+            classes.append(class_to_dict(doc))
+    return classes
+
+
+def class_owned_by(class_id, uid):
+    """True if `uid` is the teacher who owns `class_id`."""
+    if not class_id:
+        return False
+    doc = db.collection("Classes").document(class_id).get()
+    return doc.exists and (doc.to_dict() or {}).get("teacher_uid") == uid
+
+
+def class_vector_count(class_id):
+    """How many rule vectors a class currently has (its Pinecone namespace)."""
+    try:
+        ns = pinecone_index.describe_index_stats().namespaces.get(class_id)
+        return getattr(ns, "vector_count", 0) if ns else 0
+    except Exception:
+        return 0
+
+
+def user_in_class(uid, class_id, role):
+    """Authorization for class-scoped operations: a teacher must own the class,
+    a student must be an enrolled member."""
+    if not class_id:
+        return False
+    if role == "teacher":
+        return class_owned_by(class_id, uid)
+    member = db.collection("Classes").document(class_id).collection("Members").document(uid).get()
+    return member.exists
+
+
+def migrate_default_rules_to(class_id):
+    """One-time move of legacy global rules (Pinecone default namespace) into the
+    given class namespace, so nothing is lost when classes are introduced.
+    Guarded by a Firestore flag so it only ever runs once."""
+    flag_ref = db.collection("Meta").document("migration")
+    flag = flag_ref.get()
+    if flag.exists and (flag.to_dict() or {}).get("legacy_rules_moved"):
+        return 0
+    try:
+        stats = pinecone_index.describe_index_stats()
+        default_ns = stats.namespaces.get("")
+        count = getattr(default_ns, "vector_count", 0) if default_ns else 0
+        moved = 0
+        if count:
+            zero = [0.0] * EMBED_DIM
+            resp = pinecone_index.query(
+                vector=zero, top_k=min(count, 1000),
+                include_metadata=True, include_values=True, namespace="",
+            )
+            vectors = [
+                {"id": m["id"], "values": m["values"], "metadata": m.get("metadata", {})}
+                for m in resp["matches"]
+            ]
+            if vectors:
+                pinecone_index.upsert(vectors=vectors, namespace=class_id)
+                pinecone_index.delete(ids=[v["id"] for v in vectors], namespace="")
+                moved = len(vectors)
+    except Exception:
+        logger.exception("Legacy rule migration failed; continuing without it.")
+        moved = 0
+    flag_ref.set({"legacy_rules_moved": True, "moved_at": firestore.SERVER_TIMESTAMP}, merge=True)
+    return moved
+
+
 def load_history(chat_ref, limit=HISTORY_TURNS):
     """Return the most recent stored messages as Gemini 'contents' turns
     (oldest first) so the model can see the conversation so far.
@@ -364,6 +471,92 @@ def auth_me():
     })
 
 
+# ---------- classes ----------
+
+@app.route('/classes', methods=['GET'])
+@require_auth
+def list_classes():
+    """List the classes the caller can act in (teacher: owned + join codes;
+    student: joined)."""
+    role = get_role(request.uid)
+    return jsonify({"classes": get_user_classes(request.uid, role), "role": role})
+
+
+@app.route('/classes', methods=['POST'])
+@require_teacher
+def create_class():
+    """Create a class owned by the calling teacher. The teacher's FIRST class
+    also absorbs any legacy global rules. Body: { name }"""
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()[:80]
+    if not name:
+        return jsonify({"error": "Class name is required"}), 400
+    try:
+        is_first = not list(
+            db.collection("Classes").where("teacher_uid", "==", request.uid).limit(1).stream()
+        )
+        doc = db.collection("Classes").document()
+        doc.set({
+            "name": name,
+            "join_code": gen_join_code(),
+            "teacher_uid": request.uid,
+            "created_at": firestore.SERVER_TIMESTAMP,
+        })
+        migrated = migrate_default_rules_to(doc.id) if is_first else 0
+        result = class_to_dict(doc.get(), include_code=True)
+        result["migrated_rules"] = migrated
+        return jsonify(result)
+    except Exception as e:
+        return server_error("Could not create the class.", e)
+
+
+@app.route('/classes/join', methods=['POST'])
+@require_auth
+def join_class():
+    """Join a class by its code. Body: { join_code }"""
+    data = request.get_json(silent=True) or {}
+    code = (data.get("join_code") or "").strip().upper()
+    if not code:
+        return jsonify({"error": "A join code is required"}), 400
+    try:
+        hit = list(db.collection("Classes").where("join_code", "==", code).limit(1).stream())
+        if not hit:
+            return jsonify({"error": "No class found for that code."}), 404
+        cls = hit[0]
+        cls.reference.collection("Members").document(request.uid).set({
+            "email": request.user.get("email"),
+            "joined_at": firestore.SERVER_TIMESTAMP,
+        }, merge=True)
+        db.collection("Users").document(request.uid).set(
+            {"class_ids": firestore.ArrayUnion([cls.id])}, merge=True
+        )
+        return jsonify(class_to_dict(cls))
+    except Exception as e:
+        return server_error("Could not join that class.", e)
+
+
+@app.route('/classes/<class_id>', methods=['DELETE'])
+@require_teacher
+def delete_class(class_id):
+    """Delete a class the teacher owns: its rules (Pinecone namespace), member
+    records, and the class document."""
+    if not class_owned_by(class_id, request.uid):
+        return jsonify({"error": "Class not found"}), 404
+    try:
+        try:
+            pinecone_index.delete(delete_all=True, namespace=class_id)
+        except Exception:
+            # Namespace may not exist yet (no rules added) — that's fine.
+            logger.info("No Pinecone namespace to clear for class %s", class_id)
+        cls_ref = db.collection("Classes").document(class_id)
+        for member in cls_ref.collection("Members").stream():
+            member.reference.delete()
+        cls_ref.delete()
+        return jsonify({"status": "deleted", "id": class_id})
+    except Exception as e:
+        return server_error("Could not delete the class.", e)
+
+
 # ---------- student: chat (cloud-synced per user) ----------
 
 def _user_chats(uid):
@@ -389,6 +582,7 @@ def list_chats():
         chats.append({
             "id": d.id,
             "title": m.get("title") or "New chat",
+            "class_id": m.get("class_id"),
             "last_active": _ts_seconds(m.get("last_active")),
         })
     chats.sort(key=lambda c: c["last_active"], reverse=True)
@@ -453,6 +647,11 @@ def chat():
     # Conversations now live under the signed-in user. chat_id picks an existing
     # conversation; omit it (or pass a new id) to start a fresh one.
     chat_id = str(data.get("chat_id") or "").strip()[:128]
+    # The tutor only answers from the chosen class's knowledge base, and the user
+    # must belong to that class — this is what stops non-members using the app.
+    class_id = (data.get("class_id") or "").strip()
+    if not user_in_class(request.uid, class_id, get_role(request.uid)):
+        return jsonify({"error": "Join this class before using the tutor."}), 403
 
     if not user_message or not isinstance(user_message, str) or not user_message.strip():
         return jsonify({"error": "No message provided"}), 400
@@ -467,6 +666,7 @@ def chat():
             vector=question_embedding,
             top_k=2,
             include_metadata=True,
+            namespace=class_id,
         )
 
         teacher_rules = [m['metadata']['text'] for m in pinecone_resp['matches'] if 'metadata' in m]
@@ -500,7 +700,7 @@ def chat():
         final_answer = ai_response.text
 
         # Title a brand-new conversation from its opening question.
-        chat_meta = {"last_active": firestore.SERVER_TIMESTAMP}
+        chat_meta = {"last_active": firestore.SERVER_TIMESTAMP, "class_id": class_id}
         title = None
         if is_new:
             title = user_message[:40] + ("…" if len(user_message) > 40 else "")
@@ -527,10 +727,14 @@ def chat():
 @app.route('/ingest', methods=['POST'])
 @require_teacher
 def ingest():
-    """Add one or more rules/documents to Pinecone.
-    Body: { password, items: [{ id?, text }, ...] }  OR  { password, text, id? }
+    """Add one or more rules to a class's knowledge base.
+    Body: { class_id, items: [{ id?, text }, ...] }  OR  { class_id, text, id? }
     """
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
+    class_id = (data.get("class_id") or "").strip()
+    if not class_owned_by(class_id, request.uid):
+        return jsonify({"error": "Unknown class, or you don't own it."}), 403
+
     items = data.get("items")
     if not items:
         if data.get("text"):
@@ -558,23 +762,25 @@ def ingest():
 
     if vectors:
         try:
-            pinecone_index.upsert(vectors=vectors)
+            pinecone_index.upsert(vectors=vectors, namespace=class_id)
         except Exception as e:
             return server_error("Upsert failed.", e)
 
-    stats = pinecone_index.describe_index_stats()
-    return jsonify({"results": results, "total_vectors": stats.total_vector_count})
+    return jsonify({"results": results, "total_vectors": class_vector_count(class_id)})
 
 
 @app.route('/rules', methods=['POST'])
 @require_teacher
 def list_rules():
-    """List stored rules. Pinecone has no 'list all' so we query broadly.
-    Body: { password }
+    """List a class's rules. Pinecone has no 'list all' so we query broadly
+    within the class namespace. Body: { class_id }
     """
+    data = request.get_json(silent=True) or {}
+    class_id = (data.get("class_id") or "").strip()
+    if not class_owned_by(class_id, request.uid):
+        return jsonify({"error": "Unknown class, or you don't own it."}), 403
     try:
-        stats = pinecone_index.describe_index_stats()
-        count = stats.total_vector_count
+        count = class_vector_count(class_id)
         if count == 0:
             return jsonify({"rules": [], "total_vectors": 0})
         zero = [0.0] * EMBED_DIM
@@ -582,6 +788,7 @@ def list_rules():
             vector=zero,
             top_k=min(count, 100),
             include_metadata=True,
+            namespace=class_id,
         )
         rules = [{"id": m["id"], "text": m["metadata"].get("text", "")} for m in resp["matches"]]
         return jsonify({"rules": rules, "total_vectors": count})
@@ -592,13 +799,16 @@ def list_rules():
 @app.route('/delete_rule', methods=['POST'])
 @require_teacher
 def delete_rule():
-    """Delete a rule by id. Body: { password, id }"""
-    data = request.get_json()
+    """Delete a rule by id from a class. Body: { class_id, id }"""
+    data = request.get_json(silent=True) or {}
+    class_id = (data.get("class_id") or "").strip()
+    if not class_owned_by(class_id, request.uid):
+        return jsonify({"error": "Unknown class, or you don't own it."}), 403
     rid = data.get("id")
     if not rid:
         return jsonify({"error": "No id provided"}), 400
     try:
-        pinecone_index.delete(ids=[rid])
+        pinecone_index.delete(ids=[rid], namespace=class_id)
         return jsonify({"status": "deleted", "id": rid})
     except Exception as e:
         return server_error("Delete failed.", e)
@@ -649,10 +859,16 @@ def categorize_conversations(convos):
 @app.route('/stats', methods=['POST'])
 @require_teacher
 def stats():
-    """Aggregate analytics from Firestore chat logs.
-    Body: { password, limit? }
+    """Per-class analytics from Firestore chat logs. Body: { class_id, limit? }
+
+    Scoped to one class the teacher owns: we walk the class's members and read
+    each member's conversations for this class. This keeps a teacher's analytics
+    to their own class (no cross-teacher leakage) and needs no special index.
     """
     data = request.get_json(silent=True) or {}
+    class_id = (data.get("class_id") or "").strip()
+    if not class_owned_by(class_id, request.uid):
+        return jsonify({"error": "Unknown class, or you don't own it."}), 403
     try:
         limit = int(data.get("limit", 200))
     except (TypeError, ValueError):
@@ -660,31 +876,29 @@ def stats():
     limit = max(1, min(limit, 1000))
 
     try:
-        # Use a collection-group query so we pick up every Messages doc even if its
-        # parent session document is a Firestore "phantom" (subcollection only, no fields).
-        # Filtering role in Python avoids needing a composite index.
-        #
-        # Group student messages by their parent session: each session is one
-        # conversation/assignment. A follow-up answer in the same conversation must
-        # NOT add another question or topic count — the whole conversation counts once.
-        sessions = {}          # session id -> list of (timestamp, content)
-        session_ids = set()
-        for m in db.collection_group('Messages').stream():
-            d = m.to_dict()
-            sess_ref = m.reference.parent.parent
-            sid = sess_ref.id if sess_ref is not None else None
-            if sid is not None:
-                session_ids.add(sid)
-            if d.get("role") != "student":
-                continue
-            content = (d.get("content") or "").strip()
-            if not content:
-                continue
-            # Orphan messages (no parent session) each stand alone.
-            key = sid if sid is not None else f"_orphan_{m.id}"
-            sessions.setdefault(key, []).append((d.get("timestamp"), content))
-
-        session_count = len(session_ids)
+        # One conversation = one chat doc. A follow-up answer in the same chat must
+        # NOT count as another question/topic — the whole conversation counts once.
+        sessions = {}          # chat id -> list of (timestamp, content)
+        session_count = 0
+        member_uids = [
+            m.id for m in
+            db.collection("Classes").document(class_id).collection("Members").stream()
+        ]
+        for uid in member_uids:
+            chats = (
+                db.collection("Users").document(uid).collection("Chats")
+                .where("class_id", "==", class_id).stream()
+            )
+            for chat in chats:
+                session_count += 1
+                for msg in chat.reference.collection("Messages").stream():
+                    d = msg.to_dict() or {}
+                    if d.get("role") != "student":
+                        continue
+                    content = (d.get("content") or "").strip()
+                    if not content:
+                        continue
+                    sessions.setdefault(chat.id, []).append((d.get("timestamp"), content))
 
         # Collapse each conversation to one representative question + a little context.
         convos = []
@@ -726,6 +940,10 @@ def stats():
 @app.route('/upload', methods=['POST'])
 @require_teacher
 def upload():
+    class_id = (request.form.get("class_id") or "").strip()
+    if not class_owned_by(class_id, request.uid):
+        return jsonify({"error": "Unknown class, or you don't own it."}), 403
+
     file = request.files.get("file")
     if not file or not file.filename:
         return jsonify({"error": "No file provided"}), 400
@@ -772,12 +990,11 @@ def upload():
 
     if vectors:
         try:
-            pinecone_index.upsert(vectors=vectors)
+            pinecone_index.upsert(vectors=vectors, namespace=class_id)
         except Exception as e:
             return server_error("Upsert failed.", e)
 
-    stats = pinecone_index.describe_index_stats()
-    return jsonify({"chunks": len(chunks), "results": results, "total_vectors": stats.total_vector_count})
+    return jsonify({"chunks": len(chunks), "results": results, "total_vectors": class_vector_count(class_id)})
 
 
 @app.route('/health', methods=['GET'])

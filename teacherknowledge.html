@@ -133,7 +133,11 @@
 </div>
 <div class="flex items-center gap-3">
 <!-- Class selector: which class's knowledge base you're editing -->
-<select class="rounded-lg border-outline-variant bg-surface-container-low text-on-background font-label-md text-label-md px-3 py-2.5 focus:border-primary focus:ring-1 focus:ring-primary transition-colors max-w-[180px]" id="classSelect" title="Active class"></select>
+<div class="relative">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">school</span>
+<select class="appearance-none rounded-xl border border-outline-variant bg-surface-container-low text-on-background font-label-md text-label-md pl-9 pr-9 py-2.5 max-w-[200px] hover:bg-surface-container-high focus:border-primary focus:ring-2 focus:ring-primary/40 outline-none transition-colors cursor-pointer" id="classSelect" title="Active class"></select>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
+</div>
 <button class="flex items-center gap-1 px-3 py-2.5 rounded-lg border border-outline text-on-surface-variant hover:bg-surface-container-high font-label-md text-label-md transition-colors" id="newClassBtn" title="Create a class">
 <span class="material-symbols-outlined text-[18px]">add</span> New class
 </button>
@@ -184,7 +188,7 @@
 <span class="material-symbols-outlined text-secondary text-2xl">upload_file</span>
 <h3 class="font-headline-md text-headline-md text-primary">Upload a file</h3>
 </div>
-<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Extract and store text from a PDF, Word doc, or text file. Large files are split into chunks automatically.</p>
+<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">We read the text out of your file, split it into small passages, and store them in this class's knowledge base. When a student asks a question, the tutor pulls the most relevant passages and answers only from them.</p>
 <div class="border-2 border-dashed border-outline-variant rounded-xl p-8 text-center cursor-pointer hover:border-primary hover:bg-surface-container-low transition-colors" id="dropZone">
 <span class="material-symbols-outlined text-on-surface-variant text-3xl mb-2">cloud_upload</span>
 <p class="font-body-md text-body-md text-on-surface">Drag &amp; drop a file, or <span class="text-secondary font-semibold underline" id="browseLink">browse</span></p>
@@ -234,6 +238,7 @@
   // Backend base comes from auth.js (same-origin deployed; dev server otherwise).
   const BASE=Chronos.BASE;
   let RULES=[],CLASSES=[],ACTIVE_CLASS=null;
+  let selectedFile=null;                         // the file chosen to upload (browse or drop)
   const CLASS_KEY="chronos_teacher_class";       // remember the selected class
   const $=id=>document.getElementById(id);
 
@@ -395,6 +400,7 @@
 
   function pickFile(file){
     if(!file)return;
+    selectedFile=file;
     $("fileName").textContent=file.name;
     $("fileSize").textContent=fmtSize(file.size);
     $("fileInfo").classList.remove("hidden");
@@ -402,30 +408,52 @@
     $("uploadBtn").disabled=false;
   }
 
+  function clearFile(){
+    selectedFile=null;
+    $("fileInput").value="";
+    $("fileInfo").classList.add("hidden");
+    $("fileInfo").classList.remove("flex");
+    $("uploadBtn").disabled=true;
+  }
+
+  function setUploadBtn(busy){
+    const b=$("uploadBtn");
+    if(busy){
+      b.disabled=true;
+      b.innerHTML='<span class="material-symbols-outlined text-[18px] spin">progress_activity</span>Extracting…';
+    }else{
+      b.disabled=false;
+      b.textContent="Upload & extract";
+    }
+  }
+
   async function uploadFile(){
     if(!ensureClass())return;
-    const file=$("fileInput").files[0];
-    if(!file)return;
+    const file=selectedFile;
+    if(!file){showToast("Choose a file first.",false);return;}
     const form=new FormData();
     form.append("file",file);
     form.append("class_id",ACTIVE_CLASS);
-    $("uploadBtn").disabled=true;
-    $("uploadBtn").innerHTML='<span class="material-symbols-outlined text-[18px] spin">progress_activity</span>Extracting…';
+    setUploadBtn(true);
     try{
       let res;
       try{res=await Chronos.apiFetch("/upload",{method:"POST",body:form});}
       catch{throw new Error("Cannot reach server — is app.py running on port 5000?");}
-      const data=await res.json();
-      if(res.status===401||res.status===403)throw new Error(data.error||"Not authorized");
-      if(!res.ok||data.error)throw new Error(data.details||data.error||"Upload failed");
+      // The server may answer with a non-JSON body (e.g. a 413 when the file is
+      // too large) — read text first so the real reason isn't swallowed.
+      const raw=await res.text();
+      let data={};
+      try{data=raw?JSON.parse(raw):{};}catch(e){data={};}
+      if(res.status===413)throw new Error("That file is too large to upload.");
+      if(res.status===401||res.status===403)throw new Error(data.error||"You're not allowed to upload to this class.");
+      if(!res.ok||data.error)throw new Error(data.details||data.error||("Upload failed ("+res.status+")."));
       showToast(`"${file.name}" → ${data.chunks} chunks stored. Total rules: ${data.total_vectors}`,true);
-      $("fileInput").value="";
-      $("fileInfo").classList.add("hidden");
-      $("fileInfo").classList.remove("flex");
+      clearFile();           // success: reset the picker, button goes disabled
       loadRules();
-    }catch(e){showToast(e.message,false);}
-    $("uploadBtn").disabled=true;
-    $("uploadBtn").textContent="Upload & extract";
+    }catch(e){
+      showToast(e.message,false);
+      setUploadBtn(false);   // failure: let the teacher try again
+    }
   }
 
   // wiring
@@ -444,7 +472,10 @@
   $("dropZone").addEventListener("click",()=>$("fileInput").click());
   $("dropZone").addEventListener("dragover",e=>{e.preventDefault();$("dropZone").classList.add("border-primary","bg-surface-container-low");});
   $("dropZone").addEventListener("dragleave",()=>$("dropZone").classList.remove("border-primary","bg-surface-container-low"));
-  $("dropZone").addEventListener("drop",e=>{e.preventDefault();$("dropZone").classList.remove("border-primary","bg-surface-container-low");const f=e.dataTransfer.files[0];if(f){$("fileInput").files=e.dataTransfer.files;pickFile(f);}});
+  $("dropZone").addEventListener("drop",e=>{e.preventDefault();$("dropZone").classList.remove("border-primary","bg-surface-container-low");const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)pickFile(f);});
+  // Stop a near-miss drop anywhere else on the page from making the browser
+  // navigate away to the dropped file (which looks like "upload doesn't work").
+  ["dragover","drop"].forEach(ev=>window.addEventListener(ev,e=>{if(e.target!==$("fileInput"))e.preventDefault();}));
 </script>
 <script src="theme.js"></script>
 </body></html>

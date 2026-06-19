@@ -114,7 +114,7 @@
 
 <!-- Join-class gate: the tutor is unusable until the student joins a class -->
 <div class="hidden fixed inset-0 z-40 flex items-center justify-center bg-background p-margin-mobile" id="joinGate">
-<div class="w-full max-w-sm bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-stack-lg text-center">
+<div class="w-full max-w-sm bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-stack-lg text-center" id="joinCard">
 <div class="w-14 h-14 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center mx-auto mb-stack-md">
 <span class="material-symbols-outlined text-[28px]">group_add</span>
 </div>
@@ -142,7 +142,11 @@
 <div class="mb-stack-md">
 <p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider px-2 mb-1">Class</p>
 <div class="flex gap-1">
-<select class="flex-1 min-w-0 rounded-xl border-outline-variant bg-surface-container-low text-on-background font-label-md text-label-md px-3 py-2.5 focus:border-primary focus:ring-1 focus:ring-primary transition-colors" id="classSwitcher" title="Active class"></select>
+<div class="relative flex-1 min-w-0">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">school</span>
+<select class="appearance-none w-full min-w-0 rounded-xl border border-outline-variant bg-surface-container-low text-on-background font-label-md text-label-md pl-9 pr-9 py-2.5 hover:bg-surface-container-high focus:border-primary focus:ring-2 focus:ring-primary/40 outline-none transition-colors cursor-pointer" id="classSwitcher" title="Active class"></select>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
+</div>
 <button class="flex-shrink-0 w-10 flex items-center justify-center rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container-high transition-colors" id="joinAnotherBtn" title="Join another class">
 <span class="material-symbols-outlined text-[18px]">add</span>
 </button>
@@ -534,6 +538,23 @@
   }
   function hideJoinGate(){$s("joinGate").classList.add("hidden");}
 
+  // Teachers own classes — they should never be asked to *join* one with a code.
+  // If a teacher reaches the tutor without a class, point them at the Knowledge
+  // Base to create one instead of showing the student join-code box.
+  function showTeacherNoClassGate(){
+    $s("joinCard").innerHTML=
+      '<div class="w-14 h-14 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center mx-auto mb-stack-md">'+
+        '<span class="material-symbols-outlined text-[28px]">school</span></div>'+
+      '<h1 class="font-headline-md text-headline-md text-primary mb-1">Create a class first</h1>'+
+      '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You don’t have any classes yet. Create one in the Knowledge Base to start using the tutor with your own material.</p>'+
+      '<a class="w-full inline-flex items-center justify-center gap-2 py-3 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity" href="teacherknowledge.html">'+
+        '<span class="material-symbols-outlined text-[18px]">add</span> Go to Knowledge Base</a>'+
+      '<button class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" id="teacherGateLogout">Sign out</button>';
+    const out=$s("teacherGateLogout");
+    if(out)out.onclick=async()=>{try{await Chronos.logout();}catch(e){}location.replace("login.html?role=teacher");};
+    $s("joinGate").classList.remove("hidden");
+  }
+
   async function submitJoin(){
     const code=$s("joinCodeInput").value.trim().toUpperCase();
     if(!code){$s("joinErr").textContent="Enter a class code.";$s("joinErr").classList.remove("hidden");return;}
@@ -560,7 +581,7 @@
     if(info.role==="teacher"){$s("teacherBackLink").classList.remove("hidden");}
     $s("authGate").remove();
     const hasClass=await loadClasses();
-    if(!hasClass){ showJoinGate(); }
+    if(!hasClass){ info.role==="teacher" ? showTeacherNoClassGate() : showJoinGate(); }
     else { await loadChats(); }
     checkServer();setInterval(checkServer,15000);
   }).catch(e=>{

@@ -1,4 +1,5 @@
 import os
+import gc
 import json
 import time
 import hmac
@@ -70,7 +71,7 @@ ALLOWED_ORIGINS = [
 ]
 
 # Reject oversized request bodies (uploads / chat payloads) to limit DoS/memory abuse.
-MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "20"))
+MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "10"))
 MAX_MESSAGE_CHARS = 8000
 
 # Lightweight per-IP rate limit for the unauthenticated /chat endpoint.
@@ -973,27 +974,47 @@ def upload():
         return jsonify({"error": "No text could be extracted from the file"}), 400
 
     chunks = chunk_text(text)
+    # Drop the source text (and its normalized copy inside chunk_text) before we
+    # start embedding — on a small instance these copies add up fast.
+    del text
+    gc.collect()
     if not chunks:
         return jsonify({"error": "File produced no usable text chunks"}), 400
 
-    vectors = []
-    results = []
+    # Embed and upsert in batches so peak memory stays flat regardless of how
+    # large the file is: we never hold more than UPSERT_BATCH vectors at once.
+    UPSERT_BATCH = 50
+    source = file.filename
     base_id = f"file_{int(time.time()*1000)}"
-    for i, chunk in enumerate(chunks):
-        rid = f"{base_id}_{i}"
-        try:
-            values = embed(chunk)
-            vectors.append({"id": rid, "values": values, "metadata": {"text": chunk, "source": file.filename}})
-            results.append({"id": rid, "status": "ok"})
-        except Exception as e:
-            results.append({"id": rid, "status": "error", "detail": str(e)})
+    results = []
+    pending = []
+    stored = 0
 
-    if vectors:
-        try:
-            pinecone_index.upsert(vectors=vectors, namespace=class_id)
-        except Exception as e:
-            return server_error("Upsert failed.", e)
+    def flush():
+        nonlocal pending, stored
+        if not pending:
+            return
+        pinecone_index.upsert(vectors=pending, namespace=class_id)
+        stored += len(pending)
+        pending = []
+        gc.collect()
 
+    try:
+        for i, chunk in enumerate(chunks):
+            rid = f"{base_id}_{i}"
+            try:
+                values = embed(chunk)
+                pending.append({"id": rid, "values": values, "metadata": {"text": chunk, "source": source}})
+                results.append({"id": rid, "status": "ok"})
+            except Exception as e:
+                results.append({"id": rid, "status": "error", "detail": str(e)})
+            if len(pending) >= UPSERT_BATCH:
+                flush()
+        flush()
+    except Exception as e:
+        return server_error("Upsert failed.", e)
+
+    gc.collect()
     return jsonify({"chunks": len(chunks), "results": results, "total_vectors": class_vector_count(class_id)})
 
 

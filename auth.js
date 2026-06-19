@@ -150,20 +150,23 @@
     return data;
   }
 
-  // Gate a page: ensure a signed-in user with the required role, else redirect to
-  // login. Returns the user object, or never resolves (redirects) if unauthorized.
-  function requireRole(role) {
+  // Gate a page: ensure a signed-in user whose role is allowed, else redirect to
+  // login. `roles` is a single role or an array (e.g. ["student","teacher"] for a
+  // page both may use). Returns the user object, or never resolves (redirects).
+  function requireRole(roles) {
+    const allowed = Array.isArray(roles) ? roles : [roles];
+    const primary = allowed[0];
     return new Promise((resolve) => {
       onUser(async (user) => {
         if (!user) {
-          location.replace("login.html?role=" + encodeURIComponent(role));
+          location.replace("login.html?role=" + encodeURIComponent(primary));
           return;
         }
         let info;
         try { info = await me(); } catch (e) { info = null; }
-        if (!info || (role && info.role !== role)) {
-          // Signed in but wrong/unknown role — send to login to pick correctly.
-          location.replace("login.html?role=" + encodeURIComponent(role) + "&denied=1");
+        if (!info || (allowed.length && allowed.indexOf(info.role) === -1)) {
+          // Signed in but role not allowed here — send to login to pick correctly.
+          location.replace("login.html?role=" + encodeURIComponent(primary) + "&denied=1");
           return;
         }
         resolve(info);

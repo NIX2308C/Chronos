@@ -126,6 +126,9 @@
 <button class="w-full bg-primary text-on-primary font-label-md text-label-md py-3 px-4 rounded-xl mb-stack-md flex items-center justify-center gap-2 hover:opacity-90 transition-opacity" id="newChatBtn">
 <span class="material-symbols-outlined text-lg">add</span> New Chat
 </button>
+<a class="hidden w-full mb-stack-md flex items-center gap-3 px-4 py-2.5 text-on-surface-variant hover:bg-surface-container-high rounded-xl font-label-md text-label-md transition-colors border border-outline-variant" href="teacherknowledge.html" id="teacherBackLink">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span> Teacher panel
+</a>
 <p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider px-2 mb-2">Conversations</p>
 <div class="flex-1 overflow-y-auto chat-scroll -mx-1 px-1 space-y-1" id="chatList"></div>
 <div class="mt-auto pt-stack-md border-t border-outline-variant">
@@ -456,10 +459,13 @@
     else newChat();
   }
 
-  // Gate the page on a signed-in student, then boot.
-  Chronos.requireRole("student").then(async(info)=>{
+  // Gate the page on a signed-in user. Teachers can use the tutor too, so both
+  // roles are allowed here (the backend /chat accepts any signed-in user).
+  Chronos.requireRole(["student","teacher"]).then(async(info)=>{
     USER=info;
     const em=document.getElementById("userEmail");em.textContent=info.email||"Account";em.title=info.email||"";
+    // Show a way back to the teacher panels when a teacher is using the tutor.
+    if(info.role==="teacher"){document.getElementById("teacherBackLink").classList.remove("hidden");}
     document.getElementById("authGate").remove();
     await loadChats();
     checkServer();setInterval(checkServer,15000);

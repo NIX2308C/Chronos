@@ -49,7 +49,7 @@ FIREBASE_PROJECT_ID=your-project-id
 FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
 ```
 
-You must also enable **Email/Password** sign-in in the Firebase console (Authentication → Sign-in method). A few optional overrides exist too (`ALLOWED_ORIGINS`, `MAX_UPLOAD_MB`, `CHAT_RATE_LIMIT`, `FLASK_DEBUG`). Firebase admin credentials are read from `firebase_credentials.json` locally, or the `FIREBASE_CREDENTIALS_JSON` env var when deployed.
+You must also enable **Email/Password** sign-in in the Firebase console (Authentication → Sign-in method). A few optional overrides exist too (`ALLOWED_ORIGINS`, `MAX_UPLOAD_MB` (default 10), `CHAT_RATE_LIMIT`, `FLASK_DEBUG`). Firebase admin credentials are read from `firebase_credentials.json` locally, or the `FIREBASE_CREDENTIALS_JSON` env var when deployed.
 
 Then start it:
 
@@ -62,6 +62,8 @@ and open http://localhost:5000.
 ## Deploying
 
 There's a `render.yaml` (and a `Procfile`) set up for Render. Put the secrets in the Render dashboard rather than committing them. The Werkzeug debugger stays off unless you explicitly set `FLASK_DEBUG=1`.
+
+**A note on memory:** the Google, Pinecone, and Firebase SDKs are heavy — just importing them eats a few hundred MB — so there isn't much room to spare on a 512 MB box (Render's free and Starter plans). To avoid blowing past that on big files, uploads are processed in batches: the document is read, chunked, embedded, and pushed to Pinecone a little at a time instead of all at once, so memory stays roughly flat no matter how large the file is. `MAX_UPLOAD_MB` also defaults to 10. If you're still hitting out-of-memory errors when adding documents, drop that number lower or move up to a 2 GB instance.
 
 ## Endpoints
 

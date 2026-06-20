@@ -215,6 +215,9 @@
 </div>
 <span class="font-label-sm text-label-sm text-on-surface-variant px-2" id="countPill">0 rules</span>
 <div class="h-6 w-px bg-outline-variant"></div>
+<button class="px-3 py-2 flex items-center gap-1 font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" id="exportBtn" title="Copy rules to clipboard for Bulk add">
+<span class="material-symbols-outlined text-[18px]">content_copy</span> Export
+</button>
 <button class="px-3 py-2 flex items-center gap-1 font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" id="refreshBtn">
 <span class="material-symbols-outlined text-[18px]" id="refreshIcon">refresh</span> Refresh
 </button>
@@ -349,6 +352,37 @@
     $("bulkBtn").disabled=false;
   }
 
+  // Copy this class's hand-written rules to the clipboard, one per line — the exact
+  // format "Bulk add (one per line)" consumes, so they round-trip into another class.
+  // File-derived chunks (id "file_…") are excluded.
+  async function exportRules(){
+    const lines=RULES
+      .filter(r=>!String(r.id||"").startsWith("file_"))
+      .map(r=>(r.text||"").trim())
+      .filter(Boolean);
+    if(!lines.length){showToast("No rules to export",false);return;}
+    const text=lines.join("\n");
+    const ok=msg=>showToast("Copied "+lines.length+" rule"+(lines.length===1?"":"s")+" to clipboard — paste into Bulk add",true);
+    try{
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(text);
+        ok();return;
+      }
+      throw new Error("no clipboard api");
+    }catch(e){
+      // Fallback for non-secure contexts / older browsers without the async clipboard API.
+      try{
+        const ta=document.createElement("textarea");
+        ta.value=text;ta.style.position="fixed";ta.style.top="-9999px";
+        document.body.appendChild(ta);ta.focus();ta.select();
+        const done=document.execCommand("copy");
+        document.body.removeChild(ta);
+        if(!done)throw new Error("copy failed");
+        ok();
+      }catch(e2){showToast("Couldn't copy to clipboard",false);}
+    }
+  }
+
   async function loadRules(){
     if(!ACTIVE_CLASS){RULES=[];$("countPill").textContent="0 rules";renderRules();return;}
     $("refreshIcon").classList.add("spin");
@@ -463,6 +497,7 @@
   $("classSelect").onchange=e=>{ACTIVE_CLASS=e.target.value;localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);paintClassMeta();loadRules();};
   $("addBtn").onclick=addRule;
   $("bulkBtn").onclick=bulkAdd;
+  $("exportBtn").onclick=exportRules;
   $("refreshBtn").onclick=loadRules;
   $("uploadBtn").onclick=uploadFile;
   $("searchInput").addEventListener("input",renderRules);

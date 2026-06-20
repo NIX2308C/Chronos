@@ -86,6 +86,9 @@ _rate_lock = Lock()
 
 INDEX_NAME = "teacherchronostwo"
 EMBED_DIM = 768
+# Chat/generation model. flash-lite is cheaper and has higher throughput than
+# 2.5-flash, so it scales better for a class of users. Override via env if needed.
+CHAT_MODEL = os.getenv("CHAT_MODEL", "gemini-2.5-flash-lite")
 
 # Directory this file lives in — used to serve the front-end HTML pages.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -694,7 +697,7 @@ def chat():
         )
 
         ai_response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model=CHAT_MODEL,
             contents=contents,
             config=types.GenerateContentConfig(system_instruction=system_instruction),
         )
@@ -845,7 +848,7 @@ def categorize_conversations(convos):
     )
     try:
         resp = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model=CHAT_MODEL,
             contents=prompt,
         )
         text = resp.text.strip().replace("```json", "").replace("```", "").strip()

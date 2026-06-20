@@ -356,9 +356,12 @@
   // format "Bulk add (one per line)" consumes, so they round-trip into another class.
   // File-derived chunks (id "file_…") are excluded.
   async function exportRules(){
+    // Collapse any line breaks inside a rule into single spaces so each rule is
+    // exactly one line — otherwise "Bulk add (one per line)" would split a
+    // multi-line rule into several on re-import.
     const lines=RULES
       .filter(r=>!String(r.id||"").startsWith("file_"))
-      .map(r=>(r.text||"").trim())
+      .map(r=>(r.text||"").replace(/\s*\n\s*/g," ").replace(/\s+/g," ").trim())
       .filter(Boolean);
     if(!lines.length){showToast("No rules to export",false);return;}
     const text=lines.join("\n");

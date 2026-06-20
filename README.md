@@ -49,7 +49,7 @@ FIREBASE_PROJECT_ID=your-project-id
 FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
 ```
 
-You must also enable **Email/Password** sign-in in the Firebase console (Authentication → Sign-in method). A few optional overrides exist too (`ALLOWED_ORIGINS`, `MAX_UPLOAD_MB` (default 10), `CHAT_RATE_LIMIT`, `FLASK_DEBUG`). Firebase admin credentials are read from `firebase_credentials.json` locally, or the `FIREBASE_CREDENTIALS_JSON` env var when deployed.
+You must also enable **Email/Password** sign-in in the Firebase console (Authentication → Sign-in method). A few optional overrides exist too (`ALLOWED_ORIGINS`, `MAX_UPLOAD_MB` (default 10), `CHAT_RATE_LIMIT`, `FLASK_DEBUG`). Retrieval is tunable as well: `RETRIEVAL_TOP_K` (default 5) sets how many knowledge chunks each answer draws on, and `RETRIEVAL_MIN_SCORE` (default 0.5, cosine) drops weakly-related chunks so off-topic questions get a truthful "not in my knowledge base" reply instead of being answered from the least-bad matches — those unanswered questions then show up as **Knowledge Gaps** in the analytics. Firebase admin credentials are read from `firebase_credentials.json` locally, or the `FIREBASE_CREDENTIALS_JSON` env var when deployed.
 
 Then start it:
 

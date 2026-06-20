@@ -198,6 +198,20 @@
 </div>
 </div>
 
+<!-- Knowledge gaps: questions the class material couldn't answer -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
+<div class="p-6 border-b border-outline-variant flex items-start justify-between gap-3">
+<div>
+<h3 class="font-headline-md text-headline-md text-primary flex items-center gap-2"><span class="material-symbols-outlined text-error">help</span> Knowledge Gaps</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Questions your material couldn't answer — good candidates for content to add.</p>
+</div>
+<span class="font-headline-xl text-headline-xl text-error flex-shrink-0" id="gapTotal">—</span>
+</div>
+<ul class="divide-y divide-outline-variant" id="gaps">
+<li class="py-4 px-6 font-body-md text-body-md text-on-surface-variant">Loading…</li>
+</ul>
+</div>
+
 <!-- Recent questions -->
 <div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm overflow-hidden">
 <div class="p-6 border-b border-outline-variant">
@@ -314,6 +328,21 @@
       }
 
       renderDonut(d.categories);
+
+      // knowledge gaps — questions the material couldn't answer
+      const gaps=$("gaps"); gaps.innerHTML="";
+      $("gapTotal").textContent=d.unanswered_count||0;
+      if(!d.unanswered||!d.unanswered.length){
+        gaps.innerHTML='<li class="py-4 px-6 font-body-md text-body-md text-on-surface-variant">No gaps detected — every question was answered from your material.</li>';
+      }else{
+        d.unanswered.forEach(r=>{
+          const li=document.createElement("li"); li.className="py-4 px-6 flex items-start gap-3 hover:bg-surface-bright transition-colors";
+          li.innerHTML=
+            '<span class="material-symbols-outlined text-error text-[20px] flex-shrink-0 mt-0.5">error</span>'+
+            '<span class="font-body-md text-body-md text-on-background">'+esc(r.question)+'</span>';
+          gaps.appendChild(li);
+        });
+      }
 
       // recent table
       const feed=$("feed"); feed.innerHTML="";

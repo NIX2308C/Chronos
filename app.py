@@ -90,6 +90,16 @@ EMBED_DIM = 768
 # 2.5-flash, so it scales better for a class of users. Override via env if needed.
 CHAT_MODEL = os.getenv("CHAT_MODEL", "gemini-2.5-flash-lite")
 
+# Retrieval tuning for the tutor. RETRIEVAL_TOP_K is how many knowledge chunks we
+# pull per question (more context generally = fuller answers). RETRIEVAL_MIN_SCORE
+# is a cosine-similarity floor: chunks below it are dropped as not-really-related,
+# so an off-topic question ends up with empty context and a truthful "not in my
+# knowledge base" answer instead of being force-fed the least-bad matches. The
+# index uses cosine; with Gemini embeddings on-topic chunks score ~0.52+ and
+# unrelated ones ~0.48–0.51, so 0.5 is a sensible default. Tune per your material.
+RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "5"))
+RETRIEVAL_MIN_SCORE = float(os.getenv("RETRIEVAL_MIN_SCORE", "0.5"))
+
 # Directory this file lives in — used to serve the front-end HTML pages.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -668,12 +678,19 @@ def chat():
 
         pinecone_resp = pinecone_index.query(
             vector=question_embedding,
-            top_k=2,
+            top_k=RETRIEVAL_TOP_K,
             include_metadata=True,
             namespace=class_id,
         )
 
-        teacher_rules = [m['metadata']['text'] for m in pinecone_resp['matches'] if 'metadata' in m]
+        # Keep only chunks similar enough to the question. If nothing clears the
+        # bar, context is empty and the system prompt tells the tutor to admit
+        # it's not in the knowledge base — which is exactly what the gap
+        # analytics later count as an unanswered question.
+        teacher_rules = [
+            m['metadata']['text'] for m in pinecone_resp['matches']
+            if 'metadata' in m and m.get('score', 0) >= RETRIEVAL_MIN_SCORE
+        ]
         context_block = "\n".join(teacher_rules)
 
         # Resolve (or create) the conversation document for this user.
@@ -828,6 +845,28 @@ def _ts_seconds(ts):
         return 0.0
 
 
+# Wording the tutor falls back to when a question isn't covered by the material.
+_GAP_PHRASES = (
+    "don't have", "do not have", "not in my", "isn't in", "is not in",
+    "don't cover", "do not cover", "not covered", "no information",
+)
+
+
+def _is_unanswered(teacher_msg):
+    """True when a tutor answer shows the class knowledge base couldn't cover the
+    question — either no source chunks backed the answer, or it fell back to the
+    'not in my knowledge base' wording. Surfaced to teachers as a content gap.
+
+    Works on historical logs too: every teacher message already stores the
+    `rules` it used, so an empty list is a reliable 'nothing matched' signal.
+    """
+    rules = teacher_msg.get("rules")
+    if isinstance(rules, list) and len(rules) == 0:
+        return True
+    text = (teacher_msg.get("content") or "").lower()
+    return "knowledge base" in text and any(p in text for p in _GAP_PHRASES)
+
+
 def categorize_conversations(convos):
     """Ask Gemini to tag each whole conversation with ONE short topic category.
 
@@ -883,6 +922,7 @@ def stats():
         # One conversation = one chat doc. A follow-up answer in the same chat must
         # NOT count as another question/topic — the whole conversation counts once.
         sessions = {}          # chat id -> list of (timestamp, content)
+        gaps = []              # (ts, question) the knowledge base couldn't answer
         session_count = 0
         member_uids = [
             m.id for m in
@@ -895,14 +935,20 @@ def stats():
             )
             for chat in chats:
                 session_count += 1
-                for msg in chat.reference.collection("Messages").stream():
+                # In timestamp order so each tutor answer pairs with the question
+                # right before it — needed to flag unanswered (gap) questions.
+                last_student = None     # (timestamp, content) of the latest question
+                for msg in chat.reference.collection("Messages").order_by("timestamp").stream():
                     d = msg.to_dict() or {}
-                    if d.get("role") != "student":
-                        continue
+                    role = d.get("role")
                     content = (d.get("content") or "").strip()
-                    if not content:
-                        continue
-                    sessions.setdefault(chat.id, []).append((d.get("timestamp"), content))
+                    if role == "student":
+                        if content:
+                            sessions.setdefault(chat.id, []).append((d.get("timestamp"), content))
+                            last_student = (d.get("timestamp"), content)
+                    elif role == "teacher" and last_student and _is_unanswered(d):
+                        gaps.append((_ts_seconds(last_student[0]), last_student[1]))
+                        last_student = None
 
         # Collapse each conversation to one representative question + a little context.
         convos = []
@@ -931,11 +977,17 @@ def stats():
             for i in range(len(convos))
         ][-25:][::-1]
 
+        # Most-recent-first list of questions the knowledge base couldn't answer.
+        gaps.sort(key=lambda g: g[0])
+        unanswered = [{"question": q} for _, q in gaps][-25:][::-1]
+
         return jsonify({
             "total_questions": total_questions,
             "total_sessions": session_count,
             "categories": [{"name": k, "count": v} for k, v in sorted_cats],
             "recent": recent,
+            "unanswered": unanswered,
+            "unanswered_count": len(gaps),
         })
     except Exception as e:
         return server_error("Stats failed.", e)

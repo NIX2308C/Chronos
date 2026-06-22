@@ -133,9 +133,10 @@ def chunk_text(text, size=900, overlap=150):
         return [text] if text else []
     chunks = []
     start = 0
-    while start < len(text):
-        end = min(start + size, len(text))
-        if end < len(text):
+    n = len(text)
+    while start < n:
+        end = min(start + size, n)
+        if end < n:
             for sep in ('. ', '! ', '? ', ' '):
                 idx = text.rfind(sep, start + size // 2, end)
                 if idx != -1:
@@ -144,9 +145,13 @@ def chunk_text(text, size=900, overlap=150):
         chunk = text[start:end].strip()
         if chunk:
             chunks.append(chunk)
-        start = end - overlap
-        if start >= len(text):
+        # Stop once this chunk reaches the end. Without this the loop never
+        # terminates: start = end - overlap can never reach n, so for any text
+        # longer than `size` it would spin on the final segment forever, appending
+        # the same tail until the process runs out of memory (the upload OOM).
+        if end >= n:
             break
+        start = end - overlap
     return chunks
 
 

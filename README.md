@@ -4,7 +4,12 @@ An AI tutor that answers students only from material the teacher provides. Teach
 
 ## How it works
 
-Teachers sign in, create one or more classes, and add knowledge to each (PDFs, Word docs, or typed rules). Each class is an isolated knowledge base: its material is embedded and stored in its own Pinecone **namespace**, so classes never bleed into each other. A student joins a class with its code; when they ask something, Chronos pulls the most relevant pieces of *that class's* knowledge and hands them to Gemini, which writes an answer grounded only in those pieces. Every exchange is saved per student, and teachers see per-class analytics.
+Teachers sign in, create one or more classes, and add knowledge to each. A class holds two kinds of material, kept separate by how they're used:
+
+- **Rules** — short, typed instructions and facts. These are embedded and stored in the class's own Pinecone **namespace**, and retrieved by vector (meaning) search.
+- **Documents** — uploaded files (PDF, Word, txt/md/csv). Their text is split into passages and stored in **Firestore** under the class (no embedding). At question time the most relevant passages are picked by keyword overlap.
+
+Each class is an isolated knowledge base, so classes never bleed into each other. A student joins a class with its code; when they ask something, Chronos gathers the matching rules *and* document passages for *that class* and hands them to Gemini, which writes an answer grounded only in that material. If nothing matches, it says so rather than guessing. Every exchange is saved per student, and teachers see per-class analytics — including a **Knowledge Gaps** list of questions the material couldn't answer.
 
 ## Accounts & classes
 
@@ -63,7 +68,7 @@ and open http://localhost:5000.
 
 There's a `render.yaml` (and a `Procfile`) set up for Render. Put the secrets in the Render dashboard rather than committing them. The Werkzeug debugger stays off unless you explicitly set `FLASK_DEBUG=1`.
 
-**A note on memory:** the Google, Pinecone, and Firebase SDKs are heavy — just importing them eats a few hundred MB — so there isn't much room to spare on a 512 MB box (Render's free and Starter plans). To avoid blowing past that on big files, uploads are processed in batches: the document is read, chunked, embedded, and pushed to Pinecone a little at a time instead of all at once, so memory stays roughly flat no matter how large the file is. `MAX_UPLOAD_MB` also defaults to 10. If you're still hitting out-of-memory errors when adding documents, drop that number lower or move up to a 2 GB instance.
+**A note on memory:** the Google, Pinecone, and Firebase SDKs are heavy — just importing them eats a few hundred MB — so there isn't much room to spare on a 512 MB box (Render's free and Starter plans). Document uploads are intentionally light: the file is read, chunked, and written straight to Firestore in batches, with no per-chunk embedding, so memory stays roughly flat no matter how large the file is (this is also why uploaded documents skip Pinecone). `MAX_UPLOAD_MB` defaults to 10; lower it if you ever hit out-of-memory errors on very large files, or move up to a 2 GB instance.
 
 ## Endpoints
 
@@ -71,7 +76,7 @@ All endpoints below the auth layer expect a Firebase ID token in the `Authorizat
 
 - **Auth/classes:** `/auth/config`, `/auth/register`, `/auth/me`, `/classes` (GET list, POST create), `/classes/join`, `DELETE /classes/<id>`.
 - **Student (any signed-in user, in the class):** `/chat`, `/chats`, `/chats/<id>/messages`, `DELETE /chats/<id>` — all class-scoped.
-- **Teacher (owner of the class):** `/ingest`, `/upload`, `/rules`, `/delete_rule`, `/stats` — all take a `class_id`.
+- **Teacher (owner of the class):** `/ingest`, `/rules`, `/delete_rule` (Pinecone rules), `/upload`, `/documents`, `/documents/delete` (Firestore documents), `/stats` — all take a `class_id`.
 - `/health` is a plain health check.
 
 Legacy rules from before classes existed are automatically migrated into the first class a teacher creates.

@@ -160,6 +160,21 @@ def embed(text):
     return result.embeddings[0].values
 
 
+def embed_batch(texts):
+    """Embed many texts in a single request and return their vectors in order.
+
+    Uploads used to embed one chunk at a time — dozens of sequential round-trips
+    for a real document, slow enough that the host could kill the request (a 503).
+    Batching collapses that into a handful of calls, so even large files finish
+    quickly."""
+    result = client.models.embed_content(
+        model="models/gemini-embedding-001",
+        contents=texts,
+        config={"output_dimensionality": EMBED_DIM},
+    )
+    return [e.values for e in result.embeddings]
+
+
 def _bearer_token():
     """Pull the Firebase ID token out of the Authorization: Bearer <token> header."""
     header = request.headers.get("Authorization", "")
@@ -1036,41 +1051,34 @@ def upload():
     if not chunks:
         return jsonify({"error": "File produced no usable text chunks"}), 400
 
-    # Embed and upsert in batches so peak memory stays flat regardless of how
-    # large the file is: we never hold more than UPSERT_BATCH vectors at once.
-    UPSERT_BATCH = 50
+    # Embed many chunks per request and upsert a batch at a time. Batching the
+    # embeddings is what keeps a multi-chunk document fast enough to finish inside
+    # the host's request window (sequential per-chunk calls were timing out → 503),
+    # and processing a batch at a time keeps peak memory flat for large files.
+    # 50 keeps each embedding request well under the API's per-call token limit.
+    BATCH = 50
     source = file.filename
-    base_id = f"file_{int(time.time()*1000)}"
-    results = []
-    pending = []
+    base_id = f"file_{int(time.time() * 1000)}"
     stored = 0
 
-    def flush():
-        nonlocal pending, stored
-        if not pending:
-            return
-        pinecone_index.upsert(vectors=pending, namespace=class_id)
-        stored += len(pending)
-        pending = []
-        gc.collect()
-
     try:
-        for i, chunk in enumerate(chunks):
-            rid = f"{base_id}_{i}"
-            try:
-                values = embed(chunk)
-                pending.append({"id": rid, "values": values, "metadata": {"text": chunk, "source": source}})
-                results.append({"id": rid, "status": "ok"})
-            except Exception as e:
-                results.append({"id": rid, "status": "error", "detail": str(e)})
-            if len(pending) >= UPSERT_BATCH:
-                flush()
-        flush()
+        for start in range(0, len(chunks), BATCH):
+            group = chunks[start:start + BATCH]
+            vectors = embed_batch(group)
+            pending = [
+                {"id": f"{base_id}_{start + j}", "values": vectors[j],
+                 "metadata": {"text": group[j], "source": source}}
+                for j in range(len(group))
+            ]
+            pinecone_index.upsert(vectors=pending, namespace=class_id)
+            stored += len(pending)
+            del vectors, pending, group
+            gc.collect()
     except Exception as e:
-        return server_error("Upsert failed.", e)
+        return server_error("Upload failed while indexing the document.", e)
 
     gc.collect()
-    return jsonify({"chunks": len(chunks), "results": results, "total_vectors": class_vector_count(class_id)})
+    return jsonify({"chunks": len(chunks), "stored": stored, "total_vectors": class_vector_count(class_id)})
 
 
 @app.route('/health', methods=['GET'])

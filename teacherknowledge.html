@@ -204,16 +204,6 @@
 </div>
 <button class="mt-stack-md w-full py-2.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-default" disabled id="uploadBtn">Upload &amp; extract</button>
 </div>
-<!-- Uploaded documents -->
-<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-stack-lg shadow-sm">
-<div class="flex items-center gap-3 mb-stack-md">
-<span class="material-symbols-outlined text-secondary text-2xl">description</span>
-<h3 class="font-headline-md text-headline-md text-primary">Uploaded documents</h3>
-</div>
-<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Files you've added to this class. The tutor draws on their text when it's relevant to a question.</p>
-<div class="space-y-stack-sm" id="docsList"></div>
-<p class="hidden font-body-md text-body-md text-on-surface-variant text-center py-6" id="docsEmpty">No documents uploaded yet.</p>
-</div>
 </div>
 
 <!-- RIGHT: rules list -->
@@ -250,7 +240,7 @@
 <script>
   // Backend base comes from auth.js (same-origin deployed; dev server otherwise).
   const BASE=Chronos.BASE;
-  let RULES=[],DOCS=[],CLASSES=[],ACTIVE_CLASS=null;
+  let RULES=[],CLASSES=[],ACTIVE_CLASS=null;
   let selectedFile=null;                         // the file chosen to upload (browse or drop)
   const CLASS_KEY="chronos_teacher_class";       // remember the selected class
   const $=id=>document.getElementById(id);
@@ -306,14 +296,13 @@
       showToast("Class created"+(c.migrated_rules?` — moved ${c.migrated_rules} existing rules in`:"")+". Code: "+c.join_code,true);
       await loadClasses(c.id);
       loadRules();
-      loadDocs();
     }catch(e){showToast(e.message,false);}
   }
 
   async function removeClass(){
     const c=activeClassObj();if(!c)return;
     if(!confirm(`Delete "${c.name}" and all its rules? This cannot be undone.`))return;
-    try{await Chronos.deleteClass(c.id);showToast("Class deleted",true);await loadClasses();loadRules();loadDocs();}
+    try{await Chronos.deleteClass(c.id);showToast("Class deleted",true);await loadClasses();loadRules();}
     catch(e){showToast(e.message,false);}
   }
 
@@ -325,7 +314,6 @@
     await loadClasses();
     if(!ACTIVE_CLASS)showToast("Create your first class to start adding rules.",true);
     loadRules();
-    loadDocs();
   }).catch(e=>{ $("gate").innerHTML='<p class="font-body-md text-body-md text-error text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>'; });
 
   function ensureClass(){
@@ -445,44 +433,6 @@
     catch(e){showToast(e.message,false);}
   }
 
-  // Uploaded documents (stored in Firestore, separate from Pinecone rules).
-  async function loadDocs(){
-    if(!ACTIVE_CLASS){DOCS=[];renderDocs();return;}
-    try{
-      const d=await api("/documents",withClass({}));
-      DOCS=d.documents||[];
-    }catch(e){DOCS=[];showToast(e.message,false);}
-    renderDocs();
-  }
-
-  function renderDocs(){
-    const list=$("docsList");
-    list.innerHTML="";
-    $("docsEmpty").classList.toggle("hidden",DOCS.length>0);
-    DOCS.forEach(doc=>{
-      const row=document.createElement("div");
-      row.className="flex items-center justify-between gap-3 p-3 rounded-lg bg-surface-container-low border border-outline-variant";
-      const left=document.createElement("span"); left.className="flex items-center gap-2 min-w-0";
-      const ico=document.createElement("span"); ico.className="material-symbols-outlined text-on-surface-variant text-[18px] flex-shrink-0"; ico.textContent="description";
-      const name=document.createElement("span"); name.className="font-label-md text-label-md truncate"; name.textContent=doc.name; name.title=doc.name;
-      const count=document.createElement("span"); count.className="font-label-sm text-label-sm text-on-surface-variant flex-shrink-0"; count.textContent=doc.chunk_count+" passage"+(doc.chunk_count===1?"":"s");
-      left.appendChild(ico); left.appendChild(name);
-      const right=document.createElement("span"); right.className="flex items-center gap-3 flex-shrink-0";
-      const del=document.createElement("button"); del.className="text-outline hover:text-error transition-colors";
-      del.innerHTML='<span class="material-symbols-outlined text-[20px]">delete</span>'; del.title="Delete document"; del.onclick=()=>delDoc(doc.doc_id,doc.name);
-      right.appendChild(count); right.appendChild(del);
-      row.appendChild(left); row.appendChild(right);
-      list.appendChild(row);
-    });
-  }
-
-  async function delDoc(doc_id,name){
-    if(!ensureClass())return;
-    if(!confirm(`Delete "${name}"? Its text will no longer be used in answers.`))return;
-    try{await api("/documents/delete",withClass({doc_id}));showToast("Document deleted",true);loadDocs();}
-    catch(e){showToast(e.message,false);}
-  }
-
   function fmtSize(b){return b<1024?b+" B":b<1048576?(b/1024).toFixed(1)+" KB":(b/1048576).toFixed(1)+" MB";}
 
   function pickFile(file){
@@ -534,9 +484,9 @@
       if(res.status===413)throw new Error("That file is too large to upload.");
       if(res.status===401||res.status===403)throw new Error(data.error||"You're not allowed to upload to this class.");
       if(!res.ok||data.error)throw new Error(data.details||data.error||("Upload failed ("+res.status+")."));
-      showToast(`"${file.name}" saved — ${data.chunks} passage${data.chunks===1?"":"s"} added.`,true);
+      showToast(`"${file.name}" → ${data.chunks} chunks stored. Total rules: ${data.total_vectors}`,true);
       clearFile();           // success: reset the picker, button goes disabled
-      loadDocs();
+      loadRules();
     }catch(e){
       showToast(e.message,false);
       setUploadBtn(false);   // failure: let the teacher try again
@@ -547,7 +497,7 @@
   $("lockBtn").onclick=lock;
   $("newClassBtn").onclick=newClass;
   $("deleteClassBtn").onclick=removeClass;
-  $("classSelect").onchange=e=>{ACTIVE_CLASS=e.target.value;localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);paintClassMeta();loadRules();loadDocs();};
+  $("classSelect").onchange=e=>{ACTIVE_CLASS=e.target.value;localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);paintClassMeta();loadRules();};
   $("addBtn").onclick=addRule;
   $("bulkBtn").onclick=bulkAdd;
   $("exportBtn").onclick=exportRules;

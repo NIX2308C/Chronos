@@ -1,5 +1,4 @@
 import os
-import re
 import gc
 import json
 import time
@@ -292,82 +291,6 @@ def class_vector_count(class_id):
         return 0
 
 
-def delete_query_in_batches(query, page_size=300):
-    """Delete every document matched by a Firestore query, a page at a time, so we
-    never hold the whole result set in memory. Returns the number deleted."""
-    total = 0
-    while True:
-        docs = list(query.limit(page_size).stream())
-        if not docs:
-            break
-        batch = db.batch()
-        for d in docs:
-            batch.delete(d.reference)
-        batch.commit()
-        total += len(docs)
-        if len(docs) < page_size:
-            break
-    return total
-
-
-_WORD_RE = re.compile(r"[a-z0-9]+")
-
-
-def rank_class_content(class_id, question, char_budget=20000, min_token_len=3):
-    """Return the uploaded-document passages most relevant to `question`, capped to
-    a character budget so the prompt (and memory) stay bounded.
-
-    Uploaded content lives in Firestore (Classes/{id}/Content), not Pinecone, so we
-    rank it here without embeddings: score each chunk by how many distinct question
-    words it contains (longer words weigh more, since they're more specific). If the
-    question shares no words with any chunk we fall back to the first few passages,
-    so a freshly uploaded document is still reachable.
-    """
-    if not class_id:
-        return []
-    q_words = {w for w in _WORD_RE.findall(question.lower()) if len(w) >= min_token_len}
-    try:
-        docs = db.collection("Classes").document(class_id).collection("Content").stream()
-    except Exception:
-        logger.exception("Could not read class content for %s", class_id)
-        return []
-
-    scored = []      # (score, order, text)
-    for d in docs:
-        m = d.to_dict() or {}
-        text = m.get("text") or ""
-        if not text:
-            continue
-        order = m.get("order", 0)
-        if q_words:
-            chunk_words = set(_WORD_RE.findall(text.lower()))
-            score = sum(len(w) for w in q_words & chunk_words)
-        else:
-            score = 0
-        scored.append((score, order, text))
-
-    if not scored:
-        return []
-
-    any_match = any(s > 0 for s, _, _ in scored)
-    if any_match:
-        # Best matches first; break ties by original order for stable reads.
-        scored.sort(key=lambda t: (-t[0], t[1]))
-        scored = [t for t in scored if t[0] > 0]
-    else:
-        # No keyword overlap — fall back to the document's opening passages.
-        scored.sort(key=lambda t: t[1])
-
-    selected = []
-    used = 0
-    for _, _, text in scored:
-        if used + len(text) > char_budget and selected:
-            break
-        selected.append(text)
-        used += len(text)
-    return selected
-
-
 def user_in_class(uid, class_id, role):
     """Authorization for class-scoped operations: a teacher must own the class,
     a student must be an enrolled member."""
@@ -640,8 +563,6 @@ def delete_class(class_id):
             # Namespace may not exist yet (no rules added) — that's fine.
             logger.info("No Pinecone namespace to clear for class %s", class_id)
         cls_ref = db.collection("Classes").document(class_id)
-        # Remove uploaded document content (Firestore) along with the class.
-        delete_query_in_batches(cls_ref.collection("Content"))
         for member in cls_ref.collection("Members").stream():
             member.reference.delete()
         cls_ref.delete()
@@ -766,19 +687,11 @@ def chat():
         # bar, context is empty and the system prompt tells the tutor to admit
         # it's not in the knowledge base — which is exactly what the gap
         # analytics later count as an unanswered question.
-        rule_matches = [
+        teacher_rules = [
             m['metadata']['text'] for m in pinecone_resp['matches']
             if 'metadata' in m and m.get('score', 0) >= RETRIEVAL_MIN_SCORE
         ]
-
-        # Uploaded documents live in Firestore (not Pinecone). Pull the passages
-        # most relevant to the question by keyword overlap and add them to the
-        # context. `context_sources` is the *combined* knowledge used to answer —
-        # storing it on the message keeps the gap analytics honest (an answer is
-        # only a "gap" when neither rules nor documents covered the question).
-        doc_chunks = rank_class_content(class_id, user_message)
-        context_sources = rule_matches + doc_chunks
-        context_block = "\n".join(context_sources)
+        context_block = "\n".join(teacher_rules)
 
         # Resolve (or create) the conversation document for this user.
         chats_col = _user_chats(request.uid)
@@ -794,11 +707,10 @@ def chat():
         contents = history + [{"role": "user", "parts": [{"text": user_message}]}]
 
         system_instruction = (
-            "You are Chronos, a helpful tutor. Use ONLY the class material below and "
-            "the conversation so far to answer. If the material doesn't cover the "
-            "question, say you don't have that in your knowledge base rather than "
-            "guessing.\n\n"
-            f"Class material:\n{context_block}"
+            "You are Chronos, a helpful tutor. Use ONLY the teacher rules below and "
+            "the conversation so far to answer. If the rules don't cover the question, "
+            "say you don't have that in your knowledge base rather than guessing.\n\n"
+            f"Teacher rules:\n{context_block}"
         )
 
         ai_response = client.models.generate_content(
@@ -818,11 +730,11 @@ def chat():
         chat_doc.set(chat_meta, merge=True)
 
         msgs_ref.add({"role": "student", "content": user_message, "timestamp": firestore.SERVER_TIMESTAMP})
-        msgs_ref.add({"role": "teacher", "content": final_answer, "rules": context_sources, "timestamp": firestore.SERVER_TIMESTAMP})
+        msgs_ref.add({"role": "teacher", "content": final_answer, "rules": teacher_rules, "timestamp": firestore.SERVER_TIMESTAMP})
 
         return jsonify({
             "response": final_answer,
-            "rules_used": context_sources,
+            "rules_used": teacher_rules,
             "chat_id": chat_id,
             "title": title,
         })
@@ -921,54 +833,6 @@ def delete_rule():
         return jsonify({"status": "deleted", "id": rid})
     except Exception as e:
         return server_error("Delete failed.", e)
-
-
-# ---------- teacher: uploaded documents (Firestore content) ----------
-
-@app.route('/documents', methods=['POST'])
-@require_teacher
-def list_documents():
-    """List a class's uploaded documents, one row per file. Body: { class_id }
-
-    Content chunks are stored per-chunk in Firestore; we group them back into the
-    files they came from (by doc_id) so the teacher sees whole documents.
-    """
-    data = request.get_json(silent=True) or {}
-    class_id = (data.get("class_id") or "").strip()
-    if not class_owned_by(class_id, request.uid):
-        return jsonify({"error": "Unknown class, or you don't own it."}), 403
-    try:
-        content = db.collection("Classes").document(class_id).collection("Content").stream()
-        docs = {}
-        for c in content:
-            m = c.to_dict() or {}
-            did = m.get("doc_id")
-            if not did:
-                continue
-            entry = docs.setdefault(did, {"doc_id": did, "name": m.get("source") or "Document", "chunk_count": 0})
-            entry["chunk_count"] += 1
-        return jsonify({"documents": list(docs.values())})
-    except Exception as e:
-        return server_error("Could not list documents.", e)
-
-
-@app.route('/documents/delete', methods=['POST'])
-@require_teacher
-def delete_document():
-    """Delete an uploaded document (all its chunks). Body: { class_id, doc_id }"""
-    data = request.get_json(silent=True) or {}
-    class_id = (data.get("class_id") or "").strip()
-    if not class_owned_by(class_id, request.uid):
-        return jsonify({"error": "Unknown class, or you don't own it."}), 403
-    doc_id = (data.get("doc_id") or "").strip()
-    if not doc_id:
-        return jsonify({"error": "No doc_id provided"}), 400
-    try:
-        content_col = db.collection("Classes").document(class_id).collection("Content")
-        deleted = delete_query_in_batches(content_col.where("doc_id", "==", doc_id))
-        return jsonify({"status": "deleted", "doc_id": doc_id, "chunks": deleted})
-    except Exception as e:
-        return server_error("Could not delete that document.", e)
 
 
 # ---------- teacher: stats ----------
@@ -1166,51 +1030,47 @@ def upload():
 
     chunks = chunk_text(text)
     # Drop the source text (and its normalized copy inside chunk_text) before we
-    # store anything — on a small instance these copies add up fast.
+    # start embedding — on a small instance these copies add up fast.
     del text
     gc.collect()
     if not chunks:
         return jsonify({"error": "File produced no usable text chunks"}), 400
 
-    # Store the document's text in Firestore instead of embedding it into Pinecone.
-    # Uploaded *content* doesn't need vector search the way teacher *rules* do, and
-    # the per-chunk Gemini embedding loop is exactly what made uploads fall over on
-    # the free box. Each chunk is one doc under the class's Content collection,
-    # tagged with a shared doc_id so the whole file can be listed/deleted as a unit.
+    # Embed and upsert in batches so peak memory stays flat regardless of how
+    # large the file is: we never hold more than UPSERT_BATCH vectors at once.
+    UPSERT_BATCH = 50
     source = file.filename
-    doc_id = f"file_{int(time.time() * 1000)}"
-    content_col = db.collection("Classes").document(class_id).collection("Content")
+    base_id = f"file_{int(time.time()*1000)}"
+    results = []
+    pending = []
+    stored = 0
+
+    def flush():
+        nonlocal pending, stored
+        if not pending:
+            return
+        pinecone_index.upsert(vectors=pending, namespace=class_id)
+        stored += len(pending)
+        pending = []
+        gc.collect()
 
     try:
-        # Firestore caps a batch at 500 writes; commit well under that and free the
-        # batch between flushes so peak memory stays flat for large documents.
-        BATCH_SIZE = 400
-        batch = db.batch()
-        pending = 0
-        for order, chunk in enumerate(chunks):
-            batch.set(content_col.document(), {
-                "text": chunk,
-                "source": source,
-                "doc_id": doc_id,
-                "order": order,
-                "created_at": firestore.SERVER_TIMESTAMP,
-            })
-            pending += 1
-            if pending >= BATCH_SIZE:
-                batch.commit()
-                batch = db.batch()
-                pending = 0
-                gc.collect()
-        if pending:
-            batch.commit()
+        for i, chunk in enumerate(chunks):
+            rid = f"{base_id}_{i}"
+            try:
+                values = embed(chunk)
+                pending.append({"id": rid, "values": values, "metadata": {"text": chunk, "source": source}})
+                results.append({"id": rid, "status": "ok"})
+            except Exception as e:
+                results.append({"id": rid, "status": "error", "detail": str(e)})
+            if len(pending) >= UPSERT_BATCH:
+                flush()
+        flush()
     except Exception as e:
-        return server_error("Could not save the document.", e)
+        return server_error("Upsert failed.", e)
 
     gc.collect()
-    return jsonify({
-        "chunks": len(chunks),
-        "document": {"doc_id": doc_id, "name": source, "chunk_count": len(chunks)},
-    })
+    return jsonify({"chunks": len(chunks), "results": results, "total_vectors": class_vector_count(class_id)})
 
 
 @app.route('/health', methods=['GET'])

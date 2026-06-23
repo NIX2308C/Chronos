@@ -129,7 +129,7 @@
 <header class="w-full px-margin-desktop py-stack-md border-b border-outline-variant bg-surface-container-lowest/80 backdrop-blur-md sticky top-0 z-30 flex justify-between items-center">
 <div>
 <h2 class="font-headline-lg text-headline-lg text-primary">Analytics Overview</h2>
-<p class="font-body-md text-body-md text-on-surface-variant mt-1">From student chat logs. Each conversation is counted once and auto-categorized by topic.</p>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">A read on what your students are actually asking — grouped by topic, with the questions your material couldn't answer called out.</p>
 </div>
 <div class="flex items-center gap-3">
 <!-- Class selector: analytics are shown for one class at a time -->
@@ -138,6 +138,9 @@
 <select class="appearance-none rounded-xl border border-outline-variant bg-surface-container-low text-on-background font-label-md text-label-md pl-9 pr-9 py-2.5 max-w-[200px] hover:bg-surface-container-high focus:border-primary focus:ring-2 focus:ring-primary/40 outline-none transition-colors cursor-pointer" id="classSelect" title="Class"></select>
 <span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
 </div>
+<button aria-label="How this works" class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="tutHelp" title="How this works">
+<span class="material-symbols-outlined text-[20px]">help</span>
+</button>
 <button aria-label="Toggle dark mode" class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" onclick="toggleTheme()" title="Toggle dark mode">
 <span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
 </button>
@@ -295,6 +298,7 @@
     const em=$("userEmail");if(em){em.textContent=info.email||"Teacher";em.title=info.email||"";}
     $("gate").classList.add("hidden");
     $("app").classList.remove("hidden");
+    if(window.__tutFirstVisit)window.__tutFirstVisit();
     await loadClasses();
     if(!ACTIVE_CLASS){showToast("Create a class on the Knowledge Base page first.",true);return;}
     try{await load();}catch(e){showToast(e.message,false);}
@@ -400,6 +404,52 @@
   $("lockBtn").onclick=lock;
   $("refreshBtn").onclick=()=>{load().catch(e=>showToast(e.message,false));};
   $("classSelect").onchange=e=>{ACTIVE_CLASS=e.target.value;localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);load().catch(err=>showToast(err.message,false));};
+</script>
+
+<!-- How-it-works tutorial -->
+<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile bg-black/40 backdrop-blur-sm" id="tut">
+<div class="w-full max-w-md bg-surface-container-lowest border border-outline-variant rounded-xl shadow-xl p-stack-lg max-h-[85vh] overflow-y-auto">
+<div class="flex items-start justify-between gap-3 mb-stack-md">
+<div class="flex items-center gap-3">
+<span class="w-10 h-10 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined">insights</span></span>
+<h2 class="font-headline-md text-headline-md text-primary" id="tutTitle"></h2>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
+</div>
+<div class="space-y-stack-md" id="tutBody"></div>
+<button class="mt-stack-lg w-full py-2.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity" id="tutDone">Got it</button>
+</div>
+</div>
+<script>
+  (function(){
+    const TITLE="Reading your analytics";
+    const KEY="chronos_tut_stats_v1";
+    const STEPS=[
+      {icon:"school",title:"One class at a time",text:"Use the class menu up top — every number here is just for the class you've picked."},
+      {icon:"forum",title:"What they're asking",text:"Questions are grouped by topic so you can see at a glance what your students keep coming back to."},
+      {icon:"help",title:"Mind the gaps",text:"“Knowledge Gaps” lists the questions your material couldn't answer — basically a ready-made to-do list of what to add next."},
+      {icon:"history",title:"Recent questions",text:"A running feed of what's being asked, newest first, so you can spot trends as they happen."},
+    ];
+    const body=document.getElementById("tutBody");
+    document.getElementById("tutTitle").textContent=TITLE;
+    STEPS.forEach(s=>{
+      const row=document.createElement("div");row.className="flex items-start gap-3";
+      row.innerHTML='<span class="w-8 h-8 flex-shrink-0 rounded-lg bg-surface-container text-secondary flex items-center justify-center border border-outline-variant"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
+        '<div><h3 class="font-label-md text-label-md text-on-surface mb-0.5">'+s.title+'</h3>'+
+        '<p class="font-body-md text-body-md text-on-surface-variant leading-snug">'+s.text+'</p></div>';
+      body.appendChild(row);
+    });
+    const modal=document.getElementById("tut");
+    const open=()=>modal.classList.remove("hidden");
+    const close=()=>{modal.classList.add("hidden");try{localStorage.setItem(KEY,"1");}catch(e){}};
+    document.getElementById("tutClose").onclick=close;
+    document.getElementById("tutDone").onclick=close;
+    modal.addEventListener("click",e=>{if(e.target===modal)close();});
+    const help=document.getElementById("tutHelp");if(help)help.onclick=open;
+    // Auto-open only once the app is revealed (the main script calls this after
+    // the loading gate clears), so it never pops over a full-screen spinner.
+    window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};
+  })();
 </script>
 <script src="theme.js"></script>
 </body></html>

@@ -86,6 +86,11 @@
     .cursor { display:inline-block; width:6px; height:1rem; background:#76777d; border-radius:1px; margin-left:2px; vertical-align:text-bottom; animation:blink 1s steps(2) infinite; }
     @keyframes blink { 0%,50%{opacity:1} 50.01%,100%{opacity:0} }
 
+    /* teacher-only "Sources used" dropdown */
+    .src-drop summary { list-style: none; }
+    .src-drop summary::-webkit-details-marker { display: none; }
+    .src-drop[open] .chev { transform: rotate(180deg); }
+
     /* markdown inside AI bubbles */
     .ai-prose p { margin:0 0 .75rem; }
     .ai-prose p:last-child, .ai-prose ul:last-child, .ai-prose ol:last-child, .ai-prose pre:last-child { margin-bottom:0; }
@@ -167,6 +172,9 @@
 <span class="truncate" id="userEmail" title="">…</span>
 </span>
 <span class="flex items-center gap-1 flex-shrink-0">
+<button aria-label="How this works" class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="tutHelp" title="How this works">
+<span class="material-symbols-outlined text-[18px]">help</span>
+</button>
 <button aria-label="Toggle dark mode" class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" onclick="toggleTheme()" title="Toggle dark mode">
 <span class="material-symbols-outlined text-[18px]" data-theme-icon>dark_mode</span>
 </button>
@@ -212,14 +220,6 @@
 </div>
 </section>
 
-<!-- Active Context (RAG) sidebar -->
-<aside class="hidden xl:flex w-80 bg-surface-container-lowest border-l border-outline-variant flex-col h-full">
-<div class="p-4 border-b border-outline-variant bg-surface-container-low flex items-center gap-2">
-<span class="material-symbols-outlined text-on-surface-variant text-lg">info</span>
-<h2 class="font-label-md text-label-md text-on-surface font-semibold">Active Context</h2>
-</div>
-<div class="flex-1 overflow-y-auto chat-scroll p-4 space-y-3" id="contextBody"></div>
-</aside>
 </main>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -272,10 +272,10 @@
   //   id      — the server chat_id once saved; a temp id before the first message
   //   loaded  — whether this chat's messages have been fetched from the server
   //   isNew   — a blank conversation not yet persisted on the server
-  let chats=[],activeChatId=null,USER=null;
+  let chats=[],activeChatId=null,USER=null,IS_TEACHER=false;
   let ALL_CHATS=[],CLASSES=[],ACTIVE_CLASS=null;     // class state
   const CLASS_KEY="chronos_student_class";
-  const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),statusDot:document.getElementById("statusDot"),statusText:document.getElementById("statusText"),messages:document.getElementById("messages"),contextBody:document.getElementById("contextBody")};
+  const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),statusDot:document.getElementById("statusDot"),statusText:document.getElementById("statusText"),messages:document.getElementById("messages")};
 
   function tempId(){return"new_"+Math.random().toString(36).slice(2,10);}
   function activeChat(){return chats.find(c=>c.id===activeChatId);}
@@ -346,13 +346,9 @@
         '<h2 class="font-headline-md text-headline-md text-primary mb-2">Ask your Tutor</h2>'+
         '<p class="font-body-md text-body-md text-on-surface-variant max-w-sm">Answers are grounded only in your teacher’s rules and uploaded materials.</p>';
       els.messagesInner.appendChild(e);
-      updateContext(null);
       return;
     }
     c.messages.forEach(m=>els.messagesInner.appendChild(buildMsgEl(m)));
-    // reflect the most recent AI response's sources in the context sidebar
-    const lastAI=[...c.messages].reverse().find(m=>m.role==="teacher"&&m.rules&&m.rules.length);
-    updateContext(lastAI?lastAI.rules:null);
     scrollBottom();
   }
 
@@ -373,41 +369,33 @@
     b.className="ai-prose max-w-[85%] bg-surface-container-low border border-outline-variant rounded-2xl rounded-tl-sm px-5 py-4 font-body-md text-body-md text-on-surface break-words";
     if(m.content){b.innerHTML=renderMarkdown(m.content);}
     w.appendChild(label);w.appendChild(b);
-    if(m.rules&&m.rules.length){w.appendChild(buildRulesInline(m.rules));}
+    // Sources are teacher-only: students never see the underlying material,
+    // teachers get a collapsible dropdown beneath the answer.
+    if(IS_TEACHER&&m.rules&&m.rules.length){w.appendChild(buildSourcesDropdown(m.rules));}
     return w;
   }
 
-  // Compact inline sources (shown on smaller screens where the context sidebar is hidden)
-  function buildRulesInline(rules){
-    const r=document.createElement("div");
-    r.className="xl:hidden mt-2 ml-1 max-w-[85%] bg-surface-container-low border border-outline-variant rounded-lg p-3";
-    const l=document.createElement("div");l.className="font-label-sm text-[10px] text-on-surface-variant uppercase tracking-wider mb-1.5 flex items-center gap-1";
-    l.innerHTML='<span class="material-symbols-outlined text-[13px]">menu_book</span> Sources used';
-    r.appendChild(l);
-    rules.forEach(x=>{const ln=document.createElement("p");ln.className="font-label-sm text-label-sm text-on-surface-variant leading-snug mb-1 last:mb-0";ln.textContent=x;r.appendChild(ln);});
-    return r;
-  }
-
-  // Right "Active Context" sidebar — shows the teacher rules behind the latest answer
-  function updateContext(rules){
-    const box=els.contextBody;box.innerHTML="";
-    if(!rules||!rules.length){
-      box.innerHTML='<p class="font-label-sm text-label-sm text-on-surface-variant">The teacher sources used to answer will appear here once you ask a question.</p>';
-      return;
-    }
-    const intro=document.createElement("p");intro.className="font-label-sm text-label-sm text-on-surface-variant mb-1";
-    intro.textContent="The AI used these teacher sources for its latest answer:";
-    box.appendChild(intro);
-    rules.forEach((x,i)=>{
-      const card=document.createElement("div");
-      card.className="bg-surface-container-low border border-outline-variant rounded-lg p-3";
-      card.innerHTML='<div class="flex items-start gap-3">'+
-        '<div class="bg-secondary-container text-on-secondary-container p-1.5 rounded flex items-center justify-center mt-0.5"><span class="material-symbols-outlined text-sm">description</span></div>'+
-        '<div class="min-w-0"><h3 class="font-label-md text-label-md text-on-surface">Source '+(i+1)+'</h3>'+
-        '<p class="font-label-sm text-[11px] text-on-surface-variant mt-1"></p></div></div>';
-      card.querySelector("p").textContent=x;
-      box.appendChild(card);
+  // Teacher-only "Sources used" dropdown: a collapsed disclosure under an answer
+  // that expands to the exact passages the tutor drew on. Hidden from students.
+  function buildSourcesDropdown(rules){
+    const d=document.createElement("details");
+    d.className="src-drop mt-2 ml-1 max-w-[85%] bg-surface-container-low border border-outline-variant rounded-lg";
+    const s=document.createElement("summary");
+    s.className="cursor-pointer select-none px-3 py-2 font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1.5";
+    s.innerHTML='<span class="material-symbols-outlined text-[16px]">menu_book</span>'+
+      '<span>Sources used ('+rules.length+')</span>'+
+      '<span class="material-symbols-outlined text-[18px] ml-auto chev transition-transform">expand_more</span>';
+    d.appendChild(s);
+    const body=document.createElement("div");
+    body.className="px-3 pb-3 space-y-1.5 border-t border-outline-variant";
+    rules.forEach(x=>{
+      const ln=document.createElement("p");
+      ln.className="font-label-sm text-label-sm text-on-surface-variant leading-snug pt-1.5";
+      ln.textContent=x;
+      body.appendChild(ln);
     });
+    d.appendChild(body);
+    return d;
   }
 
   function scrollBottom(){els.messages.scrollTop=els.messages.scrollHeight;}
@@ -444,8 +432,7 @@
       tm.content=data.response||"";tm.rules=data.rules_used||[];
       b.textContent="";
       typeOut(b,tm.content,()=>{
-        if(tm.rules.length){el.appendChild(buildRulesInline(tm.rules));}
-        updateContext(tm.rules);
+        if(IS_TEACHER&&tm.rules.length){el.appendChild(buildSourcesDropdown(tm.rules));}
         scrollBottom();setSending(false);
       });
     }catch(err){
@@ -576,17 +563,64 @@
   // roles are allowed here (the backend /chat accepts any signed-in user).
   Chronos.requireRole(["student","teacher"]).then(async(info)=>{
     USER=info;
+    IS_TEACHER=info.role==="teacher";
     const em=$s("userEmail");em.textContent=info.email||"Account";em.title=info.email||"";
     // Show a way back to the teacher panels when a teacher is using the tutor.
-    if(info.role==="teacher"){$s("teacherBackLink").classList.remove("hidden");}
+    if(IS_TEACHER){$s("teacherBackLink").classList.remove("hidden");}
     $s("authGate").remove();
     const hasClass=await loadClasses();
     if(!hasClass){ info.role==="teacher" ? showTeacherNoClassGate() : showJoinGate(); }
-    else { await loadChats(); }
+    else { await loadChats(); if(window.__tutFirstVisit)window.__tutFirstVisit(); }
     checkServer();setInterval(checkServer,15000);
   }).catch(e=>{
     $s("authGate").innerHTML='<p class="font-body-md text-body-md text-error text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>';
   });
+</script>
+
+<!-- How-it-works tutorial -->
+<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile bg-black/40 backdrop-blur-sm" id="tut">
+<div class="w-full max-w-md bg-surface-container-lowest border border-outline-variant rounded-xl shadow-xl p-stack-lg max-h-[85vh] overflow-y-auto">
+<div class="flex items-start justify-between gap-3 mb-stack-md">
+<div class="flex items-center gap-3">
+<span class="w-10 h-10 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined">waving_hand</span></span>
+<h2 class="font-headline-md text-headline-md text-primary" id="tutTitle"></h2>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
+</div>
+<div class="space-y-stack-md" id="tutBody"></div>
+<button class="mt-stack-lg w-full py-2.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity" id="tutDone">Got it</button>
+</div>
+</div>
+<script>
+  (function(){
+    const TITLE="Welcome to your tutor";
+    const KEY="chronos_tut_student_v1";
+    const STEPS=[
+      {icon:"school",title:"Pick your class",text:"Use the class menu on the left to choose what you're asking about. Each class only knows what that teacher put in it."},
+      {icon:"forum",title:"Just ask",text:"Type a question and press Enter. Answers come straight from your teacher's notes and files — the tutor doesn't make things up."},
+      {icon:"menu_book",title:"See the receipts",text:"Every answer shows the exact bits of material it used, so you can check where it came from."},
+      {icon:"flag",title:"If it's not there, it'll say so",text:"Asked something your teacher hasn't covered? The tutor tells you instead of guessing — worth a heads-up to your teacher so they can add it."},
+    ];
+    const body=document.getElementById("tutBody");
+    document.getElementById("tutTitle").textContent=TITLE;
+    STEPS.forEach(s=>{
+      const row=document.createElement("div");row.className="flex items-start gap-3";
+      row.innerHTML='<span class="w-8 h-8 flex-shrink-0 rounded-lg bg-surface-container text-secondary flex items-center justify-center border border-outline-variant"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
+        '<div><h3 class="font-label-md text-label-md text-on-surface mb-0.5">'+s.title+'</h3>'+
+        '<p class="font-body-md text-body-md text-on-surface-variant leading-snug">'+s.text+'</p></div>';
+      body.appendChild(row);
+    });
+    const modal=document.getElementById("tut");
+    const open=()=>modal.classList.remove("hidden");
+    const close=()=>{modal.classList.add("hidden");try{localStorage.setItem(KEY,"1");}catch(e){}};
+    document.getElementById("tutClose").onclick=close;
+    document.getElementById("tutDone").onclick=close;
+    modal.addEventListener("click",e=>{if(e.target===modal)close();});
+    const help=document.getElementById("tutHelp");if(help)help.onclick=open;
+    // Auto-open only once the app is ready (the main script calls this after the
+    // loading/join gates clear), so it never pops over a full-screen spinner.
+    window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};
+  })();
 </script>
 <script src="theme.js"></script>
 </body></html>

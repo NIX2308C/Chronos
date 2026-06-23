@@ -129,7 +129,7 @@
 <header class="w-full px-margin-desktop py-stack-md border-b border-outline-variant bg-surface-container-lowest/80 backdrop-blur-md sticky top-0 z-30 flex justify-between items-center">
 <div>
 <h2 class="font-headline-lg text-headline-lg text-primary">Knowledge Base</h2>
-<p class="font-body-md text-body-md text-on-surface-variant mt-1">Manage the rules and documents the AI is allowed to use.</p>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Everything your tutor is allowed to know for this class lives here — your rules and your uploaded documents.</p>
 </div>
 <div class="flex items-center gap-3">
 <!-- Class selector: which class's knowledge base you're editing -->
@@ -146,6 +146,9 @@
 </span>
 <button class="hidden w-10 h-10 items-center justify-center rounded-lg text-on-surface-variant hover:text-error hover:bg-surface-container-high transition-colors" id="deleteClassBtn" title="Delete this class">
 <span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+<button aria-label="How this works" class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="tutHelp" title="How this works">
+<span class="material-symbols-outlined text-[20px]">help</span>
 </button>
 <button aria-label="Toggle dark mode" class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" onclick="toggleTheme()" title="Toggle dark mode">
 <span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
@@ -167,7 +170,7 @@
 <span class="material-symbols-outlined text-secondary text-2xl">add_notes</span>
 <h3 class="font-headline-md text-headline-md text-primary">Add a rule</h3>
 </div>
-<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Define what the AI may and may not do, and what facts it can use. Each entry becomes a retrievable rule.</p>
+<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Short instructions or facts you type in yourself — what the tutor should and shouldn't do, or a quick fact it can lean on. Good for the ground rules.</p>
 <label class="font-label-md text-label-md text-on-surface mb-2 block" for="ruleId">Optional ID</label>
 <input class="w-full mb-stack-md rounded-lg border-outline-variant bg-surface-container-low text-on-background font-body-md text-body-md px-4 py-2.5 focus:border-primary focus:ring-1 focus:ring-primary transition-colors" id="ruleId" placeholder="e.g. rule_no_personal_advice" type="text"/>
 <label class="font-label-md text-label-md text-on-surface mb-2 block" for="ruleText">Rule / document text</label>
@@ -188,7 +191,7 @@
 <span class="material-symbols-outlined text-secondary text-2xl">upload_file</span>
 <h3 class="font-headline-md text-headline-md text-primary">Upload a file</h3>
 </div>
-<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">We read the text out of your file, split it into small passages, and store them in this class's knowledge base. When a student asks a question, the tutor pulls the most relevant passages and answers only from them.</p>
+<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Drop in your real course material — PDFs, Word docs, notes. We pull out the text and keep it for this class, then the tutor leans on the relevant parts whenever a student's question calls for them.</p>
 <div class="border-2 border-dashed border-outline-variant rounded-xl p-8 text-center cursor-pointer hover:border-primary hover:bg-surface-container-low transition-colors" id="dropZone">
 <span class="material-symbols-outlined text-on-surface-variant text-3xl mb-2">cloud_upload</span>
 <p class="font-body-md text-body-md text-on-surface">Drag &amp; drop a file, or <span class="text-secondary font-semibold underline" id="browseLink">browse</span></p>
@@ -314,6 +317,7 @@
     await loadClasses();
     if(!ACTIVE_CLASS)showToast("Create your first class to start adding rules.",true);
     loadRules();
+    if(window.__tutFirstVisit)window.__tutFirstVisit();
   }).catch(e=>{ $("gate").innerHTML='<p class="font-body-md text-body-md text-error text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>'; });
 
   function ensureClass(){
@@ -514,6 +518,52 @@
   // Stop a near-miss drop anywhere else on the page from making the browser
   // navigate away to the dropped file (which looks like "upload doesn't work").
   ["dragover","drop"].forEach(ev=>window.addEventListener(ev,e=>{if(e.target!==$("fileInput"))e.preventDefault();}));
+</script>
+
+<!-- How-it-works tutorial -->
+<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile bg-black/40 backdrop-blur-sm" id="tut">
+<div class="w-full max-w-md bg-surface-container-lowest border border-outline-variant rounded-xl shadow-xl p-stack-lg max-h-[85vh] overflow-y-auto">
+<div class="flex items-start justify-between gap-3 mb-stack-md">
+<div class="flex items-center gap-3">
+<span class="w-10 h-10 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined">school</span></span>
+<h2 class="font-headline-md text-headline-md text-primary" id="tutTitle"></h2>
+</div>
+<button class="text-on-surface-variant hover:text-primary transition-colors flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
+</div>
+<div class="space-y-stack-md" id="tutBody"></div>
+<button class="mt-stack-lg w-full py-2.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity" id="tutDone">Got it</button>
+</div>
+</div>
+<script>
+  (function(){
+    const TITLE="Setting up your class";
+    const KEY="chronos_tut_knowledge_v1";
+    const STEPS=[
+      {icon:"add",title:"Make a class",text:"Each class is its own separate knowledge base. Create one, then share its join code (top of the page) so your students can get in."},
+      {icon:"gavel",title:"Add rules",text:"Type in the ground rules and key facts — “don't give away homework answers,” “stick to the textbook,” and so on. One clear idea per rule works best."},
+      {icon:"description",title:"Upload your material",text:"Drop in PDFs, Word docs, or notes. We read the text so the tutor can answer from your actual course content."},
+      {icon:"lightbulb",title:"That's the tutor's whole world",text:"It only answers from what's here. If something isn't in your rules or documents, the tutor will say it doesn't know rather than guess."},
+    ];
+    const body=document.getElementById("tutBody");
+    document.getElementById("tutTitle").textContent=TITLE;
+    STEPS.forEach(s=>{
+      const row=document.createElement("div");row.className="flex items-start gap-3";
+      row.innerHTML='<span class="w-8 h-8 flex-shrink-0 rounded-lg bg-surface-container text-secondary flex items-center justify-center border border-outline-variant"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
+        '<div><h3 class="font-label-md text-label-md text-on-surface mb-0.5">'+s.title+'</h3>'+
+        '<p class="font-body-md text-body-md text-on-surface-variant leading-snug">'+s.text+'</p></div>';
+      body.appendChild(row);
+    });
+    const modal=document.getElementById("tut");
+    const open=()=>modal.classList.remove("hidden");
+    const close=()=>{modal.classList.add("hidden");try{localStorage.setItem(KEY,"1");}catch(e){}};
+    document.getElementById("tutClose").onclick=close;
+    document.getElementById("tutDone").onclick=close;
+    modal.addEventListener("click",e=>{if(e.target===modal)close();});
+    const help=document.getElementById("tutHelp");if(help)help.onclick=open;
+    // Auto-open only once the app is revealed (the main script calls this after
+    // the loading gate clears), so it never pops over a full-screen spinner.
+    window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};
+  })();
 </script>
 <script src="theme.js"></script>
 </body></html>

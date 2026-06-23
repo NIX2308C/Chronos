@@ -140,7 +140,7 @@
 </span>
 <div>
 <h1 class="font-headline-md text-headline-md font-bold text-primary leading-none">Chronos</h1>
-<span class="font-label-sm text-label-sm text-on-surface-variant">Student Mode</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant" id="modeLabel">Student Mode</span>
 </div>
 </a>
 <!-- Class switcher: which class's tutor you're talking to -->
@@ -565,6 +565,8 @@
     USER=info;
     IS_TEACHER=info.role==="teacher";
     const em=$s("userEmail");em.textContent=info.email||"Account";em.title=info.email||"";
+    // Reflect the signed-in role: a teacher trying the tutor isn't in "Student Mode".
+    const ml=$s("modeLabel");if(ml)ml.textContent=IS_TEACHER?"Teacher Mode":"Student Mode";
     // Show a way back to the teacher panels when a teacher is using the tutor.
     if(IS_TEACHER){$s("teacherBackLink").classList.remove("hidden");}
     $s("authGate").remove();
@@ -598,7 +600,6 @@
     const STEPS=[
       {icon:"school",title:"Pick your class",text:"Use the class menu on the left to choose what you're asking about. Each class only knows what that teacher put in it."},
       {icon:"forum",title:"Just ask",text:"Type a question and press Enter. Answers come straight from your teacher's notes and files — the tutor doesn't make things up."},
-      {icon:"menu_book",title:"See the receipts",text:"Every answer shows the exact bits of material it used, so you can check where it came from."},
       {icon:"flag",title:"If it's not there, it'll say so",text:"Asked something your teacher hasn't covered? The tutor tells you instead of guessing — worth a heads-up to your teacher so they can add it."},
     ];
     const body=document.getElementById("tutBody");

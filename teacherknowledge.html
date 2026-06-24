@@ -1,280 +1,224 @@
 <!DOCTYPE html>
-<html class="light" lang="en"><head>
+<html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Chronos — Knowledge Base</title>
-<script>(function(){try{var t=localStorage.getItem('teacherai_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Outfit:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
-    tailwind.config = {
-        darkMode: "class",
-        theme: {
-            extend: {
-                "colors": {
-                    "primary-container": "#131b2e",
-                    "error-container": "#ffdad6",
-                    "surface-container-low": "#f2f4f6",
-                    "surface-dim": "#d8dadc",
-                    "surface-bright": "#f7f9fb",
-                    "background": "#f7f9fb",
-                    "on-tertiary": "#ffffff",
-                    "surface-container": "#eceef0",
-                    "surface-container-highest": "#e0e3e5",
-                    "on-error": "#ffffff",
-                    "on-secondary": "#ffffff",
-                    "on-primary-container": "#7c839b",
-                    "tertiary-container": "#001a42",
-                    "on-error-container": "#93000a",
-                    "surface-container-high": "#e6e8ea",
-                    "on-tertiary-container": "#3980f4",
-                    "surface": "#f7f9fb",
-                    "on-background": "#191c1e",
-                    "surface-tint": "#565e74",
-                    "outline": "#76777d",
-                    "primary": "#000000",
-                    "tertiary-fixed-dim": "#adc6ff",
-                    "on-primary": "#ffffff",
-                    "on-secondary-container": "#4b6a4f",
-                    "on-surface": "#191c1e",
-                    "secondary": "#47664b",
-                    "error": "#ba1a1a",
-                    "outline-variant": "#c6c6cd",
-                    "secondary-container": "#c6e9c7",
-                    "surface-variant": "#e0e3e5",
-                    "on-surface-variant": "#45464d",
-                    "tertiary": "#000000",
-                    "surface-container-lowest": "#ffffff"
-                },
-                "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
-                "spacing": {
-                    "stack-sm": "0.5rem", "gutter": "1.5rem", "margin-mobile": "1rem",
-                    "margin-desktop": "2rem", "stack-lg": "2rem", "stack-md": "1rem", "container-max": "1280px"
-                },
-                "fontFamily": {
-                    "headline-xl": ["Inter"], "headline-lg": ["Inter"], "headline-lg-mobile": ["Inter"],
-                    "label-md": ["Inter"], "headline-md": ["Inter"], "body-lg": ["Inter"],
-                    "label-sm": ["Inter"], "body-md": ["Inter"]
-                },
-                "fontSize": {
-                    "headline-xl": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
-                    "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
-                    "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
-                    "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
-                    "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
-                    "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
-                    "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
-                    "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
-                }
-            }
-        }
-    }
+  tailwind.config = {
+    darkMode: "class",
+    theme: { extend: {
+      colors: { "primary": "#4F46E5", "background-dark": "#0A0A0F", "surface": "#181825", "muted": "#94A3B8", "accent": "#0D9488" },
+      fontFamily: { "display": ["Space Grotesk","sans-serif"], "body": ["Outfit","sans-serif"], "mono": ["JetBrains Mono","monospace"] },
+      borderRadius: { "DEFAULT": "0.25rem", "sm": "0.25rem", "lg": "0.375rem", "xl": "0.5rem", "full": "9999px" },
+    } }
+  }
 </script>
 <style>
-    body { font-family: 'Inter', sans-serif; }
-    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
-    .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
-    .spin { animation: spin .7s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .line-clamp-3 { display:-webkit-box; -webkit-line-clamp:3; line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-    textarea { resize: vertical; }
+  body { font-family: 'Outfit', sans-serif; background-color: #0A0A0F; color: #F1F5F9; }
+  h1,h2,h3,h4 { font-family: 'Space Grotesk', sans-serif; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  .glass-panel { background-color: rgba(24,24,37,.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  .border-subtle { border: 1px solid rgba(255,255,255,.08); }
+  .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: #3e3d52; border-radius: 4px; }
+  .spin { animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
-<link href="theme.css" rel="stylesheet"/>
 </head>
-<body class="bg-background text-on-background font-body-md min-h-screen">
+<body class="bg-background-dark min-h-screen">
 
-<!-- ============ AUTH LOADING GATE ============ -->
-<div class="min-h-screen flex items-center justify-center p-margin-mobile" id="gate">
-<span class="material-symbols-outlined text-on-surface-variant text-3xl spin">progress_activity</span>
+<!-- Auth loading gate -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-background-dark" id="gate">
+<span class="material-symbols-outlined text-muted text-3xl spin">progress_activity</span>
 </div>
 
-<!-- ============ APP ============ -->
-<div class="hidden" id="app">
+<!-- App -->
+<div class="hidden min-h-screen flex overflow-hidden" id="app">
+
 <!-- Sidebar -->
-<nav class="h-full w-64 fixed left-0 top-0 bg-surface-container-low flex flex-col p-stack-md z-40 border-r border-outline-variant">
-<a class="flex items-center gap-3 mb-stack-lg px-2" href="landing.html">
-<span class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
-<span class="material-symbols-outlined fill">school</span>
-</span>
-<div>
-<h1 class="font-headline-md text-headline-md font-bold text-primary leading-none">Chronos</h1>
-<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">Teacher Mode</p>
+<div class="relative hidden md:flex h-screen w-[250px] flex-col glass-panel border-r border-subtle shrink-0 z-20">
+<div class="flex h-full flex-col justify-between p-4">
+<div class="flex flex-col gap-6">
+<a class="flex gap-3 items-center mt-2 px-2" href="landing.html">
+<div class="size-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">schema</span>
+</div>
+<div class="flex flex-col">
+<h1 class="text-[#F1F5F9] text-base font-bold leading-normal">Chronos</h1>
+<p class="text-muted text-xs font-mono leading-normal">Teacher Portal</p>
 </div>
 </a>
-<div class="flex-1 space-y-1">
-<a class="flex items-center gap-3 px-4 py-3 bg-secondary-container text-on-secondary-container rounded-xl font-label-md text-label-md" href="teacherknowledge.html">
-<span class="material-symbols-outlined fill">library_books</span> Knowledge Base
+<div class="flex flex-col gap-2 mt-4">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-sm bg-surface border-l-2 border-primary" href="teacherknowledge.html">
+<span class="material-symbols-outlined text-[#F1F5F9] text-[20px]" style="font-variation-settings:'FILL' 1;">menu_book</span>
+<p class="text-[#F1F5F9] text-sm font-bold">Knowledge Base</p>
 </a>
-<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-xl font-label-md text-label-md transition-colors" href="teacherstats.html">
-<span class="material-symbols-outlined">insights</span> Analytics
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-sm hover:bg-surface/50 transition-colors" href="teacherstats.html">
+<span class="material-symbols-outlined text-muted text-[20px]">analytics</span>
+<p class="text-muted text-sm font-medium">Analytics</p>
 </a>
-<a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-xl font-label-md text-label-md transition-colors" href="student.html">
-<span class="material-symbols-outlined">forum</span> Student Tutor
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-sm hover:bg-surface/50 transition-colors" href="student.html">
+<span class="material-symbols-outlined text-muted text-[20px]">forum</span>
+<p class="text-muted text-sm font-medium">Student Tutor</p>
 </a>
 </div>
-<div class="mt-auto pt-stack-md border-t border-outline-variant">
-<div class="flex items-center gap-2 px-4 mb-1 font-label-sm text-label-sm text-on-surface-variant min-w-0">
-<span class="material-symbols-outlined text-[18px] flex-shrink-0">account_circle</span>
-<span class="truncate" id="userEmail" title="">…</span>
 </div>
-<button class="w-full flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-xl font-label-md text-label-md transition-colors" id="lockBtn">
-<span class="material-symbols-outlined">logout</span> Sign out
+<button class="flex items-center gap-3 px-3 py-3 border-t border-subtle mt-auto text-left hover:bg-surface/40 transition-colors rounded-sm" id="lockBtn" title="Sign out">
+<div class="w-8 h-8 rounded-full bg-surface border border-muted/30 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-muted text-[18px]">account_circle</span>
+</div>
+<div class="flex flex-col min-w-0">
+<p class="text-sm font-medium text-[#F1F5F9] truncate" id="userEmail" title="">…</p>
+<p class="text-xs font-mono text-muted">Log out</p>
+</div>
 </button>
 </div>
-</nav>
+</div>
 
 <!-- Main -->
-<main class="ml-64 flex flex-col h-screen overflow-hidden">
-<header class="w-full px-margin-desktop py-stack-md border-b border-outline-variant bg-surface-container-lowest/80 backdrop-blur-md sticky top-0 z-30 flex justify-between items-center">
+<main class="flex-1 flex flex-col h-screen overflow-hidden relative">
+<!-- Header -->
+<header class="min-h-20 flex flex-wrap items-center justify-between gap-3 px-6 lg:px-8 py-3 border-b border-subtle shrink-0 bg-background-dark/80 backdrop-blur-md z-10">
 <div>
-<h2 class="font-headline-lg text-headline-lg text-primary">Knowledge Base</h2>
-<p class="font-body-md text-body-md text-on-surface-variant mt-1">Everything your tutor is allowed to know for this class lives here — your rules and your uploaded documents.</p>
+<h2 class="text-[24px] font-bold text-[#F1F5F9]">Knowledge Base</h2>
+<p class="text-sm text-muted mt-1">Everything this class's tutor is allowed to know — your rules and documents.</p>
 </div>
-<div class="flex items-center gap-3">
-<!-- Class selector: which class's knowledge base you're editing -->
-<div class="relative">
-<span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">school</span>
-<select class="appearance-none rounded-xl border border-outline-variant bg-surface-container-low text-on-background font-label-md text-label-md pl-9 pr-9 py-2.5 max-w-[200px] hover:bg-surface-container-high focus:border-primary focus:ring-2 focus:ring-primary/40 outline-none transition-colors cursor-pointer" id="classSelect" title="Active class"></select>
-<span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
-</div>
-<button class="flex items-center gap-1 px-3 py-2.5 rounded-lg border border-outline text-on-surface-variant hover:bg-surface-container-high font-label-md text-label-md transition-colors" id="newClassBtn" title="Create a class">
+<div class="flex items-center gap-2 flex-wrap">
+<select class="bg-surface border border-subtle rounded-sm text-[#F1F5F9] text-sm font-mono px-3 py-2 max-w-[180px] focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer" id="classSelect" title="Active class"></select>
+<button class="flex items-center gap-1 px-3 py-2 rounded-sm border border-subtle text-muted hover:text-white hover:border-primary/50 text-sm font-mono transition-colors" id="newClassBtn" title="Create a class">
 <span class="material-symbols-outlined text-[18px]">add</span> New class
 </button>
-<span class="hidden items-center gap-1.5 px-3 py-2 rounded-lg bg-secondary-container text-on-secondary-container font-label-md text-label-md" id="joinCodePill" title="Share this code with students so they can join">
-<span class="material-symbols-outlined text-[16px]">key</span> <span id="joinCodeVal"></span>
+<span class="hidden items-center gap-1.5 px-3 py-2 rounded-sm bg-primary/10 border border-primary/20 text-primary text-sm font-mono" id="joinCodePill" title="Share this code with students">
+<span class="material-symbols-outlined text-[16px]">vpn_key</span> <span id="joinCodeVal"></span>
 </span>
-<button class="hidden w-10 h-10 items-center justify-center rounded-lg text-on-surface-variant hover:text-error hover:bg-surface-container-high transition-colors" id="deleteClassBtn" title="Delete this class">
+<button class="hidden w-9 h-9 items-center justify-center rounded-sm text-muted hover:text-red-400 hover:bg-surface transition-colors" id="deleteClassBtn" title="Delete this class">
 <span class="material-symbols-outlined text-[20px]">delete</span>
 </button>
-<button aria-label="How this works" class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="tutHelp" title="How this works">
-<span class="material-symbols-outlined text-[20px]">help</span>
-</button>
-<button aria-label="Toggle dark mode" class="w-10 h-10 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" onclick="toggleTheme()" title="Toggle dark mode">
-<span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
-</button>
-<button class="bg-primary text-on-primary px-6 py-3 rounded-lg font-label-md text-label-md flex items-center gap-2 hover:opacity-90 transition-opacity shadow-sm" id="uploadHeaderBtn">
+<button class="bg-primary hover:bg-primary/90 text-white text-sm font-medium py-2 px-4 rounded-sm flex items-center gap-2 transition-all shadow-[0_0_10px_rgba(79,70,229,0.2)]" id="uploadHeaderBtn">
 <span class="material-symbols-outlined text-[18px]">upload</span> Upload Source
 </button>
 </div>
 </header>
 
-<div class="flex-1 overflow-y-auto p-margin-desktop pb-24">
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter max-w-container-max mx-auto">
-
-<!-- LEFT: add tools -->
-<div class="col-span-1 lg:col-span-5 flex flex-col gap-gutter">
-<!-- Add a rule -->
-<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-stack-lg shadow-sm">
-<div class="flex items-center gap-3 mb-stack-md">
-<span class="material-symbols-outlined text-secondary text-2xl">add_notes</span>
-<h3 class="font-headline-md text-headline-md text-primary">Add a rule</h3>
+<!-- Workspace -->
+<div class="flex-1 flex overflow-hidden">
+<!-- Center -->
+<div class="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 lg:p-8 gap-6">
+<!-- Dropzone -->
+<div class="min-h-[180px] border-2 border-dashed border-primary/50 hover:border-primary rounded-sm bg-surface/30 flex flex-col items-center justify-center gap-3 p-6 transition-all hover:bg-surface/50 cursor-pointer text-center" id="dropZone">
+<div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[28px]">upload_file</span>
 </div>
-<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Short instructions or facts you type in yourself — what the tutor should and shouldn't do, or a quick fact it can lean on. Good for the ground rules.</p>
-<label class="font-label-md text-label-md text-on-surface mb-2 block" for="ruleId">Optional ID</label>
-<input class="w-full mb-stack-md rounded-lg border-outline-variant bg-surface-container-low text-on-background font-body-md text-body-md px-4 py-2.5 focus:border-primary focus:ring-1 focus:ring-primary transition-colors" id="ruleId" placeholder="e.g. rule_no_personal_advice" type="text"/>
-<label class="font-label-md text-label-md text-on-surface mb-2 block" for="ruleText">Rule / document text</label>
-<textarea class="w-full min-h-[120px] rounded-lg border-outline-variant bg-surface-container-low text-on-background font-body-md text-body-md p-4 focus:border-primary focus:ring-1 focus:ring-primary transition-colors" id="ruleText" placeholder="e.g. The AI may explain concepts but must NOT complete assignments for students."></textarea>
-<div class="flex flex-wrap gap-3 mt-stack-md">
-<button class="bg-primary text-on-primary px-5 py-2.5 rounded-lg font-label-md text-label-md flex items-center gap-2 hover:opacity-90 transition-opacity" id="addBtn">
-<span class="material-symbols-outlined text-[18px]">add</span> Add rule
-</button>
-<button class="border border-outline px-5 py-2.5 rounded-lg font-label-md text-label-md hover:bg-surface-container-highest transition-colors" id="bulkBtn">Bulk add (one per line)</button>
+<div>
+<p class="text-[#F1F5F9] font-medium text-lg">Upload a document</p>
+<p class="text-muted text-sm mt-1">Drag &amp; drop, or <span class="text-primary underline" id="browseLink">browse</span></p>
 </div>
-<div class="mt-stack-md p-4 rounded-lg bg-surface-container-low border border-outline-variant font-body-md text-label-md text-on-surface-variant leading-relaxed">
-<span class="font-semibold text-on-surface">Writing good rules:</span> be explicit and self-contained. Phrase permissions and prohibitions clearly — "The AI may…", "The AI must not…". One focused idea per rule works best.
-</div>
-</div>
-<!-- Upload -->
-<div class="bg-surface-container-lowest rounded-xl border border-outline-variant p-stack-lg shadow-sm">
-<div class="flex items-center gap-3 mb-stack-md">
-<span class="material-symbols-outlined text-secondary text-2xl">upload_file</span>
-<h3 class="font-headline-md text-headline-md text-primary">Upload a file</h3>
-</div>
-<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Drop in your real course material — PDFs, Word docs, notes. We pull out the text and keep it for this class, then the tutor leans on the relevant parts whenever a student's question calls for them.</p>
-<div class="border-2 border-dashed border-outline-variant rounded-xl p-8 text-center cursor-pointer hover:border-primary hover:bg-surface-container-low transition-colors" id="dropZone">
-<span class="material-symbols-outlined text-on-surface-variant text-3xl mb-2">cloud_upload</span>
-<p class="font-body-md text-body-md text-on-surface">Drag &amp; drop a file, or <span class="text-secondary font-semibold underline" id="browseLink">browse</span></p>
-<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">PDF · DOCX · TXT · MD · CSV</p>
+<p class="text-xs font-mono text-muted">PDF · DOCX · TXT · MD · CSV</p>
 <input accept=".pdf,.docx,.txt,.md,.csv" class="hidden" id="fileInput" type="file"/>
 </div>
-<div class="hidden mt-stack-md flex items-center justify-between p-3 rounded-lg bg-surface-container-low border border-outline-variant" id="fileInfo">
-<span class="flex items-center gap-2 font-label-md text-label-md min-w-0">
-<span class="material-symbols-outlined text-on-surface-variant text-[18px] flex-shrink-0">draft</span>
-<span class="truncate" id="fileName"></span>
+<!-- Selected file -->
+<div class="hidden items-center justify-between gap-3 p-3 rounded-sm bg-surface border border-subtle" id="fileInfo">
+<span class="flex items-center gap-2 text-sm min-w-0">
+<span class="material-symbols-outlined text-muted text-[18px] flex-shrink-0">draft</span>
+<span class="truncate text-[#F1F5F9]" id="fileName"></span>
 </span>
-<span class="font-label-sm text-label-sm text-on-surface-variant flex-shrink-0" id="fileSize"></span>
+<span class="flex items-center gap-3 flex-shrink-0">
+<span class="text-xs font-mono text-muted" id="fileSize"></span>
+<button class="bg-primary hover:bg-primary/90 text-white text-sm py-1.5 px-4 rounded-sm flex items-center justify-center gap-2 disabled:opacity-40" disabled id="uploadBtn">Upload &amp; extract</button>
+</span>
 </div>
-<button class="mt-stack-md w-full py-2.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-default" disabled id="uploadBtn">Upload &amp; extract</button>
+
+<!-- Rules / documents list -->
+<div class="flex-1 flex flex-col bg-surface border border-subtle rounded-sm overflow-hidden">
+<div class="flex flex-wrap items-center gap-3 p-3 border-b border-subtle bg-background-dark/40">
+<div class="relative flex-1 min-w-[160px]">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted text-[18px]">search</span>
+<input class="w-full bg-background-dark border border-subtle rounded-sm pl-9 pr-3 py-2 text-sm text-[#F1F5F9] focus:border-primary focus:ring-1 focus:ring-primary outline-none placeholder-muted/50" id="searchInput" placeholder="Search knowledge…" type="text"/>
+</div>
+<span class="text-xs font-mono text-muted" id="countPill">0 rules</span>
+<button class="flex items-center gap-1 px-2.5 py-2 text-xs font-mono text-muted hover:text-primary transition-colors" id="exportBtn" title="Copy rules for Bulk add">
+<span class="material-symbols-outlined text-[16px]">content_copy</span> Export
+</button>
+<button class="flex items-center gap-1 px-2.5 py-2 text-xs font-mono text-muted hover:text-primary transition-colors" id="refreshBtn">
+<span class="material-symbols-outlined text-[16px]" id="refreshIcon">refresh</span> Refresh
+</button>
+</div>
+<div class="grid grid-cols-12 gap-4 px-4 py-2.5 border-b border-subtle text-xs font-mono text-muted tracking-wider">
+<div class="col-span-9">CONTENT</div>
+<div class="col-span-3 text-right">TYPE</div>
+</div>
+<div class="flex-1 overflow-y-auto custom-scrollbar" id="rulesList"></div>
+<p class="hidden text-center text-muted text-sm py-12" id="emptyState">No rules yet. Add one on the right to get started.</p>
 </div>
 </div>
 
-<!-- RIGHT: rules list -->
-<div class="col-span-1 lg:col-span-7 flex flex-col gap-stack-md">
-<div class="flex gap-3 items-center bg-surface-container-lowest p-2 rounded-xl border border-outline-variant">
-<div class="flex-1 relative">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span>
-<input class="w-full bg-transparent border-none pl-10 pr-4 py-2 font-body-md text-body-md focus:ring-0 placeholder:text-on-surface-variant" id="searchInput" placeholder="Search rules…" type="text"/>
+<!-- Right: add to knowledge base -->
+<div class="hidden lg:flex w-[340px] bg-surface border-l border-subtle flex-col shrink-0">
+<div class="p-5 border-b border-subtle">
+<h3 class="text-lg font-bold text-[#F1F5F9] flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]">gavel</span> Add a rule
+</h3>
+<p class="text-xs text-muted mt-1">Short instructions or facts the tutor must follow.</p>
 </div>
-<span class="font-label-sm text-label-sm text-on-surface-variant px-2" id="countPill">0 rules</span>
-<div class="h-6 w-px bg-outline-variant"></div>
-<button class="px-3 py-2 flex items-center gap-1 font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" id="exportBtn" title="Copy rules to clipboard for Bulk add">
-<span class="material-symbols-outlined text-[18px]">content_copy</span> Export
+<div class="flex-1 p-5 overflow-y-auto custom-scrollbar flex flex-col gap-4">
+<div class="flex flex-col gap-2">
+<label class="text-xs font-mono text-muted uppercase tracking-wider" for="ruleId">Optional ID</label>
+<input class="w-full bg-background-dark border border-subtle rounded-sm p-2.5 text-sm font-mono text-[#F1F5F9] focus:border-primary focus:ring-1 focus:ring-primary outline-none placeholder-muted/40" id="ruleId" placeholder="rule_no_homework_answers" type="text"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-xs font-mono text-muted uppercase tracking-wider" for="ruleText">Rule / document text</label>
+<textarea class="w-full h-40 bg-background-dark border border-subtle rounded-sm p-3 text-sm text-[#F1F5F9] focus:border-primary focus:ring-1 focus:ring-primary resize-none outline-none placeholder-muted/40" id="ruleText" placeholder="e.g. The tutor may explain concepts but must NOT complete assignments for students."></textarea>
+</div>
+<div class="flex flex-col gap-2">
+<button class="w-full bg-primary hover:bg-primary/90 text-white text-sm font-medium py-2.5 rounded-sm transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(79,70,229,0.2)]" id="addBtn">
+<span class="material-symbols-outlined text-[18px]">add</span> Add rule
 </button>
-<button class="px-3 py-2 flex items-center gap-1 font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" id="refreshBtn">
-<span class="material-symbols-outlined text-[18px]" id="refreshIcon">refresh</span> Refresh
-</button>
+<button class="w-full border border-subtle hover:border-primary/50 text-muted hover:text-white text-sm font-mono py-2.5 rounded-sm transition-colors" id="bulkBtn">Bulk add (one per line)</button>
 </div>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-md" id="rulesList"></div>
-<p class="hidden font-body-md text-body-md text-on-surface-variant text-center py-12" id="emptyState">No rules yet. Add one on the left to get started.</p>
+<div class="text-xs text-muted leading-relaxed bg-background-dark border border-subtle rounded-sm p-3">
+<span class="text-[#F1F5F9] font-medium">Writing good rules:</span> be explicit and self-contained. One focused idea per rule works best.
 </div>
-
+</div>
 </div>
 </div>
 </main>
 </div>
 
 <!-- Toast -->
-<div class="hidden fixed bottom-6 right-6 z-50 max-w-sm px-4 py-3 rounded-lg shadow-lg font-label-md text-label-md flex items-center gap-2" id="toast"></div>
+<div class="hidden" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
 <script>
-  // Backend base comes from auth.js (same-origin deployed; dev server otherwise).
   const BASE=Chronos.BASE;
   let RULES=[],CLASSES=[],ACTIVE_CLASS=null;
-  let selectedFile=null;                         // the file chosen to upload (browse or drop)
-  const CLASS_KEY="chronos_teacher_class";       // remember the selected class
+  let selectedFile=null;
+  const CLASS_KEY="chronos_teacher_class";
   const $=id=>document.getElementById(id);
 
   function showToast(msg,ok){
     const t=$("toast");
     t.textContent=msg;
-    t.className="fixed bottom-6 right-6 z-50 max-w-sm px-4 py-3 rounded-lg shadow-lg font-label-md text-label-md flex items-center gap-2 "+
-      (ok?"bg-secondary-container text-on-secondary-container":"bg-error-container text-on-error-container");
+    t.className="fixed bottom-6 right-6 z-[60] max-w-sm px-4 py-3 rounded-sm shadow-lg text-sm flex items-center gap-2 border "+
+      (ok?"bg-accent/15 text-accent border-accent/30":"bg-red-500/15 text-red-400 border-red-500/30");
     clearTimeout(showToast._t);
     showToast._t=setTimeout(()=>{t.className="hidden";},4000);
   }
 
-  // Authenticated JSON call — the Firebase ID token is attached by auth.js.
-  async function api(path,body){
-    return Chronos.apiJson(path,body||{});
-  }
+  async function api(path,body){ return Chronos.apiJson(path,body||{}); }
+  async function lock(){ try{await Chronos.logout();}catch(e){} location.replace("login.html?role=teacher"); }
 
-  async function lock(){
-    try{await Chronos.logout();}catch(e){}
-    location.replace("login.html?role=teacher");
-  }
-
-  // Merge the active class into a request body (rule ops are class-scoped).
   function withClass(body){return Object.assign({},body||{},{class_id:ACTIVE_CLASS});}
   function activeClassObj(){return CLASSES.find(c=>c.id===ACTIVE_CLASS);}
 
   function paintClassMeta(){
     const c=activeClassObj(),has=!!c;
     $("joinCodePill").classList.toggle("hidden",!has);
-    $("joinCodePill").classList.toggle("flex",has);
+    $("joinCodePill").classList.toggle("inline-flex",has);
     $("deleteClassBtn").classList.toggle("hidden",!has);
     $("deleteClassBtn").classList.toggle("flex",has);
     if(has)$("joinCodeVal").textContent=c.join_code||"";
@@ -283,6 +227,7 @@
   async function loadClasses(preferId){
     CLASSES=await Chronos.listClasses();
     const sel=$("classSelect");sel.innerHTML="";
+    if(!CLASSES.length){const o=document.createElement("option");o.textContent="No classes yet";o.disabled=true;sel.appendChild(o);}
     CLASSES.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
     let pick=preferId||localStorage.getItem(CLASS_KEY);
     if(!CLASSES.find(c=>c.id===pick))pick=CLASSES.length?CLASSES[0].id:null;
@@ -317,8 +262,7 @@
     await loadClasses();
     if(!ACTIVE_CLASS)showToast("Create your first class to start adding rules.",true);
     loadRules();
-    if(window.__tutFirstVisit)window.__tutFirstVisit();
-  }).catch(e=>{ $("gate").innerHTML='<p class="font-body-md text-body-md text-error text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>'; });
+  }).catch(e=>{ $("gate").innerHTML='<p class="text-red-400 text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>'; });
 
   function ensureClass(){
     if(!ACTIVE_CLASS){showToast("Create or pick a class first.",false);return false;}
@@ -356,28 +300,19 @@
     $("bulkBtn").disabled=false;
   }
 
-  // Copy this class's hand-written rules to the clipboard, one per line — the exact
-  // format "Bulk add (one per line)" consumes, so they round-trip into another class.
-  // File-derived chunks (id "file_…") are excluded.
+  // Copy hand-written rules to the clipboard, one per line (round-trips into Bulk add).
   async function exportRules(){
-    // Collapse any line breaks inside a rule into single spaces so each rule is
-    // exactly one line — otherwise "Bulk add (one per line)" would split a
-    // multi-line rule into several on re-import.
     const lines=RULES
       .filter(r=>!String(r.id||"").startsWith("file_"))
       .map(r=>(r.text||"").replace(/\s*\n\s*/g," ").replace(/\s+/g," ").trim())
       .filter(Boolean);
     if(!lines.length){showToast("No rules to export",false);return;}
     const text=lines.join("\n");
-    const ok=msg=>showToast("Copied "+lines.length+" rule"+(lines.length===1?"":"s")+" to clipboard — paste into Bulk add",true);
+    const ok=()=>showToast("Copied "+lines.length+" rule"+(lines.length===1?"":"s")+" to clipboard — paste into Bulk add",true);
     try{
-      if(navigator.clipboard&&navigator.clipboard.writeText){
-        await navigator.clipboard.writeText(text);
-        ok();return;
-      }
+      if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); ok(); return; }
       throw new Error("no clipboard api");
     }catch(e){
-      // Fallback for non-secure contexts / older browsers without the async clipboard API.
       try{
         const ta=document.createElement("textarea");
         ta.value=text;ta.style.position="fixed";ta.style.top="-9999px";
@@ -409,24 +344,24 @@
     const shown=RULES.filter(r=>!q||(r.text||"").toLowerCase().includes(q)||(r.id||"").toLowerCase().includes(q));
     $("emptyState").classList.toggle("hidden",RULES.length>0);
     if(RULES.length&&!shown.length){
-      list.innerHTML='<p class="md:col-span-2 font-body-md text-body-md text-on-surface-variant text-center py-8">No rules match your search.</p>';
+      list.innerHTML='<p class="text-center text-muted text-sm py-8">No rules match your search.</p>';
       return;
     }
     shown.forEach(r=>{
       const isFile=String(r.id||"").startsWith("file_");
-      const card=document.createElement("div");
-      card.className="bg-surface-container-lowest border border-outline-variant rounded-xl p-stack-md flex flex-col group relative overflow-hidden hover:shadow-sm transition-shadow";
-      const top=document.createElement("div"); top.className="absolute top-0 left-0 w-full h-1 bg-secondary";
-      const head=document.createElement("div"); head.className="flex justify-between items-start mb-3 gap-2";
-      const icoWrap=document.createElement("div"); icoWrap.className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 "+(isFile?"bg-error-container/40 text-error":"bg-secondary-container text-on-secondary-container");
-      const ico=document.createElement("span"); ico.className="material-symbols-outlined text-[20px]"; ico.textContent=isFile?"description":"gavel"; icoWrap.appendChild(ico);
-      const del=document.createElement("button"); del.className="text-outline hover:text-error transition-colors flex-shrink-0";
-      del.innerHTML='<span class="material-symbols-outlined text-[20px]">delete</span>'; del.title="Delete rule"; del.onclick=()=>delRule(r.id);
-      head.appendChild(icoWrap); head.appendChild(del);
-      const txt=document.createElement("p"); txt.className="font-body-md text-body-md text-on-background line-clamp-3 mb-3"; txt.textContent=r.text;
-      const idEl=document.createElement("p"); idEl.className="font-label-sm text-label-sm text-on-surface-variant/70 mt-auto truncate"; idEl.textContent=r.id; idEl.title=r.id;
-      card.appendChild(top); card.appendChild(head); card.appendChild(txt); card.appendChild(idEl);
-      list.appendChild(card);
+      const row=document.createElement("div");
+      row.className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-white/5 items-center hover:bg-background-dark/40 transition-colors group";
+      const name=document.createElement("div"); name.className="col-span-9 flex items-center gap-3 min-w-0";
+      const ico=document.createElement("span"); ico.className="material-symbols-outlined text-[18px] flex-shrink-0 "+(isFile?"text-accent":"text-primary"); ico.textContent=isFile?"description":"gavel";
+      const txt=document.createElement("span"); txt.className="text-sm text-[#F1F5F9] truncate"; txt.textContent=r.text; txt.title=r.text;
+      name.appendChild(ico); name.appendChild(txt);
+      const right=document.createElement("div"); right.className="col-span-3 flex items-center justify-end gap-3";
+      const tag=document.createElement("span"); tag.className="hidden sm:inline text-[11px] font-mono uppercase "+(isFile?"text-accent":"text-muted"); tag.textContent=isFile?"Document":"Rule";
+      const del=document.createElement("button"); del.className="text-muted hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"; del.title="Delete"; del.onclick=()=>delRule(r.id);
+      del.innerHTML='<span class="material-symbols-outlined text-[18px]">delete</span>';
+      right.appendChild(tag); right.appendChild(del);
+      row.appendChild(name); row.appendChild(right);
+      list.appendChild(row);
     });
   }
 
@@ -459,13 +394,8 @@
 
   function setUploadBtn(busy){
     const b=$("uploadBtn");
-    if(busy){
-      b.disabled=true;
-      b.innerHTML='<span class="material-symbols-outlined text-[18px] spin">progress_activity</span>Extracting…';
-    }else{
-      b.disabled=false;
-      b.textContent="Upload & extract";
-    }
+    if(busy){ b.disabled=true; b.innerHTML='<span class="material-symbols-outlined text-[16px] spin">progress_activity</span>Extracting…'; }
+    else{ b.disabled=false; b.textContent="Upload & extract"; }
   }
 
   async function uploadFile(){
@@ -480,8 +410,6 @@
       let res;
       try{res=await Chronos.apiFetch("/upload",{method:"POST",body:form});}
       catch{throw new Error("Cannot reach server — is app.py running on port 5000?");}
-      // The server may answer with a non-JSON body (e.g. a 413 when the file is
-      // too large) — read text first so the real reason isn't swallowed.
       const raw=await res.text();
       let data={};
       try{data=raw?JSON.parse(raw):{};}catch(e){data={};}
@@ -489,11 +417,11 @@
       if(res.status===401||res.status===403)throw new Error(data.error||"You're not allowed to upload to this class.");
       if(!res.ok||data.error)throw new Error(data.details||data.error||("Upload failed ("+res.status+")."));
       showToast(`"${file.name}" → ${data.chunks} chunks stored. Total rules: ${data.total_vectors}`,true);
-      clearFile();           // success: reset the picker, button goes disabled
+      clearFile();
       loadRules();
     }catch(e){
       showToast(e.message,false);
-      setUploadBtn(false);   // failure: let the teacher try again
+      setUploadBtn(false);
     }
   }
 
@@ -512,58 +440,9 @@
   $("browseLink").onclick=e=>{e.stopPropagation();$("fileInput").click();};
   $("fileInput").addEventListener("change",()=>pickFile($("fileInput").files[0]));
   $("dropZone").addEventListener("click",()=>$("fileInput").click());
-  $("dropZone").addEventListener("dragover",e=>{e.preventDefault();$("dropZone").classList.add("border-primary","bg-surface-container-low");});
-  $("dropZone").addEventListener("dragleave",()=>$("dropZone").classList.remove("border-primary","bg-surface-container-low"));
-  $("dropZone").addEventListener("drop",e=>{e.preventDefault();$("dropZone").classList.remove("border-primary","bg-surface-container-low");const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)pickFile(f);});
-  // Stop a near-miss drop anywhere else on the page from making the browser
-  // navigate away to the dropped file (which looks like "upload doesn't work").
+  $("dropZone").addEventListener("dragover",e=>{e.preventDefault();$("dropZone").classList.add("border-primary","bg-surface/50");});
+  $("dropZone").addEventListener("dragleave",()=>$("dropZone").classList.remove("border-primary","bg-surface/50"));
+  $("dropZone").addEventListener("drop",e=>{e.preventDefault();$("dropZone").classList.remove("border-primary","bg-surface/50");const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)pickFile(f);});
   ["dragover","drop"].forEach(ev=>window.addEventListener(ev,e=>{if(e.target!==$("fileInput"))e.preventDefault();}));
 </script>
-
-<!-- How-it-works tutorial -->
-<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile bg-black/40 backdrop-blur-sm" id="tut">
-<div class="w-full max-w-md bg-surface-container-lowest border border-outline-variant rounded-xl shadow-xl p-stack-lg max-h-[85vh] overflow-y-auto">
-<div class="flex items-start justify-between gap-3 mb-stack-md">
-<div class="flex items-center gap-3">
-<span class="w-10 h-10 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined">school</span></span>
-<h2 class="font-headline-md text-headline-md text-primary" id="tutTitle"></h2>
-</div>
-<button class="text-on-surface-variant hover:text-primary transition-colors flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
-</div>
-<div class="space-y-stack-md" id="tutBody"></div>
-<button class="mt-stack-lg w-full py-2.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity" id="tutDone">Got it</button>
-</div>
-</div>
-<script>
-  (function(){
-    const TITLE="Setting up your class";
-    const KEY="chronos_tut_knowledge_v1";
-    const STEPS=[
-      {icon:"add",title:"Make a class",text:"Each class is its own separate knowledge base. Create one, then share its join code (top of the page) so your students can get in."},
-      {icon:"gavel",title:"Add rules",text:"Type in the ground rules and key facts — “don't give away homework answers,” “stick to the textbook,” and so on. One clear idea per rule works best."},
-      {icon:"description",title:"Upload your material",text:"Drop in PDFs, Word docs, or notes. We read the text so the tutor can answer from your actual course content."},
-      {icon:"lightbulb",title:"That's the tutor's whole world",text:"It only answers from what's here. If something isn't in your rules or documents, the tutor will say it doesn't know rather than guess."},
-    ];
-    const body=document.getElementById("tutBody");
-    document.getElementById("tutTitle").textContent=TITLE;
-    STEPS.forEach(s=>{
-      const row=document.createElement("div");row.className="flex items-start gap-3";
-      row.innerHTML='<span class="w-8 h-8 flex-shrink-0 rounded-lg bg-surface-container text-secondary flex items-center justify-center border border-outline-variant"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
-        '<div><h3 class="font-label-md text-label-md text-on-surface mb-0.5">'+s.title+'</h3>'+
-        '<p class="font-body-md text-body-md text-on-surface-variant leading-snug">'+s.text+'</p></div>';
-      body.appendChild(row);
-    });
-    const modal=document.getElementById("tut");
-    const open=()=>modal.classList.remove("hidden");
-    const close=()=>{modal.classList.add("hidden");try{localStorage.setItem(KEY,"1");}catch(e){}};
-    document.getElementById("tutClose").onclick=close;
-    document.getElementById("tutDone").onclick=close;
-    modal.addEventListener("click",e=>{if(e.target===modal)close();});
-    const help=document.getElementById("tutHelp");if(help)help.onclick=open;
-    // Auto-open only once the app is revealed (the main script calls this after
-    // the loading gate clears), so it never pops over a full-screen spinner.
-    window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};
-  })();
-</script>
-<script src="theme.js"></script>
 </body></html>

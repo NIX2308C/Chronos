@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Chronos AI - Authentication</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Outfit:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#574ce6",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#0A0A0F",
+                        "surface": "#181825",
+                        "muted": "#94A3B8",
+                        "accent": "#0D9488",
+                        "glass": "rgba(24, 24, 37, 0.6)",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "body": ["Outfit", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem", // 4px
+                        "sm": "0.125rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    keyframes: {
+                        shake: {
+                            '0%, 100%': { transform: 'translateX(0)' },
+                            '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-4px)' },
+                            '20%, 40%, 60%, 80%': { transform: 'translateX(4px)' },
+                        }
+                    },
+                    animation: {
+                        shake: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom Styles for Glassmorphism and specialized aesthetics */
+        .glass-panel {
+            background-color: var(--color-glass, rgba(24, 24, 37, 0.6));
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .glow-hover:hover {
+            box-shadow: 0 0 15px rgba(87, 76, 230, 0.3);
+        }
+
+        /* Abstract Background Pattern for Left Pane (Fallback if WebGL fails) */
+        .bg-pattern {
+            background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
+            background-size: 32px 32px;
+        }
+    </style>
+</head>
+<body class="bg-background-dark text-[#F1F5F9] font-body min-h-screen flex flex-col md:flex-row antialiased selection:bg-primary selection:text-white">
+<!-- Left Pane: Abstract Data Visualization (Hidden on Mobile) -->
+<div class="hidden md:flex md:w-1/2 lg:w-3/5 relative overflow-hidden bg-background-dark border-r border-white/5">
+<!-- Generative abstract background using shader/threejs placeholder -->
+<webgl-shader class="absolute inset-0 w-full h-full opacity-60" src="{{DATA:ANIMATION:ANIMATION_1}}"></webgl-shader>
+<!-- Fallback/Overlay grid -->
+<div class="absolute inset-0 bg-pattern z-0 mix-blend-overlay opacity-30"></div>
+<!-- Branding Overlay -->
+<div class="relative z-10 p-12 flex flex-col justify-between h-full">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center shadow-[0_0_20px_rgba(87,76,230,0.4)]">
+<span class="material-symbols-outlined text-white text-xl" style="font-variation-settings: 'FILL' 1;">schema</span>
+</div>
+<span class="font-display font-bold text-2xl tracking-tight text-white">Chronos AI</span>
+</div>
+<div class="max-w-md">
+<h2 class="font-display font-bold text-4xl mb-4 leading-tight text-white">Grounded intelligence for the modern classroom.</h2>
+<p class="text-muted text-lg font-body">Connect directly to curriculum-verified knowledge. No hallucinations, just pure insight mapped to your syllabus.</p>
+<div class="mt-8 flex items-center gap-4 text-sm font-mono text-muted">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+                        System Online
+                    </div>
+<div class="h-4 w-[1px] bg-white/10"></div>
+<div>Nodes Indexed: 48,291</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Pane: Authentication Form -->
+<div class="w-full md:w-1/2 lg:w-2/5 flex items-center justify-center p-6 sm:p-12 min-h-screen relative">
+<!-- Mobile Logo (Visible only on small screens) -->
+<div class="absolute top-8 left-8 md:hidden flex items-center gap-3 z-20">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-xl" style="font-variation-settings: 'FILL' 1;">schema</span>
+</div>
+<span class="font-display font-bold text-xl tracking-tight">Chronos</span>
+</div>
+<!-- Glass Floating Panel -->
+<div class="glass-panel w-full max-w-[420px] p-8 rounded flex flex-col relative z-10 shadow-2xl">
+<div class="mb-8">
+<h1 class="font-display font-bold text-3xl text-white mb-2 tracking-tight">Welcome back</h1>
+<p class="text-muted font-body text-sm">Enter your credentials to access the lab.</p>
+</div>
+<!-- Role Selector (Segmented Control) -->
+<div class="flex h-12 w-full items-center p-1 bg-background-dark rounded border border-white/10 mb-8">
+<!-- Student Option -->
+<label class="relative flex-1 h-full cursor-pointer group">
+<input checked="" class="peer sr-only" name="role" onchange="toggleRole(this)" type="radio" value="student"/>
+<div class="absolute inset-0 rounded-sm peer-checked:bg-surface peer-checked:border peer-checked:border-white/5 transition-all duration-200"></div>
+<div class="relative h-full flex items-center justify-center gap-2 font-mono text-sm font-medium text-muted peer-checked:text-primary transition-colors">
+<span class="material-symbols-outlined text-lg">school</span>
+                        Student
+                    </div>
+</label>
+<!-- Teacher Option -->
+<label class="relative flex-1 h-full cursor-pointer group">
+<input class="peer sr-only" name="role" onchange="toggleRole(this)" type="radio" value="teacher"/>
+<div class="absolute inset-0 rounded-sm peer-checked:bg-surface peer-checked:border peer-checked:border-white/5 transition-all duration-200"></div>
+<div class="relative h-full flex items-center justify-center gap-2 font-mono text-sm font-medium text-muted peer-checked:text-primary transition-colors">
+<span class="material-symbols-outlined text-lg">science</span>
+                        Teacher
+                    </div>
+</label>
+</div>
+<!-- Login Form -->
+<form class="flex flex-col gap-5" id="loginForm" onsubmit="handleLogin(event)">
+<!-- Email Field -->
+<div class="flex flex-col gap-2">
+<label class="font-mono text-[13px] text-muted tracking-wide" for="email">EMAIL ADDRESS</label>
+<div class="relative">
+<span class="absolute inset-y-0 left-0 flex items-center pl-3 text-muted pointer-events-none">
+<span class="material-symbols-outlined text-[20px]">alternate_email</span>
+</span>
+<input class="w-full h-[48px] bg-background-dark border border-white/10 rounded text-white font-body text-sm pl-10 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors placeholder:text-muted/50" id="email" name="email" placeholder="name@institution.edu" required="" type="email"/>
+</div>
+</div>
+<!-- Password Field with Error State Demonstration -->
+<div class="flex flex-col gap-2">
+<div class="flex justify-between items-end">
+<label class="font-mono text-[13px] text-muted tracking-wide" for="password">PASSWORD</label>
+<a class="font-body text-sm text-primary hover:text-white transition-colors" href="#">Forgot?</a>
+</div>
+<div class="relative" id="password-container">
+<span class="absolute inset-y-0 left-0 flex items-center pl-3 text-muted pointer-events-none">
+<span class="material-symbols-outlined text-[20px]">lock</span>
+</span>
+<input class="w-full h-[48px] bg-background-dark border border-white/10 rounded text-white font-body text-sm pl-10 pr-10 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors" id="password" name="password" placeholder="••••••••" required="" type="password"/>
+<button class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted hover:text-white transition-colors" onclick="togglePasswordVisibility()" type="button">
+<span class="material-symbols-outlined text-[20px]" id="visibility-icon">visibility_off</span>
+</button>
+</div>
+<!-- Error Message (Hidden by default) -->
+<p class="hidden font-mono text-[12px] text-[#EF4444] mt-1 flex items-center gap-1" id="password-error">
+<span class="material-symbols-outlined text-[14px]">error</span>
+                        Invalid credentials. Please verify your access key.
+                    </p>
+</div>
+<!-- Submit Button -->
+<button class="mt-4 w-full h-[48px] bg-primary text-white font-display font-bold text-sm rounded glow-hover transition-all duration-200 flex items-center justify-center gap-2 group relative overflow-hidden" id="submitBtn" type="submit">
+<span class="relative z-10 flex items-center gap-2">
+                        Initialize Session
+                        <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</span>
+</button>
+</form>
+<div class="mt-8 pt-6 border-t border-white/5 text-center">
+<p class="font-body text-sm text-muted">
+                    No active clearance? <a class="text-primary hover:text-white transition-colors font-medium" href="#">Request Lab Access</a>
+</p>
+</div>
+</div>
+</div>
+<!-- Micro-interactions Script -->
+<script>
+        // Form simulation for error state demonstration
+        function handleLogin(event) {
+            event.preventDefault();
+            
+            const btn = document.getElementById('submitBtn');
+            const passContainer = document.getElementById('password-container');
+            const passInput = document.getElementById('password');
+            const errorMsg = document.getElementById('password-error');
+            const emailInput = document.getElementById('email').value;
+            const passVal = passInput.value;
+
+            // Simple loading state
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">progress_activity</span> Authenticating...';
+            btn.disabled = true;
+            btn.classList.add('opacity-80', 'cursor-not-allowed');
+
+            // Reset error states initially
+            passInput.classList.remove('border-[#EF4444]', 'focus:border-[#EF4444]', 'focus:ring-[#EF4444]');
+            passInput.classList.add('border-white/10', 'focus:border-primary', 'focus:ring-primary');
+            errorMsg.classList.add('hidden');
+            passContainer.classList.remove('animate-shake');
+
+            // Simulate API Call
+            setTimeout(() => {
+                // For demo purposes, if password is "error", show validation state
+                if(passVal === 'error' || emailInput.includes('error')) {
+                    // Trigger Error State
+                    passContainer.classList.add('animate-shake');
+                    
+                    passInput.classList.remove('border-white/10', 'focus:border-primary', 'focus:ring-primary');
+                    passInput.classList.add('border-[#EF4444]', 'focus:border-[#EF4444]', 'focus:ring-[#EF4444]');
+                    
+                    errorMsg.classList.remove('hidden');
+                    
+                    // Remove shake class after animation completes to allow re-triggering
+                    setTimeout(() => {
+                        passContainer.classList.remove('animate-shake');
+                    }, 500);
+                } else {
+                    // Success State (would redirect in real app)
+                    btn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> Access Granted';
+                    btn.classList.replace('bg-primary', 'bg-accent');
+                    setTimeout(() => {
+                        // Reset for demo
+                        btn.classList.replace('bg-accent', 'bg-primary');
+                        btn.innerHTML = originalContent;
+                    }, 2000);
+                }
+                
+                // Re-enable button
+                if(passVal === 'error' || emailInput.includes('error')) {
+                     btn.innerHTML = originalContent;
+                }
+                btn.disabled = false;
+                btn.classList.remove('opacity-80', 'cursor-not-allowed');
+
+            }, 800);
+        }
+
+        // Toggle password visibility
+        function togglePasswordVisibility() {
+            const passInput = document.getElementById('password');
+            const icon = document.getElementById('visibility-icon');
+            
+            if (passInput.type === 'password') {
+                passInput.type = 'text';
+                icon.textContent = 'visibility';
+            } else {
+                passInput.type = 'password';
+                icon.textContent = 'visibility_off';
+            }
+        }
+
+        // Role toggle logging (for demonstration of state change)
+        function toggleRole(radio) {
+            console.log(`Role switched to: ${radio.value}`);
+            // In a real app, this might change auth endpoints or form fields slightly
+        }
+    </script>
+</body></html>

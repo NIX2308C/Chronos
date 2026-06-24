@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Teacher Analytics | Chronos AI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;family=Outfit:wght@300;400;600&amp;family=Space+Grotesk:wght@300;500;700;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100..900&amp;family=Outfit:wght@100..900&amp;family=Space+Grotesk:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "text-main": "#F1F5F9",
+                    "terminal-red": "#EF4444",
+                    "inverse-surface": "#e4e1ee",
+                    "secondary-fixed": "#89f5e7",
+                    "on-tertiary-container": "#ffd2be",
+                    "surface-container-high": "#2a2933",
+                    "secondary-fixed-dim": "#6bd8cb",
+                    "inverse-primary": "#4d44e3",
+                    "surface-bright": "#393842",
+                    "accent-teal": "#0D9488",
+                    "terminal-green": "#22C55E",
+                    "on-background": "#e4e1ee",
+                    "on-tertiary": "#571f00",
+                    "tertiary-container": "#a44100",
+                    "surface-solid": "#181825",
+                    "on-tertiary-fixed": "#351000",
+                    "primary-container": "#4f46e5",
+                    "primary-fixed": "#e2dfff",
+                    "on-secondary-container": "#00302b",
+                    "on-error-container": "#ffdad6",
+                    "surface-container-lowest": "#0e0d16",
+                    "secondary-container": "#29a195",
+                    "surface-container-highest": "#35343e",
+                    "on-primary": "#1d00a5",
+                    "inverse-on-surface": "#302f39",
+                    "on-primary-container": "#dad7ff",
+                    "error": "#ffb4ab",
+                    "on-primary-fixed": "#0f0069",
+                    "secondary": "#6bd8cb",
+                    "on-tertiary-fixed-variant": "#7b2f00",
+                    "surface-glass": "rgba(24, 24, 37, 0.6)",
+                    "surface-container": "#1f1f28",
+                    "on-surface": "#e4e1ee",
+                    "tertiary": "#ffb695",
+                    "primary-fixed-dim": "#c3c0ff",
+                    "surface-container-low": "#1b1b24",
+                    "tertiary-fixed-dim": "#ffb695",
+                    "background-deep": "#0A0A0F",
+                    "outline": "#918fa1",
+                    "surface-tint": "#c3c0ff",
+                    "error-container": "#93000a",
+                    "text-muted": "#94A3B8",
+                    "surface-variant": "#35343e",
+                    "on-error": "#690005",
+                    "on-secondary-fixed-variant": "#005049",
+                    "outline-variant": "#464555",
+                    "on-secondary-fixed": "#00201d",
+                    "surface-dim": "#13121b",
+                    "terminal-yellow": "#EAB308",
+                    "on-primary-fixed-variant": "#3323cc",
+                    "primary": "#c3c0ff",
+                    "on-secondary": "#003732",
+                    "on-surface-variant": "#c7c4d8",
+                    "surface": "#13121b",
+                    "background": "#13121b",
+                    "tertiary-fixed": "#ffdbcc"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "grid-gutter": "1.5rem",
+                    "margin-page": "1.5rem",
+                    "section-padding": "6rem",
+                    "container-max": "1280px",
+                    "stack-gap": "1.5rem"
+            },
+            "fontFamily": {
+                    "label-mono": ["JetBrains Mono"],
+                    "button": ["Space Grotesk"],
+                    "headline-md": ["Space Grotesk"],
+                    "body-lg": ["Outfit"],
+                    "display-xl": ["Space Grotesk"],
+                    "body-md": ["Outfit"],
+                    "headline-lg": ["Space Grotesk"],
+                    "display-xl-mobile": ["Space Grotesk"]
+            },
+            "fontSize": {
+                    "label-mono": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "button": ["18px", {"lineHeight": "1", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "700"}],
+                    "body-lg": ["20px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "display-xl": ["80px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "900"}],
+                    "body-md": ["16px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-lg": ["36px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                    "display-xl-mobile": ["48px", {"lineHeight": "1.1", "fontWeight": "900"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .glass-panel {
+            background: rgba(24, 24, 37, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-panel:hover {
+            border-color: rgba(195, 192, 255, 0.2);
+            box-shadow: 0 0 25px rgba(79, 70, 229, 0.15);
+            transform: translateY(-2px);
+        }
+        .terminal-header {
+            background: #181825;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .heatmap-cell {
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        .heatmap-cell:hover {
+            transform: scale(1.1);
+            filter: brightness(1.3);
+            z-index: 10;
+        }
+        body {
+            background-color: #0A0A0F;
+            color: #F1F5F9;
+        }
+        .glow-indigo {
+            background: radial-gradient(circle, rgba(79, 70, 229, 0.15) 0%, transparent 70%);
+        }
+    </style>
+</head>
+<body class="font-body-md text-text-main overflow-x-hidden">
+<!-- Ambient Background Lighting -->
+<div class="fixed inset-0 pointer-events-none z-0">
+<div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] glow-indigo"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] glow-indigo opacity-50"></div>
+</div>
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 backdrop-blur-md bg-surface-glass border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
+<div class="flex justify-between items-center h-20 px-grid-gutter max-w-container-max mx-auto">
+<div class="flex items-center gap-4">
+<span class="font-display-xl-mobile text-headline-lg text-primary drop-shadow-[0_0_15px_rgba(79,70,229,0.5)]">Chronos AI</span>
+<span class="bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded font-label-mono text-[10px] tracking-widest uppercase">Research Labs</span>
+</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="font-button text-button uppercase tracking-wider text-on-surface-variant hover:text-text-main transition-colors" href="#">Dashboard</a>
+<a class="font-button text-button uppercase tracking-wider text-primary border-b-2 border-primary pb-1" href="#">Labs</a>
+<a class="font-button text-button uppercase tracking-wider text-on-surface-variant hover:text-text-main transition-colors" href="#">Library</a>
+<a class="font-button text-button uppercase tracking-wider text-on-surface-variant hover:text-text-main transition-colors" href="#">Community</a>
+</nav>
+<div class="flex items-center gap-6">
+<div class="hidden lg:flex items-center bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 gap-2">
+<span class="material-symbols-outlined text-text-muted text-sm" style="font-size: 18px;">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm w-32 placeholder:text-text-muted" placeholder="Global Scan..." type="text"/>
+</div>
+<button class="font-button text-button uppercase tracking-wider bg-primary-container text-on-primary-container px-6 py-2.5 rounded hover:bg-white/5 transition-all duration-300 active:scale-95">Start Session</button>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors" style="font-size: 32px;">account_circle</span>
+</div>
+</div>
+</header>
+<main class="relative z-10 pt-32 pb-section-padding px-grid-gutter max-w-container-max mx-auto">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+<div>
+<h1 class="font-headline-lg text-text-main mb-2">Teacher Analytics Node <span class="text-primary">#402</span></h1>
+<p class="text-text-muted font-body-lg">Monitoring student cognitive engagement and real-time knowledge synthesis across 'The Collaborative Lab'.</p>
+</div>
+<div class="flex items-center gap-4 bg-surface-glass border border-white/5 p-2 rounded-xl">
+<div class="px-4 py-2 text-center border-r border-white/10">
+<p class="text-[10px] font-label-mono text-text-muted uppercase tracking-tighter">Status</p>
+<p class="text-terminal-green font-label-mono text-sm uppercase flex items-center gap-1 justify-center">
+<span class="w-1.5 h-1.5 rounded-full bg-terminal-green animate-pulse"></span> Synchronized
+                    </p>
+</div>
+<div class="px-4 py-2 text-center">
+<p class="text-[10px] font-label-mono text-text-muted uppercase tracking-tighter">Last Refresh</p>
+<p class="text-text-main font-label-mono text-sm">02:14:55 UTC</p>
+</div>
+</div>
+</div>
+<!-- Top Row KPI Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-stack-gap mb-stack-gap">
+<!-- KPI 1 -->
+<div class="glass-panel p-6 rounded-xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-primary text-6xl">query_stats</span>
+</div>
+<h3 class="font-label-mono text-text-muted text-xs uppercase tracking-widest mb-4">Total Queries</h3>
+<p class="font-label-mono text-4xl font-bold text-primary mb-2">12,842</p>
+<div class="flex items-center gap-2">
+<span class="text-terminal-green text-xs font-label-mono flex items-center">+14.2%</span>
+<span class="text-text-muted text-[10px] font-label-mono">vs last week</span>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="glass-panel p-6 rounded-xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-secondary text-6xl">psychology</span>
+</div>
+<h3 class="font-label-mono text-text-muted text-xs uppercase tracking-widest mb-4">Active Synthesis</h3>
+<p class="font-label-mono text-4xl font-bold text-secondary mb-2">84%</p>
+<div class="flex items-center gap-2">
+<span class="text-terminal-green text-xs font-label-mono flex items-center">+2.1%</span>
+<span class="text-text-muted text-[10px] font-label-mono">confidence index</span>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="glass-panel p-6 rounded-xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-tertiary text-6xl">hourglass_empty</span>
+</div>
+<h3 class="font-label-mono text-text-muted text-xs uppercase tracking-widest mb-4">Avg Processing</h3>
+<p class="font-label-mono text-4xl font-bold text-tertiary mb-2">1.2s</p>
+<div class="flex items-center gap-2">
+<span class="text-terminal-red text-xs font-label-mono flex items-center">-0.3s</span>
+<span class="text-text-muted text-[10px] font-label-mono">latency optimization</span>
+</div>
+</div>
+<!-- KPI 4 -->
+<div class="glass-panel p-6 rounded-xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-text-main text-6xl">group</span>
+</div>
+<h3 class="font-label-mono text-text-muted text-xs uppercase tracking-widest mb-4">Node Participants</h3>
+<p class="font-label-mono text-4xl font-bold text-text-main mb-2">412</p>
+<div class="flex items-center gap-2">
+<span class="text-terminal-green text-xs font-label-mono flex items-center">Stable</span>
+<span class="text-text-muted text-[10px] font-label-mono">connection strength</span>
+</div>
+</div>
+</div>
+<!-- Middle Topic Heatmap Section -->
+<section class="glass-panel rounded-xl overflow-hidden mb-stack-gap">
+<div class="terminal-header px-6 py-4 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="flex gap-1.5">
+<div class="w-2.5 h-2.5 rounded-full bg-terminal-red"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-terminal-yellow"></div>
+<div class="w-2.5 h-2.5 rounded-full bg-terminal-green"></div>
+</div>
+<span class="font-label-mono text-xs text-text-muted ml-2">frequency_heatmap.v2.5</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-sm bg-accent-teal/20"></span>
+<span class="text-[10px] font-label-mono text-text-muted">Low</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-sm bg-accent-teal"></span>
+<span class="text-[10px] font-label-mono text-text-muted">High</span>
+</div>
+</div>
+</div>
+<div class="p-8">
+<h2 class="font-headline-md mb-6">Knowledge Frequency Distribution</h2>
+<div class="grid grid-cols-5 md:grid-cols-10 lg:grid-cols-12 gap-2">
+<!-- Generating heatmap cells with varying opacities for teal -->
+<script>
+                        const container = document.currentScript.parentElement;
+                        const topics = ["Neural Nets", "Bio-Ethics", "Quant Physics", "AI Theory", "Robotics", "NLP", "Causality", "Systems", "Genetics", "Cybernetics", "Logic", "History", "Macro", "Micro", "Theory", "Stats", "Data", "Security", "Crypto", "Web3"];
+                        for(let i = 0; i < 48; i++) {
+                            const opacity = Math.random() * 0.9 + 0.1;
+                            const cell = document.createElement('div');
+                            cell.className = 'heatmap-cell aspect-square rounded-sm relative group cursor-help';
+                            cell.style.backgroundColor = `rgba(13, 148, 136, ${opacity})`;
+                            cell.innerHTML = `
+                                <div class="absolute inset-0 border border-white/5 group-hover:border-white/40"></div>
+                                <div class="opacity-0 group-hover:opacity-100 absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-surface-solid border border-white/10 rounded text-[10px] font-label-mono whitespace-nowrap z-50 pointer-events-none">
+                                    ${topics[i % topics.length]}: ${Math.floor(opacity * 100)}% Match
+                                </div>
+                            `;
+                            container.appendChild(cell);
+                        }
+                    </script>
+</div>
+<div class="mt-8 flex justify-end">
+<button class="flex items-center gap-2 text-accent-teal font-label-mono text-xs hover:underline">
+<span>VIEW FULL CORRELATION MATRIX</span>
+<span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Bottom Knowledge Gaps Section -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-stack-gap">
+<!-- Knowledge Gaps List (2/3 width) -->
+<div class="lg:col-span-2 glass-panel rounded-xl overflow-hidden flex flex-col">
+<div class="terminal-header px-6 py-4">
+<span class="font-label-mono text-xs text-terminal-red">CRITICAL_KNOWLEDGE_GAPS.log</span>
+</div>
+<div class="p-6 flex-grow">
+<table class="w-full text-left">
+<thead>
+<tr class="border-b border-white/5">
+<th class="font-label-mono text-xs text-text-muted py-4 font-normal">TOPIC_IDENTIFIER</th>
+<th class="font-label-mono text-xs text-text-muted py-4 font-normal">FAILURE_RATE</th>
+<th class="font-label-mono text-xs text-text-muted py-4 font-normal">PRIORITY</th>
+<th class="font-label-mono text-xs text-text-muted py-4 font-normal text-right">ACTION</th>
+</tr>
+</thead>
+<tbody class="font-label-mono text-sm">
+<tr class="group hover:bg-white/5 transition-colors">
+<td class="py-4 text-text-main">Non-Linear Dynamics</td>
+<td class="py-4 text-terminal-red">68.2%</td>
+<td class="py-4"><span class="px-2 py-0.5 bg-terminal-red/20 text-terminal-red rounded text-[10px]">CRITICAL</span></td>
+<td class="py-4 text-right"><button class="text-accent-teal hover:underline text-xs">DEPLOY_DOCS</button></td>
+</tr>
+<tr class="group hover:bg-white/5 transition-colors">
+<td class="py-4 text-text-main">Vector Calculus: Divergence</td>
+<td class="py-4 text-terminal-red">54.1%</td>
+<td class="py-4"><span class="px-2 py-0.5 bg-terminal-red/20 text-terminal-red rounded text-[10px]">CRITICAL</span></td>
+<td class="py-4 text-right"><button class="text-accent-teal hover:underline text-xs">DEPLOY_DOCS</button></td>
+</tr>
+<tr class="group hover:bg-white/5 transition-colors">
+<td class="py-4 text-text-main">Humean Causality</td>
+<td class="py-4 text-terminal-yellow">42.8%</td>
+<td class="py-4"><span class="px-2 py-0.5 bg-terminal-yellow/20 text-terminal-yellow rounded text-[10px]">ELEVATED</span></td>
+<td class="py-4 text-right"><button class="text-accent-teal hover:underline text-xs">DEPLOY_DOCS</button></td>
+</tr>
+<tr class="group hover:bg-white/5 transition-colors">
+<td class="py-4 text-text-main">Quantum Decoherence</td>
+<td class="py-4 text-terminal-yellow">39.5%</td>
+<td class="py-4"><span class="px-2 py-0.5 bg-terminal-yellow/20 text-terminal-yellow rounded text-[10px]">ELEVATED</span></td>
+<td class="py-4 text-right"><button class="text-accent-teal hover:underline text-xs">DEPLOY_DOCS</button></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Atmospheric Visual/Side Info -->
+<div class="glass-panel rounded-xl overflow-hidden flex flex-col p-6">
+<h3 class="font-headline-md text-sm mb-6 uppercase tracking-widest border-b border-white/10 pb-4">Real-time Visualization</h3>
+<div class="flex-grow flex items-center justify-center relative min-h-[200px]">
+<div class="absolute inset-0 opacity-20 pointer-events-none">
+
+</div>
+<div class="relative z-10 text-center">
+<span class="material-symbols-outlined text-primary text-5xl animate-pulse" style="font-variation-settings: 'FILL' 1;">hub</span>
+<p class="font-label-mono text-[10px] text-text-muted mt-4">NEURAL_TRAFFIC_LIVE</p>
+<p class="font-label-mono text-xs text-primary">ENCRYPTED STREAM</p>
+</div>
+</div>
+<div class="mt-6 space-y-3">
+<div class="bg-surface-solid p-3 rounded border border-white/5">
+<div class="flex justify-between items-center mb-1">
+<span class="text-[10px] font-label-mono text-text-muted">SERVER_LOAD</span>
+<span class="text-[10px] font-label-mono text-terminal-green">42%</span>
+</div>
+<div class="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+<div class="h-full bg-terminal-green" style="width: 42%"></div>
+</div>
+</div>
+<div class="bg-surface-solid p-3 rounded border border-white/5">
+<div class="flex justify-between items-center mb-1">
+<span class="text-[10px] font-label-mono text-text-muted">DATA_ACCURACY</span>
+<span class="text-[10px] font-label-mono text-primary">99.8%</span>
+</div>
+<div class="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 99.8%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-section-padding/2 bg-background-deep border-t border-outline-variant/20 relative z-10">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-gap px-grid-gutter max-w-container-max mx-auto items-center">
+<div>
+<p class="font-headline-md text-text-main mb-2">CHRONOS AI</p>
+<p class="font-label-mono text-label-mono text-text-muted uppercase tracking-widest">© 2024 CHRONOS AI RESEARCH LABS. ALL RIGHTS RESERVED.</p>
+</div>
+<div class="flex flex-wrap gap-x-8 gap-y-4 md:justify-end">
+<a class="font-label-mono text-label-mono text-text-muted hover:text-accent-teal hover:translate-x-1 transition-transform opacity-80 hover:opacity-100" href="#">SYSTEM_STATUS</a>
+<a class="font-label-mono text-label-mono text-text-muted hover:text-accent-teal hover:translate-x-1 transition-transform opacity-80 hover:opacity-100" href="#">PROTOCOLS</a>
+<a class="font-label-mono text-label-mono text-text-muted hover:text-accent-teal hover:translate-x-1 transition-transform opacity-80 hover:opacity-100" href="#">DATA_PRIVACY</a>
+<a class="font-label-mono text-label-mono text-accent-teal underline hover:translate-x-1 transition-transform opacity-80 hover:opacity-100" href="#">CORE_API</a>
+</div>
+</div>
+</footer>
+<script>
+        // Micro-interactions for KPI numbers
+        document.querySelectorAll('.font-bold').forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                el.style.textShadow = '0 0 15px currentColor';
+            });
+            el.addEventListener('mouseleave', () => {
+                el.style.textShadow = 'none';
+            });
+        });
+
+        // Simulating real-time data updates
+        setInterval(() => {
+            const heatmapCells = document.querySelectorAll('.heatmap-cell');
+            const randomCell = heatmapCells[Math.floor(Math.random() * heatmapCells.length)];
+            const currentOpacity = parseFloat(randomCell.style.backgroundColor.split(',')[3]);
+            const newOpacity = Math.max(0.1, Math.min(1, currentOpacity + (Math.random() - 0.5) * 0.2));
+            randomCell.style.backgroundColor = `rgba(13, 148, 136, ${newOpacity})`;
+        }, 3000);
+    </script>
+</body></html>

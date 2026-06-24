@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Chronos AI - The Collaborative Lab</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&amp;family=Outfit:wght@400&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "primary": "#4F46E5",
+          "background-light": "#f6f6f8",
+          "background-dark": "#13121b",
+          "surface": "#1b1b24",
+          "glass": "rgba(27, 27, 36, 0.6)",
+          "text-main": "#F1F5F9",
+          "muted": "#94A3B8",
+          "accent": "#0D9488"
+        },
+        fontFamily: {
+          "display": ["Space Grotesk", "sans-serif"],
+          "body": ["Outfit", "sans-serif"],
+          "mono": ["JetBrains Mono", "monospace"]
+        },
+        borderRadius: {"DEFAULT": "1rem", "lg": "1rem", "xl": "1rem", "full": "9999px"},
+      },
+    },
+  }
+</script>
+<style>
+  body {
+    background-color: #13121b;
+    color: #F1F5F9;
+    overflow-x: hidden;
+  }
+  
+  .glass-panel {
+    background-color: rgba(27, 27, 36, 0.6);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .text-gradient {
+    background-image: linear-gradient(to right, #4F46E5, #0D9488);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow-btn:hover {
+    box-shadow: 0 0 20px rgba(79, 70, 229, 0.4);
+  }
+
+  /* Reveal Animations */
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  .reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .scale-reveal {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .scale-reveal.active {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .slide-reveal-right {
+    opacity: 0;
+    transform: translateX(50px);
+    transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .slide-reveal-right.active {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  /* Scroll Indicator */
+  .scroll-indicator {
+    animation: bounce 2s infinite;
+  }
+
+  @keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+    40% {transform: translateY(-10px);}
+    60% {transform: translateY(-5px);}
+  }
+
+  .feature-card {
+    transition: transform 0.3s ease, border-color 0.3s ease;
+  }
+  
+  .feature-card:hover {
+    border-color: rgba(79, 70, 229, 0.4);
+    transform: translateY(-4px);
+  }
+
+  /* Video Hero Styles */
+  #hero-track {
+    height: 500vh;
+    position: relative;
+  }
+  #hero-sticky {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #bg-video {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
+    z-index: 0;
+    object-fit: cover;
+    opacity: 0.6;
+  }
+  .hero-overlay {
+    position: relative;
+    z-index: 10;
+  }
+</style>
+</head>
+<body class="font-body min-h-screen flex flex-col antialiased relative">
+<!-- Navigation -->
+<nav class="fixed top-0 w-full z-50 glass-panel border-b border-[rgba(255,255,255,0.05)]">
+<div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-2xl animate-pulse">science</span>
+<span class="font-display font-bold text-xl tracking-tight">Chronos AI</span>
+</div>
+<div class="flex items-center gap-4 font-display text-sm">
+<a class="text-muted hover:text-text-main transition-colors" href="#">Sign In</a>
+<a class="bg-primary text-white px-5 py-2 rounded-full glow-btn transition-all font-medium" href="#">Get Started</a>
+</div>
+</div>
+</nav>
+<main class="flex-grow scroll-container relative z-10">
+<!-- Scroll Video Hero Section -->
+<div id="hero-track">
+<div id="hero-sticky">
+<video id="bg-video" muted="" playsinline="" preload="auto">
+<source src="https://assets.codepen.io/39255/output_960.mp4" type="video/mp4"/>
+</video>
+<div class="absolute inset-0 bg-background-dark/40 z-[1]"></div>
+<div class="hero-overlay max-w-4xl px-6 text-center z-10 glass-panel p-12 rounded-3xl" id="hero-content">
+<h1 class="font-display font-black text-5xl md:text-[80px] leading-[1.1] tracking-tight mb-6">
+<span class="text-gradient">Grounded AI Tutoring</span><br/>
+        for the Modern Classroom
+      </h1>
+<p class="text-muted text-lg md:text-xl max-w-2xl mx-auto mb-10 font-body leading-relaxed">
+        Upload your curriculum. Let Chronos AI provide accurate, citation-backed help without the hallucinations.
+      </p>
+<div class="flex flex-col sm:flex-row gap-4 justify-center">
+<button class="bg-primary text-white px-8 py-4 rounded-full glow-btn font-display font-bold text-lg transition-all w-full sm:w-auto">
+          Start Your Lab
+        </button>
+<button class="glass-panel text-white px-8 py-4 rounded-full font-display font-bold text-lg hover:bg-surface transition-colors w-full sm:w-auto border border-[rgba(255,255,255,0.1)]">
+          Book Demo
+        </button>
+</div>
+</div>
+<!-- Scroll Indicator -->
+<div class="absolute bottom-10 left-1/2 -translate-x-1/2 scroll-indicator text-muted flex flex-col items-center gap-2 z-10 pointer-events-auto">
+<span class="text-xs font-display uppercase tracking-widest">Scroll to explore</span>
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+</div>
+<!-- Narrative Section 1: Strict Academic Control -->
+<section class="py-32 px-6 relative z-10 bg-background-dark">
+<div class="max-w-7xl mx-auto">
+<div class="text-center mb-20 reveal">
+<h2 class="font-display font-bold text-4xl md:text-5xl text-text-main mb-6">Strict Academic Control</h2>
+<p class="text-muted font-body text-lg max-w-2xl mx-auto">Designed specifically for rigorous academic environments where accuracy is the only currency.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Feature 1 -->
+<div class="bg-surface backdrop-blur-sm border border-[rgba(255,255,255,0.05)] p-10 rounded-2xl feature-card scale-reveal">
+<div class="w-14 h-14 glass-panel rounded-xl flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-accent text-3xl">gpp_good</span>
+</div>
+<h3 class="font-display font-bold text-2xl text-text-main mb-4">Zero Hallucinations</h3>
+<p class="text-muted font-body leading-relaxed">
+            Grounds AI responses strictly in teacher-uploaded materials. If it's not in the syllabus, the AI won't invent it.
+          </p>
+</div>
+<!-- Feature 2 -->
+<div class="bg-surface backdrop-blur-sm border border-[rgba(255,255,255,0.05)] p-10 rounded-2xl feature-card scale-reveal" style="transition-delay: 200ms;">
+<div class="w-14 h-14 glass-panel rounded-xl flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-accent text-3xl">upload_file</span>
+</div>
+<h3 class="font-display font-bold text-2xl text-text-main mb-4">Instant Ingestion</h3>
+<p class="text-muted font-body leading-relaxed">
+            Drop a syllabus and let our AI index and extract nodes instantly to build a robust knowledge graph for your class.
+          </p>
+</div>
+<!-- Feature 3 -->
+<div class="bg-surface backdrop-blur-sm border border-[rgba(255,255,255,0.05)] p-10 rounded-2xl feature-card scale-reveal" style="transition-delay: 400ms;">
+<div class="w-14 h-14 glass-panel rounded-xl flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-accent text-3xl">query_stats</span>
+</div>
+<h3 class="font-display font-bold text-2xl text-text-main mb-4">Live Telemetry</h3>
+<p class="text-muted font-body leading-relaxed">
+            Identify class-wide knowledge gaps with live telemetry of student queries, helping you adjust your next lecture.
+          </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Narrative Section 2: Live Gap Analytics -->
+<section class="py-32 px-6 bg-background-dark relative z-10 overflow-hidden">
+<div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+<div class="reveal">
+<h2 class="font-display font-bold text-4xl md:text-5xl text-text-main mb-6 leading-tight">Live Gap Analytics</h2>
+<p class="text-muted font-body text-xl mb-8 leading-relaxed">
+          See where your students are struggling in real-time. Our dashboard visualizes student comprehension gaps using heatmaps generated from anonymous query data.
+        </p>
+<ul class="space-y-4 mb-10">
+<li class="flex items-center gap-3 text-text-main font-display font-medium">
+<span class="material-symbols-outlined text-accent">check_circle</span>
+            Anonymous aggregate reporting
+          </li>
+<li class="flex items-center gap-3 text-text-main font-display font-medium">
+<span class="material-symbols-outlined text-accent">check_circle</span>
+            Concept difficulty heatmaps
+          </li>
+<li class="flex items-center gap-3 text-text-main font-display font-medium">
+<span class="material-symbols-outlined text-accent">check_circle</span>
+            Automated lecture adjustment suggestions
+          </li>
+</ul>
+<button class="text-accent font-display font-bold text-lg flex items-center gap-2 group">
+          Explore Dashboard <span class="material-symbols-outlined transition-transform group-hover:translate-x-1">arrow_forward</span>
+</button>
+</div>
+<div class="slide-reveal-right">
+<!-- Dashboard Mockup -->
+<div class="glass-panel rounded-2xl shadow-2xl overflow-hidden border border-white/5 relative">
+<div class="bg-surface p-4 border-b border-white/5 flex items-center justify-between">
+<div class="flex gap-1.5">
+<div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+<div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+<div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+</div>
+<div class="text-[10px] font-mono text-muted tracking-widest uppercase">Instructor Overview</div>
+</div>
+<div class="p-6 bg-background-dark/40">
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div class="glass-panel p-4 rounded-xl">
+<div class="text-[10px] text-muted mb-1 font-display">AVG. COMPREHENSION</div>
+<div class="text-2xl font-display font-bold text-accent">84%</div>
+</div>
+<div class="glass-panel p-4 rounded-xl">
+<div class="text-[10px] text-muted mb-1 font-display">ACTIVE SESSIONS</div>
+<div class="text-2xl font-display font-bold text-primary animate-pulse">42</div>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-xl h-48 flex items-end justify-between gap-2">
+<div class="w-full bg-primary/20 h-32 rounded-t relative group"><div class="absolute bottom-0 w-full bg-primary h-2/3 group-hover:h-full transition-all rounded-t"></div></div>
+<div class="w-full bg-primary/20 h-40 rounded-t relative group"><div class="absolute bottom-0 w-full bg-primary h-4/5 group-hover:h-full transition-all rounded-t"></div></div>
+<div class="w-full bg-primary/20 h-24 rounded-t relative group"><div class="absolute bottom-0 w-full bg-primary h-1/2 group-hover:h-full transition-all rounded-t"></div></div>
+<div class="w-full bg-primary/20 h-44 rounded-t relative group"><div class="absolute bottom-0 w-full bg-primary h-5/6 group-hover:h-full transition-all rounded-t"></div></div>
+<div class="w-full bg-primary/20 h-28 rounded-t relative group"><div class="absolute bottom-0 w-full bg-primary h-2/3 group-hover:h-full transition-all rounded-t"></div></div>
+<div class="w-full bg-primary/20 h-36 rounded-t relative group"><div class="absolute bottom-0 w-full bg-primary h-3/4 group-hover:h-full transition-all rounded-t"></div></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="border-t border-[rgba(255,255,255,0.05)] py-12 px-6 bg-surface relative z-10 mt-20">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-2xl">science</span>
+<span class="font-display font-bold text-text-main text-xl">Chronos AI</span>
+</div>
+<div class="flex gap-8 text-sm font-display text-muted">
+<a class="hover:text-primary transition-colors" href="#">Privacy</a>
+<a class="hover:text-primary transition-colors" href="#">Terms</a>
+<a class="hover:text-primary transition-colors" href="#">Documentation</a>
+<a class="hover:text-primary transition-colors" href="#">Support</a>
+</div>
+<p class="text-muted text-sm font-body">© 2024 Chronos Lab. All rights reserved.</p>
+</div>
+</footer>
+<script>
+  // Wait for video metadata to load before setting up GSAP
+  const video = document.getElementById('bg-video');
+  const heroContent = document.getElementById('hero-content');
+
+  function initGSAP() {
+    gsap.registerPlugin(ScrollTrigger);
+
+    // Ensure video is paused
+    video.pause();
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: "#hero-track",
+        start: "top top",
+        end: "bottom bottom",
+        scrub: 1.5, // Smoothness requirement
+      }
+    });
+
+    // Animate video current time
+    tl.to(video, {
+      currentTime: video.duration || 10, // fallback to 10s if duration not available yet
+      ease: "none"
+    }, 0);
+
+    // Fade and scale out the hero content
+    tl.to(heroContent, {
+      opacity: 0,
+      scale: 0.8,
+      ease: "power2.inOut"
+    }, 0);
+  }
+
+  video.addEventListener('loadedmetadata', initGSAP);
+  // Fallback in case metadata is already loaded or fails
+  if (video.readyState >= 1) {
+    initGSAP();
+  } else {
+    // Add a timeout fallback
+    setTimeout(() => {
+      if(!ScrollTrigger.getAll().length) initGSAP();
+    }, 1000);
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // Reveal Animations with IntersectionObserver
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active');
+        }
+      });
+    }, observerOptions);
+
+    document.querySelectorAll('.reveal, .scale-reveal, .slide-reveal-right').forEach(el => {
+      observer.observe(el);
+    });
+  });
+</script>
+</body></html>

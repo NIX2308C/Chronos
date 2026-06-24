@@ -1,110 +1,159 @@
 <!DOCTYPE html>
-<html class="light" lang="en"><head>
+<html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Chronos — Sign in</title>
-<script>(function(){try{var t=localStorage.getItem('teacherai_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Outfit:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
     tailwind.config = {
         darkMode: "class",
         theme: {
             extend: {
-                "colors": {
-                    "primary-container": "#131b2e", "error-container": "#ffdad6",
-                    "surface-container-low": "#f2f4f6", "surface-dim": "#d8dadc",
-                    "surface-bright": "#f7f9fb", "background": "#f7f9fb", "on-tertiary": "#ffffff",
-                    "surface-container": "#eceef0", "surface-container-highest": "#e0e3e5",
-                    "on-error": "#ffffff", "on-secondary": "#ffffff", "on-primary-container": "#7c839b",
-                    "tertiary-container": "#001a42", "on-error-container": "#93000a",
-                    "surface-container-high": "#e6e8ea", "on-tertiary-container": "#3980f4",
-                    "surface": "#f7f9fb", "on-background": "#191c1e", "surface-tint": "#565e74",
-                    "outline": "#76777d", "primary": "#000000", "tertiary-fixed-dim": "#adc6ff",
-                    "on-primary": "#ffffff", "on-secondary-container": "#4b6a4f", "on-surface": "#191c1e",
-                    "secondary": "#47664b", "error": "#ba1a1a", "outline-variant": "#c6c6cd",
-                    "secondary-container": "#c6e9c7", "surface-variant": "#e0e3e5",
-                    "on-surface-variant": "#45464d", "tertiary": "#000000", "surface-container-lowest": "#ffffff"
+                colors: {
+                    "primary": "#574ce6",
+                    "background-light": "#f6f6f8",
+                    "background-dark": "#0A0A0F",
+                    "surface": "#181825",
+                    "muted": "#94A3B8",
+                    "accent": "#0D9488",
+                    "glass": "rgba(24, 24, 37, 0.6)",
                 },
-                "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
-                "spacing": {
-                    "stack-sm": "0.5rem", "gutter": "1.5rem", "margin-mobile": "1rem",
-                    "margin-desktop": "2rem", "stack-lg": "2rem", "stack-md": "1rem", "container-max": "1280px"
+                fontFamily: {
+                    "display": ["Space Grotesk", "sans-serif"],
+                    "body": ["Outfit", "sans-serif"],
+                    "mono": ["JetBrains Mono", "monospace"],
                 },
-                "fontFamily": {
-                    "headline-xl": ["Inter"], "headline-lg": ["Inter"], "headline-lg-mobile": ["Inter"],
-                    "label-md": ["Inter"], "headline-md": ["Inter"], "body-lg": ["Inter"],
-                    "label-sm": ["Inter"], "body-md": ["Inter"]
+                borderRadius: { "DEFAULT": "0.25rem", "sm": "0.125rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                keyframes: {
+                    shake: {
+                        '0%, 100%': { transform: 'translateX(0)' },
+                        '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-4px)' },
+                        '20%, 40%, 60%, 80%': { transform: 'translateX(4px)' },
+                    }
                 },
-                "fontSize": {
-                    "headline-xl": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
-                    "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
-                    "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
-                    "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
-                    "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
-                    "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
-                    "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
-                    "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
-                }
-            }
-        }
+                animation: { shake: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both' }
+            },
+        },
     }
 </script>
 <style>
-    body { font-family: 'Inter', sans-serif; }
-    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
-    .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
-    .spin { animation: spin .7s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .glass-panel {
+        background-color: rgba(24, 24, 37, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .glow-hover:hover { box-shadow: 0 0 15px rgba(87, 76, 230, 0.3); }
+    .bg-pattern {
+        background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
+        background-size: 32px 32px;
+    }
 </style>
-<link href="theme.css" rel="stylesheet"/>
 </head>
-<body class="bg-background text-on-background font-body-md min-h-screen flex items-center justify-center p-margin-mobile">
+<body class="bg-background-dark text-[#F1F5F9] font-body min-h-screen flex flex-col md:flex-row antialiased selection:bg-primary selection:text-white">
 
-<div class="w-full max-w-sm">
-<div class="bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-stack-lg">
-
-<!-- Brand -->
-<a class="flex items-center justify-center gap-3 mb-stack-md" href="landing.html">
-<span class="w-11 h-11 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
-<span class="material-symbols-outlined fill">school</span>
-</span>
-<span class="font-headline-md text-headline-md font-bold text-primary">Chronos</span>
-</a>
-
-<!-- Role toggle -->
-<div class="grid grid-cols-2 gap-1 p-1 bg-surface-container-low rounded-lg mb-stack-md" id="roleTabs">
-<button class="py-2 rounded-lg font-label-md text-label-md transition-colors" data-role="student">Student</button>
-<button class="py-2 rounded-lg font-label-md text-label-md transition-colors" data-role="teacher">Teacher</button>
+<!-- Left pane: branding -->
+<div class="hidden md:flex md:w-1/2 lg:w-3/5 relative overflow-hidden bg-background-dark border-r border-white/5">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/20 via-background-dark to-background-dark"></div>
+<div class="absolute inset-0 bg-pattern z-0 mix-blend-overlay opacity-40"></div>
+<div class="relative z-10 p-12 flex flex-col justify-between h-full">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center shadow-[0_0_20px_rgba(87,76,230,0.4)]">
+<span class="material-symbols-outlined text-white text-xl" style="font-variation-settings: 'FILL' 1;">schema</span>
+</div>
+<span class="font-display font-bold text-2xl tracking-tight text-white">Chronos</span>
+</div>
+<div class="max-w-md">
+<h2 class="font-display font-bold text-4xl mb-4 leading-tight text-white">Grounded intelligence for the modern classroom.</h2>
+<p class="text-muted text-lg font-body">Answers come only from material your teacher provides — no hallucinations, just what's actually on the syllabus.</p>
+<div class="mt-8 flex items-center gap-4 text-sm font-mono text-muted">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-accent animate-pulse" id="statusDot"></span>
+<span id="statusText">Connecting…</span>
+</div>
+<div class="h-4 w-[1px] bg-white/10"></div>
+<div>Curriculum-grounded</div>
+</div>
+</div>
+</div>
 </div>
 
-<h1 class="font-headline-md text-headline-md text-primary text-center mb-1" id="title">Sign in</h1>
-<p class="font-body-md text-body-md text-on-surface-variant text-center mb-stack-md" id="subtitle">Welcome back.</p>
-
-<label class="font-label-md text-label-md text-on-surface mb-1 block" for="email">Email</label>
-<input autocomplete="email" class="w-full mb-stack-md rounded-lg border-outline-variant bg-surface-container-low text-on-background font-body-md text-body-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary transition-colors" id="email" placeholder="you@example.com" type="email"/>
-
-<label class="font-label-md text-label-md text-on-surface mb-1 block" for="password">Password</label>
-<input autocomplete="current-password" class="w-full rounded-lg border-outline-variant bg-surface-container-low text-on-background font-body-md text-body-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary transition-colors" id="password" placeholder="••••••••" type="password"/>
-
-<!-- Teacher code (signup as teacher only) -->
-<div class="hidden mt-stack-md" id="codeWrap">
-<label class="font-label-md text-label-md text-on-surface mb-1 block" for="teacherCode">Teacher code</label>
-<input class="w-full rounded-lg border-outline-variant bg-surface-container-low text-on-background font-body-md text-body-md px-4 py-3 focus:border-primary focus:ring-1 focus:ring-primary transition-colors" id="teacherCode" placeholder="Code from your admin" type="password"/>
-<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">Required to create a teacher account.</p>
+<!-- Right pane: form -->
+<div class="w-full md:w-1/2 lg:w-2/5 flex items-center justify-center p-6 sm:p-12 min-h-screen relative">
+<div class="absolute top-8 left-8 md:hidden flex items-center gap-3 z-20">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-xl" style="font-variation-settings: 'FILL' 1;">schema</span>
+</div>
+<span class="font-display font-bold text-xl tracking-tight">Chronos</span>
 </div>
 
-<p class="hidden mt-stack-md text-center font-label-md text-label-md text-on-error-container bg-error-container rounded-lg px-3 py-2" id="err"></p>
+<div class="glass-panel w-full max-w-[420px] p-8 rounded flex flex-col relative z-10 shadow-2xl">
+<div class="mb-8">
+<h1 class="font-display font-bold text-3xl text-white mb-2 tracking-tight" id="title">Welcome back</h1>
+<p class="text-muted font-body text-sm" id="subtitle">Enter your credentials to access the lab.</p>
+</div>
 
-<button class="w-full mt-stack-md py-3 bg-primary text-on-primary rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50" id="submitBtn">Sign in</button>
+<!-- Role selector -->
+<div class="flex h-12 w-full items-center p-1 bg-background-dark rounded border border-white/10 mb-8" id="roleTabs">
+<label class="relative flex-1 h-full cursor-pointer group">
+<input checked class="peer sr-only" name="role" type="radio" value="student"/>
+<div class="absolute inset-0 rounded-sm peer-checked:bg-surface peer-checked:border peer-checked:border-white/5 transition-all duration-200"></div>
+<div class="relative h-full flex items-center justify-center gap-2 font-mono text-sm font-medium text-muted peer-checked:text-primary transition-colors">
+<span class="material-symbols-outlined text-lg">school</span> Student
+</div>
+</label>
+<label class="relative flex-1 h-full cursor-pointer group">
+<input class="peer sr-only" name="role" type="radio" value="teacher"/>
+<div class="absolute inset-0 rounded-sm peer-checked:bg-surface peer-checked:border peer-checked:border-white/5 transition-all duration-200"></div>
+<div class="relative h-full flex items-center justify-center gap-2 font-mono text-sm font-medium text-muted peer-checked:text-primary transition-colors">
+<span class="material-symbols-outlined text-lg">science</span> Teacher
+</div>
+</label>
+</div>
 
-<p class="text-center mt-stack-md font-body-md text-body-md text-on-surface-variant">
-<span id="toggleText">Don't have an account?</span>
-<button class="text-primary font-semibold hover:underline ml-1" id="toggleMode">Sign up</button>
-</p>
+<form class="flex flex-col gap-5" id="loginForm">
+<!-- Email -->
+<div class="flex flex-col gap-2">
+<label class="font-mono text-[13px] text-muted tracking-wide" for="email">EMAIL ADDRESS</label>
+<div class="relative">
+<span class="absolute inset-y-0 left-0 flex items-center pl-3 text-muted pointer-events-none"><span class="material-symbols-outlined text-[20px]">alternate_email</span></span>
+<input autocomplete="email" class="w-full h-[48px] bg-background-dark border border-white/10 rounded text-white font-body text-sm pl-10 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors placeholder:text-muted/50" id="email" name="email" placeholder="name@institution.edu" type="email"/>
+</div>
+</div>
+<!-- Password -->
+<div class="flex flex-col gap-2">
+<label class="font-mono text-[13px] text-muted tracking-wide" for="password">PASSWORD</label>
+<div class="relative" id="password-container">
+<span class="absolute inset-y-0 left-0 flex items-center pl-3 text-muted pointer-events-none"><span class="material-symbols-outlined text-[20px]">lock</span></span>
+<input autocomplete="current-password" class="w-full h-[48px] bg-background-dark border border-white/10 rounded text-white font-body text-sm pl-10 pr-10 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors" id="password" name="password" placeholder="••••••••" type="password"/>
+<button class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted hover:text-white transition-colors" onclick="togglePasswordVisibility()" type="button"><span class="material-symbols-outlined text-[20px]" id="visibility-icon">visibility_off</span></button>
+</div>
+</div>
+<!-- Teacher code (teacher signup only) -->
+<div class="hidden flex-col gap-2" id="codeWrap">
+<label class="font-mono text-[13px] text-muted tracking-wide" for="teacherCode">TEACHER ACCESS CODE</label>
+<div class="relative">
+<span class="absolute inset-y-0 left-0 flex items-center pl-3 text-muted pointer-events-none"><span class="material-symbols-outlined text-[20px]">vpn_key</span></span>
+<input class="w-full h-[48px] bg-background-dark border border-white/10 rounded text-white font-body text-sm pl-10 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors placeholder:text-muted/50" id="teacherCode" placeholder="Code from your admin" type="password"/>
+</div>
+<p class="font-mono text-[12px] text-muted">Required to create a teacher account.</p>
+</div>
+<!-- Error -->
+<p class="hidden flex items-center gap-1.5 font-mono text-[12px] text-[#EF4444]" id="err"><span class="material-symbols-outlined text-[14px]">error</span><span id="errText"></span></p>
+<!-- Submit -->
+<button class="mt-2 w-full h-[48px] bg-primary text-white font-display font-bold text-sm rounded glow-hover transition-all duration-200 flex items-center justify-center gap-2 group relative overflow-hidden disabled:opacity-70" id="submitBtn" type="submit">
+<span class="relative z-10 flex items-center gap-2" id="submitLabel">Initialize Session <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span></span>
+</button>
+</form>
 
-<a class="block text-center mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="landing.html">← Back to home</a>
+<div class="mt-8 pt-6 border-t border-white/5 text-center">
+<p class="font-body text-sm text-muted"><span id="toggleText">No active clearance?</span> <button class="text-primary hover:text-white transition-colors font-medium" id="toggleMode" type="button">Request Lab Access</button></p>
+<a class="inline-block mt-4 font-mono text-[12px] text-muted hover:text-white transition-colors" href="landing.html">← Back to home</a>
+</div>
 </div>
 </div>
 
@@ -114,85 +163,79 @@
 <script>
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
-  let role = params.get("role") === "teacher" ? "teacher" : "student";
   let mode = "signin"; // or "signup"
 
-  function dest() { return role === "teacher" ? "teacherknowledge.html" : "student.html"; }
-
-  function showErr(msg) { const e = $("err"); e.textContent = msg; e.classList.toggle("hidden", !msg); }
-
-  function paintRoleTabs() {
-    document.querySelectorAll("#roleTabs button").forEach((b) => {
-      const on = b.dataset.role === role;
-      b.className = "py-2 rounded-lg font-label-md text-label-md transition-colors " +
-        (on ? "bg-surface-container-lowest text-primary shadow-sm" : "text-on-surface-variant hover:text-primary");
-    });
+  // Preselect the role from ?role= (teacher panels redirect here with it).
+  if (params.get("role") === "teacher") {
+    const t = document.querySelector('input[name=role][value="teacher"]'); if (t) t.checked = true;
   }
 
-  function paintMode() {
-    const isUp = mode === "signup";
-    $("title").textContent = isUp ? "Create account" : "Sign in";
+  function currentRole(){ const r=document.querySelector('input[name=role]:checked'); return r?r.value:"student"; }
+  function showErr(msg){ $("errText").textContent=msg||""; $("err").classList.toggle("hidden",!msg); }
+
+  function paintMode(){
+    const role=currentRole(), isUp=mode==="signup";
+    $("title").textContent = isUp ? "Create account" : "Welcome back";
     $("subtitle").textContent = isUp
-      ? (role === "teacher" ? "Set up your teacher account." : "Start learning with Chronos.")
-      : "Welcome back.";
-    $("submitBtn").textContent = isUp ? "Create account" : "Sign in";
+      ? (role==="teacher" ? "Set up your teacher account." : "Start learning with Chronos.")
+      : "Enter your credentials to access the lab.";
+    $("submitLabel").innerHTML = (isUp?"Create account":"Initialize Session") +
+      ' <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>';
     $("password").autocomplete = isUp ? "new-password" : "current-password";
-    $("toggleText").textContent = isUp ? "Already have an account?" : "Don't have an account?";
-    $("toggleMode").textContent = isUp ? "Sign in" : "Sign up";
+    $("toggleText").textContent = isUp ? "Already have access?" : "No active clearance?";
+    $("toggleMode").textContent = isUp ? "Sign in" : "Request Lab Access";
     // Teacher code only matters when creating a teacher account.
-    $("codeWrap").classList.toggle("hidden", !(isUp && role === "teacher"));
+    const showCode = isUp && role==="teacher";
+    $("codeWrap").classList.toggle("hidden", !showCode);
+    $("codeWrap").classList.toggle("flex", showCode);
     showErr("");
   }
 
-  document.querySelectorAll("#roleTabs button").forEach((b) => {
-    b.onclick = () => { role = b.dataset.role; paintRoleTabs(); paintMode(); };
-  });
-  $("toggleMode").onclick = () => { mode = mode === "signin" ? "signup" : "signin"; paintMode(); };
+  document.querySelectorAll('input[name=role]').forEach(r=>r.addEventListener("change",paintMode));
+  $("toggleMode").onclick = () => { mode = mode==="signin" ? "signup" : "signin"; paintMode(); };
 
-  async function submit() {
-    const email = $("email").value.trim();
-    const password = $("password").value;
-    if (!email || !password) { showErr("Enter your email and password."); return; }
+  function togglePasswordVisibility(){
+    const p=$("password"), i=$("visibility-icon");
+    if(p.type==="password"){ p.type="text"; i.textContent="visibility"; }
+    else { p.type="password"; i.textContent="visibility_off"; }
+  }
+
+  async function submit(){
+    const email=$("email").value.trim(), password=$("password").value;
+    if(!email||!password){ showErr("Enter your email and password."); return; }
     showErr("");
-    const btn = $("submitBtn");
-    btn.disabled = true;
-    const label = btn.textContent;
-    btn.innerHTML = '<span class="material-symbols-outlined text-[18px] spin">progress_activity</span>';
-    try {
-      let info;
-      if (mode === "signup") {
-        info = await Chronos.signup(email, password, role, $("teacherCode").value.trim());
-      } else {
-        info = await Chronos.login(email, password);
-      }
-      // Honor the account's actual role for the redirect (a teacher signing in on
-      // the student tab still lands on the teacher panel, and vice-versa).
-      location.replace(info.role === "teacher" ? "teacherknowledge.html" : "student.html");
-    } catch (e) {
-      showErr(e.message || "Something went wrong.");
-      btn.disabled = false;
-      btn.textContent = label;
+    const btn=$("submitBtn"); btn.disabled=true;
+    const lbl=$("submitLabel").innerHTML;
+    $("submitLabel").innerHTML='<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>';
+    try{
+      const info = mode==="signup"
+        ? await Chronos.signup(email,password,currentRole(),$("teacherCode").value.trim())
+        : await Chronos.login(email,password);
+      // Honor the account's real role for the redirect.
+      location.replace(info.role==="teacher" ? "teacherknowledge.html" : "student.html");
+    }catch(e){
+      showErr(e.message||"Something went wrong.");
+      btn.disabled=false; $("submitLabel").innerHTML=lbl;
     }
   }
 
-  $("submitBtn").onclick = submit;
-  ["email", "password", "teacherCode"].forEach((id) =>
-    $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); }));
-
-  if (params.get("denied")) showErr("Please sign in with the right account for that area.");
-
-  paintRoleTabs();
+  $("loginForm").addEventListener("submit", e=>{ e.preventDefault(); submit(); });
+  if(params.get("denied")) showErr("Please sign in with the right account for that area.");
   paintMode();
 
+  // Reflect server reachability in the left-pane status line.
+  (async()=>{
+    try{ const r=await fetch(Chronos.BASE+"/health",{cache:"no-store"}); if(r.ok){$("statusText").textContent="System Online"; return;} }catch(e){}
+    $("statusDot").classList.remove("bg-accent","animate-pulse"); $("statusDot").classList.add("bg-[#EF4444]");
+    $("statusText").textContent="Server offline";
+  })();
+
   // Already signed in? Skip the form and go where they belong.
-  Chronos.ready.then(() => {
-    Chronos.onUser(async (user) => {
-      if (!user) return;
-      try { const info = await Chronos.me();
-        if (info) location.replace(info.role === "teacher" ? "teacherknowledge.html" : "student.html");
-      } catch (e) {}
+  Chronos.ready.then(()=>{
+    Chronos.onUser(async(user)=>{
+      if(!user) return;
+      try{ const info=await Chronos.me(); if(info) location.replace(info.role==="teacher"?"teacherknowledge.html":"student.html"); }catch(e){}
     });
-  }).catch((e) => showErr(e.message));
+  }).catch(e=>showErr(e.message));
 </script>
-<script src="theme.js"></script>
 </body></html>

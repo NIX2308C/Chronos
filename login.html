@@ -2,7 +2,7 @@
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Chronos — Sign in</title>
+<title>Chronos | Sign in</title>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Outfit:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
@@ -14,7 +14,7 @@
         theme: {
             extend: {
                 colors: {
-                    "primary": "#574ce6",
+                    "primary": "#4F46E5",
                     "background-light": "#f6f6f8",
                     "background-dark": "#0A0A0F",
                     "surface": "#181825",
@@ -27,7 +27,7 @@
                     "body": ["Outfit", "sans-serif"],
                     "mono": ["JetBrains Mono", "monospace"],
                 },
-                borderRadius: { "DEFAULT": "0.25rem", "sm": "0.125rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                borderRadius: { "DEFAULT": "0.5rem", "sm": "0.375rem", "lg": "0.75rem", "xl": "1rem", "full": "9999px" },
                 keyframes: {
                     shake: {
                         '0%, 100%': { transform: 'translateX(0)' },
@@ -47,7 +47,7 @@
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.08);
     }
-    .glow-hover:hover { box-shadow: 0 0 15px rgba(87, 76, 230, 0.3); }
+    .glow-hover:hover { box-shadow: 0 0 15px rgba(79, 70, 229, 0.3); }
     .bg-pattern {
         background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
         background-size: 32px 32px;
@@ -62,14 +62,14 @@
 <div class="absolute inset-0 bg-pattern z-0 mix-blend-overlay opacity-40"></div>
 <div class="relative z-10 p-12 flex flex-col justify-between h-full">
 <div class="flex items-center gap-3">
-<div class="w-8 h-8 rounded bg-primary flex items-center justify-center shadow-[0_0_20px_rgba(87,76,230,0.4)]">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.4)]">
 <span class="material-symbols-outlined text-white text-xl" style="font-variation-settings: 'FILL' 1;">schema</span>
 </div>
 <span class="font-display font-bold text-2xl tracking-tight text-white">Chronos</span>
 </div>
 <div class="max-w-md">
-<h2 class="font-display font-bold text-4xl mb-4 leading-tight text-white">Grounded intelligence for the modern classroom.</h2>
-<p class="text-muted text-lg font-body">Answers come only from material your teacher provides — no hallucinations, just what's actually on the syllabus.</p>
+<h2 class="font-display font-bold text-4xl mb-4 leading-tight text-white">Grounded tutoring for the modern classroom.</h2>
+<p class="text-muted text-lg font-body">Answers come only from the material your teacher provides. No made up facts, just what is actually in your course.</p>
 <div class="mt-8 flex items-center gap-4 text-sm font-mono text-muted">
 <div class="flex items-center gap-2">
 <span class="w-2 h-2 rounded-full bg-accent animate-pulse" id="statusDot"></span>
@@ -94,7 +94,7 @@
 <div class="glass-panel w-full max-w-[420px] p-8 rounded flex flex-col relative z-10 shadow-2xl">
 <div class="mb-8">
 <h1 class="font-display font-bold text-3xl text-white mb-2 tracking-tight" id="title">Welcome back</h1>
-<p class="text-muted font-body text-sm" id="subtitle">Enter your credentials to access the lab.</p>
+<p class="text-muted font-body text-sm" id="subtitle">Sign in to pick up where you left off.</p>
 </div>
 
 <!-- Role selector -->
@@ -146,12 +146,12 @@
 <p class="hidden flex items-center gap-1.5 font-mono text-[12px] text-[#EF4444]" id="err"><span class="material-symbols-outlined text-[14px]">error</span><span id="errText"></span></p>
 <!-- Submit -->
 <button class="mt-2 w-full h-[48px] bg-primary text-white font-display font-bold text-sm rounded glow-hover transition-all duration-200 flex items-center justify-center gap-2 group relative overflow-hidden disabled:opacity-70" id="submitBtn" type="submit">
-<span class="relative z-10 flex items-center gap-2" id="submitLabel">Initialize Session <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span></span>
+<span class="relative z-10 flex items-center gap-2" id="submitLabel">Sign in <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span></span>
 </button>
 </form>
 
 <div class="mt-8 pt-6 border-t border-white/5 text-center">
-<p class="font-body text-sm text-muted"><span id="toggleText">No active clearance?</span> <button class="text-primary hover:text-white transition-colors font-medium" id="toggleMode" type="button">Request Lab Access</button></p>
+<p class="font-body text-sm text-muted"><span id="toggleText">New here?</span> <button class="text-primary hover:text-white transition-colors font-medium" id="toggleMode" type="button">Create an account</button></p>
 <a class="inline-block mt-4 font-mono text-[12px] text-muted hover:text-white transition-colors" href="landing.html">← Back to home</a>
 </div>
 </div>
@@ -178,12 +178,12 @@
     $("title").textContent = isUp ? "Create account" : "Welcome back";
     $("subtitle").textContent = isUp
       ? (role==="teacher" ? "Set up your teacher account." : "Start learning with Chronos.")
-      : "Enter your credentials to access the lab.";
-    $("submitLabel").innerHTML = (isUp?"Create account":"Initialize Session") +
+      : "Sign in to pick up where you left off.";
+    $("submitLabel").innerHTML = (isUp?"Create account":"Sign in") +
       ' <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>';
     $("password").autocomplete = isUp ? "new-password" : "current-password";
-    $("toggleText").textContent = isUp ? "Already have access?" : "No active clearance?";
-    $("toggleMode").textContent = isUp ? "Sign in" : "Request Lab Access";
+    $("toggleText").textContent = isUp ? "Already have an account?" : "New here?";
+    $("toggleMode").textContent = isUp ? "Sign in" : "Create an account";
     // Teacher code only matters when creating a teacher account.
     const showCode = isUp && role==="teacher";
     $("codeWrap").classList.toggle("hidden", !showCode);

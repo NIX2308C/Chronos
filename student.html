@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<html class="h-full" lang="en"><head>
+<html class="dark h-full" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Chronos — Tutor</title>
-<script>(function(){try{var t=localStorage.getItem('teacherai_theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';if(t==='dark')document.documentElement.classList.add('dark');}catch(e){}})();</script>
+<title>Chronos | Tutor</title>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Outfit:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
     tailwind.config = {
@@ -13,49 +12,49 @@
         theme: {
             extend: {
                 "colors": {
-                    "primary-container": "#131b2e",
-                    "error-container": "#ffdad6",
-                    "surface-container-low": "#f2f4f6",
-                    "surface-dim": "#d8dadc",
-                    "surface-bright": "#f7f9fb",
-                    "background": "#f7f9fb",
+                    "primary-container": "#312e81",
+                    "error-container": "#450a0a",
+                    "surface-container-low": "#181825",
+                    "surface-dim": "#0A0A0F",
+                    "surface-bright": "#20202c",
+                    "background": "#0A0A0F",
                     "on-tertiary": "#ffffff",
-                    "surface-container": "#eceef0",
-                    "surface-container-highest": "#e0e3e5",
+                    "surface-container": "#1f1f2e",
+                    "surface-container-highest": "#2e2e44",
                     "on-error": "#ffffff",
                     "on-secondary": "#ffffff",
-                    "on-primary-container": "#7c839b",
-                    "tertiary-container": "#001a42",
-                    "on-error-container": "#93000a",
-                    "surface-container-high": "#e6e8ea",
-                    "on-tertiary-container": "#3980f4",
-                    "surface": "#f7f9fb",
-                    "on-background": "#191c1e",
-                    "surface-tint": "#565e74",
-                    "outline": "#76777d",
-                    "primary": "#000000",
+                    "on-primary-container": "#c7d2fe",
+                    "tertiary-container": "#1e1b4b",
+                    "on-error-container": "#fecaca",
+                    "surface-container-high": "#26263a",
+                    "on-tertiary-container": "#adc6ff",
+                    "surface": "#0A0A0F",
+                    "on-background": "#F1F5F9",
+                    "surface-tint": "#4F46E5",
+                    "outline": "#3a3a4a",
+                    "primary": "#4F46E5",
                     "tertiary-fixed-dim": "#adc6ff",
                     "on-primary": "#ffffff",
-                    "on-secondary-container": "#4b6a4f",
-                    "on-surface": "#191c1e",
-                    "secondary": "#47664b",
-                    "error": "#ba1a1a",
-                    "outline-variant": "#c6c6cd",
-                    "secondary-container": "#c6e9c7",
-                    "surface-variant": "#e0e3e5",
-                    "on-surface-variant": "#45464d",
-                    "tertiary": "#000000",
-                    "surface-container-lowest": "#ffffff"
+                    "on-secondary-container": "#5eead4",
+                    "on-surface": "#F1F5F9",
+                    "secondary": "#0D9488",
+                    "error": "#EF4444",
+                    "outline-variant": "#2a2a38",
+                    "secondary-container": "#0c2e2a",
+                    "surface-variant": "#2a2a3a",
+                    "on-surface-variant": "#94A3B8",
+                    "tertiary": "#adc6ff",
+                    "surface-container-lowest": "#11111a"
                 },
-                "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+                "borderRadius": { "DEFAULT": "0.5rem", "sm": "0.375rem", "lg": "0.75rem", "xl": "1rem", "full": "9999px" },
                 "spacing": {
                     "stack-sm": "0.5rem", "gutter": "1.5rem", "margin-mobile": "1rem",
                     "margin-desktop": "2rem", "stack-lg": "2rem", "stack-md": "1rem", "container-max": "1280px"
                 },
                 "fontFamily": {
-                    "headline-xl": ["Inter"], "headline-lg": ["Inter"], "headline-lg-mobile": ["Inter"],
-                    "label-md": ["Inter"], "headline-md": ["Inter"], "body-lg": ["Inter"],
-                    "label-sm": ["Inter"], "body-md": ["Inter"]
+                    "headline-xl": ["Space Grotesk","sans-serif"], "headline-lg": ["Space Grotesk","sans-serif"], "headline-lg-mobile": ["Space Grotesk","sans-serif"],
+                    "label-md": ["Outfit","sans-serif"], "headline-md": ["Space Grotesk","sans-serif"], "body-lg": ["Outfit","sans-serif"],
+                    "label-sm": ["Outfit","sans-serif"], "body-md": ["Outfit","sans-serif"]
                 },
                 "fontSize": {
                     "headline-xl": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
@@ -72,18 +71,19 @@
     }
 </script>
 <style>
-    body { font-family: 'Inter', sans-serif; }
+    body { font-family: 'Outfit', sans-serif; }
+    h1,h2,h3,h4 { font-family: 'Space Grotesk', sans-serif; }
     .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
     .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
     .chat-scroll::-webkit-scrollbar { width: 6px; }
     .chat-scroll::-webkit-scrollbar-track { background: transparent; }
-    .chat-scroll::-webkit-scrollbar-thumb { background-color: #e0e3e5; border-radius: 10px; }
+    .chat-scroll::-webkit-scrollbar-thumb { background-color: #2e2e44; border-radius: 10px; }
 
     .spin { animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* typing cursor */
-    .cursor { display:inline-block; width:6px; height:1rem; background:#76777d; border-radius:1px; margin-left:2px; vertical-align:text-bottom; animation:blink 1s steps(2) infinite; }
+    .cursor { display:inline-block; width:6px; height:1rem; background:#8d9194; border-radius:1px; margin-left:2px; vertical-align:text-bottom; animation:blink 1s steps(2) infinite; }
     @keyframes blink { 0%,50%{opacity:1} 50.01%,100%{opacity:0} }
 
     /* teacher-only "Sources used" dropdown */
@@ -102,13 +102,12 @@
     .ai-prose h1,.ai-prose h2,.ai-prose h3 { font-weight:600; line-height:1.3; margin:.75rem 0 .5rem; }
     .ai-prose h1:first-child,.ai-prose h2:first-child,.ai-prose h3:first-child { margin-top:0; }
     .ai-prose h1 { font-size:1.25rem; } .ai-prose h2 { font-size:1.1rem; } .ai-prose h3 { font-size:1rem; }
-    .ai-prose a { color:#3980f4; text-decoration:underline; }
-    .ai-prose code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.88em; background:rgba(0,0,0,.06); border:1px solid #c6c6cd; padding:1px 5px; border-radius:5px; }
-    .ai-prose pre { background:#eceef0; border:1px solid #c6c6cd; border-radius:.5rem; padding:.75rem; overflow-x:auto; margin:.5rem 0; }
-    .ai-prose pre code { background:none; border:none; padding:0; font-size:.8rem; line-height:1.55; display:block; color:#191c1e; }
-    .ai-prose blockquote { border-left:3px solid #c6c6cd; padding-left:.75rem; margin:.5rem 0; color:#45464d; }
+    .ai-prose a { color:#adc6ff; text-decoration:underline; }
+    .ai-prose code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.88em; background:rgba(255,255,255,.08); border:1px solid #2a2a38; padding:1px 5px; border-radius:5px; }
+    .ai-prose pre { background:#11111a; border:1px solid #2a2a38; border-radius:.5rem; padding:.75rem; overflow-x:auto; margin:.5rem 0; }
+    .ai-prose pre code { background:none; border:none; padding:0; font-size:.8rem; line-height:1.55; display:block; color:#F1F5F9; }
+    .ai-prose blockquote { border-left:3px solid #2a2a38; padding-left:.75rem; margin:.5rem 0; color:#94A3B8; }
 </style>
-<link href="theme.css" rel="stylesheet"/>
 </head>
 <body class="bg-background text-on-background h-full antialiased overflow-hidden flex">
 
@@ -123,7 +122,7 @@
 <div class="w-14 h-14 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center mx-auto mb-stack-md">
 <span class="material-symbols-outlined text-[28px]">group_add</span>
 </div>
-<h1 class="font-headline-md text-headline-md text-primary mb-1">Join a class</h1>
+<h1 class="font-headline-md text-headline-md text-on-background mb-1">Join a class</h1>
 <p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Enter the code your teacher gave you to start using the tutor.</p>
 <input class="w-full rounded-lg border-outline-variant bg-surface-container-low text-on-background font-body-md text-body-md px-4 py-3 text-center tracking-widest uppercase focus:border-primary focus:ring-1 focus:ring-primary transition-colors" id="joinCodeInput" maxlength="12" placeholder="CLASS CODE" type="text"/>
 <p class="hidden mt-stack-md font-label-md text-label-md text-on-error-container bg-error-container rounded-lg px-3 py-2" id="joinErr"></p>
@@ -136,10 +135,10 @@
 <nav class="hidden md:flex h-full w-64 fixed left-0 top-0 bg-surface-container-low flex-col p-stack-md z-10 border-r border-outline-variant">
 <a class="mb-stack-lg flex items-center gap-3 px-1" href="landing.html">
 <span class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
-<span class="material-symbols-outlined fill">school</span>
+<span class="material-symbols-outlined fill">schema</span>
 </span>
 <div>
-<h1 class="font-headline-md text-headline-md font-bold text-primary leading-none">Chronos</h1>
+<h1 class="font-headline-md text-headline-md font-bold text-on-background leading-none">Chronos</h1>
 <span class="font-label-sm text-label-sm text-on-surface-variant" id="modeLabel">Student Mode</span>
 </div>
 </a>
@@ -175,9 +174,6 @@
 <button aria-label="How this works" class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="tutHelp" title="How this works">
 <span class="material-symbols-outlined text-[18px]">help</span>
 </button>
-<button aria-label="Toggle dark mode" class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" onclick="toggleTheme()" title="Toggle dark mode">
-<span class="material-symbols-outlined text-[18px]" data-theme-icon>dark_mode</span>
-</button>
 <button class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="logoutBtn" title="Sign out">
 <span class="material-symbols-outlined text-[18px]">logout</span>
 </button>
@@ -195,8 +191,8 @@
 <!-- Mobile header -->
 <header class="md:hidden fixed top-0 w-full bg-surface-container-lowest border-b border-outline-variant h-16 flex items-center justify-between px-margin-mobile z-20">
 <div class="flex items-center gap-2">
-<span class="w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center"><span class="material-symbols-outlined text-[18px] fill">school</span></span>
-<h1 class="font-headline-md text-headline-md font-bold text-primary">Chronos</h1>
+<span class="w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center"><span class="material-symbols-outlined text-[18px] fill">schema</span></span>
+<h1 class="font-headline-md text-headline-md font-bold text-on-background">Chronos</h1>
 </div>
 <button class="bg-primary text-on-primary rounded-full w-10 h-10 flex items-center justify-center" id="newChatBtnMobile">
 <span class="material-symbols-outlined text-lg">add</span>
@@ -343,7 +339,7 @@
       const e=document.createElement("div");
       e.className="flex flex-col items-center text-center mt-24 px-6";
       e.innerHTML='<div class="w-14 h-14 rounded-2xl bg-secondary-container text-on-secondary-container flex items-center justify-center mb-4"><span class="material-symbols-outlined text-[28px] fill">robot_2</span></div>'+
-        '<h2 class="font-headline-md text-headline-md text-primary mb-2">Ask your Tutor</h2>'+
+        '<h2 class="font-headline-md text-headline-md text-on-background mb-2">Ask your Tutor</h2>'+
         '<p class="font-body-md text-body-md text-on-surface-variant max-w-sm">Answers are grounded only in your teacher’s rules and uploaded materials.</p>';
       els.messagesInner.appendChild(e);
       return;
@@ -532,7 +528,7 @@
     $s("joinCard").innerHTML=
       '<div class="w-14 h-14 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center mx-auto mb-stack-md">'+
         '<span class="material-symbols-outlined text-[28px]">school</span></div>'+
-      '<h1 class="font-headline-md text-headline-md text-primary mb-1">Create a class first</h1>'+
+      '<h1 class="font-headline-md text-headline-md text-on-background mb-1">Create a class first</h1>'+
       '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You don’t have any classes yet. Create one in the Knowledge Base to start using the tutor with your own material.</p>'+
       '<a class="w-full inline-flex items-center justify-center gap-2 py-3 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity" href="teacherknowledge.html">'+
         '<span class="material-symbols-outlined text-[18px]">add</span> Go to Knowledge Base</a>'+
@@ -585,7 +581,7 @@
 <div class="flex items-start justify-between gap-3 mb-stack-md">
 <div class="flex items-center gap-3">
 <span class="w-10 h-10 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined">waving_hand</span></span>
-<h2 class="font-headline-md text-headline-md text-primary" id="tutTitle"></h2>
+<h2 class="font-headline-md text-headline-md text-on-background" id="tutTitle"></h2>
 </div>
 <button class="text-on-surface-variant hover:text-primary transition-colors flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
 </div>
@@ -599,8 +595,8 @@
     const KEY="chronos_tut_student_v1";
     const STEPS=[
       {icon:"school",title:"Pick your class",text:"Use the class menu on the left to choose what you're asking about. Each class only knows what that teacher put in it."},
-      {icon:"forum",title:"Just ask",text:"Type a question and press Enter. Answers come straight from your teacher's notes and files — the tutor doesn't make things up."},
-      {icon:"flag",title:"If it's not there, it'll say so",text:"Asked something your teacher hasn't covered? The tutor tells you instead of guessing — worth a heads-up to your teacher so they can add it."},
+      {icon:"forum",title:"Just ask",text:"Type a question and press Enter. Answers come straight from your teacher's notes and files, so the tutor does not make things up."},
+      {icon:"flag",title:"If it's not there, it'll say so",text:"Asked something your teacher hasn't covered? The tutor tells you instead of guessing. Worth a quick heads up to your teacher so they can add it."},
     ];
     const body=document.getElementById("tutBody");
     document.getElementById("tutTitle").textContent=TITLE;
@@ -623,5 +619,4 @@
     window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};
   })();
 </script>
-<script src="theme.js"></script>
 </body></html>

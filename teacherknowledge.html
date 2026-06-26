@@ -2,7 +2,7 @@
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Chronos — Knowledge Base</title>
+<title>Chronos | Knowledge Base</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Outfit:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
@@ -11,7 +11,7 @@
     theme: { extend: {
       colors: { "primary": "#4F46E5", "background-dark": "#0A0A0F", "surface": "#181825", "muted": "#94A3B8", "accent": "#0D9488" },
       fontFamily: { "display": ["Space Grotesk","sans-serif"], "body": ["Outfit","sans-serif"], "mono": ["JetBrains Mono","monospace"] },
-      borderRadius: { "DEFAULT": "0.25rem", "sm": "0.25rem", "lg": "0.375rem", "xl": "0.5rem", "full": "9999px" },
+      borderRadius: { "DEFAULT": "0.5rem", "sm": "0.375rem", "lg": "0.75rem", "xl": "1rem", "full": "9999px" },
     } }
   }
 </script>
@@ -84,7 +84,7 @@
 <header class="min-h-20 flex flex-wrap items-center justify-between gap-3 px-6 lg:px-8 py-3 border-b border-subtle shrink-0 bg-background-dark/80 backdrop-blur-md z-10">
 <div>
 <h2 class="text-[24px] font-bold text-[#F1F5F9]">Knowledge Base</h2>
-<p class="text-sm text-muted mt-1">Everything this class's tutor is allowed to know — your rules and documents.</p>
+<p class="text-sm text-muted mt-1">Everything this class's tutor is allowed to know. Your rules and your documents, nothing else.</p>
 </div>
 <div class="flex items-center gap-2 flex-wrap">
 <select class="bg-surface border border-subtle rounded-sm text-[#F1F5F9] text-sm font-mono px-3 py-2 max-w-[180px] focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer" id="classSelect" title="Active class"></select>
@@ -241,7 +241,7 @@
     if(!name||!name.trim())return;
     try{
       const c=await Chronos.createClass(name.trim());
-      showToast("Class created"+(c.migrated_rules?` — moved ${c.migrated_rules} existing rules in`:"")+". Code: "+c.join_code,true);
+      showToast("Class created"+(c.migrated_rules?`. Moved ${c.migrated_rules} existing rules in`:"")+". Code: "+c.join_code,true);
       await loadClasses(c.id);
       loadRules();
     }catch(e){showToast(e.message,false);}
@@ -308,7 +308,7 @@
       .filter(Boolean);
     if(!lines.length){showToast("No rules to export",false);return;}
     const text=lines.join("\n");
-    const ok=()=>showToast("Copied "+lines.length+" rule"+(lines.length===1?"":"s")+" to clipboard — paste into Bulk add",true);
+    const ok=()=>showToast("Copied "+lines.length+" rule"+(lines.length===1?"":"s")+" to clipboard. Paste into Bulk add.",true);
     try{
       if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); ok(); return; }
       throw new Error("no clipboard api");
@@ -409,7 +409,7 @@
     try{
       let res;
       try{res=await Chronos.apiFetch("/upload",{method:"POST",body:form});}
-      catch{throw new Error("Cannot reach server — is app.py running on port 5000?");}
+      catch{throw new Error("Cannot reach the server. Is app.py running on port 5000?");}
       const raw=await res.text();
       let data={};
       try{data=raw?JSON.parse(raw):{};}catch(e){data={};}

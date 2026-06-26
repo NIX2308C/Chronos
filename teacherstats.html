@@ -3,6 +3,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Chronos | Analytics</title>
+<script>(function(){try{if(localStorage.getItem('teacherai_theme')==='light')document.documentElement.classList.remove('dark');}catch(e){}})();</script>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;family=Outfit:wght@300;400;600&amp;family=Space+Grotesk:wght@300;500;700;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
@@ -38,6 +39,7 @@
   .custom-scrollbar::-webkit-scrollbar { width: 6px; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #3e3d52; border-radius: 4px; }
 </style>
+<link href="theme.css" rel="stylesheet"/>
 </head>
 <body class="text-text-main overflow-x-hidden">
 
@@ -73,6 +75,12 @@
 <select class="bg-white/5 border border-white/10 rounded text-text-main text-sm font-mono px-3 py-2 max-w-[160px] focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer" id="classSelect" title="Class"></select>
 <button class="font-display text-sm uppercase tracking-wider bg-primary-container text-on-primary-container px-4 py-2.5 rounded hover:opacity-90 transition-all active:scale-95 flex items-center gap-2" id="refreshBtn">
 <span class="material-symbols-outlined text-[18px]" id="refreshIcon">refresh</span> Refresh
+</button>
+<button aria-label="How this works" class="text-on-surface-variant hover:text-primary transition-colors flex items-center" id="tutHelp" title="How this works">
+<span class="material-symbols-outlined" style="font-size:24px;">help</span>
+</button>
+<button aria-label="Toggle light and dark mode" class="text-on-surface-variant hover:text-primary transition-colors flex items-center" onclick="toggleTheme()" title="Toggle light and dark mode">
+<span class="material-symbols-outlined" style="font-size:24px;" data-theme-icon>dark_mode</span>
 </button>
 <button class="text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2" id="lockBtn" title="Sign out">
 <span class="material-symbols-outlined" style="font-size:28px;">account_circle</span>
@@ -238,6 +246,7 @@
     const em=$("userEmail");if(em){em.textContent=info.email||"Teacher";em.title=info.email||"";}
     $("gate").classList.add("hidden");
     $("app").classList.remove("hidden");
+    if(window.__tutFirstVisit)window.__tutFirstVisit();
     await loadClasses();
     if(!ACTIVE_CLASS){showToast("Create a class on the Knowledge Base page first.",true);return;}
     try{await load();}catch(e){showToast(e.message,false);}
@@ -341,4 +350,50 @@
   $("refreshBtn").onclick=()=>{load().catch(e=>showToast(e.message,false));};
   $("classSelect").onchange=e=>{ACTIVE_CLASS=e.target.value;localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);load().catch(err=>showToast(err.message,false));};
 </script>
+
+<!-- How-it-works tutorial -->
+<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" id="tut">
+<div class="w-full max-w-md glass-panel rounded-xl shadow-xl p-6 max-h-[85vh] overflow-y-auto">
+<div class="flex items-start justify-between gap-3 mb-5">
+<div class="flex items-center gap-3">
+<span class="w-10 h-10 rounded-lg bg-primary-container/20 text-primary border border-primary/20 flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined">query_stats</span></span>
+<h2 class="text-lg font-bold text-text-main" id="tutTitle"></h2>
+</div>
+<button class="text-text-muted hover:text-text-main transition-colors flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
+</div>
+<div class="space-y-4" id="tutBody"></div>
+<button class="mt-6 w-full py-2.5 bg-primary-container text-on-primary-container rounded-lg font-medium text-sm hover:opacity-90 transition-opacity" id="tutDone">Got it</button>
+</div>
+</div>
+<script>
+  (function(){
+    const TITLE="Reading your analytics";
+    const KEY="chronos_tut_stats_v1";
+    const STEPS=[
+      {icon:"school",title:"One class at a time",text:"Use the class menu up top. Every number here is just for the class you have picked."},
+      {icon:"forum",title:"What they are asking",text:"Questions are grouped by topic so you can see at a glance what your students keep coming back to."},
+      {icon:"help",title:"Mind the gaps",text:"Knowledge Gaps lists the questions your material could not answer. Think of it as a ready made list of what to add next."},
+      {icon:"history",title:"Recent questions",text:"A running feed of what is being asked, newest first, so you can spot trends as they happen."},
+    ];
+    const body=document.getElementById("tutBody");
+    document.getElementById("tutTitle").textContent=TITLE;
+    STEPS.forEach(s=>{
+      const row=document.createElement("div");row.className="flex items-start gap-3";
+      row.innerHTML='<span class="w-8 h-8 flex-shrink-0 rounded-lg bg-surface-solid text-accent-teal flex items-center justify-center border border-white/10"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
+        '<div><h3 class="text-sm font-bold text-text-main mb-0.5">'+s.title+'</h3>'+
+        '<p class="text-sm text-text-muted leading-snug">'+s.text+'</p></div>';
+      body.appendChild(row);
+    });
+    const modal=document.getElementById("tut");
+    const open=()=>modal.classList.remove("hidden");
+    const close=()=>{modal.classList.add("hidden");try{localStorage.setItem(KEY,"1");}catch(e){}};
+    document.getElementById("tutClose").onclick=close;
+    document.getElementById("tutDone").onclick=close;
+    modal.addEventListener("click",e=>{if(e.target===modal)close();});
+    const help=document.getElementById("tutHelp");if(help)help.onclick=open;
+    // Auto-open once on first visit, after the auth gate clears.
+    window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};
+  })();
+</script>
+<script src="theme.js"></script>
 </body></html>

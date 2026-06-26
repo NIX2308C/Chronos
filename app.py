@@ -721,24 +721,42 @@ def chat():
 
         is_new = not chat_doc.get().exists
 
-        # Replay the recent conversation so the AI remembers earlier turns, then
-        # append the new question as the latest user turn.
+        # Replay the recent conversation so the AI remembers earlier turns.
         history = load_history(msgs_ref)
-        contents = history + [{"role": "user", "parts": [{"text": user_message}]}]
 
-        system_instruction = (
-            "You are Chronos, a helpful tutor. Use ONLY the teacher rules below and "
-            "the conversation so far to answer. If the rules don't cover the question, "
-            "say you don't have that in your knowledge base rather than guessing.\n\n"
-            f"Teacher rules:\n{context_block}"
-        )
+        if not teacher_rules:
+            # Nothing in this class's knowledge base cleared the relevance bar.
+            # Refuse outright instead of letting the model answer from its own
+            # general knowledge — the tutor is only allowed to know the teacher's
+            # material. Stored with empty rules, so it surfaces as a knowledge gap.
+            final_answer = (
+                "I don't have anything on that in this class's knowledge base yet. "
+                "Ask your teacher to add it, or try rephrasing your question."
+            )
+        else:
+            contents = history + [{"role": "user", "parts": [{"text": user_message}]}]
 
-        ai_response = client.models.generate_content(
-            model=CHAT_MODEL,
-            contents=contents,
-            config=types.GenerateContentConfig(system_instruction=system_instruction),
-        )
-        final_answer = ai_response.text
+            system_instruction = (
+                "You are Chronos, a tutor whose entire knowledge is the teacher "
+                "material provided below. Follow these rules exactly:\n"
+                "1. Answer using ONLY the teacher material below. Treat it as the only "
+                "thing you know about the subject.\n"
+                "2. Do NOT use outside or general knowledge, even if you are sure of the "
+                "answer. If a fact is not stated in the material, you do not know it.\n"
+                "3. If the material below does not cover the question, say you don't have "
+                "that in your knowledge base and suggest asking the teacher. Never guess "
+                "or fill gaps from your own knowledge.\n"
+                "4. You may use the earlier conversation for context, but never as a "
+                "source of new facts.\n\n"
+                f"Teacher material:\n{context_block}"
+            )
+
+            ai_response = client.models.generate_content(
+                model=CHAT_MODEL,
+                contents=contents,
+                config=types.GenerateContentConfig(system_instruction=system_instruction),
+            )
+            final_answer = ai_response.text
 
         # Title a brand-new conversation from its opening question.
         chat_meta = {"last_active": firestore.SERVER_TIMESTAMP, "class_id": class_id}

@@ -3,6 +3,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Chronos | Knowledge Base</title>
+<script>(function(){try{if(localStorage.getItem('teacherai_theme')==='light')document.documentElement.classList.remove('dark');}catch(e){}})();</script>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Outfit:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
@@ -27,6 +28,7 @@
   .spin { animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
+<link href="theme.css" rel="stylesheet"/>
 </head>
 <body class="bg-background-dark min-h-screen">
 
@@ -96,6 +98,12 @@
 </span>
 <button class="hidden w-9 h-9 items-center justify-center rounded-sm text-muted hover:text-red-400 hover:bg-surface transition-colors" id="deleteClassBtn" title="Delete this class">
 <span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+<button aria-label="How this works" class="w-9 h-9 flex items-center justify-center rounded-sm text-muted hover:text-white hover:bg-surface transition-colors" id="tutHelp" title="How this works">
+<span class="material-symbols-outlined text-[20px]">help</span>
+</button>
+<button aria-label="Toggle light and dark mode" class="w-9 h-9 flex items-center justify-center rounded-sm text-muted hover:text-white hover:bg-surface transition-colors" onclick="toggleTheme()" title="Toggle light and dark mode">
+<span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
 </button>
 <button class="bg-primary hover:bg-primary/90 text-white text-sm font-medium py-2 px-4 rounded-sm flex items-center gap-2 transition-all shadow-[0_0_10px_rgba(79,70,229,0.2)]" id="uploadHeaderBtn">
 <span class="material-symbols-outlined text-[18px]">upload</span> Upload Source
@@ -259,6 +267,7 @@
     const em=$("userEmail");if(em){em.textContent=info.email||"Teacher";em.title=info.email||"";}
     $("gate").classList.add("hidden");
     $("app").classList.remove("hidden");
+    if(window.__tutFirstVisit)window.__tutFirstVisit();
     await loadClasses();
     if(!ACTIVE_CLASS)showToast("Create your first class to start adding rules.",true);
     loadRules();
@@ -445,4 +454,50 @@
   $("dropZone").addEventListener("drop",e=>{e.preventDefault();$("dropZone").classList.remove("border-primary","bg-surface/50");const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)pickFile(f);});
   ["dragover","drop"].forEach(ev=>window.addEventListener(ev,e=>{if(e.target!==$("fileInput"))e.preventDefault();}));
 </script>
+
+<!-- How-it-works tutorial -->
+<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" id="tut">
+<div class="w-full max-w-md bg-surface border border-subtle rounded-lg shadow-xl p-6 max-h-[85vh] overflow-y-auto">
+<div class="flex items-start justify-between gap-3 mb-5">
+<div class="flex items-center gap-3">
+<span class="w-10 h-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined">menu_book</span></span>
+<h2 class="text-lg font-bold text-[#F1F5F9]" id="tutTitle"></h2>
+</div>
+<button class="text-muted hover:text-white transition-colors flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
+</div>
+<div class="space-y-4" id="tutBody"></div>
+<button class="mt-6 w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-sm font-medium text-sm transition-colors" id="tutDone">Got it</button>
+</div>
+</div>
+<script>
+  (function(){
+    const TITLE="Setting up your class";
+    const KEY="chronos_tut_knowledge_v1";
+    const STEPS=[
+      {icon:"add",title:"Make a class",text:"Each class is its own separate knowledge base. Create one, then share its join code (top of the page) so your students can get in."},
+      {icon:"gavel",title:"Add rules",text:"Type in the ground rules and key facts. Things like \"don't give away homework answers\" or \"stick to the textbook.\" One clear idea per rule works best."},
+      {icon:"description",title:"Upload your material",text:"Drop in PDFs, Word docs, or notes. We read the text so the tutor can answer from your actual course content."},
+      {icon:"lightbulb",title:"That is the tutor's whole world",text:"It only answers from what is here. If something is not in your rules or documents, the tutor says it does not know rather than guess."},
+    ];
+    const body=document.getElementById("tutBody");
+    document.getElementById("tutTitle").textContent=TITLE;
+    STEPS.forEach(s=>{
+      const row=document.createElement("div");row.className="flex items-start gap-3";
+      row.innerHTML='<span class="w-8 h-8 flex-shrink-0 rounded-sm bg-background-dark text-accent flex items-center justify-center border border-subtle"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
+        '<div><h3 class="text-sm font-bold text-[#F1F5F9] mb-0.5">'+s.title+'</h3>'+
+        '<p class="text-sm text-muted leading-snug">'+s.text+'</p></div>';
+      body.appendChild(row);
+    });
+    const modal=document.getElementById("tut");
+    const open=()=>modal.classList.remove("hidden");
+    const close=()=>{modal.classList.add("hidden");try{localStorage.setItem(KEY,"1");}catch(e){}};
+    document.getElementById("tutClose").onclick=close;
+    document.getElementById("tutDone").onclick=close;
+    modal.addEventListener("click",e=>{if(e.target===modal)close();});
+    const help=document.getElementById("tutHelp");if(help)help.onclick=open;
+    // Auto-open once on first visit, after the auth gate clears.
+    window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};
+  })();
+</script>
+<script src="theme.js"></script>
 </body></html>

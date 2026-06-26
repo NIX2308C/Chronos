@@ -1,113 +1,119 @@
 /* ============================================================
-   Shared theme overrides for all Chronos pages.
-   1) Smaller headings (the per-page Tailwind config sizes were too big)
-   2) Dark mode — activated by a `dark` class on <html>, overriding the
-      Material color utilities. Uses !important so it wins over the
-      Tailwind CDN's runtime-injected styles regardless of order.
+   Chronos light mode.
+
+   Dark is the native, default theme: every page is authored in
+   dark, and <html> ships with the `dark` class. These rules only
+   take effect when the user opts into light mode, i.e. when that
+   class is removed. theme.js flips the class and remembers the
+   choice; an inline snippet in each page's <head> applies it
+   before paint so there's no flash.
+
+   Only the student tutor and the two teacher panels load this
+   file. The landing and login pages stay dark only.
+
+   Brand colors (indigo primary, teal accent) are intentionally
+   left untouched so the identity reads the same in both themes.
    ============================================================ */
 
-/* ---------- 1. Heading sizes ---------- */
-.text-headline-lg-mobile { font-size: 20px !important; line-height: 26px !important; }
-.text-headline-md        { font-size: 18px !important; line-height: 24px !important; }
-.text-headline-lg        { font-size: 24px !important; line-height: 30px !important; }
-@media (min-width: 768px) {
-  .md\:text-headline-lg  { font-size: 24px !important; line-height: 30px !important; }
-  .md\:text-headline-xl  { font-size: 30px !important; line-height: 38px !important; }
+html:not(.dark) {
+  --l-bg: #f5f6f8;          /* page background        */
+  --l-surface: #ffffff;     /* cards, sidebars, bars  */
+  --l-surface-2: #eef1f5;   /* inputs, subtle fills   */
+  --l-surface-3: #e4e7ee;   /* elevated / hover fills */
+  --l-text: #1a1c1e;        /* primary text           */
+  --l-muted: #5b6573;       /* secondary text         */
+  --l-border: rgba(15, 23, 42, .10);
+  --l-border-2: rgba(15, 23, 42, .16);
+  --l-hover: rgba(15, 23, 42, .05);
+  --l-scroll: #c2c8d2;
+  color-scheme: light;
 }
 
-/* ---------- 2. Dark mode ---------- */
-/* Backgrounds */
-.dark .bg-background                 { background-color: #111416 !important; }
-.dark .bg-surface                    { background-color: #111416 !important; }
-.dark .bg-surface-bright             { background-color: #37393b !important; }
-.dark .bg-surface-container-lowest   { background-color: #0c0f10 !important; }
-.dark .bg-surface-container-lowest\/80 { background-color: rgba(12,15,16,.8) !important; }
-.dark .bg-surface-container-low      { background-color: #191c1d !important; }
-.dark .bg-surface-container          { background-color: #1d2021 !important; }
-.dark .bg-surface-container-high     { background-color: #282a2c !important; }
-.dark .bg-surface-container-highest  { background-color: #333537 !important; }
-.dark .bg-surface-variant            { background-color: #43474a !important; }
-.dark .bg-primary                    { background-color: #e3e2e6 !important; }
-.dark .bg-secondary                  { background-color: #add1b0 !important; }
-.dark .bg-secondary-container        { background-color: #2e4b33 !important; }
-.dark .bg-error-container            { background-color: #93000a !important; }
+/* ---------- shared base ---------- */
+html:not(.dark) body { background-color: var(--l-bg) !important; color: var(--l-text) !important; }
 
-/* Text */
-.dark .text-primary                  { color: #e3e2e6 !important; }
-.dark .text-on-primary               { color: #1a1c1e !important; }
-.dark .text-on-background            { color: #e2e2e5 !important; }
-.dark .text-on-surface               { color: #e2e2e5 !important; }
-.dark .text-on-surface-variant       { color: #c3c7c9 !important; }
-.dark .text-secondary                { color: #add1b0 !important; }
-.dark .text-on-secondary             { color: #173820 !important; }
-.dark .text-on-secondary-container   { color: #c8ebca !important; }
-.dark .text-error                    { color: #ffb4ab !important; }
-.dark .text-on-error-container       { color: #ffdad6 !important; }
+/* white-alpha utilities used as borders / fills on dark surfaces */
+html:not(.dark) .border-white\/5  { border-color: var(--l-border) !important; }
+html:not(.dark) .border-white\/10 { border-color: var(--l-border-2) !important; }
+html:not(.dark) .bg-white\/5      { background-color: var(--l-hover) !important; }
+html:not(.dark) .hover\:bg-white\/5:hover { background-color: var(--l-hover) !important; }
 
-/* Placeholders */
-.dark .placeholder\:text-on-surface-variant::placeholder { color: #8d9194 !important; }
+/* the pale "primary" on the analytics page is tuned for a dark
+   backdrop; darken it to the brand indigo so it reads on white.
+   (On the other panels primary is already this indigo, so this is
+   a no-op there.) */
+html:not(.dark) .text-primary { color: #4F46E5 !important; }
 
-/* Borders */
-.dark .border-outline-variant        { border-color: #3a3d40 !important; }
-.dark .border-outline                { border-color: #5c6064 !important; }
-.dark .border-surface-container-highest { border-color: #333537 !important; }
-.dark .border-error                  { border-color: #ffb4ab !important; }
-.dark .border-l                      { border-color: #3a3d40 !important; }
+/* frosted panels: flip the tint from near-black to near-white */
+html:not(.dark) .glass-panel { background-color: rgba(255, 255, 255, .78) !important; border-color: var(--l-border) !important; }
 
-/* Hover states */
-.dark .hover\:bg-surface-container-high:hover    { background-color: #282a2c !important; }
-.dark .hover\:bg-surface-container-highest:hover { background-color: #333537 !important; }
-.dark .hover\:bg-surface-container-low:hover     { background-color: #191c1d !important; }
-.dark .hover\:bg-surface-bright:hover            { background-color: #1d2021 !important; }
-.dark .hover\:text-primary:hover                 { color: #e3e2e6 !important; }
-.dark .hover\:border-primary:hover               { border-color: #e3e2e6 !important; }
-.dark .focus\:border-primary:focus               { border-color: #e3e2e6 !important; }
+/* ghost buttons that brighten to white on hover would vanish on a
+   light background; settle them on the dark text color instead */
+html:not(.dark) .hover\:text-white:hover { color: var(--l-text) !important; }
 
-/* Custom scrollbars */
-.dark .chat-scroll::-webkit-scrollbar-thumb { background-color: #333537; }
+/* ===========================================================
+   Teacher: Knowledge Base (teacherknowledge.html)
+   =========================================================== */
+html:not(.dark) .bg-background-dark        { background-color: var(--l-surface-2) !important; }
+html:not(.dark) .bg-background-dark\/40    { background-color: rgba(238, 241, 245, .6) !important; }
+html:not(.dark) .bg-background-dark\/80    { background-color: rgba(245, 246, 248, .85) !important; }
+html:not(.dark) .bg-surface               { background-color: var(--l-surface) !important; }
+html:not(.dark) .bg-surface\/30           { background-color: rgba(238, 241, 245, .5) !important; }
+html:not(.dark) .bg-surface\/50           { background-color: var(--l-surface-2) !important; }
+html:not(.dark) .hover\:bg-surface:hover     { background-color: var(--l-surface-2) !important; }
+html:not(.dark) .hover\:bg-surface\/40:hover { background-color: var(--l-hover) !important; }
+html:not(.dark) .hover\:bg-surface\/50:hover { background-color: var(--l-hover) !important; }
+html:not(.dark) .text-\[\#F1F5F9\]        { color: var(--l-text) !important; }
+html:not(.dark) .text-muted               { color: var(--l-muted) !important; }
+html:not(.dark) .border-subtle            { border-color: var(--l-border) !important; }
+html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--l-scroll) !important; }
 
-/* Markdown rendered inside AI chat bubbles */
-.dark .ai-prose code       { background: rgba(255,255,255,.08); border-color: #3a3d40; color: #e2e2e5; }
-.dark .ai-prose pre        { background: #1d2021; border-color: #3a3d40; }
-.dark .ai-prose pre code   { color: #e2e2e5; }
-.dark .ai-prose blockquote { border-color: #3a3d40; color: #c3c7c9; }
-.dark .ai-prose a          { color: #adc6ff; }
+/* ===========================================================
+   Teacher: Analytics (teacherstats.html)
+   =========================================================== */
+html:not(.dark) .bg-background-deep   { background-color: var(--l-bg) !important; }
+html:not(.dark) .text-text-main       { color: var(--l-text) !important; }
+html:not(.dark) .text-text-muted      { color: var(--l-muted) !important; }
+html:not(.dark) .terminal-header      { background: var(--l-surface-2) !important; border-bottom-color: var(--l-border) !important; }
+html:not(.dark) .bg-surface-glass     { background-color: rgba(255, 255, 255, .8) !important; }
+html:not(.dark) .bg-surface-solid     { background-color: var(--l-surface-2) !important; }
 
-/* Typing cursor */
-.dark .cursor { background: #8d9194; }
+/* ===========================================================
+   Student tutor (student.html)
+   =========================================================== */
+html:not(.dark) .bg-background                 { background-color: var(--l-bg) !important; }
+html:not(.dark) .bg-surface-container-lowest   { background-color: var(--l-surface) !important; }
+html:not(.dark) .bg-surface-container-low      { background-color: var(--l-surface-2) !important; }
+html:not(.dark) .bg-surface-container          { background-color: var(--l-surface-3) !important; }
+html:not(.dark) .hover\:bg-surface-container-high:hover { background-color: var(--l-surface-3) !important; }
+html:not(.dark) .text-on-background            { color: var(--l-text) !important; }
+html:not(.dark) .text-on-surface               { color: var(--l-text) !important; }
+html:not(.dark) .text-on-surface-variant       { color: var(--l-muted) !important; }
+html:not(.dark) .border-outline-variant        { border-color: var(--l-border) !important; }
+html:not(.dark) .border-outline                { border-color: var(--l-border-2) !important; }
+html:not(.dark) .chat-scroll::-webkit-scrollbar-thumb { background-color: var(--l-scroll) !important; }
 
-/* ---------- 3. Dark-mode fixes for utilities that kept their light value ---------- */
+/* teal "grounded" chips and the active conversation row */
+html:not(.dark) .bg-secondary-container   { background-color: #ccfbf1 !important; }
+html:not(.dark) .text-on-secondary-container { color: #0f766e !important; }
 
-/* The brand navy highlight word ("Scaled with AI") is near-black in light mode;
-   on a dark background it disappears, so flip it to a light tint. */
-.dark .text-tertiary-container { color: #adc6ff !important; }
+/* error banner on the join card */
+html:not(.dark) .bg-error-container       { background-color: #fee2e2 !important; }
+html:not(.dark) .text-on-error-container  { color: #b91c1c !important; }
 
-/* File-rule icon chips render the error container at 40% opacity. The plain
-   `.bg-error-container` override doesn't match the `/40` variant, leaving a pale
-   pink patch in dark mode — re-tint it to a dark red so the salmon icon reads. */
-.dark .bg-error-container\/40 { background-color: rgba(147, 0, 10, .35) !important; }
-
-/* Gradient color stops. The `*-background` gradient utilities aren't overridden
-   by the `bg-background` rule, so they keep their light value (#f7f9fb) and paint
-   a bright fade over dark content — the chat-input fade on the student page and
-   the hero glow on the landing page. Re-point them at the dark background. */
-.dark .from-background {
-  --tw-gradient-from: #111416 var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgb(17 20 22 / 0) var(--tw-gradient-to-position) !important;
+/* the chat input fades into the page background; repoint the
+   gradient stops from the dark bg to the light one */
+html:not(.dark) .from-background {
+  --tw-gradient-from: #f5f6f8 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(245 246 248 / 0) var(--tw-gradient-to-position) !important;
 }
-.dark .via-background {
-  --tw-gradient-stops: var(--tw-gradient-from), #111416 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
-}
-.dark .to-background {
-  --tw-gradient-to: #111416 var(--tw-gradient-to-position) !important;
-}
-.dark .from-surface-container-high\/40 {
-  --tw-gradient-from: rgb(40 42 44 / .4) var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgb(40 42 44 / 0) var(--tw-gradient-to-position) !important;
+html:not(.dark) .via-background {
+  --tw-gradient-stops: var(--tw-gradient-from), #f5f6f8 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
 }
 
-/* Landing hero mock-chat card — the glass effect was a bright white pane in dark. */
-.dark .glass-card {
-  background: rgba(29, 32, 33, .7) !important;
-  border-color: rgba(255, 255, 255, .08) !important;
-}
+/* markdown inside AI chat bubbles */
+html:not(.dark) .ai-prose a          { color: #3b5bdb !important; }
+html:not(.dark) .ai-prose code       { background: rgba(15, 23, 42, .06) !important; border-color: var(--l-border) !important; color: var(--l-text) !important; }
+html:not(.dark) .ai-prose pre        { background: var(--l-surface-2) !important; border-color: var(--l-border) !important; }
+html:not(.dark) .ai-prose pre code   { color: var(--l-text) !important; }
+html:not(.dark) .ai-prose blockquote { border-color: var(--l-border) !important; color: var(--l-muted) !important; }

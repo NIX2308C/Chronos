@@ -1,17 +1,27 @@
 /* ============================================================
-   Chronos light mode.
+   Chronos theme.
 
-   Dark is the native, default theme: every page is authored in
-   dark, and <html> ships with the `dark` class. These rules only
-   take effect when the user opts into light mode, i.e. when that
-   class is removed. theme.js flips the class and remembers the
-   choice; an inline snippet in each page's <head> applies it
-   before paint so there's no flash.
+   Light is the native, default theme now: every page ships
+   without a `dark` class, and the `html:not(.dark)` rules below
+   force light colors over each page's own markup. Dark mode is
+   opt-in — theme.js adds/removes the `dark` class on <html> and
+   remembers the choice via localStorage; an inline snippet in
+   each page's <head> applies it before paint so there's no flash.
 
-   Only the student tutor and the two teacher panels load this
-   file. The landing and login pages stay dark only.
+   teacherknowledge.html and teacherstats.html need no `html.dark`
+   overrides at all: their own markup/config still carry the
+   original dark palette that predates the light redesign, and it
+   simply shows through once the `html:not(.dark)` rules stop
+   matching. student.html's config was rewritten in place to light
+   values during that redesign, so it gets real `html.dark`
+   overrides (bottom of this file). login.html isn't linked to
+   this stylesheet — its dark variant lives in its own inline
+   <style> block instead.
 
-   Brand colors (indigo primary, teal accent) are intentionally
+   Only the student tutor, the two teacher panels, and login
+   support dark mode. The landing page stays light only.
+
+   Brand colors (indigo primary, emerald accent) are intentionally
    left untouched so the identity reads the same in both themes.
    ============================================================ */
 
@@ -117,3 +127,70 @@ html:not(.dark) .ai-prose code       { background: rgba(15, 23, 42, .06) !import
 html:not(.dark) .ai-prose pre        { background: var(--l-surface-2) !important; border-color: var(--l-border) !important; }
 html:not(.dark) .ai-prose pre code   { color: var(--l-text) !important; }
 html:not(.dark) .ai-prose blockquote { border-color: var(--l-border) !important; color: var(--l-muted) !important; }
+
+/* ============================================================
+   Dark mode — student.html only.
+
+   Unlike the two teacher panels, student.html's tailwind config
+   was rewritten in place to light hex values during the light
+   redesign, so there's no dormant dark palette left to reveal.
+   These are genuinely new dark tokens: a near-navy background
+   (#0F172A) with tonal surface tiers that get lighter as they
+   "elevate" (the Material dark-elevation convention), desaturated
+   /lightened indigo & teal for text-on-dark contrast, and the
+   brand primary/secondary fills left untouched per the shared
+   brand-consistency rule above.
+   ============================================================ */
+html.dark {
+  --d-bg: #0F172A;             /* page background — near navy      */
+  --d-surface-1: #1B2547;      /* cards, bubbles, input bar         */
+  --d-surface-2: #131B33;      /* sidebar, mobile header (recedes)  */
+  --d-surface-3: #182252;      /* small chips/badges                */
+  --d-surface-4: #232E58;      /* hover fill                        */
+  --d-text: #F1F5F9;           /* primary text                      */
+  --d-muted: #94A3B8;          /* secondary text                    */
+  --d-border: #27314F;         /* subtle borders                    */
+  --d-border-2: #3A4566;       /* stronger borders / dots           */
+  --d-scroll: #33406E;
+  color-scheme: dark;
+}
+
+html.dark .bg-background                 { background-color: var(--d-bg) !important; }
+html.dark .bg-surface-container-lowest   { background-color: var(--d-surface-1) !important; }
+html.dark .bg-surface-container-low      { background-color: var(--d-surface-2) !important; }
+html.dark .bg-surface-container          { background-color: var(--d-surface-3) !important; }
+html.dark .hover\:bg-surface-container-high:hover { background-color: var(--d-surface-4) !important; }
+html.dark .text-on-background            { color: var(--d-text) !important; }
+html.dark .text-on-surface               { color: var(--d-text) !important; }
+html.dark .text-on-surface-variant       { color: var(--d-muted) !important; }
+html.dark .border-outline-variant        { border-color: var(--d-border) !important; }
+html.dark .border-outline                { border-color: var(--d-border-2) !important; }
+html.dark .bg-outline-variant            { background-color: var(--d-border-2) !important; }
+html.dark .bg-outline                    { background-color: var(--d-border-2) !important; }
+html.dark .text-error                    { color: #F87171 !important; }
+html.dark .chat-scroll::-webkit-scrollbar-thumb { background-color: var(--d-scroll) !important; }
+
+/* teal "grounded" chips and the active conversation row */
+html.dark .bg-secondary-container    { background-color: #0F3D34 !important; }
+html.dark .text-on-secondary-container { color: #5EEAD4 !important; }
+
+/* error banner on the join card */
+html.dark .bg-error-container       { background-color: #450A0A !important; }
+html.dark .text-on-error-container  { color: #FCA5A5 !important; }
+
+/* the chat input fades into the page background; repoint the
+   gradient stops to the dark bg */
+html.dark .from-background {
+  --tw-gradient-from: #0F172A var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(15 23 42 / 0) var(--tw-gradient-to-position) !important;
+}
+html.dark .via-background {
+  --tw-gradient-stops: var(--tw-gradient-from), #0F172A var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+
+/* markdown inside AI chat bubbles */
+html.dark .ai-prose a          { color: #A5B4FC !important; }
+html.dark .ai-prose code       { background: rgba(129, 140, 248, .15) !important; border-color: var(--d-border) !important; color: var(--d-text) !important; }
+html.dark .ai-prose pre        { background: var(--d-surface-2) !important; border-color: var(--d-border) !important; }
+html.dark .ai-prose pre code   { color: var(--d-text) !important; }
+html.dark .ai-prose blockquote { border-color: var(--d-border) !important; color: var(--d-muted) !important; }

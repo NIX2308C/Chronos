@@ -438,6 +438,11 @@ def theme_css():
     return send_from_directory(BASE_DIR, 'theme.css')
 
 
+@app.route('/theme.js')
+def theme_js():
+    return send_from_directory(BASE_DIR, 'theme.js')
+
+
 # ---------- auth ----------
 
 @app.route('/auth/config', methods=['GET'])

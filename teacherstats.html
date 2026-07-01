@@ -2,6 +2,7 @@
 <html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
 <title>Chronos | Analytics</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;family=Hanken+Grotesk:wght@300;400;500;600;700&amp;family=Crimson+Pro:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
@@ -77,6 +78,9 @@
 </button>
 <button aria-label="How this works" class="text-on-surface-variant hover:text-primary transition-colors flex items-center" id="tutHelp" title="How this works">
 <span class="material-symbols-outlined" style="font-size:24px;">help</span>
+</button>
+<button class="text-on-surface-variant hover:text-primary transition-colors flex items-center" data-theme-toggle="" title="Switch to dark mode">
+<span class="material-symbols-outlined" style="font-size:24px;">dark_mode</span>
 </button>
 <button class="text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2" id="lockBtn" title="Sign out">
 <span class="material-symbols-outlined" style="font-size:28px;">account_circle</span>
@@ -197,6 +201,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
+<script src="theme.js"></script>
 <script>
   const BASE=Chronos.BASE;
   const $=id=>document.getElementById(id);
@@ -358,34 +363,48 @@
 <button class="text-text-muted hover:text-text-main transition-colors flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
 </div>
 <div class="space-y-4" id="tutBody"></div>
-<button class="mt-6 w-full py-2.5 bg-primary-container text-on-primary-container rounded-lg font-medium text-sm hover:opacity-90 transition-opacity" id="tutDone">Got it</button>
+<div class="flex items-center justify-center gap-1.5 mt-4" id="tutDots"></div>
+<button class="mt-6 w-full py-2.5 bg-primary-container text-on-primary-container rounded-lg font-medium text-sm hover:opacity-90 transition-opacity" id="tutDone">Continue</button>
 </div>
 </div>
 <script>
   (function(){
     const TITLE="Reading your analytics";
-    const KEY="chronos_tut_stats_v1";
+    const KEY="chronos_tut_stats_v2";
     const STEPS=[
       {icon:"school",title:"One class at a time",text:"Use the class menu up top. Every number here is just for the class you have picked."},
       {icon:"forum",title:"What they are asking",text:"Questions are grouped by topic so you can see at a glance what your students keep coming back to."},
       {icon:"help",title:"Mind the gaps",text:"Knowledge Gaps lists the questions your material could not answer. Think of it as a ready made list of what to add next."},
       {icon:"history",title:"Recent questions",text:"A running feed of what is being asked, newest first, so you can spot trends as they happen."},
     ];
+    let idx=0;
     const body=document.getElementById("tutBody");
+    const dots=document.getElementById("tutDots");
+    const doneBtn=document.getElementById("tutDone");
     document.getElementById("tutTitle").textContent=TITLE;
-    STEPS.forEach(s=>{
-      const row=document.createElement("div");row.className="flex items-start gap-3";
-      row.innerHTML='<span class="w-8 h-8 flex-shrink-0 rounded-lg bg-surface-solid text-accent-teal flex items-center justify-center border border-white/10"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
+
+    function render(){
+      const s=STEPS[idx];
+      body.innerHTML='<div class="flex items-start gap-3">'+
+        '<span class="w-8 h-8 flex-shrink-0 rounded-lg bg-surface-solid text-accent-teal flex items-center justify-center border border-white/10"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
         '<div><h3 class="text-sm font-bold text-text-main mb-0.5">'+s.title+'</h3>'+
-        '<p class="text-sm text-text-muted leading-snug">'+s.text+'</p></div>';
-      body.appendChild(row);
-    });
+        '<p class="text-sm text-text-muted leading-snug">'+s.text+'</p></div></div>';
+      dots.innerHTML="";
+      STEPS.forEach((_,i)=>{
+        const d=document.createElement("span");
+        d.className="h-1.5 rounded-full transition-all "+(i===idx?"w-5 bg-primary":"w-1.5 bg-text-muted/30");
+        dots.appendChild(d);
+      });
+      doneBtn.textContent = idx===STEPS.length-1 ? "Got it" : "Continue";
+    }
+
     const modal=document.getElementById("tut");
-    const open=()=>modal.classList.remove("hidden");
+    const open=()=>{idx=0;render();modal.classList.remove("hidden");};
     const close=()=>{modal.classList.add("hidden");try{localStorage.setItem(KEY,"1");}catch(e){}};
     document.getElementById("tutClose").onclick=close;
-    document.getElementById("tutDone").onclick=close;
-    modal.addEventListener("click",e=>{if(e.target===modal)close();});
+    // Each click only ever advances one step — no skipping ahead, and no
+    // dismissing by clicking the backdrop, so the steps actually get read.
+    doneBtn.onclick=()=>{ if(idx<STEPS.length-1){idx++;render();} else {close();} };
     const help=document.getElementById("tutHelp");if(help)help.onclick=open;
     // Auto-open once on first visit, after the auth gate clears.
     window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};

@@ -2,6 +2,7 @@
 <html class="h-full" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
 <title>Chronos | Tutor</title>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&amp;family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&amp;display=swap" rel="stylesheet"/>
@@ -108,6 +109,7 @@
     .ai-prose pre code { background:none; border:none; padding:0; font-size:.8rem; line-height:1.55; display:block; color:#1E1B4B; }
     .ai-prose blockquote { border-left:3px solid #E0E7FF; padding-left:.75rem; margin:.5rem 0; color:#575299; }
 </style>
+<link href="theme.css" rel="stylesheet"/>
 </head>
 <body class="bg-background text-on-background h-full antialiased overflow-hidden flex">
 
@@ -174,6 +176,9 @@
 <button aria-label="How this works" class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="tutHelp" title="How this works">
 <span class="material-symbols-outlined text-[18px]">help</span>
 </button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" data-theme-toggle="" title="Switch to dark mode">
+<span class="material-symbols-outlined text-[18px]">dark_mode</span>
+</button>
 <button class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="logoutBtn" title="Sign out">
 <span class="material-symbols-outlined text-[18px]">logout</span>
 </button>
@@ -221,6 +226,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
+<script src="theme.js"></script>
 <script>
   // Backend base (same-origin in deployment; dev server via Live Server/file://).
   // Chronos.BASE comes from auth.js and uses the same detection.
@@ -586,33 +592,47 @@
 <button class="text-on-surface-variant hover:text-primary transition-colors flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
 </div>
 <div class="space-y-stack-md" id="tutBody"></div>
-<button class="mt-stack-lg w-full py-2.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity" id="tutDone">Got it</button>
+<div class="flex items-center justify-center gap-1.5 mt-stack-md" id="tutDots"></div>
+<button class="mt-stack-lg w-full py-2.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity" id="tutDone">Continue</button>
 </div>
 </div>
 <script>
   (function(){
     const TITLE="Welcome to your tutor";
-    const KEY="chronos_tut_student_v1";
+    const KEY="chronos_tut_student_v2";
     const STEPS=[
       {icon:"school",title:"Pick your class",text:"Use the class menu on the left to choose what you're asking about. Each class only knows what that teacher put in it."},
       {icon:"forum",title:"Just ask",text:"Type a question and press Enter. Answers come straight from your teacher's notes and files, so the tutor does not make things up."},
       {icon:"flag",title:"If it's not there, it'll say so",text:"Asked something your teacher hasn't covered? The tutor tells you instead of guessing. Worth a quick heads up to your teacher so they can add it."},
     ];
+    let idx=0;
     const body=document.getElementById("tutBody");
+    const dots=document.getElementById("tutDots");
+    const doneBtn=document.getElementById("tutDone");
     document.getElementById("tutTitle").textContent=TITLE;
-    STEPS.forEach(s=>{
-      const row=document.createElement("div");row.className="flex items-start gap-3";
-      row.innerHTML='<span class="w-8 h-8 flex-shrink-0 rounded-lg bg-surface-container text-secondary flex items-center justify-center border border-outline-variant"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
+
+    function render(){
+      const s=STEPS[idx];
+      body.innerHTML='<div class="flex items-start gap-3">'+
+        '<span class="w-8 h-8 flex-shrink-0 rounded-lg bg-surface-container text-secondary flex items-center justify-center border border-outline-variant"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
         '<div><h3 class="font-label-md text-label-md text-on-surface mb-0.5">'+s.title+'</h3>'+
-        '<p class="font-body-md text-body-md text-on-surface-variant leading-snug">'+s.text+'</p></div>';
-      body.appendChild(row);
-    });
+        '<p class="font-body-md text-body-md text-on-surface-variant leading-snug">'+s.text+'</p></div></div>';
+      dots.innerHTML="";
+      STEPS.forEach((_,i)=>{
+        const d=document.createElement("span");
+        d.className="h-1.5 rounded-full transition-all "+(i===idx?"w-5 bg-primary":"w-1.5 bg-outline-variant");
+        dots.appendChild(d);
+      });
+      doneBtn.textContent = idx===STEPS.length-1 ? "Got it" : "Continue";
+    }
+
     const modal=document.getElementById("tut");
-    const open=()=>modal.classList.remove("hidden");
+    const open=()=>{idx=0;render();modal.classList.remove("hidden");};
     const close=()=>{modal.classList.add("hidden");try{localStorage.setItem(KEY,"1");}catch(e){}};
     document.getElementById("tutClose").onclick=close;
-    document.getElementById("tutDone").onclick=close;
-    modal.addEventListener("click",e=>{if(e.target===modal)close();});
+    // Each click only ever advances one step — no skipping ahead, and no
+    // dismissing by clicking the backdrop, so the steps actually get read.
+    doneBtn.onclick=()=>{ if(idx<STEPS.length-1){idx++;render();} else {close();} };
     const help=document.getElementById("tutHelp");if(help)help.onclick=open;
     // Auto-open only once the app is ready (the main script calls this after the
     // loading/join gates clear), so it never pops over a full-screen spinner.

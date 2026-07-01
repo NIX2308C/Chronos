@@ -2,6 +2,7 @@
 <html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
 <title>Chronos | Knowledge Base</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;family=Crimson+Pro:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
@@ -101,6 +102,9 @@
 <button aria-label="How this works" class="w-9 h-9 flex items-center justify-center rounded-sm text-muted hover:text-white hover:bg-surface transition-colors" id="tutHelp" title="How this works">
 <span class="material-symbols-outlined text-[20px]">help</span>
 </button>
+<button class="w-9 h-9 flex items-center justify-center rounded-sm text-muted hover:text-white hover:bg-surface transition-colors" data-theme-toggle="" title="Switch to dark mode">
+<span class="material-symbols-outlined text-[20px]">dark_mode</span>
+</button>
 <button class="bg-primary hover:bg-primary/90 text-white text-sm font-medium py-2 px-4 rounded-sm flex items-center gap-2 transition-all shadow-[0_0_10px_rgba(79,70,229,0.2)]" id="uploadHeaderBtn">
 <span class="material-symbols-outlined text-[18px]">upload</span> Upload Source
 </button>
@@ -197,6 +201,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
+<script src="theme.js"></script>
 <script>
   const BASE=Chronos.BASE;
   let RULES=[],CLASSES=[],ACTIVE_CLASS=null;
@@ -462,34 +467,48 @@
 <button class="text-muted hover:text-white transition-colors flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
 </div>
 <div class="space-y-4" id="tutBody"></div>
-<button class="mt-6 w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-sm font-medium text-sm transition-colors" id="tutDone">Got it</button>
+<div class="flex items-center justify-center gap-1.5 mt-4" id="tutDots"></div>
+<button class="mt-6 w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-sm font-medium text-sm transition-colors" id="tutDone">Continue</button>
 </div>
 </div>
 <script>
   (function(){
     const TITLE="Setting up your class";
-    const KEY="chronos_tut_knowledge_v1";
+    const KEY="chronos_tut_knowledge_v2";
     const STEPS=[
       {icon:"add",title:"Make a class",text:"Each class is its own separate knowledge base. Create one, then share its join code (top of the page) so your students can get in."},
       {icon:"gavel",title:"Add rules",text:"Type in the ground rules and key facts. Things like \"don't give away homework answers\" or \"stick to the textbook.\" One clear idea per rule works best."},
       {icon:"description",title:"Upload your material",text:"Drop in PDFs, Word docs, or notes. We read the text so the tutor can answer from your actual course content."},
       {icon:"lightbulb",title:"That is the tutor's whole world",text:"It only answers from what is here. If something is not in your rules or documents, the tutor says it does not know rather than guess."},
     ];
+    let idx=0;
     const body=document.getElementById("tutBody");
+    const dots=document.getElementById("tutDots");
+    const doneBtn=document.getElementById("tutDone");
     document.getElementById("tutTitle").textContent=TITLE;
-    STEPS.forEach(s=>{
-      const row=document.createElement("div");row.className="flex items-start gap-3";
-      row.innerHTML='<span class="w-8 h-8 flex-shrink-0 rounded-sm bg-background-dark text-accent flex items-center justify-center border border-subtle"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
+
+    function render(){
+      const s=STEPS[idx];
+      body.innerHTML='<div class="flex items-start gap-3">'+
+        '<span class="w-8 h-8 flex-shrink-0 rounded-sm bg-background-dark text-accent flex items-center justify-center border border-subtle"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
         '<div><h3 class="text-sm font-bold text-[#F1F5F9] mb-0.5">'+s.title+'</h3>'+
-        '<p class="text-sm text-muted leading-snug">'+s.text+'</p></div>';
-      body.appendChild(row);
-    });
+        '<p class="text-sm text-muted leading-snug">'+s.text+'</p></div></div>';
+      dots.innerHTML="";
+      STEPS.forEach((_,i)=>{
+        const d=document.createElement("span");
+        d.className="h-1.5 rounded-full transition-all "+(i===idx?"w-5 bg-primary":"w-1.5 bg-muted/30");
+        dots.appendChild(d);
+      });
+      doneBtn.textContent = idx===STEPS.length-1 ? "Got it" : "Continue";
+    }
+
     const modal=document.getElementById("tut");
-    const open=()=>modal.classList.remove("hidden");
+    const open=()=>{idx=0;render();modal.classList.remove("hidden");};
     const close=()=>{modal.classList.add("hidden");try{localStorage.setItem(KEY,"1");}catch(e){}};
     document.getElementById("tutClose").onclick=close;
-    document.getElementById("tutDone").onclick=close;
-    modal.addEventListener("click",e=>{if(e.target===modal)close();});
+    // Each click only ever advances one step — no skipping ahead, and no
+    // dismissing by clicking the backdrop, so the steps actually get read.
+    doneBtn.onclick=()=>{ if(idx<STEPS.length-1){idx++;render();} else {close();} };
     const help=document.getElementById("tutHelp");if(help)help.onclick=open;
     // Auto-open once on first visit, after the auth gate clears.
     window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};

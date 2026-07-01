@@ -1,269 +1,376 @@
 <!DOCTYPE html>
-<html class="dark" lang="en"><head>
+<html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Chronos | Grounded AI Tutoring</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700;900&amp;family=Outfit:wght@400&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-  tailwind.config = {
-    darkMode: "class",
-    theme: {
-      extend: {
-        colors: {
-          "primary": "#4F46E5",
-          "background-light": "#f6f6f8",
-          "background-dark": "#0A0A0F",
-          "surface": "#181825",
-          "glass": "rgba(24, 24, 37, 0.6)",
-          "text-main": "#F1F5F9",
-          "muted": "#94A3B8",
-          "accent": "#0D9488"
-        },
-        fontFamily: {
-          "display": ["Space Grotesk", "sans-serif"],
-          "body": ["Outfit", "sans-serif"],
-          "mono": ["JetBrains Mono", "monospace"]
-        },
-        borderRadius: {"DEFAULT": "1rem", "lg": "1rem", "xl": "1rem", "full": "9999px"},
-      },
-    },
-  }
+<title>Chronos — An AI tutor that cites its sources</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { bg:"#F5F3FF", fg:"#1E1B4B", primary:"#6366F1", secondary:"#818CF8", accent:"#059669", muted:"#EBEFF9", line:"#E0E7FF", danger:"#DC2626", ink2:"#575299" },
+    fontFamily: { display:["Crimson Pro","serif"], body:["Hanken Grotesk","sans-serif"] }
+  }}}
 </script>
 <style>
-  body { background-color: #0A0A0F; color: #F1F5F9; overflow-x: hidden; }
-  .glass-panel { background-color: rgba(24, 24, 37, 0.6); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
-  .text-gradient { background-image: linear-gradient(to right, #4F46E5, #0D9488); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-  .glow-btn:hover { box-shadow: 0 0 20px rgba(79, 70, 229, 0.4); }
-  .reveal { opacity: 0; transform: translateY(24px); transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1); }
-  .reveal.active { opacity: 1; transform: translateY(0); }
-  .feature-card { transition: transform 0.3s ease, border-color 0.3s ease; }
-  .feature-card:hover { border-color: rgba(79, 70, 229, 0.4); transform: translateY(-4px); }
-  #hero-glow { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-  #hero-glow::before { content: ""; position: absolute; top: -20%; left: 50%; transform: translateX(-50%); width: 900px; height: 900px; background: radial-gradient(circle, rgba(79,70,229,0.18), transparent 60%); }
-  #scene-svg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 105%; height: 105%; opacity: 0.16; }
-  #scene-svg::after { content: ""; }
-  .chalk-line { fill: none; stroke-linecap: round; stroke-linejoin: round; }
-  .chalk-w { stroke: #e6f0ff; }
-  .chalk-a { stroke: #2dd4bf; }
-  .chalk-p { stroke: #818cf8; }
+  :root{--bg:#F5F3FF;--fg:#1E1B4B;--primary:#6366F1;--secondary:#818CF8;--accent:#059669;--muted:#EBEFF9;--line:#E0E7FF;--ink2:#575299;--danger:#DC2626}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--fg);font-family:"Hanken Grotesk",sans-serif;overflow-x:hidden}
+  h1,h2,h3,.display{font-family:"Crimson Pro",serif}
+  ::selection{background:rgba(99,102,241,.2)}
+  .msym{font-family:"Material Symbols Rounded";font-weight:normal;font-style:normal;line-height:1;display:inline-block;white-space:nowrap;direction:ltr}
+  .label{text-transform:uppercase;letter-spacing:.16em;font-size:11px;font-weight:700;color:var(--ink2)}
+
+  .btn{display:inline-flex;align-items:center;gap:.5rem;font-weight:700;border-radius:12px;padding:.85rem 1.4rem;font-size:15px;transition:transform .28s cubic-bezier(.34,1.56,.64,1),box-shadow .28s,background .28s;will-change:transform}
+  .btn:active{transform:scale(.96)}
+  .btn-primary{background:var(--primary);color:#fff;box-shadow:0 10px 24px -12px rgba(99,102,241,.9)}
+  .btn-primary:hover{transform:translateY(-3px);box-shadow:0 18px 36px -14px rgba(99,102,241,.95)}
+  .btn-accent{background:var(--accent);color:#fff;box-shadow:0 10px 24px -12px rgba(5,150,105,.8)}
+  .btn-accent:hover{transform:translateY(-3px);box-shadow:0 18px 36px -14px rgba(5,150,105,.9)}
+  .btn-ghost{background:#fff;color:var(--fg);border:1px solid var(--line)}
+  .btn-ghost:hover{transform:translateY(-3px);border-color:var(--secondary);box-shadow:0 14px 30px -18px rgba(30,27,75,.4)}
+
+  .rise{opacity:0;transform:translateY(28px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+  .rise.in{opacity:1;transform:none}
+
+  /* ---------- HERO stage ---------- */
+  .hero{position:relative;min-height:100dvh;display:grid;place-items:center;overflow:hidden}
+  .hero-copy{position:relative;z-index:20;text-align:center;padding:0 1.5rem;max-width:60rem}
+  .huge{font-size:clamp(3rem,9vw,8rem);line-height:.98;letter-spacing:-.03em;font-weight:600}
+
+  /* floating source documents that parallax */
+  .float{position:absolute;z-index:10;will-change:transform;filter:drop-shadow(0 30px 50px rgba(30,27,75,.18));opacity:0;animation:floatIn 1s cubic-bezier(.16,1,.3,1) forwards}
+  @keyframes floatIn{to{opacity:1}}
+  .doc{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;width:210px}
+  .doc .ln{height:7px;border-radius:4px;background:#eceafe;margin:7px 0}
+  .doc .ln.hl{background:rgba(5,150,105,.28)}
+  .doc .tag{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;color:#047857;background:rgba(5,150,105,.1);border:1px solid rgba(5,150,105,.3);border-radius:999px;padding:3px 8px;margin-top:6px}
+  .bubble{background:var(--primary);color:#fff;border-radius:16px 16px 16px 4px;padding:12px 15px;font-size:14px;max-width:230px;font-weight:700}
+  .note{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px 15px;width:200px}
+  .note .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--fg);margin:6px 0}
+  .refuse{background:#fff;border:1px solid rgba(220,38,38,.22);border-radius:14px;padding:12px 14px;width:215px;font-size:12.5px;color:var(--ink2)}
+
+  .scrollcue{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);z-index:20;color:var(--ink2);animation:bob 1.8s ease-in-out infinite}
+  @keyframes bob{50%{transform:translate(-50%,8px)}}
+
+  /* ---------- SCROLL STORY (pinned) ---------- */
+  .story{position:relative}
+  .story-sticky{position:sticky;top:0;height:100dvh;display:flex;align-items:center;overflow:hidden}
+  .stage{position:relative;width:100%;height:100%}
+  .scene{position:absolute;inset:0;display:grid;place-items:center;opacity:0;transform:scale(.96) translateY(20px);transition:opacity .6s ease,transform .6s cubic-bezier(.16,1,.3,1);pointer-events:none}
+  .scene.active{opacity:1;transform:none}
+  .step{transition:opacity .4s,transform .4s;opacity:.32}
+  .step.active{opacity:1;transform:translateX(6px)}
+  .step.active .step-num{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .step-num{width:44px;height:44px;border-radius:12px;border:2px solid var(--line);display:grid;place-items:center;font-family:"Crimson Pro",serif;font-weight:600;font-size:20px;transition:.4s;flex:none}
+  .prog{position:absolute;left:0;top:0;height:100%;width:3px;background:var(--line);border-radius:3px;overflow:hidden}
+  .prog>span{position:absolute;left:0;top:0;width:100%;background:linear-gradient(var(--primary),var(--accent));border-radius:3px;height:0}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:20px;transition:transform .35s cubic-bezier(.16,1,.3,1),box-shadow .35s,border-color .35s;will-change:transform}
+  .card:hover{transform:translateY(-8px);border-color:var(--secondary);box-shadow:0 30px 60px -30px rgba(99,102,241,.45)}
+  .icon-badge{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:var(--muted);color:var(--primary);transition:transform .35s cubic-bezier(.34,1.56,.64,1),background .35s}
+  .card:hover .icon-badge{transform:scale(1.08) rotate(-6deg);background:#e6eafe}
+
+  .bar-fill{width:0;transition:width 1.1s cubic-bezier(.16,1,.3,1)}
+  .track{display:flex;gap:2.5rem;width:max-content;animation:scroll 30s linear infinite}
+  .track:hover{animation-play-state:paused}
+  @keyframes scroll{to{transform:translateX(-50%)}}
+  a.navlink{position:relative}
+  a.navlink::after{content:"";position:absolute;left:0;bottom:-3px;height:2px;width:0;background:var(--primary);transition:width .3s cubic-bezier(.16,1,.3,1)}
+  a.navlink:hover::after{width:100%}
+
+  @media (max-width:1023px){ .float.opt{display:none} }
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    *{animation:none!important}
+    .rise{opacity:1!important;transform:none!important;transition:none!important}
+    .float{opacity:1!important}
+    .bar-fill{transition:none!important}
+    .scene{opacity:1!important;transform:none!important}
+  }
 </style>
 </head>
-<body class="font-body min-h-screen flex flex-col antialiased relative">
-<!-- Navigation -->
-<nav class="fixed top-0 w-full z-50 glass-panel border-b border-[rgba(255,255,255,0.05)]">
-<div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-<a class="flex items-center gap-3" href="landing.html">
-<span class="material-symbols-outlined text-primary text-2xl">schema</span>
-<span class="font-display font-bold text-xl tracking-tight">Chronos</span>
-</a>
-<div class="flex items-center gap-4 font-display text-sm">
-<a class="text-muted hover:text-text-main transition-colors" href="login.html">Sign In</a>
-<a class="bg-primary text-white px-5 py-2 rounded-full glow-btn transition-all font-medium" href="login.html">Get Started</a>
-</div>
-</div>
-</nav>
-<main class="flex-grow relative z-10">
-<!-- Hero -->
-<section class="relative min-h-screen flex items-center justify-center px-6 pt-24 pb-20 overflow-hidden">
-<div id="hero-glow" aria-hidden="true">
-<svg id="scene-svg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
-<rect class="chalk-line chalk-w" x="300" y="170" width="840" height="500" rx="22" stroke-width="2.5"/>
-<g class="chalk-a" stroke-width="3">
-<ellipse class="chalk-line" cx="470" cy="320" rx="78" ry="28"/>
-<ellipse class="chalk-line" cx="470" cy="320" rx="78" ry="28" transform="rotate(60 470 320)"/>
-<ellipse class="chalk-line" cx="470" cy="320" rx="78" ry="28" transform="rotate(120 470 320)"/>
-<circle class="chalk-line" cx="470" cy="320" r="9"/>
-</g>
-<g class="chalk-p" stroke-width="3">
-<path class="chalk-line" d="M690 540 V360"/>
-<path class="chalk-line" d="M690 540 H880"/>
-<path class="chalk-line" d="M700 528 C760 528 800 410 872 372"/>
-</g>
-<g class="chalk-a" stroke-width="3">
-<path class="chalk-line" d="M952 358 A46 46 0 1 1 1010 358"/>
-<path class="chalk-line" d="M958 360 H1004"/>
-<path class="chalk-line" d="M964 374 H998"/>
-<path class="chalk-line" d="M972 320 L981 336 L990 320"/>
-<path class="chalk-line" d="M930 290 H914 M1032 290 H1048 M981 246 V232"/>
-</g>
-</svg>
-</div>
-<div class="relative z-10 max-w-4xl text-center">
-<div class="inline-flex items-center gap-2 glass-panel px-4 py-1.5 rounded-full text-xs font-display text-muted mb-8">
-<span class="material-symbols-outlined text-accent text-sm">verified</span>
-Knows your class, and nothing else
-</div>
-<h1 class="font-display font-black text-5xl md:text-[78px] leading-[1.05] tracking-tight mb-6">
-<span class="text-gradient">An AI tutor</span><br/>
-that won't make things up
-</h1>
-<p class="text-muted text-lg md:text-xl max-w-2xl mx-auto mb-10 font-body leading-relaxed">
-You give Chronos your rules and your course documents. It helps your students using only that material, it shows where every answer came from, and it admits when something is missing instead of making it up.
-</p>
-<div class="flex flex-col sm:flex-row gap-4 justify-center">
-<a class="bg-primary text-white px-8 py-4 rounded-full glow-btn font-display font-bold text-lg transition-all w-full sm:w-auto inline-flex items-center justify-center gap-2" href="login.html?role=teacher">
-<span class="material-symbols-outlined">school</span> Set Up Your Class
-</a>
-<a class="glass-panel text-white px-8 py-4 rounded-full font-display font-bold text-lg hover:bg-surface transition-colors w-full sm:w-auto border border-[rgba(255,255,255,0.1)] inline-flex items-center justify-center gap-2" href="student.html">
-<span class="material-symbols-outlined">forum</span> Open the Tutor
-</a>
-</div>
-<p class="text-muted text-sm font-body mt-6">Free to try. No setup beyond adding your first class.</p>
-</div>
+<body class="min-h-dvh flex flex-col antialiased">
+
+<!-- ===== NAV ===== -->
+<header class="fixed top-0 inset-x-0 z-50" style="backdrop-filter:blur(10px);background:rgba(245,243,255,.72);border-bottom:1px solid var(--line)">
+  <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    <a href="landing.html" class="flex items-center gap-2 group">
+      <span class="msym text-2xl text-primary transition-transform duration-500 group-hover:rotate-[20deg]">menu_book</span>
+      <span class="display font-semibold text-2xl tracking-tight">Chronos</span>
+    </a>
+    <nav class="flex items-center gap-6 text-[15px]">
+      <a class="navlink hidden sm:inline text-ink2 hover:text-fg transition-colors" href="#how">How it works</a>
+      <a class="navlink hidden sm:inline text-ink2 hover:text-fg transition-colors" href="#trust">Why trust it</a>
+      <a class="navlink text-ink2 hover:text-fg transition-colors" href="login.html">Sign in</a>
+      <a class="btn btn-primary !py-2 !px-4 !text-sm" href="login.html">Get started</a>
+    </nav>
+  </div>
+</header>
+
+<main class="flex-grow">
+<!-- ===== HERO: layered, parallaxing source documents ===== -->
+<section class="hero" id="hero">
+  <!-- floating pieces (parallax) -->
+  <div class="float" style="top:16%;left:9%;--d:.9;animation-delay:.2s"><div class="doc" style="transform:rotate(-8deg)">
+    <div class="text-[10px] font-bold text-ink2 mb-1">Biology_Unit3.pdf</div>
+    <div class="ln"></div><div class="ln hl"></div><div class="ln" style="width:70%"></div>
+    <div class="tag"><span class="msym" style="font-size:12px">bookmark</span> cited · p.12</div>
+  </div></div>
+
+  <div class="float opt" style="top:22%;right:8%;--d:1.5;animation-delay:.35s"><div class="bubble" style="transform:rotate(5deg)">
+    Why does an atom stay neutral?<sup style="color:#c7d2fe">¹</sup>
+  </div></div>
+
+  <div class="float opt" style="bottom:20%;left:13%;--d:1.9;animation-delay:.5s"><div class="note" style="transform:rotate(6deg)">
+    <div class="text-[10px] font-bold text-ink2 mb-1">Class rules</div>
+    <div class="chk"><span class="msym text-accent" style="font-size:16px">check_circle</span> Only cite provided files</div>
+    <div class="chk"><span class="msym text-accent" style="font-size:16px">check_circle</span> Never invent facts</div>
+  </div></div>
+
+  <div class="float" style="bottom:17%;right:11%;--d:1.15;animation-delay:.65s"><div class="refuse" style="transform:rotate(-5deg)">
+    <div class="flex items-center gap-1.5 font-bold text-danger mb-1"><span class="msym" style="font-size:15px">block</span> Off-syllabus</div>
+    <span class="line-through" style="text-decoration-color:var(--danger)">quantum spin</span> isn&rsquo;t in your material.
+  </div></div>
+
+  <div class="float opt" style="top:52%;left:4%;--d:2.4;animation-delay:.8s">
+    <span class="inline-flex items-center gap-1.5 bg-white border rounded-full px-3 py-1.5 text-[12px] font-bold text-accent shadow-sm" style="border-color:rgba(5,150,105,.35);transform:rotate(-10deg)"><span class="msym" style="font-size:14px">verified</span> Grounded</span>
+  </div>
+
+  <!-- headline -->
+  <div class="hero-copy">
+    <h1 class="huge display mb-7">
+      It won&rsquo;t<br/><span class="text-primary italic">make it up.</span>
+    </h1>
+    <p class="text-[1.25rem] leading-[1.55] text-ink2 max-w-xl mx-auto mb-9">
+      It only knows <span class="text-fg font-bold">your course material</span>. Every answer shows the file it
+      came from, and when something isn&rsquo;t in there, it tells the student instead of guessing.
+    </p>
+    <div class="flex flex-wrap gap-3 justify-center">
+      <a class="btn btn-primary" href="login.html?role=teacher"><span class="msym text-[20px]">school</span> Set up your class</a>
+      <a class="btn btn-ghost" href="student.html"><span class="msym text-[20px]">forum</span> Open the tutor</a>
+    </div>
+  </div>
+
+  <a href="#trust" class="scrollcue" aria-label="Scroll"><span class="msym text-3xl">keyboard_arrow_down</span></a>
 </section>
-<!-- How it works -->
-<section class="py-28 px-6 relative z-10 bg-background-dark border-t border-white/5">
-<div class="max-w-7xl mx-auto">
-<div class="text-center mb-16 reveal">
-<h2 class="font-display font-bold text-4xl md:text-5xl text-text-main mb-4">How it works</h2>
-<p class="text-muted font-body text-lg max-w-2xl mx-auto">Three steps from an empty class to a tutor your students can trust.</p>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-<div class="bg-surface border border-white/5 p-10 rounded-2xl reveal">
-<div class="font-mono text-accent text-sm mb-4">STEP 01</div>
-<h3 class="font-display font-bold text-2xl text-text-main mb-3">Build the knowledge base</h3>
-<p class="text-muted font-body leading-relaxed">Upload your PDFs, Word files and notes, or simply type in rules the tutor should follow. Each class keeps its own private library.</p>
-</div>
-<div class="bg-surface border border-white/5 p-10 rounded-2xl reveal" style="transition-delay: 120ms;">
-<div class="font-mono text-accent text-sm mb-4">STEP 02</div>
-<h3 class="font-display font-bold text-2xl text-text-main mb-3">Students ask away</h3>
-<p class="text-muted font-body leading-relaxed">Your students chat in plain language and get answers drawn from your material. Every reply points back to the source it came from.</p>
-</div>
-<div class="bg-surface border border-white/5 p-10 rounded-2xl reveal" style="transition-delay: 240ms;">
-<div class="font-mono text-accent text-sm mb-4">STEP 03</div>
-<h3 class="font-display font-bold text-2xl text-text-main mb-3">You see the gaps</h3>
-<p class="text-muted font-body leading-relaxed">Questions are sorted by topic, and the ones your material could not answer get flagged. You always know what to add next.</p>
-</div>
-</div>
-</div>
+
+<!-- ===== TRUST MARQUEE ===== -->
+<section class="border-y bg-white/60 relative z-10" style="border-color:var(--line)">
+  <div class="overflow-hidden py-5">
+    <div class="track label text-ink2">
+      <span class="flex items-center gap-2"><span class="msym text-primary" style="font-size:18px">picture_as_pdf</span> Lecture PDFs</span>
+      <span class="flex items-center gap-2"><span class="msym text-primary" style="font-size:18px">description</span> Word docs</span>
+      <span class="flex items-center gap-2"><span class="msym text-primary" style="font-size:18px">rule</span> Grading rules</span>
+      <span class="flex items-center gap-2"><span class="msym text-primary" style="font-size:18px">menu_book</span> Textbook chapters</span>
+      <span class="flex items-center gap-2"><span class="msym text-primary" style="font-size:18px">sticky_note_2</span> Class notes</span>
+      <span class="flex items-center gap-2"><span class="msym text-accent" style="font-size:18px">verified</span> and nothing else</span>
+      <span class="flex items-center gap-2"><span class="msym text-primary" style="font-size:18px">picture_as_pdf</span> Lecture PDFs</span>
+      <span class="flex items-center gap-2"><span class="msym text-primary" style="font-size:18px">description</span> Word docs</span>
+      <span class="flex items-center gap-2"><span class="msym text-primary" style="font-size:18px">rule</span> Grading rules</span>
+      <span class="flex items-center gap-2"><span class="msym text-primary" style="font-size:18px">menu_book</span> Textbook chapters</span>
+      <span class="flex items-center gap-2"><span class="msym text-primary" style="font-size:18px">sticky_note_2</span> Class notes</span>
+      <span class="flex items-center gap-2"><span class="msym text-accent" style="font-size:18px">verified</span> and nothing else</span>
+    </div>
+  </div>
 </section>
-<!-- Why teachers trust it -->
-<section class="py-28 px-6 relative z-10 bg-background-dark">
-<div class="max-w-7xl mx-auto">
-<div class="text-center mb-16 reveal">
-<h2 class="font-display font-bold text-4xl md:text-5xl text-text-main mb-4">Built for classrooms where accuracy matters</h2>
-<p class="text-muted font-body text-lg max-w-2xl mx-auto">The tutor only knows what you give it, so you stay in control of what your students learn.</p>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-<div class="bg-surface border border-white/5 p-10 rounded-2xl feature-card reveal">
-<div class="w-14 h-14 glass-panel rounded-xl flex items-center justify-center mb-8">
-<span class="material-symbols-outlined text-accent text-3xl">gpp_good</span>
-</div>
-<h3 class="font-display font-bold text-2xl text-text-main mb-4">It will not make things up</h3>
-<p class="text-muted font-body leading-relaxed">If the answer is not in your rules or your documents, the tutor says so plainly. No invented facts, no confident guessing.</p>
-</div>
-<div class="bg-surface border border-white/5 p-10 rounded-2xl feature-card reveal" style="transition-delay: 120ms;">
-<div class="w-14 h-14 glass-panel rounded-xl flex items-center justify-center mb-8">
-<span class="material-symbols-outlined text-accent text-3xl">upload_file</span>
-</div>
-<h3 class="font-display font-bold text-2xl text-text-main mb-4">Bring your own material</h3>
-<p class="text-muted font-body leading-relaxed">Drop in PDFs, Word docs or typed rules. Every class stays separate, so your chemistry notes never leak into a history lesson.</p>
-</div>
-<div class="bg-surface border border-white/5 p-10 rounded-2xl feature-card reveal" style="transition-delay: 240ms;">
-<div class="w-14 h-14 glass-panel rounded-xl flex items-center justify-center mb-8">
-<span class="material-symbols-outlined text-accent text-3xl">query_stats</span>
-</div>
-<h3 class="font-display font-bold text-2xl text-text-main mb-4">Know what they are stuck on</h3>
-<p class="text-muted font-body leading-relaxed">Questions are grouped by topic and the unanswered ones are flagged for you. Think of it as a quiet list of what to teach next.</p>
-</div>
-</div>
-</div>
+
+<!-- ===== WHY TRUST IT ===== -->
+<section id="trust" class="max-w-6xl mx-auto px-6 py-24 md:py-32 relative z-10">
+  <div class="rise max-w-2xl mb-14">
+    <div class="label mb-3">Built for accuracy</div>
+    <h2 class="display font-semibold text-[clamp(2.1rem,4.6vw,3.3rem)] leading-tight tracking-[-.01em] mb-4">The tutor only knows what you give it.</h2>
+    <p class="text-[1.15rem] text-ink2">You decide exactly what it can teach.</p>
+  </div>
+  <div class="grid md:grid-cols-3 gap-6">
+    <div class="card rise p-8"><div class="icon-badge mb-6"><span class="msym text-[26px]">gpp_good</span></div>
+      <h3 class="display font-semibold text-2xl mb-3">It won&rsquo;t invent</h3>
+      <p class="text-ink2 leading-relaxed">If something isn&rsquo;t in your files, it says so plainly rather than filling the gap with a guess.</p></div>
+    <div class="card rise p-8" style="transition-delay:.1s"><div class="icon-badge mb-6"><span class="msym text-[26px]">folder_special</span></div>
+      <h3 class="display font-semibold text-2xl mb-3">Your material, sealed</h3>
+      <p class="text-ink2 leading-relaxed">Drop in PDFs, Word docs or a few typed rules. Every class keeps its own shelf, so your chemistry notes never turn up in a history lesson.</p></div>
+    <div class="card rise p-8" style="transition-delay:.2s"><div class="icon-badge mb-6"><span class="msym text-[26px]">fact_check</span></div>
+      <h3 class="display font-semibold text-2xl mb-3">Every claim, traceable</h3>
+      <p class="text-ink2 leading-relaxed">Every answer footnotes back to the exact file and page, so a student (or you) can check where it came from.</p></div>
+  </div>
 </section>
-<!-- Analytics preview -->
-<section class="py-28 px-6 bg-background-dark relative z-10 overflow-hidden border-t border-white/5">
-<div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-<div class="reveal">
-<h2 class="font-display font-bold text-4xl md:text-5xl text-text-main mb-6 leading-tight">See what your class is really asking</h2>
-<p class="text-muted font-body text-xl mb-8 leading-relaxed">Every question is captured and sorted by topic, so you can tell at a glance what your students keep coming back to and where your material runs out.</p>
-<ul class="space-y-4 mb-10">
-<li class="flex items-center gap-3 text-text-main font-display font-medium"><span class="material-symbols-outlined text-accent">check_circle</span> Questions grouped by topic automatically</li>
-<li class="flex items-center gap-3 text-text-main font-display font-medium"><span class="material-symbols-outlined text-accent">check_circle</span> A clear list of the questions your material missed</li>
-<li class="flex items-center gap-3 text-text-main font-display font-medium"><span class="material-symbols-outlined text-accent">check_circle</span> A live feed of recent questions, kept separate for each class</li>
-</ul>
-<a class="text-accent font-display font-bold text-lg inline-flex items-center gap-2 group" href="login.html?role=teacher">
-Open the Teacher Portal <span class="material-symbols-outlined transition-transform group-hover:translate-x-1">arrow_forward</span>
-</a>
-</div>
-<div class="reveal" style="transition-delay: 120ms;">
-<div class="glass-panel rounded-2xl shadow-2xl overflow-hidden border border-white/5 relative">
-<div class="bg-surface p-4 border-b border-white/5 flex items-center justify-between">
-<div class="flex gap-1.5">
-<div class="w-3 h-3 rounded-full bg-red-500/50"></div>
-<div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
-<div class="w-3 h-3 rounded-full bg-green-500/50"></div>
-</div>
-<div class="text-[10px] font-mono text-muted tracking-widest uppercase">Sample Class Overview</div>
-</div>
-<div class="p-6 bg-background-dark/40">
-<div class="grid grid-cols-3 gap-3 mb-6">
-<div class="glass-panel p-4 rounded-xl">
-<div class="text-[10px] text-muted mb-1 font-display">QUESTIONS</div>
-<div class="text-2xl font-display font-bold text-accent">1,284</div>
-</div>
-<div class="glass-panel p-4 rounded-xl">
-<div class="text-[10px] text-muted mb-1 font-display">TOPICS</div>
-<div class="text-2xl font-display font-bold text-primary">17</div>
-</div>
-<div class="glass-panel p-4 rounded-xl">
-<div class="text-[10px] text-muted mb-1 font-display">GAPS</div>
-<div class="text-2xl font-display font-bold text-red-400">23</div>
-</div>
-</div>
-<div class="glass-panel p-6 rounded-xl h-48 flex items-end justify-between gap-2">
-<div class="w-full bg-primary/20 h-32 rounded-t relative group"><div class="absolute bottom-0 w-full bg-primary h-2/3 group-hover:h-full transition-all rounded-t"></div></div>
-<div class="w-full bg-primary/20 h-40 rounded-t relative group"><div class="absolute bottom-0 w-full bg-primary h-4/5 group-hover:h-full transition-all rounded-t"></div></div>
-<div class="w-full bg-primary/20 h-24 rounded-t relative group"><div class="absolute bottom-0 w-full bg-primary h-1/2 group-hover:h-full transition-all rounded-t"></div></div>
-<div class="w-full bg-primary/20 h-44 rounded-t relative group"><div class="absolute bottom-0 w-full bg-primary h-5/6 group-hover:h-full transition-all rounded-t"></div></div>
-<div class="w-full bg-primary/20 h-28 rounded-t relative group"><div class="absolute bottom-0 w-full bg-primary h-2/3 group-hover:h-full transition-all rounded-t"></div></div>
-<div class="w-full bg-primary/20 h-36 rounded-t relative group"><div class="absolute bottom-0 w-full bg-primary h-3/4 group-hover:h-full transition-all rounded-t"></div></div>
-</div>
-<p class="text-[10px] text-muted font-body mt-3 text-center">Questions by topic. Numbers shown are an example.</p>
-</div>
-</div>
-</div>
-</div>
+
+<!-- ===== HOW IT WORKS — pinned scroll story ===== -->
+<section id="how" class="story" style="height:300vh">
+  <div class="story-sticky">
+    <div class="max-w-6xl mx-auto px-6 w-full grid lg:grid-cols-2 gap-12 items-center">
+      <!-- steps -->
+      <div class="relative pl-8">
+        <div class="prog"><span id="prog-fill"></span></div>
+        <div class="label mb-8">How it works</div>
+        <div class="space-y-9" id="steps">
+          <div class="step active flex gap-5" data-i="0">
+            <div class="step-num">1</div>
+            <div><h3 class="display font-semibold text-2xl mb-1.5">Build the library</h3>
+              <p class="text-ink2 leading-relaxed">Upload PDFs, Word files and notes, or type the rules the tutor must follow. Each class gets its own private shelf.</p></div>
+          </div>
+          <div class="step flex gap-5" data-i="1">
+            <div class="step-num">2</div>
+            <div><h3 class="display font-semibold text-2xl mb-1.5">Students ask</h3>
+              <p class="text-ink2 leading-relaxed">They chat in plain language and get answers drawn only from your shelf, each one showing the source it came from.</p></div>
+          </div>
+          <div class="step flex gap-5" data-i="2">
+            <div class="step-num">3</div>
+            <div><h3 class="display font-semibold text-2xl mb-1.5">You read the gaps</h3>
+              <p class="text-ink2 leading-relaxed">Questions sort themselves by topic, and the ones your material couldn&rsquo;t answer get flagged for you. It turns into a quiet list of what to teach next.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- morphing visual stage -->
+      <div class="stage h-[420px] hidden lg:block">
+        <!-- scene 1: documents stacking -->
+        <div class="scene active" data-i="0">
+          <div class="relative w-72 h-72">
+            <div class="doc absolute" style="top:20px;left:10px;transform:rotate(-9deg);width:180px">
+              <div class="text-[10px] font-bold text-ink2 mb-1">Unit3.pdf</div><div class="ln"></div><div class="ln"></div><div class="ln" style="width:60%"></div></div>
+            <div class="doc absolute" style="top:50px;left:70px;transform:rotate(6deg);width:180px">
+              <div class="text-[10px] font-bold text-ink2 mb-1">Notes.docx</div><div class="ln"></div><div class="ln hl"></div><div class="ln" style="width:75%"></div></div>
+            <div class="note absolute" style="bottom:0;left:40px;transform:rotate(-3deg)">
+              <div class="text-[10px] font-bold text-ink2 mb-1">Class rules</div>
+              <div class="chk"><span class="msym text-accent" style="font-size:15px">check_circle</span> Only cite these files</div></div>
+          </div>
+        </div>
+        <!-- scene 2: a cited chat answer -->
+        <div class="scene" data-i="1">
+          <div class="w-80 space-y-3">
+            <div class="bubble ml-auto" style="border-radius:16px 16px 4px 16px">Why does an atom stay neutral?</div>
+            <div class="card p-4 !cursor-default">
+              <p class="text-[15px] leading-relaxed mb-3">Equal protons and electrons, so the charges cancel. Gain or lose one and it becomes an ion.</p>
+              <div class="flex gap-2 flex-wrap">
+                <span class="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-accent bg-emerald-50 border rounded-full px-2.5 py-1" style="border-color:rgba(5,150,105,.3)"><span class="msym" style="font-size:13px">description</span> Unit3.pdf · p.12</span>
+                <span class="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-accent bg-emerald-50 border rounded-full px-2.5 py-1" style="border-color:rgba(5,150,105,.3)"><span class="msym" style="font-size:13px">description</span> Glossary · §4</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- scene 3: analytics -->
+        <div class="scene" data-i="2">
+          <div class="card !cursor-default p-6 w-80">
+            <div class="flex justify-between mb-5"><span class="label">This term</span><span class="text-xs text-ink2">by topic</span></div>
+            <div class="space-y-3">
+              <div class="flex items-center gap-3"><span class="text-[12px] text-ink2 w-16 text-right">Cells</span><div class="flex-1 h-5 rounded-md overflow-hidden" style="background:var(--muted)"><div class="h-full rounded-md" style="width:92%;background:var(--accent)"></div></div></div>
+              <div class="flex items-center gap-3"><span class="text-[12px] text-ink2 w-16 text-right">Genetics</span><div class="flex-1 h-5 rounded-md overflow-hidden" style="background:var(--muted)"><div class="h-full rounded-md" style="width:74%;background:var(--primary)"></div></div></div>
+              <div class="flex items-center gap-3"><span class="text-[12px] text-ink2 w-16 text-right">Ecology</span><div class="flex-1 h-5 rounded-md overflow-hidden" style="background:var(--muted)"><div class="h-full rounded-md" style="width:31%;background:var(--danger)"></div></div></div>
+            </div>
+            <p class="text-[11px] text-ink2 mt-4">Red = a shelf that ran thin. Time to add material.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
-<!-- Final call to action -->
-<section class="py-28 px-6 relative z-10 bg-background-dark border-t border-white/5">
-<div class="max-w-3xl mx-auto text-center reveal">
-<h2 class="font-display font-bold text-4xl md:text-5xl text-text-main mb-6">Ready to try it with your class?</h2>
-<p class="text-muted font-body text-lg mb-10">Set up a class, add a few documents, and share the join code with your students. You can have a working tutor in a few minutes.</p>
-<div class="flex flex-col sm:flex-row gap-4 justify-center">
-<a class="bg-primary text-white px-8 py-4 rounded-full glow-btn font-display font-bold text-lg transition-all w-full sm:w-auto inline-flex items-center justify-center gap-2" href="login.html?role=teacher">
-<span class="material-symbols-outlined">rocket_launch</span> Get Started
-</a>
-<a class="glass-panel text-white px-8 py-4 rounded-full font-display font-bold text-lg hover:bg-surface transition-colors w-full sm:w-auto border border-[rgba(255,255,255,0.1)] inline-flex items-center justify-center gap-2" href="login.html">
-Sign In
-</a>
-</div>
-</div>
+
+<!-- ===== ANALYTICS callout ===== -->
+<section class="max-w-6xl mx-auto px-6 py-24 md:py-32 grid lg:grid-cols-2 gap-16 items-center relative z-10">
+  <div class="rise">
+    <div class="label mb-3">Teacher analytics</div>
+    <h2 class="display font-semibold text-[clamp(2.1rem,4.6vw,3.3rem)] leading-tight tracking-[-.01em] mb-5">See what your class is really asking.</h2>
+    <p class="text-[1.15rem] text-ink2 leading-relaxed mb-8">Every question gets kept and sorted by topic. You can see what students keep circling back to, and where your material runs thin.</p>
+    <a class="btn btn-accent" href="login.html?role=teacher"><span class="msym text-[20px]">insights</span> Open the teacher portal</a>
+  </div>
+  <div class="rise" style="transition-delay:.12s">
+    <div class="card !cursor-default p-7" id="ledger">
+      <div class="flex items-center justify-between pb-4 mb-6 border-b" style="border-color:var(--line)">
+        <span class="label">Sample class · this term</span><span class="text-xs text-ink2">auto-generated</span></div>
+      <div class="grid grid-cols-3 gap-4 mb-8">
+        <div><div class="display text-4xl font-bold count" data-target="1284">0</div><div class="label mt-1">Questions</div></div>
+        <div><div class="display text-4xl font-bold text-primary count" data-target="17">0</div><div class="label mt-1">Topics</div></div>
+        <div><div class="display text-4xl font-bold text-danger count" data-target="23">0</div><div class="label mt-1">Gaps</div></div>
+      </div>
+      <div class="space-y-3.5">
+        <div class="flex items-center gap-3"><span class="text-[13px] text-ink2 w-24 text-right shrink-0">Cell biology</span><div class="flex-1 h-6 rounded-lg overflow-hidden" style="background:var(--muted)"><div class="bar-fill h-full rounded-lg" style="background:var(--accent)" data-w="92"></div></div></div>
+        <div class="flex items-center gap-3"><span class="text-[13px] text-ink2 w-24 text-right shrink-0">Genetics</span><div class="flex-1 h-6 rounded-lg overflow-hidden" style="background:var(--muted)"><div class="bar-fill h-full rounded-lg" style="background:var(--primary)" data-w="74"></div></div></div>
+        <div class="flex items-center gap-3"><span class="text-[13px] text-ink2 w-24 text-right shrink-0">Atoms &amp; ions</span><div class="flex-1 h-6 rounded-lg overflow-hidden" style="background:var(--muted)"><div class="bar-fill h-full rounded-lg" style="background:var(--primary)" data-w="66"></div></div></div>
+        <div class="flex items-center gap-3"><span class="text-[13px] text-ink2 w-24 text-right shrink-0">Ecology</span><div class="flex-1 h-6 rounded-lg overflow-hidden" style="background:var(--muted)"><div class="bar-fill h-full rounded-lg" style="background:var(--danger)" data-w="31"></div></div></div>
+      </div>
+      <p class="text-xs text-ink2 mt-5">Questions by topic. Red marks a shelf that ran thin. Sample figures.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CTA ===== -->
+<section class="max-w-6xl mx-auto px-6 pb-24 relative z-10">
+  <div class="rise relative overflow-hidden rounded-[28px] px-8 py-16 md:py-20 text-center" style="background:linear-gradient(135deg,#6366F1,#4f46e5 55%,#059669)">
+    <h2 class="display font-semibold text-[clamp(2.2rem,5vw,3.4rem)] leading-[1.08] tracking-[-.015em] text-white mb-5">Set a class down, and let it start citing.</h2>
+    <p class="text-[1.15rem] text-white/85 mb-9 max-w-xl mx-auto">Add a few documents, share the join code, and your students have a tutor they can actually check. It takes a few minutes.</p>
+    <div class="flex flex-wrap gap-3 justify-center">
+      <a class="btn btn-ghost" href="login.html?role=teacher"><span class="msym text-[20px]">rocket_launch</span> Set up your class</a>
+      <a class="btn !bg-white/15 !text-white !border !border-white/30 hover:!bg-white/25" href="login.html">Sign in</a>
+    </div>
+  </div>
 </section>
 </main>
-<!-- Footer -->
-<footer class="border-t border-[rgba(255,255,255,0.05)] py-12 px-6 bg-surface relative z-10">
-<div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-<a class="flex items-center gap-3" href="landing.html">
-<span class="material-symbols-outlined text-primary text-2xl">schema</span>
-<span class="font-display font-bold text-text-main text-xl">Chronos</span>
-</a>
-<div class="flex gap-8 text-sm font-display text-muted">
-<a class="hover:text-primary transition-colors" href="login.html">Sign In</a>
-<a class="hover:text-primary transition-colors" href="student.html">Student Tutor</a>
-<a class="hover:text-primary transition-colors" href="teacherknowledge.html">Teacher Portal</a>
-<a class="hover:text-primary transition-colors" href="teacherstats.html">Analytics</a>
-</div>
-<p class="text-muted text-sm font-body">Built with Flask, Gemini and Pinecone</p>
-</div>
+
+<!-- ===== FOOTER ===== -->
+<footer class="border-t bg-white/60 relative z-10" style="border-color:var(--line)">
+  <div class="max-w-6xl mx-auto px-6 py-12 flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
+    <div><div class="flex items-center gap-2"><span class="msym text-xl text-primary">menu_book</span><span class="display font-semibold text-xl">Chronos</span></div>
+      <p class="text-sm text-ink2 mt-1">An AI tutor that shows its receipts.</p></div>
+    <nav class="flex flex-wrap gap-x-8 gap-y-2 text-[15px] text-ink2">
+      <a class="navlink hover:text-fg transition-colors" href="login.html">Sign in</a>
+      <a class="navlink hover:text-fg transition-colors" href="student.html">Student tutor</a>
+      <a class="navlink hover:text-fg transition-colors" href="teacherknowledge.html">Teacher portal</a>
+      <a class="navlink hover:text-fg transition-colors" href="teacherstats.html">Analytics</a>
+    </nav>
+    <p class="text-xs text-ink2">Flask · Gemini · Pinecone</p>
+  </div>
 </footer>
+
 <script>
-  // Gentle fade in as sections enter view. No scroll scrubbing, no external libraries.
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   document.addEventListener("DOMContentLoaded", () => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => { if (entry.isIntersecting) entry.target.classList.add('active'); });
-    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+    // reveals
+    const io = new IntersectionObserver((es)=>es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target);} }), {threshold:.14, rootMargin:"0px 0px -40px 0px"});
+    document.querySelectorAll(".rise").forEach(el=>io.observe(el));
+
+    // ---- hero parallax: floats move with scroll + pointer ----
+    const floats = [...document.querySelectorAll(".float")];
+    let px=0, py=0;
+    const heroParallax = () => {
+      const y = scrollY;
+      floats.forEach(f=>{ const d=+getComputedStyle(f).getPropertyValue("--d")||1;
+        f.style.transform = `translate3d(${px*d*26}px, ${ -y*d*0.14 + py*d*22 }px, 0)`; });
+    };
+    if(!reduce){
+      addEventListener("scroll", heroParallax, {passive:true});
+      addEventListener("pointermove", e=>{ px=e.clientX/innerWidth-.5; py=e.clientY/innerHeight-.5; heroParallax(); }, {passive:true});
+      heroParallax();
+    }
+
+    // ---- pinned scroll story: advance steps + morph scenes ----
+    const story = document.getElementById("how");
+    const steps = [...document.querySelectorAll(".step")];
+    const scenes = [...document.querySelectorAll(".scene")];
+    const fill = document.getElementById("prog-fill");
+    const setStory = () => {
+      const rect = story.getBoundingClientRect();
+      const total = story.offsetHeight - innerHeight;
+      const p = Math.min(Math.max(-rect.top/total, 0), 1);   // 0..1 through the section
+      if(fill) fill.style.height = (p*100)+"%";
+      const i = Math.min(steps.length-1, Math.floor(p*steps.length + 0.0001));
+      steps.forEach((s,k)=> s.classList.toggle("active", k===i));
+      scenes.forEach((s,k)=> s.classList.toggle("active", k===i));
+    };
+    if(!reduce){ addEventListener("scroll", setStory, {passive:true}); setStory(); }
+
+    // ---- ledger count-up + bars ----
+    const ledger = document.getElementById("ledger");
+    if(ledger) new IntersectionObserver((e,o)=>{
+      if(!e[0].isIntersecting) return; o.disconnect();
+      document.querySelectorAll(".bar-fill").forEach((b,i)=> setTimeout(()=> b.style.width=b.dataset.w+"%", reduce?0:i*120));
+      document.querySelectorAll(".count").forEach(el=>{ const t=+el.dataset.target;
+        if(reduce){ el.textContent=t.toLocaleString(); return; }
+        const dur=1300, t0=performance.now();
+        const tick=x=>{ const p=Math.min((x-t0)/dur,1), k=1-Math.pow(1-p,3); el.textContent=Math.round(t*k).toLocaleString(); if(p<1) requestAnimationFrame(tick); };
+        requestAnimationFrame(tick); });
+    }, {threshold:.4}).observe(ledger);
   });
 </script>
 </body></html>

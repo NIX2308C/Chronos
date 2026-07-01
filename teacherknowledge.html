@@ -1,24 +1,23 @@
 <!DOCTYPE html>
-<html class="dark" lang="en"><head>
+<html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Chronos | Knowledge Base</title>
-<script>(function(){try{if(localStorage.getItem('teacherai_theme')==='light')document.documentElement.classList.remove('dark');}catch(e){}})();</script>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Outfit:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;family=Crimson+Pro:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
   tailwind.config = {
     darkMode: "class",
     theme: { extend: {
-      colors: { "primary": "#4F46E5", "background-dark": "#0A0A0F", "surface": "#181825", "muted": "#94A3B8", "accent": "#0D9488" },
-      fontFamily: { "display": ["Space Grotesk","sans-serif"], "body": ["Outfit","sans-serif"], "mono": ["JetBrains Mono","monospace"] },
+      colors: { "primary": "#6366F1", "background-dark": "#0A0A0F", "surface": "#181825", "muted": "#94A3B8", "accent": "#059669" },
+      fontFamily: { "display": ["Crimson Pro","serif"], "body": ["Hanken Grotesk","sans-serif"], "mono": ["JetBrains Mono","monospace"] },
       borderRadius: { "DEFAULT": "0.5rem", "sm": "0.375rem", "lg": "0.75rem", "xl": "1rem", "full": "9999px" },
     } }
   }
 </script>
 <style>
-  body { font-family: 'Outfit', sans-serif; background-color: #0A0A0F; color: #F1F5F9; }
-  h1,h2,h3,h4 { font-family: 'Space Grotesk', sans-serif; }
+  body { font-family: 'Hanken Grotesk', sans-serif; background-color: #0A0A0F; color: #F1F5F9; }
+  h1,h2,h3,h4 { font-family: 'Crimson Pro', serif; }
   .font-mono { font-family: 'JetBrains Mono', monospace; }
   .glass-panel { background-color: rgba(24,24,37,.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
   .border-subtle { border: 1px solid rgba(255,255,255,.08); }
@@ -101,9 +100,6 @@
 </button>
 <button aria-label="How this works" class="w-9 h-9 flex items-center justify-center rounded-sm text-muted hover:text-white hover:bg-surface transition-colors" id="tutHelp" title="How this works">
 <span class="material-symbols-outlined text-[20px]">help</span>
-</button>
-<button aria-label="Toggle light and dark mode" class="w-9 h-9 flex items-center justify-center rounded-sm text-muted hover:text-white hover:bg-surface transition-colors" onclick="toggleTheme()" title="Toggle light and dark mode">
-<span class="material-symbols-outlined text-[20px]" data-theme-icon>dark_mode</span>
 </button>
 <button class="bg-primary hover:bg-primary/90 text-white text-sm font-medium py-2 px-4 rounded-sm flex items-center gap-2 transition-all shadow-[0_0_10px_rgba(79,70,229,0.2)]" id="uploadHeaderBtn">
 <span class="material-symbols-outlined text-[18px]">upload</span> Upload Source
@@ -499,5 +495,4 @@
     window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};
   })();
 </script>
-<script src="theme.js"></script>
 </body></html>

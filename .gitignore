@@ -20,3 +20,7 @@ __pycache__/
 Thumbs.db
 .vscode/
 .idea/
+
+# --- Agent skills (installed locally, not part of the app) ---
+.agents/
+skills-lock.json

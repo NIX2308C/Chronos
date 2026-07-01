@@ -4,7 +4,6 @@ import json
 import time
 import hmac
 import random
-import string
 import logging
 from functools import wraps
 from collections import deque
@@ -437,11 +436,6 @@ def page_stats():
 @app.route('/theme.css')
 def theme_css():
     return send_from_directory(BASE_DIR, 'theme.css')
-
-
-@app.route('/theme.js')
-def theme_js():
-    return send_from_directory(BASE_DIR, 'theme.js')
 
 
 # ---------- auth ----------

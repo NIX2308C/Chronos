@@ -16,16 +16,16 @@
    ============================================================ */
 
 html:not(.dark) {
-  --l-bg: #f5f6f8;          /* page background        */
-  --l-surface: #ffffff;     /* cards, sidebars, bars  */
-  --l-surface-2: #eef1f5;   /* inputs, subtle fills   */
-  --l-surface-3: #e4e7ee;   /* elevated / hover fills */
-  --l-text: #1a1c1e;        /* primary text           */
-  --l-muted: #5b6573;       /* secondary text         */
-  --l-border: rgba(15, 23, 42, .10);
-  --l-border-2: rgba(15, 23, 42, .16);
-  --l-hover: rgba(15, 23, 42, .05);
-  --l-scroll: #c2c8d2;
+  --l-bg: #F5F3FF;          /* page background — lavender  */
+  --l-surface: #FFFFFF;     /* cards, sidebars, bars       */
+  --l-surface-2: #EBEFF9;   /* inputs, subtle fills        */
+  --l-surface-3: #E4E9F1;   /* elevated / hover fills      */
+  --l-text: #1E1B4B;        /* primary text — deep indigo  */
+  --l-muted: #575299;       /* secondary text              */
+  --l-border: #E0E7FF;
+  --l-border-2: #C7CCE6;
+  --l-hover: rgba(99, 102, 241, .07);
+  --l-scroll: #CBD1E6;
   color-scheme: light;
 }
 
@@ -42,7 +42,7 @@ html:not(.dark) .hover\:bg-white\/5:hover { background-color: var(--l-hover) !im
    backdrop; darken it to the brand indigo so it reads on white.
    (On the other panels primary is already this indigo, so this is
    a no-op there.) */
-html:not(.dark) .text-primary { color: #4F46E5 !important; }
+html:not(.dark) .text-primary { color: #6366F1 !important; }
 
 /* frosted panels: flip the tint from near-black to near-white */
 html:not(.dark) .glass-panel { background-color: rgba(255, 255, 255, .78) !important; border-color: var(--l-border) !important; }

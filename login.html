@@ -1,160 +1,141 @@
 <!DOCTYPE html>
-<html class="dark" lang="en"><head>
+<html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Chronos | Sign in</title>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Outfit:wght@400;500&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <script id="tailwind-config">
-    tailwind.config = {
-        darkMode: "class",
-        theme: {
-            extend: {
-                colors: {
-                    "primary": "#4F46E5",
-                    "background-light": "#f6f6f8",
-                    "background-dark": "#0A0A0F",
-                    "surface": "#181825",
-                    "muted": "#94A3B8",
-                    "accent": "#0D9488",
-                    "glass": "rgba(24, 24, 37, 0.6)",
-                },
-                fontFamily: {
-                    "display": ["Space Grotesk", "sans-serif"],
-                    "body": ["Outfit", "sans-serif"],
-                    "mono": ["JetBrains Mono", "monospace"],
-                },
-                borderRadius: { "DEFAULT": "0.5rem", "sm": "0.375rem", "lg": "0.75rem", "xl": "1rem", "full": "9999px" },
-                keyframes: {
-                    shake: {
-                        '0%, 100%': { transform: 'translateX(0)' },
-                        '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-4px)' },
-                        '20%, 40%, 60%, 80%': { transform: 'translateX(4px)' },
-                    }
-                },
-                animation: { shake: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both' }
-            },
-        },
-    }
+  tailwind.config = { theme: { extend: {
+    colors: { bg:"#F5F3FF", fg:"#1E1B4B", primary:"#6366F1", secondary:"#818CF8", accent:"#059669", muted:"#EBEFF9", line:"#E0E7FF", danger:"#DC2626", ink2:"#575299" },
+    fontFamily: { display:["Crimson Pro","serif"], body:["Hanken Grotesk","sans-serif"] },
+    keyframes: { shake:{ '0%,100%':{transform:'translateX(0)'},'10%,30%,50%,70%,90%':{transform:'translateX(-4px)'},'20%,40%,60%,80%':{transform:'translateX(4px)'} } },
+    animation: { shake:'shake .5s cubic-bezier(.36,.07,.19,.97) both' }
+  }}}
 </script>
 <style>
-    .glass-panel {
-        background-color: rgba(24, 24, 37, 0.6);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-    .glow-hover:hover { box-shadow: 0 0 15px rgba(79, 70, 229, 0.3); }
-    .bg-pattern {
-        background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
-        background-size: 32px 32px;
-    }
+  :root{--bg:#F5F3FF;--fg:#1E1B4B;--primary:#6366F1;--secondary:#818CF8;--accent:#059669;--muted:#EBEFF9;--line:#E0E7FF;--ink2:#575299;--danger:#DC2626}
+  body{font-family:"Hanken Grotesk",sans-serif;color:var(--fg)}
+  h1,h2,.display{font-family:"Crimson Pro",serif}
+  .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;display:inline-block;white-space:nowrap;direction:ltr}
+  ::selection{background:rgba(99,102,241,.2)}
+  .label{text-transform:uppercase;letter-spacing:.14em;font-size:11px;font-weight:700;color:var(--ink2)}
+  .field{width:100%;height:52px;background:#fff;border:1px solid var(--line);border-radius:14px;color:var(--fg);font-size:15px;padding-left:2.6rem;transition:border-color .2s,box-shadow .2s}
+  .field::placeholder{color:#a7a3c9}
+  .field:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.16)}
+  .btn-primary{background:var(--primary);color:#fff;font-weight:700;border-radius:14px;transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s;box-shadow:0 12px 26px -12px rgba(99,102,241,.9)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 18px 34px -14px rgba(99,102,241,.95)}
+  .btn-primary:active{transform:scale(.98)}
+  /* floating parallax source cards on the brand pane */
+  .float{position:absolute;will-change:transform;filter:drop-shadow(0 24px 40px rgba(30,27,75,.22))}
+  .doc{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px;width:190px}
+  .doc .ln{height:7px;border-radius:4px;background:#eceafe;margin:6px 0}
+  .doc .ln.hl{background:rgba(5,150,105,.28)}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;color:#047857;background:rgba(5,150,105,.1);border:1px solid rgba(5,150,105,.3);border-radius:999px;padding:3px 8px;margin-top:5px}
+  @media (prefers-reduced-motion:reduce){ .float{transition:none!important} .animate-pulse{animation:none!important} }
 </style>
 </head>
-<body class="bg-background-dark text-[#F1F5F9] font-body min-h-screen flex flex-col md:flex-row antialiased selection:bg-primary selection:text-white">
+<body class="bg-bg font-body min-h-screen flex flex-col md:flex-row antialiased">
 
 <!-- Left pane: branding -->
-<div class="hidden md:flex md:w-1/2 lg:w-3/5 relative overflow-hidden bg-background-dark border-r border-white/5">
-<div class="absolute inset-0 bg-gradient-to-br from-primary/20 via-background-dark to-background-dark"></div>
-<div class="absolute inset-0 bg-pattern z-0 mix-blend-overlay opacity-40"></div>
-<div class="relative z-10 p-12 flex flex-col justify-between h-full">
-<div class="flex items-center gap-3">
-<div class="w-8 h-8 rounded bg-primary flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.4)]">
-<span class="material-symbols-outlined text-white text-xl" style="font-variation-settings: 'FILL' 1;">schema</span>
-</div>
-<span class="font-display font-bold text-2xl tracking-tight text-white">Chronos</span>
-</div>
-<div class="max-w-md">
-<h2 class="font-display font-bold text-4xl mb-4 leading-tight text-white">An AI tutor that won't make things up.</h2>
-<p class="text-muted text-lg font-body">Answers come only from the material your teacher provides. No made up facts, just what is actually in your course.</p>
-<div class="mt-8 flex items-center gap-4 text-sm font-mono text-muted">
-<div class="flex items-center gap-2">
-<span class="w-2 h-2 rounded-full bg-accent animate-pulse" id="statusDot"></span>
-<span id="statusText">Connecting…</span>
-</div>
-<div class="h-4 w-[1px] bg-white/10"></div>
-<div>Curriculum-grounded</div>
-</div>
-</div>
-</div>
+<div class="hidden md:flex md:w-1/2 lg:w-3/5 relative overflow-hidden" id="brand" style="background:radial-gradient(120% 120% at 15% 10%, #ede9ff, #F5F3FF 55%)">
+  <!-- floating source cards (parallax) -->
+  <div class="float" style="top:20%;left:12%;transform:rotate(-7deg);--d:1.1"><div class="doc">
+    <div class="text-[10px] font-bold text-ink2 mb-1">Biology_Unit3.pdf</div><div class="ln"></div><div class="ln hl"></div><div class="ln" style="width:65%"></div>
+    <div class="tag"><span class="material-symbols-outlined" style="font-size:12px">bookmark</span> cited · p.12</div></div></div>
+  <div class="float" style="bottom:16%;right:14%;transform:rotate(6deg);--d:1.7"><div class="doc" style="width:200px">
+    <div class="text-[10px] font-bold text-ink2 mb-1">Class rules</div>
+    <div class="text-[12px] text-fg flex items-center gap-2 my-1.5"><span class="material-symbols-outlined text-accent" style="font-size:15px">check_circle</span> Only cite provided files</div>
+    <div class="text-[12px] text-fg flex items-center gap-2"><span class="material-symbols-outlined text-accent" style="font-size:15px">check_circle</span> Never invent facts</div></div></div>
+
+  <div class="relative z-10 p-12 flex flex-col justify-between h-full w-full">
+    <div class="flex items-center gap-2.5">
+      <span class="material-symbols-outlined text-primary text-3xl">menu_book</span>
+      <span class="display font-semibold text-2xl tracking-tight">Chronos</span>
+    </div>
+    <div class="max-w-md">
+      <h2 class="display font-semibold text-[2.6rem] leading-[1.05] mb-4">It won&rsquo;t<br/><span class="text-primary italic">make it up.</span></h2>
+      <p class="text-ink2 text-lg">Answers come only from the material your teacher provides, always with the source they came from.</p>
+      <div class="mt-8 flex items-center gap-4 text-sm text-ink2">
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-accent animate-pulse" id="statusDot"></span>
+          <span id="statusText">Connecting…</span>
+        </div>
+        <div class="h-4 w-px bg-fg/10"></div>
+        <div>Curriculum-grounded</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Right pane: form -->
 <div class="w-full md:w-1/2 lg:w-2/5 flex items-center justify-center p-6 sm:p-12 min-h-screen relative">
-<div class="absolute top-8 left-8 md:hidden flex items-center gap-3 z-20">
-<div class="w-8 h-8 rounded bg-primary flex items-center justify-center">
-<span class="material-symbols-outlined text-white text-xl" style="font-variation-settings: 'FILL' 1;">schema</span>
-</div>
-<span class="font-display font-bold text-xl tracking-tight">Chronos</span>
-</div>
+  <div class="absolute top-8 left-8 md:hidden flex items-center gap-2.5 z-20">
+    <span class="material-symbols-outlined text-primary text-2xl">menu_book</span>
+    <span class="display font-semibold text-xl tracking-tight">Chronos</span>
+  </div>
 
-<div class="glass-panel w-full max-w-[420px] p-8 rounded flex flex-col relative z-10 shadow-2xl">
-<div class="mb-8">
-<h1 class="font-display font-bold text-3xl text-white mb-2 tracking-tight" id="title">Welcome back</h1>
-<p class="text-muted font-body text-sm" id="subtitle">Sign in to pick up where you left off.</p>
-</div>
+  <div class="w-full max-w-[420px] bg-white border border-line p-8 rounded-3xl flex flex-col relative z-10" style="box-shadow:0 40px 80px -40px rgba(30,27,75,.35)">
+    <div class="mb-8">
+      <h1 class="display font-semibold text-4xl mb-1.5" id="title">Welcome back</h1>
+      <p class="text-ink2 text-[15px]" id="subtitle">Sign in to pick up where you left off.</p>
+    </div>
 
-<!-- Role selector -->
-<div class="flex h-12 w-full items-center p-1 bg-background-dark rounded border border-white/10 mb-8" id="roleTabs">
-<label class="relative flex-1 h-full cursor-pointer group">
-<input checked class="peer sr-only" name="role" type="radio" value="student"/>
-<div class="absolute inset-0 rounded-sm peer-checked:bg-surface peer-checked:border peer-checked:border-white/5 transition-all duration-200"></div>
-<div class="relative h-full flex items-center justify-center gap-2 font-mono text-sm font-medium text-muted peer-checked:text-primary transition-colors">
-<span class="material-symbols-outlined text-lg">school</span> Student
-</div>
-</label>
-<label class="relative flex-1 h-full cursor-pointer group">
-<input class="peer sr-only" name="role" type="radio" value="teacher"/>
-<div class="absolute inset-0 rounded-sm peer-checked:bg-surface peer-checked:border peer-checked:border-white/5 transition-all duration-200"></div>
-<div class="relative h-full flex items-center justify-center gap-2 font-mono text-sm font-medium text-muted peer-checked:text-primary transition-colors">
-<span class="material-symbols-outlined text-lg">science</span> Teacher
-</div>
-</label>
-</div>
+    <!-- Role selector -->
+    <div class="flex h-12 w-full items-center p-1 rounded-2xl border border-line mb-7" style="background:var(--muted)" id="roleTabs">
+      <label class="relative flex-1 h-full cursor-pointer">
+        <input checked class="peer sr-only" name="role" type="radio" value="student"/>
+        <div class="absolute inset-0 rounded-xl peer-checked:bg-white peer-checked:shadow-sm transition-all duration-200"></div>
+        <div class="relative h-full flex items-center justify-center gap-2 text-sm font-bold text-ink2 peer-checked:text-primary transition-colors">
+          <span class="material-symbols-outlined text-lg">school</span> Student
+        </div>
+      </label>
+      <label class="relative flex-1 h-full cursor-pointer">
+        <input class="peer sr-only" name="role" type="radio" value="teacher"/>
+        <div class="absolute inset-0 rounded-xl peer-checked:bg-white peer-checked:shadow-sm transition-all duration-200"></div>
+        <div class="relative h-full flex items-center justify-center gap-2 text-sm font-bold text-ink2 peer-checked:text-primary transition-colors">
+          <span class="material-symbols-outlined text-lg">science</span> Teacher
+        </div>
+      </label>
+    </div>
 
-<form class="flex flex-col gap-5" id="loginForm">
-<!-- Email -->
-<div class="flex flex-col gap-2">
-<label class="font-mono text-[13px] text-muted tracking-wide" for="email">EMAIL ADDRESS</label>
-<div class="relative">
-<span class="absolute inset-y-0 left-0 flex items-center pl-3 text-muted pointer-events-none"><span class="material-symbols-outlined text-[20px]">alternate_email</span></span>
-<input autocomplete="email" class="w-full h-[48px] bg-background-dark border border-white/10 rounded text-white font-body text-sm pl-10 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors placeholder:text-muted/50" id="email" name="email" placeholder="name@institution.edu" type="email"/>
-</div>
-</div>
-<!-- Password -->
-<div class="flex flex-col gap-2">
-<label class="font-mono text-[13px] text-muted tracking-wide" for="password">PASSWORD</label>
-<div class="relative" id="password-container">
-<span class="absolute inset-y-0 left-0 flex items-center pl-3 text-muted pointer-events-none"><span class="material-symbols-outlined text-[20px]">lock</span></span>
-<input autocomplete="current-password" class="w-full h-[48px] bg-background-dark border border-white/10 rounded text-white font-body text-sm pl-10 pr-10 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors" id="password" name="password" placeholder="••••••••" type="password"/>
-<button class="absolute inset-y-0 right-0 flex items-center pr-3 text-muted hover:text-white transition-colors" onclick="togglePasswordVisibility()" type="button"><span class="material-symbols-outlined text-[20px]" id="visibility-icon">visibility_off</span></button>
-</div>
-</div>
-<!-- Teacher code (teacher signup only) -->
-<div class="hidden flex-col gap-2" id="codeWrap">
-<label class="font-mono text-[13px] text-muted tracking-wide" for="teacherCode">TEACHER ACCESS CODE</label>
-<div class="relative">
-<span class="absolute inset-y-0 left-0 flex items-center pl-3 text-muted pointer-events-none"><span class="material-symbols-outlined text-[20px]">vpn_key</span></span>
-<input class="w-full h-[48px] bg-background-dark border border-white/10 rounded text-white font-body text-sm pl-10 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none transition-colors placeholder:text-muted/50" id="teacherCode" placeholder="Code from your admin" type="password"/>
-</div>
-<p class="font-mono text-[12px] text-muted">Required to create a teacher account.</p>
-</div>
-<!-- Error -->
-<p class="hidden flex items-center gap-1.5 font-mono text-[12px] text-[#EF4444]" id="err"><span class="material-symbols-outlined text-[14px]">error</span><span id="errText"></span></p>
-<!-- Submit -->
-<button class="mt-2 w-full h-[48px] bg-primary text-white font-display font-bold text-sm rounded glow-hover transition-all duration-200 flex items-center justify-center gap-2 group relative overflow-hidden disabled:opacity-70" id="submitBtn" type="submit">
-<span class="relative z-10 flex items-center gap-2" id="submitLabel">Sign in <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span></span>
-</button>
-</form>
+    <form class="flex flex-col gap-5" id="loginForm">
+      <div class="flex flex-col gap-2">
+        <label class="label" for="email">Email address</label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-ink2 pointer-events-none"><span class="material-symbols-outlined text-[20px]">alternate_email</span></span>
+          <input autocomplete="email" class="field" id="email" name="email" placeholder="name@institution.edu" type="email"/>
+        </div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <label class="label" for="password">Password</label>
+        <div class="relative" id="password-container">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-ink2 pointer-events-none"><span class="material-symbols-outlined text-[20px]">lock</span></span>
+          <input autocomplete="current-password" class="field pr-10" id="password" name="password" placeholder="••••••••" type="password"/>
+          <button class="absolute inset-y-0 right-0 flex items-center pr-3 text-ink2 hover:text-fg transition-colors" onclick="togglePasswordVisibility()" type="button"><span class="material-symbols-outlined text-[20px]" id="visibility-icon">visibility_off</span></button>
+        </div>
+      </div>
+      <div class="hidden flex-col gap-2" id="codeWrap">
+        <label class="label" for="teacherCode">Teacher access code</label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-ink2 pointer-events-none"><span class="material-symbols-outlined text-[20px]">vpn_key</span></span>
+          <input class="field" id="teacherCode" placeholder="Code from your admin" type="password"/>
+        </div>
+        <p class="text-[12px] text-ink2">Required to create a teacher account.</p>
+      </div>
+      <p class="hidden items-center gap-1.5 text-[13px] text-danger font-medium" id="err"><span class="material-symbols-outlined text-[15px]">error</span><span id="errText"></span></p>
+      <button class="mt-2 w-full h-[52px] btn-primary flex items-center justify-center gap-2 group relative overflow-hidden disabled:opacity-70" id="submitBtn" type="submit">
+        <span class="relative z-10 flex items-center gap-2" id="submitLabel">Sign in <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span></span>
+      </button>
+    </form>
 
-<div class="mt-8 pt-6 border-t border-white/5 text-center">
-<p class="font-body text-sm text-muted"><span id="toggleText">New here?</span> <button class="text-primary hover:text-white transition-colors font-medium" id="toggleMode" type="button">Create an account</button></p>
-<a class="inline-block mt-4 font-mono text-[12px] text-muted hover:text-white transition-colors" href="landing.html">← Back to home</a>
-</div>
-</div>
+    <div class="mt-8 pt-6 border-t border-line text-center">
+      <p class="text-[15px] text-ink2"><span id="toggleText">New here?</span> <button class="text-primary hover:text-fg transition-colors font-bold" id="toggleMode" type="button">Create an account</button></p>
+      <a class="inline-block mt-4 text-[13px] text-ink2 hover:text-fg transition-colors" href="landing.html">← Back to home</a>
+    </div>
+  </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -226,7 +207,7 @@
   // Reflect server reachability in the left-pane status line.
   (async()=>{
     try{ const r=await fetch(Chronos.BASE+"/health",{cache:"no-store"}); if(r.ok){$("statusText").textContent="System Online"; return;} }catch(e){}
-    $("statusDot").classList.remove("bg-accent","animate-pulse"); $("statusDot").classList.add("bg-[#EF4444]");
+    $("statusDot").classList.remove("bg-accent","animate-pulse"); $("statusDot").classList.add("bg-danger");
     $("statusText").textContent="Server offline";
   })();
 
@@ -237,5 +218,20 @@
       try{ const info=await Chronos.me(); if(info) location.replace(info.role==="teacher"?"teacherknowledge.html":"student.html"); }catch(e){}
     });
   }).catch(e=>showErr(e.message));
+
+  // Subtle pointer parallax on the brand-pane source cards (continuity with the landing page).
+  (function(){
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const brand = document.getElementById("brand");
+    const floats = brand ? [...brand.querySelectorAll(".float")] : [];
+    if(!floats.length) return;
+    brand.addEventListener("pointermove", (e)=>{
+      const r = brand.getBoundingClientRect();
+      const px = (e.clientX-r.left)/r.width - .5, py = (e.clientY-r.top)/r.height - .5;
+      floats.forEach(f=>{ const d=+getComputedStyle(f).getPropertyValue("--d")||1;
+        const base = f.style.transform.match(/rotate\([^)]+\)/)?.[0] || "";
+        f.style.transform = `translate3d(${px*d*22}px, ${py*d*22}px, 0) ${base}`; });
+    }, {passive:true});
+  })();
 </script>
 </body></html>

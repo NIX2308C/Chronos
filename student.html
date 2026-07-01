@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<html class="dark h-full" lang="en"><head>
+<html class="h-full" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Chronos | Tutor</title>
-<script>(function(){try{if(localStorage.getItem('teacherai_theme')==='light')document.documentElement.classList.remove('dark');}catch(e){}})();</script>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=Outfit:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&amp;family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&amp;display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
     tailwind.config = {
@@ -13,39 +12,39 @@
         theme: {
             extend: {
                 "colors": {
-                    "primary-container": "#312e81",
-                    "error-container": "#450a0a",
-                    "surface-container-low": "#181825",
-                    "surface-dim": "#0A0A0F",
-                    "surface-bright": "#20202c",
-                    "background": "#0A0A0F",
+                    "primary-container": "#E0E7FF",
+                    "error-container": "#FEE2E2",
+                    "surface-container-low": "#FFFFFF",
+                    "surface-dim": "#ECEAFB",
+                    "surface-bright": "#FFFFFF",
+                    "background": "#F5F3FF",
                     "on-tertiary": "#ffffff",
-                    "surface-container": "#1f1f2e",
-                    "surface-container-highest": "#2e2e44",
+                    "surface-container": "#F3F2FC",
+                    "surface-container-highest": "#E4E9F1",
                     "on-error": "#ffffff",
                     "on-secondary": "#ffffff",
-                    "on-primary-container": "#c7d2fe",
-                    "tertiary-container": "#1e1b4b",
-                    "on-error-container": "#fecaca",
-                    "surface-container-high": "#26263a",
-                    "on-tertiary-container": "#adc6ff",
-                    "surface": "#0A0A0F",
-                    "on-background": "#F1F5F9",
-                    "surface-tint": "#4F46E5",
-                    "outline": "#3a3a4a",
-                    "primary": "#4F46E5",
-                    "tertiary-fixed-dim": "#adc6ff",
+                    "on-primary-container": "#4338CA",
+                    "tertiary-container": "#E0E7FF",
+                    "on-error-container": "#B91C1C",
+                    "surface-container-high": "#EBEFF9",
+                    "on-tertiary-container": "#4338CA",
+                    "surface": "#F5F3FF",
+                    "on-background": "#1E1B4B",
+                    "surface-tint": "#6366F1",
+                    "outline": "#C7CCE6",
+                    "primary": "#6366F1",
+                    "tertiary-fixed-dim": "#818CF8",
                     "on-primary": "#ffffff",
-                    "on-secondary-container": "#5eead4",
-                    "on-surface": "#F1F5F9",
-                    "secondary": "#0D9488",
-                    "error": "#EF4444",
-                    "outline-variant": "#2a2a38",
-                    "secondary-container": "#0c2e2a",
-                    "surface-variant": "#2a2a3a",
-                    "on-surface-variant": "#94A3B8",
-                    "tertiary": "#adc6ff",
-                    "surface-container-lowest": "#11111a"
+                    "on-secondary-container": "#047857",
+                    "on-surface": "#1E1B4B",
+                    "secondary": "#059669",
+                    "error": "#DC2626",
+                    "outline-variant": "#E0E7FF",
+                    "secondary-container": "#D1FAE5",
+                    "surface-variant": "#EBEFF9",
+                    "on-surface-variant": "#575299",
+                    "tertiary": "#6366F1",
+                    "surface-container-lowest": "#FFFFFF"
                 },
                 "borderRadius": { "DEFAULT": "0.5rem", "sm": "0.375rem", "lg": "0.75rem", "xl": "1rem", "full": "9999px" },
                 "spacing": {
@@ -53,9 +52,9 @@
                     "margin-desktop": "2rem", "stack-lg": "2rem", "stack-md": "1rem", "container-max": "1280px"
                 },
                 "fontFamily": {
-                    "headline-xl": ["Space Grotesk","sans-serif"], "headline-lg": ["Space Grotesk","sans-serif"], "headline-lg-mobile": ["Space Grotesk","sans-serif"],
-                    "label-md": ["Outfit","sans-serif"], "headline-md": ["Space Grotesk","sans-serif"], "body-lg": ["Outfit","sans-serif"],
-                    "label-sm": ["Outfit","sans-serif"], "body-md": ["Outfit","sans-serif"]
+                    "headline-xl": ["Crimson Pro","serif"], "headline-lg": ["Crimson Pro","serif"], "headline-lg-mobile": ["Crimson Pro","serif"],
+                    "label-md": ["Hanken Grotesk","sans-serif"], "headline-md": ["Crimson Pro","serif"], "body-lg": ["Hanken Grotesk","sans-serif"],
+                    "label-sm": ["Hanken Grotesk","sans-serif"], "body-md": ["Hanken Grotesk","sans-serif"]
                 },
                 "fontSize": {
                     "headline-xl": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
@@ -72,19 +71,19 @@
     }
 </script>
 <style>
-    body { font-family: 'Outfit', sans-serif; }
-    h1,h2,h3,h4 { font-family: 'Space Grotesk', sans-serif; }
+    body { font-family: 'Hanken Grotesk', sans-serif; }
+    h1,h2,h3,h4 { font-family: 'Crimson Pro', serif; }
     .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
     .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
     .chat-scroll::-webkit-scrollbar { width: 6px; }
     .chat-scroll::-webkit-scrollbar-track { background: transparent; }
-    .chat-scroll::-webkit-scrollbar-thumb { background-color: #2e2e44; border-radius: 10px; }
+    .chat-scroll::-webkit-scrollbar-thumb { background-color: #CBD1E6; border-radius: 10px; }
 
     .spin { animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* typing cursor */
-    .cursor { display:inline-block; width:6px; height:1rem; background:#8d9194; border-radius:1px; margin-left:2px; vertical-align:text-bottom; animation:blink 1s steps(2) infinite; }
+    .cursor { display:inline-block; width:6px; height:1rem; background:#6366F1; border-radius:1px; margin-left:2px; vertical-align:text-bottom; animation:blink 1s steps(2) infinite; }
     @keyframes blink { 0%,50%{opacity:1} 50.01%,100%{opacity:0} }
 
     /* teacher-only "Sources used" dropdown */
@@ -98,18 +97,17 @@
     .ai-prose ul { list-style:disc; padding-left:1.25rem; margin:0 0 .75rem; }
     .ai-prose ol { list-style:decimal; padding-left:1.25rem; margin:0 0 .75rem; }
     .ai-prose li { margin:.25rem 0; }
-    .ai-prose strong { font-weight:600; }
+    .ai-prose strong { font-weight:700; }
     .ai-prose em { font-style:italic; }
-    .ai-prose h1,.ai-prose h2,.ai-prose h3 { font-weight:600; line-height:1.3; margin:.75rem 0 .5rem; }
+    .ai-prose h1,.ai-prose h2,.ai-prose h3 { font-weight:700; line-height:1.3; margin:.75rem 0 .5rem; font-family:'Crimson Pro',serif; }
     .ai-prose h1:first-child,.ai-prose h2:first-child,.ai-prose h3:first-child { margin-top:0; }
-    .ai-prose h1 { font-size:1.25rem; } .ai-prose h2 { font-size:1.1rem; } .ai-prose h3 { font-size:1rem; }
-    .ai-prose a { color:#adc6ff; text-decoration:underline; }
-    .ai-prose code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.88em; background:rgba(255,255,255,.08); border:1px solid #2a2a38; padding:1px 5px; border-radius:5px; }
-    .ai-prose pre { background:#11111a; border:1px solid #2a2a38; border-radius:.5rem; padding:.75rem; overflow-x:auto; margin:.5rem 0; }
-    .ai-prose pre code { background:none; border:none; padding:0; font-size:.8rem; line-height:1.55; display:block; color:#F1F5F9; }
-    .ai-prose blockquote { border-left:3px solid #2a2a38; padding-left:.75rem; margin:.5rem 0; color:#94A3B8; }
+    .ai-prose h1 { font-size:1.35rem; } .ai-prose h2 { font-size:1.15rem; } .ai-prose h3 { font-size:1.02rem; }
+    .ai-prose a { color:#4F46E5; text-decoration:underline; }
+    .ai-prose code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.88em; background:rgba(99,102,241,.1); border:1px solid #E0E7FF; padding:1px 5px; border-radius:5px; }
+    .ai-prose pre { background:#F3F2FC; border:1px solid #E0E7FF; border-radius:.5rem; padding:.75rem; overflow-x:auto; margin:.5rem 0; }
+    .ai-prose pre code { background:none; border:none; padding:0; font-size:.8rem; line-height:1.55; display:block; color:#1E1B4B; }
+    .ai-prose blockquote { border-left:3px solid #E0E7FF; padding-left:.75rem; margin:.5rem 0; color:#575299; }
 </style>
-<link href="theme.css" rel="stylesheet"/>
 </head>
 <body class="bg-background text-on-background h-full antialiased overflow-hidden flex">
 
@@ -175,9 +173,6 @@
 <span class="flex items-center gap-1 flex-shrink-0">
 <button aria-label="How this works" class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="tutHelp" title="How this works">
 <span class="material-symbols-outlined text-[18px]">help</span>
-</button>
-<button aria-label="Toggle light and dark mode" class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" onclick="toggleTheme()" title="Toggle light and dark mode">
-<span class="material-symbols-outlined text-[18px]" data-theme-icon>dark_mode</span>
 </button>
 <button class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="logoutBtn" title="Sign out">
 <span class="material-symbols-outlined text-[18px]">logout</span>
@@ -624,5 +619,4 @@
     window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};
   })();
 </script>
-<script src="theme.js"></script>
 </body></html>

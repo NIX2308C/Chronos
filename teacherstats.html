@@ -1,32 +1,31 @@
 <!DOCTYPE html>
-<html class="dark" lang="en"><head>
+<html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Chronos | Analytics</title>
-<script>(function(){try{if(localStorage.getItem('teacherai_theme')==='light')document.documentElement.classList.remove('dark');}catch(e){}})();</script>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;family=Outfit:wght@300;400;600&amp;family=Space+Grotesk:wght@300;500;700;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;family=Hanken+Grotesk:wght@300;400;500;600;700&amp;family=Crimson+Pro:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
   tailwind.config = {
     darkMode: "class",
     theme: { extend: {
       colors: {
         "text-main": "#F1F5F9", "text-muted": "#94A3B8",
-        "primary": "#c3c0ff", "primary-container": "#4f46e5",
-        "on-primary-container": "#dad7ff", "on-surface-variant": "#c7c4d8",
-        "accent-teal": "#0D9488", "terminal-red": "#EF4444",
+        "primary": "#6366F1", "primary-container": "#6366F1",
+        "on-primary-container": "#ffffff", "on-surface-variant": "#c7c4d8",
+        "accent-teal": "#059669", "terminal-red": "#EF4444",
         "terminal-green": "#22C55E", "terminal-yellow": "#EAB308",
         "surface-glass": "rgba(24, 24, 37, 0.6)", "surface-solid": "#181825",
         "surface": "#13121b", "background-deep": "#0A0A0F", "outline-variant": "#464555",
       },
-      fontFamily: { "display": ["Space Grotesk","sans-serif"], "body": ["Outfit","sans-serif"], "mono": ["JetBrains Mono","monospace"] },
+      fontFamily: { "display": ["Crimson Pro","serif"], "body": ["Hanken Grotesk","sans-serif"], "mono": ["JetBrains Mono","monospace"] },
       borderRadius: { "DEFAULT": "0.5rem", "sm": "0.375rem", "lg": "0.75rem", "xl": "1rem", "full": "9999px" },
     } }
   }
 </script>
 <style>
-  body { font-family: 'Outfit', sans-serif; background-color: #0A0A0F; color: #F1F5F9; }
-  h1,h2,h3 { font-family: 'Space Grotesk', sans-serif; }
+  body { font-family: 'Hanken Grotesk', sans-serif; background-color: #0A0A0F; color: #F1F5F9; }
+  h1,h2,h3 { font-family: 'Crimson Pro', serif; }
   .font-mono { font-family: 'JetBrains Mono', monospace; }
   .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400; vertical-align: middle; }
   .glass-panel { background: rgba(24,24,37,.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.08); }
@@ -78,9 +77,6 @@
 </button>
 <button aria-label="How this works" class="text-on-surface-variant hover:text-primary transition-colors flex items-center" id="tutHelp" title="How this works">
 <span class="material-symbols-outlined" style="font-size:24px;">help</span>
-</button>
-<button aria-label="Toggle light and dark mode" class="text-on-surface-variant hover:text-primary transition-colors flex items-center" onclick="toggleTheme()" title="Toggle light and dark mode">
-<span class="material-symbols-outlined" style="font-size:24px;" data-theme-icon>dark_mode</span>
 </button>
 <button class="text-on-surface-variant hover:text-primary transition-colors flex items-center gap-2" id="lockBtn" title="Sign out">
 <span class="material-symbols-outlined" style="font-size:28px;">account_circle</span>
@@ -395,5 +391,4 @@
     window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};
   })();
 </script>
-<script src="theme.js"></script>
 </body></html>

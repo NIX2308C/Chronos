@@ -24,3 +24,6 @@ Thumbs.db
 # --- Agent skills (installed locally, not part of the app) ---
 .agents/
 skills-lock.json
+
+# --- Local Claude Code project notes (not for the public repo) ---
+CLAUDE.md

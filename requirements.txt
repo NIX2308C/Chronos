@@ -1,10 +1,14 @@
-flask
-flask-cors
-python-dotenv
-google-genai
-pinecone
-firebase-admin
-certifi
-waitress
-pypdf
-python-docx
+# Pinned to a compatible-release range per package: patch and minor updates
+# still come through (so security fixes land), but a new MAJOR can't silently
+# change an API on the next deploy. Unpinned, a rebuild months from now could
+# install a breaking major and fail in production rather than locally.
+flask~=3.1
+flask-cors~=6.0
+python-dotenv~=1.2
+google-genai~=2.8
+pinecone~=9.1
+firebase-admin~=7.4
+certifi>=2024.7.4
+waitress~=3.0
+pypdf~=6.13
+python-docx~=1.2

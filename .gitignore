@@ -25,5 +25,6 @@ Thumbs.db
 .agents/
 skills-lock.json
 
-# --- Local Claude Code project notes (not for the public repo) ---
+# --- Local Claude Code project notes / settings (not for the public repo) ---
 CLAUDE.md
+.claude/

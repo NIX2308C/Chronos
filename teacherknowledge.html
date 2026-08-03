@@ -272,7 +272,14 @@
     await loadClasses();
     if(!ACTIVE_CLASS)showToast("Create your first class to start adding rules.",true);
     loadRules();
-  }).catch(e=>{ $("gate").innerHTML='<p class="text-red-400 text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>'; });
+  }).catch(e=>{
+    // textContent, not innerHTML: this string comes off the wire.
+    const g=$("gate");g.textContent="";
+    const p=document.createElement("p");
+    p.className="text-red-400 text-center px-6";
+    p.textContent=(e&&e.message)||"Sign-in required";
+    g.appendChild(p);
+  });
 
   function ensureClass(){
     if(!ACTIVE_CLASS){showToast("Create or pick a class first.",false);return false;}

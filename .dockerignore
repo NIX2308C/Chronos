@@ -1,6 +1,24 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 .git/
+.github/
+
+# Secrets — these must never end up in an image layer. Config comes from Cloud
+# Run env vars / Secret Manager instead.
 .env
+.env.*
 firebase_credentials.json
+*.pem
+*.key
+*.p12
+serviceAccount*.json
+
+# Local tooling, not part of the app.
+.agents/
+skills-lock.json
+.claude/
+CLAUDE.md
+.vscode/
+.idea/

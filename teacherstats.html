@@ -219,7 +219,15 @@
   }
 
   async function api(path,body){ return Chronos.apiJson(path,body||{}); }
-  function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
+  // Escapes for BOTH text and attribute contexts. The old textContent→innerHTML
+  // trick escapes < > &, but leaves quotes alone — and these strings land inside
+  // title="..." attributes. Category names are model output derived from student
+  // questions, so a quote in one would have broken out of the attribute.
+  function esc(s){
+    return String(s==null?"":s)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
 
   function animateCount(el,target){
     target=Number(target)||0;
@@ -251,7 +259,14 @@
     await loadClasses();
     if(!ACTIVE_CLASS){showToast("Create a class on the Knowledge Base page first.",true);return;}
     try{await load();}catch(e){showToast(e.message,false);}
-  }).catch(e=>{ $("gate").innerHTML='<p class="text-red-400 text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>'; });
+  }).catch(e=>{
+    // textContent, not innerHTML: this string comes off the wire.
+    const g=$("gate");g.textContent="";
+    const p=document.createElement("p");
+    p.className="text-red-400 text-center px-6";
+    p.textContent=(e&&e.message)||"Sign-in required";
+    g.appendChild(p);
+  });
 
   async function load(){
     if(!ACTIVE_CLASS){showToast("No class selected.",false);return;}

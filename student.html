@@ -402,10 +402,28 @@
 
   function scrollBottom(){els.messages.scrollTop=els.messages.scrollHeight;}
 
+  const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Type the answer out over a bounded total duration instead of a fixed delay
+  // per character. The old version advanced ONE character per tick at up to 8ms
+  // each, so a 2,000-character answer sat there typing for ~16 seconds — and it
+  // rewrote the element's whole textContent every tick (quadratic work). Now the
+  // characters-per-frame scales with length, so long answers land just as fast as
+  // short ones, and each frame only pokes a single text node.
   function typeOut(b,text,done){
-    let i=0;const cur=document.createElement("span");cur.className="cursor";b.appendChild(cur);
-    const speed=Math.max(8,Math.min(28,1200/Math.max(text.length,1)));
-    const t=setInterval(()=>{cur.remove();b.textContent=text.slice(0,i);b.appendChild(cur);scrollBottom();i++;if(i>text.length){clearInterval(t);cur.remove();b.innerHTML=renderMarkdown(text);if(done)done();}},speed);
+    const cur=document.createElement("span");cur.className="cursor";
+    const node=document.createTextNode("");
+    b.textContent="";b.appendChild(node);b.appendChild(cur);
+    const finish=()=>{cur.remove();b.innerHTML=renderMarkdown(text);scrollBottom();if(done)done();};
+    if(!text||reduceMotion){finish();return;}
+    const dur=Math.min(1600,Math.max(350,text.length*4));
+    const t0=performance.now();
+    (function step(now){
+      const p=Math.min((now-t0)/dur,1);
+      node.nodeValue=text.slice(0,Math.ceil(p*text.length));
+      scrollBottom();
+      if(p<1)requestAnimationFrame(step); else finish();
+    })(t0);
   }
 
   async function send(){
@@ -577,7 +595,12 @@
     else { await loadChats(); if(window.__tutFirstVisit)window.__tutFirstVisit(); }
     checkServer();setInterval(checkServer,15000);
   }).catch(e=>{
-    $s("authGate").innerHTML='<p class="font-body-md text-body-md text-error text-center px-6">'+((e&&e.message)||"Sign-in required")+'</p>';
+    // textContent, not innerHTML: this string comes off the wire.
+    const g=$s("authGate");g.textContent="";
+    const p=document.createElement("p");
+    p.className="font-body-md text-body-md text-error text-center px-6";
+    p.textContent=(e&&e.message)||"Sign-in required";
+    g.appendChild(p);
   });
 </script>
 

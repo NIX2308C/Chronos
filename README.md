@@ -54,12 +54,18 @@ The Pinecone index name is set in `app.py` (`INDEX_NAME`), so the API key is all
 
 A few optional overrides exist too:
 
-- `ALLOWED_ORIGINS` (comma-separated CORS allowlist)
+- `ALLOWED_ORIGINS` (comma-separated CORS allowlist; the default is local dev only, so set this in production)
 - `MAX_UPLOAD_MB` (default 10)
 - `CHAT_RATE_LIMIT` and `CHAT_RATE_WINDOW` (messages allowed per window, in seconds)
+- `JOIN_RATE_LIMIT` and `JOIN_RATE_WINDOW` (class-code attempts per window; default 10 per 5 minutes)
 - `HISTORY_TURNS` (how many past turns the tutor remembers, default 20)
+- `MAX_MESSAGES_RETURNED` (cap on messages returned for one conversation, default 500)
+- `ROLE_CACHE_TTL` (seconds a user's role is cached in-process, default 60)
+- `TRUST_PROXY_HOPS` (default 0; set to 1 on Cloud Run so client IPs in the logs are real)
 - `CHAT_MODEL` (the Gemini model, default `gemini-2.5-flash-lite`)
 - `FLASK_DEBUG`
+
+Rate limits are keyed by Firebase uid, not IP — behind a load balancer every request shares one IP, so an IP-keyed limit would throttle a whole class as though it were a single student.
 
 Retrieval is tunable as well. `RETRIEVAL_TOP_K` (default 5) sets how many knowledge chunks each answer draws on, and `RETRIEVAL_MIN_SCORE` (default 0.5, cosine) drops weakly related chunks, so off-topic questions get a truthful "not in my knowledge base" reply instead of being answered from the least-bad matches. Those unanswered questions then show up as **Knowledge Gaps** in the analytics. Firebase admin credentials are read from `firebase_credentials.json` locally, or the `FIREBASE_CREDENTIALS_JSON` env var when deployed.
 
@@ -73,9 +79,18 @@ and open http://localhost:5000.
 
 ## Deploying
 
-There's a `render.yaml` (and a `Procfile`) set up for Render. Put the secrets in the Render dashboard rather than committing them. The Werkzeug debugger stays off unless you explicitly set `FLASK_DEBUG=1`.
+Chronos runs on **Google Cloud Run**, built from the `Dockerfile` in this repo and deployed continuously from GitHub — pushing to the default branch triggers a build and rollout. Cloud Run injects `$PORT` (the Dockerfile defaults it to 8080) and the container serves with Waitress.
 
-**A note on memory:** the Google, Pinecone, and Firebase SDKs are heavy. Just importing them eats a few hundred MB, so there isn't much room to spare on a 512 MB box (Render's free and Starter plans). To avoid blowing past that on big files, uploads are processed in batches: the document is read, chunked, embedded, and pushed to Pinecone a little at a time instead of all at once, so memory stays roughly flat no matter how large the file is. `MAX_UPLOAD_MB` also defaults to 10. If you're still hitting out-of-memory errors when adding documents, drop that number lower or move up to a 2 GB instance.
+Configuration goes in the Cloud Run service, not in the repo:
+
+- **Secrets** — `TEACHER_SIGNUP_CODE`, `GEMINI_API_KEY`, `PINECONE_API_KEY`, `FIREBASE_CREDENTIALS_JSON` (the full contents of `firebase_credentials.json`). Use Secret Manager and expose them to the service as environment variables rather than plain env vars, so they aren't readable from the service description.
+- **Plain env vars** — `FLASK_DEBUG=0`, `TRUST_PROXY_HOPS=1` (Cloud Run puts exactly one proxy in front of you, so trusting that single hop gives real client IPs without letting anyone forge `X-Forwarded-For`), `ALLOWED_ORIGINS` set to your real front-end origin, and the `FIREBASE_*` web config values.
+
+The Werkzeug debugger stays off unless you explicitly set `FLASK_DEBUG=1`. If `ALLOWED_ORIGINS` is left on the local-dev default, the app logs a warning at startup — your front-end will be CORS-blocked until you set it.
+
+**A note on memory:** the Google, Pinecone, and Firebase SDKs are heavy. Just importing them eats a few hundred MB, so there isn't much room to spare on Cloud Run's 512 MiB default instance. To avoid blowing past that on big files, uploads are processed in batches: the document is read, chunked, embedded, and pushed to Pinecone a little at a time instead of all at once, so memory stays roughly flat no matter how large the file is. `MAX_UPLOAD_MB` also defaults to 10. If you're still hitting out-of-memory errors when adding documents, drop that number lower or raise the service's memory limit.
+
+Because Cloud Run scales to zero and can run several instances at once, note that the rate limiter is per-process in-memory — it resets on a cold start and isn't shared between instances. It's a courtesy throttle, not a hard guarantee; a real limit needs shared state or Cloud Armor.
 
 ## Endpoints
 

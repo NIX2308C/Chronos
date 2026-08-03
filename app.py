@@ -3,7 +3,7 @@ import gc
 import json
 import time
 import hmac
-import random
+import secrets
 import logging
 from functools import wraps
 from collections import deque
@@ -11,6 +11,7 @@ from threading import Lock
 from dotenv import load_dotenv
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 from google import genai
 from google.genai import types
 import firebase_admin
@@ -73,15 +74,43 @@ ALLOWED_ORIGINS = [
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "10"))
 MAX_MESSAGE_CHARS = 8000
 
-# Lightweight per-IP rate limit for the unauthenticated /chat endpoint.
+# Lightweight rate limits. These are keyed by the caller's Firebase uid, not by
+# IP: every rate-limited route here is behind @require_auth, and a uid is both
+# harder to rotate than an IP and correct behind a proxy (on Cloud Run every
+# request arrives from the front end / load balancer, so an IP key would
+# throttle a whole class as if it were one student).
 CHAT_RATE_LIMIT = int(os.getenv("CHAT_RATE_LIMIT", "20"))     # requests
 CHAT_RATE_WINDOW = int(os.getenv("CHAT_RATE_WINDOW", "60"))   # seconds
+# Join codes are the only secret guarding class membership, so guessing attempts
+# are throttled hard (a code is 32^6 ≈ 1e9 wide, but only if you can't spray it).
+JOIN_RATE_LIMIT = int(os.getenv("JOIN_RATE_LIMIT", "10"))     # requests
+JOIN_RATE_WINDOW = int(os.getenv("JOIN_RATE_WINDOW", "300"))  # seconds
+
+# Number of proxies in front of the app whose X-Forwarded-For we trust. 0 (the
+# default) means "no proxy": request.remote_addr stays the direct peer and
+# spoofed forwarding headers are ignored. Set to 1 on Cloud Run so logs show the
+# real client IP. Never set this higher than the number of proxies you actually
+# control — each hop you trust is a hop a client can forge.
+TRUST_PROXY_HOPS = int(os.getenv("TRUST_PROXY_HOPS", "0"))
 
 # How many past messages to replay into the model so it remembers the conversation.
 # Each Q&A is 2 messages, so 20 ≈ the last 10 exchanges. Capped to bound tokens/latency.
 HISTORY_TURNS = int(os.getenv("HISTORY_TURNS", "20"))
+# Hard cap on how many messages a single conversation will return, so one very
+# long chat can't turn into an unbounded Firestore read + response body.
+MAX_MESSAGES_RETURNED = int(os.getenv("MAX_MESSAGES_RETURNED", "500"))
+
 _rate_hits = {}
 _rate_lock = Lock()
+_rate_last_prune = 0.0
+
+# Role lookups happen on nearly every request; Firestore charges per read and
+# adds a round-trip. Roles change ~never, so a short in-process TTL cache removes
+# almost all of that traffic while keeping a role change visible within seconds.
+ROLE_CACHE_TTL = int(os.getenv("ROLE_CACHE_TTL", "60"))       # seconds
+ROLE_CACHE_MAX = 5000                                          # bound the memory
+_role_cache = {}
+_role_lock = Lock()
 
 INDEX_NAME = "teacherchronostwo"
 EMBED_DIM = 768
@@ -104,7 +133,41 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
+if TRUST_PROXY_HOPS > 0:
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=TRUST_PROXY_HOPS, x_proto=TRUST_PROXY_HOPS)
 CORS(app, origins=ALLOWED_ORIGINS)
+
+# Shout if a deployment is still running the dev CORS defaults — that would mean
+# the real front-end origin can't call the API (and that nobody set the var).
+if not DEBUG and all("127.0.0.1" in o or "localhost" in o for o in ALLOWED_ORIGINS):
+    logger.warning(
+        "ALLOWED_ORIGINS is still the local-dev default (%s). Set it to your "
+        "deployed front-end origin(s).", ",".join(ALLOWED_ORIGINS)
+    )
+
+
+@app.errorhandler(413)
+def too_large(_e):
+    """MAX_CONTENT_LENGTH rejects the body before any handler runs; without this
+    Flask answers with an HTML error page, which the JSON front-end can't read."""
+    return jsonify({"error": f"That file is too large. The limit is {MAX_UPLOAD_MB} MB."}), 413
+
+
+@app.after_request
+def security_headers(resp):
+    """Baseline hardening headers on every response.
+
+    No CSP here on purpose: the pages pull Tailwind/Firebase from CDNs and run
+    inline <script> blocks, so any policy strict enough to be worth having would
+    break them. Adding one means moving that JS into files first.
+    """
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "DENY")          # clickjacking
+    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    resp.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+    return resp
+
+
 client = genai.Client(api_key=GEMINI_KEY)
 
 pc = Pinecone(api_key=PINE_KEY)
@@ -179,6 +242,22 @@ def embed_batch(texts):
     return [e.values for e in result.embeddings]
 
 
+def valid_doc_id(doc_id):
+    """True if `doc_id` is usable as a single Firestore document id.
+
+    Client-supplied ids land in `.document(id)`, where a '/' would silently turn
+    one id into a multi-segment path (or raise). Everything we generate is a
+    plain Firestore auto-id, so rejecting anything else costs nothing.
+    """
+    return (
+        isinstance(doc_id, str)
+        and 0 < len(doc_id) <= 128
+        and "/" not in doc_id
+        and doc_id not in (".", "..")
+        and not doc_id.startswith("__")
+    )
+
+
 def _bearer_token():
     """Pull the Firebase ID token out of the Authorization: Bearer <token> header."""
     header = request.headers.get("Authorization", "")
@@ -201,14 +280,38 @@ def verify_user():
 
 
 def get_role(uid):
-    """Return the stored role ('teacher'/'student') for a user, or None."""
+    """Return the stored role ('teacher'/'student') for a user, or None.
+
+    Cached in-process for ROLE_CACHE_TTL seconds. Every authenticated route
+    needs the role, so without this each request pays a Firestore read purely to
+    re-learn something that changes at most once per account.
+    """
+    now = time.time()
+    with _role_lock:
+        hit = _role_cache.get(uid)
+        if hit and hit[1] > now:
+            return hit[0]
+
+    role = None
     try:
         doc = db.collection("Users").document(uid).get()
         if doc.exists:
-            return (doc.to_dict() or {}).get("role")
+            role = (doc.to_dict() or {}).get("role")
     except Exception:
         logger.exception("Could not read user role for %s", uid)
-    return None
+        return None  # don't cache a failed lookup
+
+    with _role_lock:
+        if len(_role_cache) >= ROLE_CACHE_MAX:
+            _role_cache.clear()  # crude but bounded; the cache refills in seconds
+        _role_cache[uid] = (role, now + ROLE_CACHE_TTL)
+    return role
+
+
+def invalidate_role(uid):
+    """Drop a cached role so a just-written role takes effect immediately."""
+    with _role_lock:
+        _role_cache.pop(uid, None)
 
 
 def require_auth(fn):
@@ -257,15 +360,21 @@ def server_error(msg, exc, status=500):
 
 def gen_join_code():
     """A short, human-friendly class code, guaranteed unique. Avoids easily
-    confused characters (0/O, 1/I)."""
+    confused characters (0/O, 1/I).
+
+    Drawn from `secrets`, not `random`: the join code is the only thing standing
+    between a stranger and a class's material, and `random`'s Mersenne Twister
+    is reconstructable from a handful of observed outputs — a teacher could
+    predict every other teacher's codes from their own.
+    """
     alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     for _ in range(20):
-        code = "".join(random.choice(alphabet) for _ in range(6))
+        code = "".join(secrets.choice(alphabet) for _ in range(6))
         hit = list(db.collection("Classes").where("join_code", "==", code).limit(1).stream())
         if not hit:
             return code
-    # Extremely unlikely fallback — widen with a timestamp suffix.
-    return "".join(random.choice(alphabet) for _ in range(4)) + str(int(time.time()))[-4:]
+    # Extremely unlikely fallback — widen rather than risk a collision.
+    return "".join(secrets.choice(alphabet) for _ in range(10))
 
 
 def class_to_dict(doc, include_code=False):
@@ -285,17 +394,21 @@ def get_user_classes(uid, role):
     # student: ids stored on the user doc
     user = db.collection("Users").document(uid).get()
     ids = (user.to_dict() or {}).get("class_ids", []) if user.exists else []
-    classes = []
-    for cid in ids:
-        doc = db.collection("Classes").document(cid).get()
-        if doc.exists:
-            classes.append(class_to_dict(doc))
-    return classes
+    ids = [cid for cid in ids if valid_doc_id(cid)]
+    if not ids:
+        return []
+    # One multi-get instead of a round-trip per class. get_all doesn't promise
+    # input order, so sort back to the order the student joined in.
+    order = {cid: i for i, cid in enumerate(ids)}
+    docs = db.get_all([db.collection("Classes").document(cid) for cid in ids])
+    found = [d for d in docs if d.exists]
+    found.sort(key=lambda d: order.get(d.id, 0))
+    return [class_to_dict(d) for d in found]
 
 
 def class_owned_by(class_id, uid):
     """True if `uid` is the teacher who owns `class_id`."""
-    if not class_id:
+    if not valid_doc_id(class_id):
         return False
     doc = db.collection("Classes").document(class_id).get()
     return doc.exists and (doc.to_dict() or {}).get("teacher_uid") == uid
@@ -313,7 +426,7 @@ def class_vector_count(class_id):
 def user_in_class(uid, class_id, role):
     """Authorization for class-scoped operations: a teacher must own the class,
     a student must be an enrolled member."""
-    if not class_id:
+    if not valid_doc_id(class_id):
         return False
     if role == "teacher":
         return class_owned_by(class_id, uid)
@@ -387,14 +500,32 @@ def load_history(chat_ref, limit=HISTORY_TURNS):
     return contents
 
 
-def rate_limited(ip):
-    """Sliding-window in-memory rate limit, per client IP."""
+def rate_limited(key, limit=CHAT_RATE_LIMIT, window=CHAT_RATE_WINDOW):
+    """Sliding-window in-memory rate limit for an arbitrary key (we use uids).
+
+    Per-process only: it resets on restart and is not shared across workers or
+    instances, so it's a courtesy throttle, not a hard guarantee. A real limit at
+    multi-instance scale needs shared state (Redis) or the platform's own WAF.
+    """
+    global _rate_last_prune
     now = time.time()
     with _rate_lock:
-        dq = _rate_hits.setdefault(ip, deque())
-        while dq and dq[0] <= now - CHAT_RATE_WINDOW:
+        dq = _rate_hits.setdefault(key, deque())
+        cutoff = now - window
+        while dq and dq[0] <= cutoff:
             dq.popleft()
-        if len(dq) >= CHAT_RATE_LIMIT:
+
+        # Sweep keys that have gone quiet. Without this the dict grows by one
+        # entry per distinct caller forever — a slow leak on a 512MB instance.
+        # The idle horizon is deliberately far longer than any window in use, so
+        # pruning can never cut a key's window short and hand back free requests.
+        if now - _rate_last_prune > 300:
+            _rate_last_prune = now
+            stale = now - 3600
+            for k in [k for k, v in _rate_hits.items() if k != key and (not v or v[-1] <= stale)]:
+                del _rate_hits[k]
+
+        if len(dq) >= limit:
             return True
         dq.append(now)
         return False
@@ -490,6 +621,7 @@ def auth_register():
         "role": role,
         "updated_at": firestore.SERVER_TIMESTAMP,
     }, merge=True)
+    invalidate_role(uid)  # the very next request must see the role we just wrote
     return jsonify({"uid": uid, "email": request.user.get("email"), "role": role})
 
 
@@ -547,6 +679,12 @@ def create_class():
 @require_auth
 def join_class():
     """Join a class by its code. Body: { join_code }"""
+    # Throttle before touching Firestore: this is the one endpoint where a
+    # wrong answer is still informative (it tells you a code doesn't exist), so
+    # it's the one an attacker would spray to find live classes.
+    if rate_limited(f"join:{request.uid}", JOIN_RATE_LIMIT, JOIN_RATE_WINDOW):
+        return jsonify({"error": "Too many join attempts. Please wait a few minutes."}), 429
+
     data = request.get_json(silent=True) or {}
     code = (data.get("join_code") or "").strip().upper()
     if not code:
@@ -582,8 +720,23 @@ def delete_class(class_id):
             # Namespace may not exist yet (no rules added) — that's fine.
             logger.info("No Pinecone namespace to clear for class %s", class_id)
         cls_ref = db.collection("Classes").document(class_id)
+        # Batch the member cleanup instead of a round-trip per member, and drop
+        # the class from each student's own list so it doesn't linger there as a
+        # class they can't see and can't leave.
+        batch, ops = db.batch(), 0
         for member in cls_ref.collection("Members").stream():
-            member.reference.delete()
+            batch.delete(member.reference)
+            batch.set(
+                db.collection("Users").document(member.id),
+                {"class_ids": firestore.ArrayRemove([class_id])},
+                merge=True,
+            )
+            ops += 2
+            if ops >= 400:                      # Firestore caps a batch at 500 writes
+                batch.commit()
+                batch, ops = db.batch(), 0
+        if ops:
+            batch.commit()
         cls_ref.delete()
         return jsonify({"status": "deleted", "id": class_id})
     except Exception as e:
@@ -626,10 +779,15 @@ def list_chats():
 @require_auth
 def chat_messages(chat_id):
     """Return all messages for one of the user's conversations, oldest first."""
+    if not valid_doc_id(chat_id):
+        return jsonify({"error": "Chat not found"}), 404
     chat_ref = _user_chats(request.uid).document(chat_id)
     if not chat_ref.get().exists:
         return jsonify({"error": "Chat not found"}), 404
-    docs = list(chat_ref.collection("Messages").order_by("timestamp").stream())
+    # Bounded so one runaway conversation can't turn into an unbounded read.
+    docs = list(
+        chat_ref.collection("Messages").order_by("timestamp").limit(MAX_MESSAGES_RETURNED).stream()
+    )
     messages = []
     for d in docs:
         m = d.to_dict() or {}
@@ -645,6 +803,8 @@ def chat_messages(chat_id):
 @require_auth
 def delete_chat(chat_id):
     """Delete one of the user's conversations (and its messages)."""
+    if not valid_doc_id(chat_id):
+        return jsonify({"error": "Chat not found"}), 404
     chat_ref = _user_chats(request.uid).document(chat_id)
     snap = chat_ref.get()
     if not snap.exists:
@@ -671,8 +831,7 @@ def delete_chat(chat_id):
 @app.route('/chat', methods=['POST'])
 @require_auth
 def chat():
-    ip = request.remote_addr or "unknown"
-    if rate_limited(ip):
+    if rate_limited(f"chat:{request.uid}"):
         return jsonify({"error": "Too many requests. Please slow down and try again shortly."}), 429
 
     data = request.get_json(silent=True) or {}
@@ -680,6 +839,8 @@ def chat():
     # Conversations now live under the signed-in user. chat_id picks an existing
     # conversation; omit it (or pass a new id) to start a fresh one.
     chat_id = str(data.get("chat_id") or "").strip()[:128]
+    if chat_id and not valid_doc_id(chat_id):
+        return jsonify({"error": "Invalid chat id"}), 400
     # The tutor only answers from the chosen class's knowledge base, and the user
     # must belong to that class — this is what stops non-members using the app.
     class_id = (data.get("class_id") or "").strip()
@@ -718,7 +879,11 @@ def chat():
         chat_id = chat_doc.id
         msgs_ref = chat_doc.collection('Messages')
 
-        is_new = not chat_doc.get().exists
+        # One read serves double duty: "is this a new conversation?" and the
+        # running summary we extend below (see STAT_SUMMARY_VERSION).
+        snap = chat_doc.get()
+        is_new = not snap.exists
+        prev = (snap.to_dict() or {}) if snap.exists else {}
 
         # Replay the recent conversation so the AI remembers earlier turns.
         history = load_history(msgs_ref)
@@ -764,6 +929,14 @@ def chat():
             title = user_message[:40] + ("…" if len(user_message) > 40 else "")
             chat_meta["title"] = title
             chat_meta["created_at"] = firestore.SERVER_TIMESTAMP
+
+        # Roll this exchange into the chat's stats summary. /stats used to derive
+        # all of this by re-reading every message of every chat of every member —
+        # thousands of Firestore reads to render one page. Keeping the summary
+        # current here costs nothing (we're already writing this doc) and lets
+        # /stats work off chat documents alone.
+        chat_meta.update(summarize_exchange(prev, is_new, user_message, final_answer, teacher_rules))
+
         chat_doc.set(chat_meta, merge=True)
 
         msgs_ref.add({"role": "student", "content": user_message, "timestamp": firestore.SERVER_TIMESTAMP})
@@ -800,23 +973,43 @@ def ingest():
         else:
             return jsonify({"error": "No items or text provided"}), 400
 
-    results = []
-    vectors = []
+    if not isinstance(items, list):
+        return jsonify({"error": "items must be a list"}), 400
+
+    # Collect the usable rules first, then embed them in batches. A "bulk add" of
+    # 50 pasted rules used to be 50 sequential embedding round-trips; batching
+    # turns that into one or two, which is the difference between a snappy save
+    # and a request the host times out.
+    pending = []
     for it in items:
+        if not isinstance(it, dict):
+            continue
         text = (it.get("text") or "").strip()
         if not text:
             continue
-        rid = it.get("id") or f"rule_{int(time.time()*1000)}_{len(vectors)}"
+        # Pinecone caps vector ids at 512 chars; truncate rather than let the
+        # whole upsert fail on one over-long teacher-supplied id.
+        rid = str(it.get("id") or f"rule_{int(time.time()*1000)}_{len(pending)}")[:512]
+        pending.append((rid, text))
+
+    if not pending:
+        return jsonify({"error": "No items or text provided"}), 400
+
+    results = []
+    vectors = []
+    BATCH = 50  # keeps each embedding request well under the API's token limit
+    for start in range(0, len(pending), BATCH):
+        group = pending[start:start + BATCH]
         try:
-            values = embed(text)
-            vectors.append({
-                "id": rid,
-                "values": values,
-                "metadata": {"text": text},
-            })
-            results.append({"id": rid, "status": "ok"})
+            values = embed_batch([t for _, t in group])
         except Exception as e:
-            results.append({"id": rid, "status": "error", "detail": str(e)})
+            # One failed batch shouldn't sink the rules that did embed.
+            logger.exception("Embedding batch failed during ingest.")
+            results.extend({"id": rid, "status": "error", "detail": str(e)} for rid, _ in group)
+            continue
+        for (rid, text), vec in zip(group, values):
+            vectors.append({"id": rid, "values": vec, "metadata": {"text": text}})
+            results.append({"id": rid, "status": "ok"})
 
     if vectors:
         try:
@@ -904,6 +1097,45 @@ def _is_unanswered(teacher_msg):
     return "knowledge base" in text and any(p in text for p in _GAP_PHRASES)
 
 
+# Bump when the shape of the per-chat summary changes; chats stamped with an
+# older (or missing) version fall back to the slow re-read-every-message path.
+STAT_SUMMARY_VERSION = 1
+_SUMMARY_CONTEXT_CHARS = 600   # how much of a conversation feeds categorization
+_SUMMARY_OPENING_CHARS = 300   # the question shown in the teacher's feed
+_SUMMARY_MAX_GAPS = 25         # /stats only ever shows the newest 25 anyway
+
+
+def summarize_exchange(prev, is_new, question, answer, rules):
+    """Fields to merge into a chat doc so /stats never has to open its messages.
+
+    `prev` is the chat document as it was before this exchange. Everything here
+    is derived from what /chat already has in hand, so maintaining it adds no
+    reads and no extra writes — it rides along on the chat doc update.
+    """
+    summary = {"stat_v": STAT_SUMMARY_VERSION}
+
+    if is_new:
+        summary["opening"] = question[:_SUMMARY_OPENING_CHARS]
+    elif not prev.get("opening"):
+        # A conversation that predates summaries: its real opening question is
+        # gone from this request, but `title` was cut from it, so prefer that
+        # over mislabelling the newest question as the one that started the chat.
+        summary["opening"] = (prev.get("title") or question)[:_SUMMARY_OPENING_CHARS]
+
+    # Categorization reads the start of a conversation, so stop growing the blob
+    # once we have enough of it.
+    context = "" if is_new else (prev.get("context") or "")
+    if len(context) < _SUMMARY_CONTEXT_CHARS:
+        summary["context"] = (context + " " + question).strip()[:_SUMMARY_CONTEXT_CHARS]
+
+    if _is_unanswered({"rules": rules, "content": answer}):
+        gaps = [] if is_new else list(prev.get("gaps") or [])
+        gaps.append(question[:_SUMMARY_OPENING_CHARS])
+        summary["gaps"] = gaps[-_SUMMARY_MAX_GAPS:]
+
+    return summary
+
+
 def categorize_conversations(convos):
     """Ask Gemini to tag each whole conversation with ONE short topic category.
 
@@ -930,7 +1162,10 @@ def categorize_conversations(convos):
         text = resp.text.strip().replace("```json", "").replace("```", "").strip()
         cats = json.loads(text)
         if isinstance(cats, list) and len(cats) == len(convos):
-            return [str(c) for c in cats]
+            # Truncate: the category is model output derived from student text, so
+            # a prompt-injected "category" shouldn't be able to be a wall of text
+            # (or a payload) in the teacher's dashboard.
+            return [str(c)[:40] for c in cats]
     except Exception:
         pass
     return ["Uncategorized"] * len(convos)
@@ -958,9 +1193,10 @@ def stats():
     try:
         # One conversation = one chat doc. A follow-up answer in the same chat must
         # NOT count as another question/topic — the whole conversation counts once.
-        sessions = {}          # chat id -> list of (timestamp, content)
+        convos = []            # {opening, context, last_ts} per conversation
         gaps = []              # (ts, question) the knowledge base couldn't answer
         session_count = 0
+        legacy_chats = 0       # chats still needing the slow per-message read
         member_uids = [
             m.id for m in
             db.collection("Classes").document(class_id).collection("Members").stream()
@@ -972,29 +1208,55 @@ def stats():
             )
             for chat in chats:
                 session_count += 1
-                # In timestamp order so each tutor answer pairs with the question
-                # right before it — needed to flag unanswered (gap) questions.
+                d = chat.to_dict() or {}
+
+                if d.get("stat_v") == STAT_SUMMARY_VERSION:
+                    # Fast path: /chat already summarized this conversation, so
+                    # the chat document alone answers everything below.
+                    last_ts = _ts_seconds(d.get("last_active"))
+                    opening = (d.get("opening") or d.get("title") or "").strip()
+                    if not opening:
+                        continue
+                    convos.append({
+                        "opening": opening,
+                        "context": (d.get("context") or opening),
+                        "last_ts": last_ts,
+                    })
+                    # Per-gap timestamps aren't stored; the chat's last activity
+                    # is close enough for "most recent first" ordering.
+                    gaps.extend((last_ts, q) for q in (d.get("gaps") or []))
+                    continue
+
+                # Legacy path, for conversations written before summaries existed:
+                # replay the messages in timestamp order so each tutor answer pairs
+                # with the question right before it.
+                legacy_chats += 1
+                msgs = []
                 last_student = None     # (timestamp, content) of the latest question
                 for msg in chat.reference.collection("Messages").order_by("timestamp").stream():
-                    d = msg.to_dict() or {}
-                    role = d.get("role")
-                    content = (d.get("content") or "").strip()
+                    m = msg.to_dict() or {}
+                    role = m.get("role")
+                    content = (m.get("content") or "").strip()
                     if role == "student":
                         if content:
-                            sessions.setdefault(chat.id, []).append((d.get("timestamp"), content))
-                            last_student = (d.get("timestamp"), content)
-                    elif role == "teacher" and last_student and _is_unanswered(d):
+                            msgs.append((m.get("timestamp"), content))
+                            last_student = (m.get("timestamp"), content)
+                    elif role == "teacher" and last_student and _is_unanswered(m):
                         gaps.append((_ts_seconds(last_student[0]), last_student[1]))
                         last_student = None
+                if msgs:
+                    msgs.sort(key=lambda x: _ts_seconds(x[0]))
+                    convos.append({
+                        "opening": msgs[0][1],                          # the question that started it
+                        "context": " ".join(c for _, c in msgs[:4])[:_SUMMARY_CONTEXT_CHARS],
+                        "last_ts": max(_ts_seconds(t) for t, _ in msgs),
+                    })
 
-        # Collapse each conversation to one representative question + a little context.
-        convos = []
-        for msgs in sessions.values():
-            msgs.sort(key=lambda x: _ts_seconds(x[0]))
-            opening = msgs[0][1]                       # the question that started it
-            context = " ".join(c for _, c in msgs[:4])[:600]
-            last_ts = max(_ts_seconds(t) for t, _ in msgs)
-            convos.append({"opening": opening, "context": context, "last_ts": last_ts})
+        if legacy_chats:
+            logger.info(
+                "stats(%s): %d/%d conversations still read message-by-message "
+                "(pre-summary chats).", class_id, legacy_chats, session_count
+            )
 
         # Keep the most recent `limit` conversations (caps categorization cost).
         convos.sort(key=lambda c: c["last_ts"])
@@ -1109,9 +1371,9 @@ def health():
 
 
 if __name__ == '__main__':
-    # Bind to 0.0.0.0 and the host-provided PORT (Render/Heroku set this; default
+    # Bind to 0.0.0.0 and the host-provided PORT (Cloud Run injects this; default
     # 5000 locally). Debug is off unless FLASK_DEBUG is explicitly set (top of file).
-    # NOTE: this dev server is only a fallback — production should run waitress
-    # (see startCommand in render.yaml).
+    # NOTE: this dev server is only a fallback — production runs waitress via the
+    # Dockerfile's CMD.
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=DEBUG)

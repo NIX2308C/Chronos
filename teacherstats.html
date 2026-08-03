@@ -40,8 +40,11 @@
   .material-symbols-outlined { font-family:'Material Symbols Sharp'; font-variation-settings:'FILL' 0,'wght' 400; vertical-align:middle }
   .font-mono { font-family:'IBM Plex Mono',monospace }
   .lbl { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:.15em; text-transform:uppercase }
-  /* custom components below set display; keep Tailwind's hidden authoritative */
-  .hidden { display:none !important }
+  /* Custom classes below set `display`, which would beat Tailwind's .hidden on a
+     tie. Scope the fix to those classes — a blanket `.hidden{display:none!important}`
+     also outranks `lg:inline`/`sm:inline`, which permanently hides every element that
+     is meant to appear only at a breakpoint. */
+  .hidden.kbtn, .hidden.ibtn, .hidden.tab, .hidden.chip { display:none }
 
   /* panels replace the old glass/blur cards */
   .panel { background:var(--paper); border:2px solid var(--edge) }

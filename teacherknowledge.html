@@ -35,8 +35,11 @@
   :focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
   .material-symbols-outlined { font-family:'Material Symbols Sharp'; }
   .font-mono { font-family:'IBM Plex Mono',monospace; }
-  /* custom components below set display; keep Tailwind's hidden authoritative */
-  .hidden { display:none !important; }
+  /* Custom classes below set `display`, which would beat Tailwind's .hidden on a
+     tie. Scope the fix to those classes — a blanket `.hidden{display:none!important}`
+     also outranks `lg:flex`/`sm:inline`, which permanently hides every element that
+     is meant to appear only at a breakpoint (e.g. the Add-a-rule panel). */
+  .hidden.kbtn, .hidden.ibtn, .hidden.tab { display:none; }
   .lbl { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; }
 
   /* structural surfaces — replaces the old glass/blur panels */

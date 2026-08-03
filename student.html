@@ -200,7 +200,7 @@
 <div class="w-14 h-14 bg-secondary text-on-secondary flex items-center justify-center mx-auto mb-stack-md">
 <span class="material-symbols-outlined text-[28px]">group_add</span>
 </div>
-<h1 class="font-headline-md text-headline-md text-on-background mb-2">Join a class 🔑</h1>
+<h1 class="font-headline-md text-headline-md text-on-background mb-2">Join a class</h1>
 <p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Pop in the code your teacher gave you and you&rsquo;re in.</p>
 <input class="fld w-full mono px-4 py-3 text-center tracking-[.25em] uppercase text-[15px]" id="joinCodeInput" maxlength="12" placeholder="CLASS CODE" type="text"/>
 <p class="hidden mt-stack-md font-label-sm text-label-sm text-on-error-container bg-error-container border-2 border-error px-3 py-2" id="joinErr"></p>
@@ -415,7 +415,7 @@
       const e=document.createElement("div");
       e.className="flex flex-col items-center text-center mt-24 px-6";
       e.innerHTML='<div class="w-16 h-16 bg-primary text-on-primary flex items-center justify-center mb-5" style="box-shadow:6px 6px 0 var(--c-edge)"><span class="material-symbols-outlined text-[30px] fill">forum</span></div>'+
-        '<h2 class="font-headline-md text-headline-md text-on-background mb-2">Ask away 👋</h2>'+
+        '<h2 class="font-headline-md text-headline-md text-on-background mb-2">Ask away</h2>'+
         '<p class="font-body-md text-body-md text-on-surface-variant max-w-sm">Everything here comes out of what your teacher uploaded. If it’s not in there, you’ll get told that rather than a made up answer.</p>';
       els.messagesInner.appendChild(e);
       return;
@@ -623,7 +623,7 @@
     $s("joinCard").innerHTML=
       '<div class="w-14 h-14 bg-secondary text-on-secondary flex items-center justify-center mx-auto mb-stack-md">'+
         '<span class="material-symbols-outlined text-[28px]">school</span></div>'+
-      '<h1 class="font-headline-md text-headline-md text-on-background mb-2">Make a class first 🎒</h1>'+
+      '<h1 class="font-headline-md text-headline-md text-on-background mb-2">Make a class first</h1>'+
       '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You haven’t got any classes yet. Set one up in the Knowledge Base and you can try the tutor on your own material.</p>'+
       '<a class="kbtn w-full" href="teacherknowledge.html"><span>'+
         '<span class="material-symbols-outlined text-[18px] align-middle">add</span> Go to Knowledge Base</span></a>'+
@@ -689,12 +689,12 @@
 </div>
 <script>
   (function(){
-    const TITLE="Quick tour 👋";
+    const TITLE="Quick tour";
     const KEY="chronos_tut_student_v2";
     const STEPS=[
-      {icon:"school",title:"Pick your class 📚",text:"Use the class menu on the left. Each class only knows what that teacher put into it, so make sure you're on the right one."},
-      {icon:"forum",title:"Just ask 💬",text:"Type your question and hit Enter. Answers come straight out of your teacher's notes and files, so it isn't making things up."},
-      {icon:"flag",title:"If it's not there, it'll say so 🤷",text:"Asked something your teacher hasn't covered yet? You'll get told, not fobbed off with a guess. Worth mentioning to them so they can add it."},
+      {icon:"school",title:"Pick your class",text:"Use the class menu on the left. Each class only knows what that teacher put into it, so make sure you're on the right one."},
+      {icon:"forum",title:"Just ask",text:"Type your question and hit Enter. Answers come straight out of your teacher's notes and files, so it isn't making things up."},
+      {icon:"flag",title:"If it's not there, it'll say so",text:"Asked something your teacher hasn't covered yet? You'll get told, not fobbed off with a guess. Worth mentioning to them so they can add it."},
     ];
     let idx=0;
     const body=document.getElementById("tutBody");

@@ -51,16 +51,25 @@
   .spin { animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* nav */
-  .nav-item { position:relative; display:flex; align-items:center; gap:.75rem; padding:.7rem .85rem;
-    border-left:3px solid transparent; color:var(--sub); overflow:hidden;
-    transition:color .18s,background-color .18s,border-color .2s var(--snap) }
-  .nav-item > * { position:relative; z-index:2 }
-  .nav-item::before { content:""; position:absolute; inset:0; background:var(--crimson);
-    transform:translateX(-102%); transition:transform .3s var(--snap); z-index:1 }
-  .nav-item:hover::before { transform:translateX(0) }
-  .nav-item:hover { color:#F7F4EC }
-  .nav-item.on { border-left-color:var(--crimson); background:var(--hi); color:var(--ink); font-weight:600 }
+  /* Teacher tab bar — shared with teacherstats.html, keep the two in sync.
+     Sits flush on the header's crimson bottom border so the active tab reads
+     as joined to the page below it. Scrolls sideways instead of collapsing,
+     so the sections stay reachable at any width. */
+  .tabs { display:flex; overflow-x:auto; scrollbar-width:none; margin-bottom:-3px; max-width:100% }
+  .tabs::-webkit-scrollbar { display:none }
+  .tab { position:relative; display:flex; align-items:center; gap:.45rem; flex:none;
+    padding:.6rem 1rem; border:3px solid var(--edge); border-bottom:none; background:transparent;
+    color:var(--sub); overflow:hidden; white-space:nowrap; transition:color .18s;
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:700;
+    letter-spacing:.12em; text-transform:uppercase }
+  .tab + .tab { border-left:none }
+  .tab > * { position:relative; z-index:2 }
+  .tab::before { content:""; position:absolute; inset:0; background:var(--crimson);
+    transform:translateY(102%); transition:transform .26s var(--snap); z-index:1 }
+  .tab:hover::before { transform:translateY(0) }
+  .tab:hover { color:#F7F4EC }
+  .tab.on { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC }
+  .tab.on::before { display:none }
 
   /* buttons */
   .kbtn { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
@@ -109,50 +118,37 @@
 </div>
 
 <!-- App -->
-<div class="hidden min-h-screen flex overflow-hidden" id="app">
+<div class="hidden h-screen flex flex-col overflow-hidden" id="app">
 
-<!-- Sidebar -->
-<div class="relative hidden md:flex h-screen w-[250px] flex-col shrink-0 z-20" style="background:var(--paper);border-right:3px solid var(--crimson)">
-<div class="flex h-full flex-col justify-between p-4">
-<div class="flex flex-col gap-6">
-<a class="flex flex-col mt-2 px-2" href="landing.html">
-<h1 class="text-[26px] leading-none">Chronos<span class="text-crimson">.</span></h1>
-<p class="lbl mt-1" style="color:var(--sub)">Teacher portal</p>
+<!-- Header: identity + the shared teacher tab bar + this page's controls.
+     The tabs live here rather than in a sidebar so they survive every width —
+     the old md-only sidebar left teachers with no way off the page on mobile. -->
+<header class="shrink-0 z-10" style="background:var(--paper);border-bottom:3px solid var(--crimson)">
+<div class="flex items-center justify-between gap-3 px-5 lg:px-7 pt-3 pb-2">
+<a class="flex items-baseline gap-2.5" href="landing.html">
+<h1 class="text-[24px] leading-none">Chronos<span class="text-crimson">.</span></h1>
+<span class="lbl" style="color:var(--sub)">Teacher</span>
 </a>
-<div class="flex flex-col gap-1 mt-4">
-<a class="nav-item on" href="teacherknowledge.html">
-<span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">menu_book</span>
-<p class="text-sm">Knowledge base</p>
-</a>
-<a class="nav-item" href="teacherstats.html">
-<span class="material-symbols-outlined text-[20px]">analytics</span>
-<p class="text-sm">Analytics</p>
-</a>
-<a class="nav-item" href="student.html">
-<span class="material-symbols-outlined text-[20px]">forum</span>
-<p class="text-sm">Student tutor</p>
-</a>
-</div>
-</div>
-<button class="flex items-center gap-3 px-3 py-3 mt-auto text-left transition-colors hover:bg-hi" style="border-top:2px solid var(--edge)" id="lockBtn" title="Sign out">
-<span class="material-symbols-outlined text-[20px] flex-shrink-0" style="color:var(--sub)">account_circle</span>
-<div class="flex flex-col min-w-0">
-<p class="text-sm font-medium truncate" id="userEmail" title="">…</p>
-<p class="lbl" style="color:var(--sub)">Log out</p>
-</div>
+<div class="flex items-center gap-1">
+<button aria-label="How this works" class="ibtn" id="tutHelp" title="How this works">
+<span class="material-symbols-outlined text-[20px]">help</span>
+</button>
+<button class="ibtn" data-theme-toggle="" title="Switch to dark mode">
+<span class="material-symbols-outlined text-[20px]">dark_mode</span>
+</button>
+<button class="ibtn !w-auto !px-2 gap-2" id="lockBtn" title="Sign out">
+<span class="material-symbols-outlined text-[20px]">account_circle</span>
+<span class="hidden lg:inline font-mono text-xs max-w-[150px] truncate" id="userEmail" title=""></span>
 </button>
 </div>
 </div>
-
-<!-- Main -->
-<main class="flex-1 flex flex-col h-screen overflow-hidden relative">
-<!-- Header -->
-<header class="min-h-20 flex flex-wrap items-center justify-between gap-3 px-6 lg:px-8 py-3 shrink-0 z-10" style="background:var(--paper);border-bottom:3px solid var(--crimson)">
-<div>
-<h2 class="text-[28px] leading-none">Knowledge base</h2>
-<p class="text-sm mt-1.5 max-w-md" style="color:var(--sub)">Everything this class&rsquo;s tutor is allowed to know. Your rules, your documents, and nothing else 🔒</p>
-</div>
-<div class="flex items-center gap-2 flex-wrap">
+<div class="flex items-end justify-between gap-x-4 gap-y-2 px-5 lg:px-7 flex-wrap">
+<nav class="tabs" aria-label="Teacher sections">
+<a class="tab on" href="teacherknowledge.html"><span class="material-symbols-outlined text-[17px]" style="font-variation-settings:'FILL' 1;">menu_book</span><span>Knowledge</span></a>
+<a class="tab" href="teacherstats.html"><span class="material-symbols-outlined text-[17px]">analytics</span><span>Analytics</span></a>
+<a class="tab" href="student.html"><span class="material-symbols-outlined text-[17px]">forum</span><span>Tutor</span></a>
+</nav>
+<div class="flex items-center gap-2 flex-wrap pb-2">
 <select class="fld text-sm font-mono px-3 py-2 max-w-[180px] outline-none cursor-pointer" id="classSelect" title="Active class"></select>
 <button class="kbtn kbtn-ghost" id="newClassBtn" title="Create a class">
 <span><span class="material-symbols-outlined text-[16px] align-middle">add</span> New class</span>
@@ -163,17 +159,17 @@
 <button class="hidden ibtn" id="deleteClassBtn" title="Delete this class">
 <span class="material-symbols-outlined text-[20px]">delete</span>
 </button>
-<button aria-label="How this works" class="ibtn" id="tutHelp" title="How this works">
-<span class="material-symbols-outlined text-[20px]">help</span>
-</button>
-<button class="ibtn" data-theme-toggle="" title="Switch to dark mode">
-<span class="material-symbols-outlined text-[20px]">dark_mode</span>
-</button>
 <button class="kbtn" id="uploadHeaderBtn">
 <span><span class="material-symbols-outlined text-[16px] align-middle">upload</span> Upload source</span>
 </button>
 </div>
+</div>
 </header>
+
+<div class="px-5 lg:px-7 pt-5 shrink-0">
+<h2 class="text-[26px] leading-none">Knowledge base</h2>
+<p class="text-sm mt-1.5 max-w-lg" style="color:var(--sub)">Everything this class&rsquo;s tutor is allowed to know. Your rules, your documents, and nothing else.</p>
+</div>
 
 <!-- Workspace -->
 <div class="flex-1 flex overflow-hidden">
@@ -221,7 +217,7 @@
 <div class="col-span-3 text-right">Type</div>
 </div>
 <div class="flex-1 overflow-y-auto custom-scrollbar" id="rulesList"></div>
-<p class="hidden text-center text-sm py-12" style="color:var(--sub)" id="emptyState">Empty shelf 📭 Add a rule on the right, or drag a document into the box above.</p>
+<p class="hidden text-center text-sm py-12" style="color:var(--sub)" id="emptyState">Empty shelf. Add a rule on the right, or drag a document into the box above.</p>
 </div>
 </div>
 
@@ -245,12 +241,11 @@
 <button class="kbtn kbtn-ghost w-full" id="bulkBtn"><span>Bulk add (one per line)</span></button>
 </div>
 <div class="text-xs leading-relaxed p-3" style="color:var(--sub);border:2px solid var(--edge);border-left:4px solid var(--gold)">
-<span class="font-bold" style="color:var(--ink)">💡 Tip:</span> write each rule so it makes sense on its own. One idea per rule beats one long paragraph.
+<span class="font-bold" style="color:var(--ink)">Tip:</span> write each rule so it makes sense on its own. One idea per rule beats one long paragraph.
 </div>
 </div>
 </div>
 </div>
-</main>
 </div>
 
 <!-- Toast -->
@@ -330,7 +325,7 @@
     $("app").classList.remove("hidden");
     if(window.__tutFirstVisit)window.__tutFirstVisit();
     await loadClasses();
-    if(!ACTIVE_CLASS)showToast("Make your first class and you can start adding rules 🎒",true);
+    if(!ACTIVE_CLASS)showToast("Make your first class and you can start adding rules.",true);
     loadRules();
   }).catch(e=>{
     // textContent, not innerHTML: this string comes off the wire.
@@ -537,13 +532,13 @@
 </div>
 <script>
   (function(){
-    const TITLE="Getting your class going 🎒";
+    const TITLE="Getting your class going";
     const KEY="chronos_tut_knowledge_v2";
     const STEPS=[
-      {icon:"add",title:"Make a class ➕",text:"Each class is its own separate shelf. Make one, then hand out its join code (up at the top) so your students can get in."},
-      {icon:"gavel",title:"Add your rules ⚖️",text:"Type in the ground rules and the key facts. Things like \"don't just hand over homework answers\" or \"stick to the textbook\". One idea per rule."},
-      {icon:"description",title:"Upload your material 📄",text:"Drag in PDFs, Word docs, lecture notes. We pull the text out so the tutor can answer from your actual course content."},
-      {icon:"lightbulb",title:"That's its whole world 🌍",text:"It only answers from what's on this page. Anything else and it says it doesn't know, rather than having a guess."},
+      {icon:"add",title:"Make a class",text:"Each class is its own separate shelf. Make one, then hand out its join code (up at the top) so your students can get in."},
+      {icon:"gavel",title:"Add your rules",text:"Type in the ground rules and the key facts. Things like \"don't just hand over homework answers\" or \"stick to the textbook\". One idea per rule."},
+      {icon:"description",title:"Upload your material",text:"Drag in PDFs, Word docs, lecture notes. We pull the text out so the tutor can answer from your actual course content."},
+      {icon:"lightbulb",title:"That's its whole world",text:"It only answers from what's on this page. Anything else and it says it doesn't know, rather than having a guess."},
     ];
     let idx=0;
     const body=document.getElementById("tutBody");

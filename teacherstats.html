@@ -67,13 +67,25 @@
   .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--edge) }
   .row-line { border-bottom:1px solid var(--hi) }
 
-  /* nav */
-  .nlink { position:relative; padding:.3rem .1rem; color:var(--sub); transition:color .2s }
-  .nlink::after { content:""; position:absolute; left:0; bottom:-3px; height:3px; width:0; background:var(--crimson);
-    transition:width .28s var(--snap) }
-  .nlink:hover { color:var(--ink) }
-  .nlink:hover::after, .nlink.on::after { width:100% }
-  .nlink.on { color:var(--ink) }
+  /* Teacher tab bar — shared with teacherknowledge.html, keep the two in sync.
+     Sits flush on the header's crimson bottom border so the active tab reads
+     as joined to the page below it. Scrolls sideways instead of collapsing,
+     so the sections stay reachable at any width. */
+  .tabs { display:flex; overflow-x:auto; scrollbar-width:none; margin-bottom:-3px; max-width:100% }
+  .tabs::-webkit-scrollbar { display:none }
+  .tab { position:relative; display:flex; align-items:center; gap:.45rem; flex:none;
+    padding:.6rem 1rem; border:3px solid var(--edge); border-bottom:none; background:transparent;
+    color:var(--sub); overflow:hidden; white-space:nowrap; transition:color .18s;
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:700;
+    letter-spacing:.12em; text-transform:uppercase }
+  .tab + .tab { border-left:none }
+  .tab > * { position:relative; z-index:2 }
+  .tab::before { content:""; position:absolute; inset:0; background:var(--crimson);
+    transform:translateY(102%); transition:transform .26s var(--snap); z-index:1 }
+  .tab:hover::before { transform:translateY(0) }
+  .tab:hover { color:#F7F4EC }
+  .tab.on { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC }
+  .tab.on::before { display:none }
 
   /* buttons */
   .kbtn { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
@@ -115,23 +127,16 @@
 <!-- App -->
 <div class="hidden" id="app">
 
-<!-- Top nav -->
-<header class="fixed top-0 w-full z-40" style="background:var(--paper);border-bottom:3px solid var(--crimson)">
-<div class="flex justify-between items-center h-20 px-6 max-w-[1280px] mx-auto gap-4">
+<!-- Header: same structure and tab bar as teacherknowledge.html, so the two
+     teacher pages navigate identically at every width. -->
+<header class="sticky top-0 w-full z-40" style="background:var(--paper);border-bottom:3px solid var(--crimson)">
+<div class="max-w-[1280px] mx-auto">
+<div class="flex items-center justify-between gap-3 px-5 lg:px-7 pt-3 pb-2">
 <a class="flex items-baseline gap-2.5" href="landing.html">
-<span class="font-display text-[26px] leading-none">Chronos<span class="text-crimson">.</span></span>
-<span class="lbl" style="color:var(--sub)">Analytics</span>
+<span class="font-display text-[24px] leading-none">Chronos<span class="text-crimson">.</span></span>
+<span class="lbl" style="color:var(--sub)">Teacher</span>
 </a>
-<nav class="hidden md:flex items-center gap-8 lbl">
-<a class="nlink" href="teacherknowledge.html">Knowledge</a>
-<a class="nlink on" href="teacherstats.html">Analytics</a>
-<a class="nlink" href="student.html">Tutor</a>
-</nav>
-<div class="flex items-center gap-2">
-<select class="fld text-sm font-mono px-3 py-2 max-w-[160px] outline-none cursor-pointer" id="classSelect" title="Class"></select>
-<button class="kbtn" id="refreshBtn">
-<span><span class="material-symbols-outlined text-[16px]" id="refreshIcon">refresh</span> Refresh</span>
-</button>
+<div class="flex items-center gap-1">
 <button aria-label="How this works" class="ibtn" id="tutHelp" title="How this works">
 <span class="material-symbols-outlined text-[20px]">help</span>
 </button>
@@ -139,19 +144,33 @@
 <span class="material-symbols-outlined text-[20px]">dark_mode</span>
 </button>
 <button class="ibtn !w-auto !px-2 gap-2" id="lockBtn" title="Sign out">
-<span class="material-symbols-outlined text-[22px]">account_circle</span>
-<span class="hidden lg:inline font-mono text-xs max-w-[140px] truncate" id="userEmail"></span>
+<span class="material-symbols-outlined text-[20px]">account_circle</span>
+<span class="hidden lg:inline font-mono text-xs max-w-[150px] truncate" id="userEmail" title=""></span>
 </button>
+</div>
+</div>
+<div class="flex items-end justify-between gap-x-4 gap-y-2 px-5 lg:px-7 flex-wrap">
+<nav class="tabs" aria-label="Teacher sections">
+<a class="tab" href="teacherknowledge.html"><span class="material-symbols-outlined text-[17px]">menu_book</span><span>Knowledge</span></a>
+<a class="tab on" href="teacherstats.html"><span class="material-symbols-outlined text-[17px]" style="font-variation-settings:'FILL' 1;">analytics</span><span>Analytics</span></a>
+<a class="tab" href="student.html"><span class="material-symbols-outlined text-[17px]">forum</span><span>Tutor</span></a>
+</nav>
+<div class="flex items-center gap-2 flex-wrap pb-2">
+<select class="fld text-sm font-mono px-3 py-2 max-w-[160px] outline-none cursor-pointer" id="classSelect" title="Class"></select>
+<button class="kbtn" id="refreshBtn">
+<span><span class="material-symbols-outlined text-[16px]" id="refreshIcon">refresh</span> Refresh</span>
+</button>
+</div>
 </div>
 </div>
 </header>
 
-<main class="relative z-10 pt-32 pb-24 px-6 max-w-[1280px] mx-auto">
+<main class="relative z-10 pt-10 pb-24 px-6 max-w-[1280px] mx-auto">
 <!-- Header -->
 <div class="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
 <div>
 <h1 class="text-[clamp(2.2rem,5vw,3.4rem)] leading-none mb-3">What they<br/>keep asking.</h1>
-<p class="text-[1.05rem] max-w-xl" style="color:var(--sub)">Every question, grouped by topic 📊 Anything your material couldn&rsquo;t answer gets flagged as a gap.</p>
+<p class="text-[1.05rem] max-w-xl" style="color:var(--sub)">Every question, grouped by topic. Anything your material couldn&rsquo;t answer gets flagged as a gap.</p>
 </div>
 <span class="lbl flex items-center gap-2 px-3 py-2" style="border:2px solid var(--edge);color:var(--sub)">
 <span class="w-2 h-2 bg-gold"></span> Live
@@ -340,7 +359,7 @@
       const gaps=$("gaps"); gaps.innerHTML="";
       $("gapTotal").textContent=d.unanswered_count||0;
       if(!d.unanswered||!d.unanswered.length){
-        gaps.innerHTML='<p class="text-sm p-6" style="color:var(--sub)">No gaps yet 🎉 Everything they&rsquo;ve asked so far, your material could answer.</p>';
+        gaps.innerHTML='<p class="text-sm p-6" style="color:var(--sub)">No gaps yet. Everything they&rsquo;ve asked so far, your material could answer.</p>';
       }else{
         d.unanswered.forEach(r=>{
           const row=document.createElement("div"); row.className="flex items-start gap-3 px-5 py-3 row-line transition-colors hover:bg-hi";
@@ -424,13 +443,13 @@
 </div>
 <script>
   (function(){
-    const TITLE="What you're looking at 📊";
+    const TITLE="What you're looking at";
     const KEY="chronos_tut_stats_v2";
     const STEPS=[
-      {icon:"school",title:"One class at a time 🎒",text:"Use the class menu up top. Every number on this page is just for the class you've picked."},
-      {icon:"forum",title:"What they keep asking 💬",text:"Questions get grouped by topic, so you can see at a glance what your students keep circling back to."},
-      {icon:"help",title:"Mind the gaps 🕳️",text:"Knowledge Gaps are the questions your material couldn't answer. It's basically a ready made list of what to add next."},
-      {icon:"history",title:"Recent questions 🕒",text:"A running feed of what's being asked, newest first, so you can catch something going wrong the same week it happens."},
+      {icon:"school",title:"One class at a time",text:"Use the class menu up top. Every number on this page is just for the class you've picked."},
+      {icon:"forum",title:"What they keep asking",text:"Questions get grouped by topic, so you can see at a glance what your students keep circling back to."},
+      {icon:"help",title:"Mind the gaps",text:"Knowledge Gaps are the questions your material couldn't answer. It's basically a ready made list of what to add next."},
+      {icon:"history",title:"Recent questions",text:"A running feed of what's being asked, newest first, so you can catch something going wrong the same week it happens."},
     ];
     let idx=0;
     const body=document.getElementById("tutBody");

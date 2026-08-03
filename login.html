@@ -134,7 +134,7 @@
         <span class="h-out">It won&rsquo;t</span>
         <span class="h-fill">Make it up.</span>
       </h2>
-      <p class="text-[1.05rem] leading-relaxed text-[#A9A499] max-w-sm">Answers come out of whatever your teacher uploaded 📎 tagged with the file they came from, every time.</p>
+      <p class="text-[1.05rem] leading-relaxed text-[#A9A499] max-w-sm">Answers come out of whatever your teacher uploaded, tagged with the file they came from, every time.</p>
       <div class="mt-9 flex items-center gap-4 tag text-[#A9A499]">
         <span class="flex items-center gap-2">
           <span class="w-2.5 h-2.5 bg-gold inline-block" id="statusDot"></span>
@@ -162,7 +162,7 @@
 
       <div class="mb-8">
         <h1 class="dsp text-[2.6rem] leading-none mb-2" id="title">Welcome back</h1>
-        <p class="text-[15px]" style="color:var(--sub)" id="subtitle">Good to see you again 👋</p>
+        <p class="text-[15px]" style="color:var(--sub)" id="subtitle">Good to see you again.</p>
       </div>
 
       <!-- Role -->
@@ -252,7 +252,7 @@
     $("fileTab").textContent = isUp ? "New account" : "Sign in";
     $("subtitle").textContent = isUp
       ? (role==="teacher" ? "Two fields and you're set up." : "Takes about ten seconds.")
-      : "Good to see you again 👋";
+      : "Good to see you again.";
     $("submitLabel").innerHTML = (isUp?"Create account":"Sign in") + ARROW;
     $("password").autocomplete = isUp ? "new-password" : "current-password";
     $("toggleText").textContent = isUp ? "Already have an account?" : "New here?";

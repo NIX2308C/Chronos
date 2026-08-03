@@ -119,10 +119,12 @@
   .claim-k{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:700;letter-spacing:.2em;color:var(--crimson)}
 
   /* ---------- refusal showcase ---------- */
-  .redact{position:relative;display:inline-block}
-  .redact::after{content:"";position:absolute;inset:-4px -6px;background:var(--void);transform:scaleX(0);
-    transform-origin:left;transition:transform .5s cubic-bezier(.7,0,.2,1)}
-  .redact.on::after{transform:scaleX(1)}
+  /* The question holds still long enough to actually be read, then blurs out of
+     focus. A hard bar wiping across it covered the words before anyone could
+     finish them, which lost the whole point of the moment. */
+  .redact{display:inline-block;color:var(--crimson);
+    transition:filter .7s ease,opacity .7s ease;will-change:filter}
+  .redact.on{filter:blur(11px);opacity:.35}
   .stampwrap{opacity:0}
   .stampwrap.on{opacity:1;animation:stamp .5s cubic-bezier(.2,1.5,.35,1) both}
   @keyframes stamp{0%{transform:rotate(-16deg) scale(2.6);opacity:0}55%{transform:rotate(-9deg) scale(.93);opacity:1}100%{transform:rotate(-9deg) scale(1);opacity:1}}
@@ -161,7 +163,8 @@
     .slam,.slam-x{opacity:1!important;transform:none!important}
     .h-out{transform:rotate(1.2deg)!important;opacity:1!important}
     .h-fill{transform:rotate(-2.4deg)!important;opacity:1!important}
-    .redact::after{transform:scaleX(1)}
+    /* no blur without motion — leave the question legible and just show the stamp */
+    .redact.on{filter:none;opacity:1}
     .stampwrap{opacity:1}
   }
 </style>
@@ -480,12 +483,15 @@
     }), { threshold:.15, rootMargin:"0px 0px -50px 0px" });
     document.querySelectorAll(".slam,.slam-x").forEach(el => io.observe(el));
 
-    // refusal: redaction wipe, then stamp
+    // Refusal beat: hold the question, blur it out, then land the stamp.
+    // The hold is the point — the reader has to get "quantum spin" before it
+    // goes, or the stamp lands on a phrase they never saw.
     const rd = document.getElementById("rd"), st = document.getElementById("st");
     if (rd) new IntersectionObserver((e, o) => {
       if (!e[0].isIntersecting) return; o.disconnect();
-      rd.classList.add("on");
-      setTimeout(() => st.classList.add("on"), reduce ? 0 : 620);
+      if (reduce) { st.classList.add("on"); return; }
+      setTimeout(() => rd.classList.add("on"), 1400);   // read it
+      setTimeout(() => st.classList.add("on"), 2050);   // then the verdict
     }, { threshold:.5 }).observe(document.getElementById("refusal"));
 
     // pinned story

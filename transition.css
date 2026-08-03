@@ -1,0 +1,97 @@
+/* ============================================================
+   Chronos page wipe.
+
+   Persona-style transition between pages: five skewed crimson
+   bars sweep in from alternating sides to cover the screen, a
+   mark lands in the middle, then the next page sweeps them back
+   out the way they came.
+
+   Two halves, on two different pages:
+     • leaving  — transition.js adds .act.cover, waits, navigates
+     • arriving — an inline <head> snippet reads the sessionStorage
+       flag and puts `wiping` on <html> BEFORE first paint, so the
+       new page's first frame is already covered (no flash of
+       un-wiped content). transition.js then plays the reveal.
+
+   This file must stay a render-blocking <link> in <head> for that
+   covered first frame to work.
+   ============================================================ */
+
+.px {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  overflow: hidden;
+  pointer-events: none;
+}
+.px.act,
+html.wiping .px { display: block; pointer-events: auto; }
+
+.px-b {
+  position: absolute;
+  left: -25%;
+  width: 150%;
+  height: calc(20% + 1px);
+  background: #E2001A;
+  will-change: transform;
+  transform: translateX(var(--off)) skewX(-14deg);
+  transition: transform .3s cubic-bezier(.65, 0, .35, 1);
+}
+.px-b:nth-child(odd)  { --off: -140%; }
+.px-b:nth-child(even) { --off:  140%; }
+.px-b:nth-child(1) { top:  0; }
+.px-b:nth-child(2) { top: 20%; }
+.px-b:nth-child(3) { top: 40%; }
+.px-b:nth-child(4) { top: 60%; }
+.px-b:nth-child(5) { top: 80%; }
+
+/* arriving: covered on the first frame, no animation yet */
+html.wiping .px-b { transform: translateX(0) skewX(-14deg); transition: none; }
+
+/* leaving: sweep in, top-to-bottom */
+.px.cover .px-b { transform: translateX(0) skewX(-14deg); }
+.px.cover .px-b:nth-child(1) { transition-delay: 0ms; }
+.px.cover .px-b:nth-child(2) { transition-delay: 40ms; }
+.px.cover .px-b:nth-child(3) { transition-delay: 80ms; }
+.px.cover .px-b:nth-child(4) { transition-delay: 120ms; }
+.px.cover .px-b:nth-child(5) { transition-delay: 160ms; }
+
+/* arriving: sweep back out, bottom-to-top so it reads as one motion */
+.px.reveal .px-b { transform: translateX(var(--off)) skewX(-14deg); transition-duration: .34s; }
+.px.reveal .px-b:nth-child(5) { transition-delay: 0ms; }
+.px.reveal .px-b:nth-child(4) { transition-delay: 40ms; }
+.px.reveal .px-b:nth-child(3) { transition-delay: 80ms; }
+.px.reveal .px-b:nth-child(2) { transition-delay: 120ms; }
+.px.reveal .px-b:nth-child(1) { transition-delay: 160ms; }
+
+/* the mark that lands once the screen is covered */
+.px-mark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: scale(2.6) rotate(-18deg);
+  transition: opacity .16s ease, transform .34s cubic-bezier(.2, 1.6, .35, 1);
+}
+.px.cover .px-mark,
+html.wiping .px-mark { opacity: 1; transform: scale(1) rotate(-7deg); transition-delay: .18s; }
+.px.reveal .px-mark { opacity: 0; transform: scale(.7) rotate(-7deg); transition-delay: 0s; }
+
+.px-tag {
+  display: block;
+  background: #0B0B0C;
+  color: #F7F4EC;
+  font-family: 'Anton', sans-serif;
+  font-size: clamp(2rem, 8vw, 5rem);
+  line-height: 1;
+  letter-spacing: .01em;
+  text-transform: uppercase;
+  padding: .18em .34em .24em;
+  box-shadow: 12px 12px 0 #F7F4EC;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .px, .px.act, html.wiping .px { display: none !important; }
+}

@@ -4,114 +4,190 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
 <title>Chronos | Tutor</title>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&amp;family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="transition.css" rel="stylesheet"/>
+<script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
+    // Token NAMES are Material-Design-shaped and are baked into class strings the
+    // page's JS builds at runtime — so a restyle remaps the VALUES here and never
+    // renames the tokens. Dark-mode repoints for these live in theme.css.
     tailwind.config = {
         darkMode: "class",
         theme: {
             extend: {
                 "colors": {
-                    "primary-container": "#E0E7FF",
-                    "error-container": "#FEE2E2",
-                    "surface-container-low": "#FFFFFF",
-                    "surface-dim": "#ECEAFB",
+                    "primary-container": "#F6D9D5",
+                    "error-container": "#F6D9D5",
+                    "surface-container-low": "#F7F4EC",
+                    "surface-dim": "#E4DECD",
                     "surface-bright": "#FFFFFF",
-                    "background": "#F5F3FF",
-                    "on-tertiary": "#ffffff",
-                    "surface-container": "#F3F2FC",
-                    "surface-container-highest": "#E4E9F1",
-                    "on-error": "#ffffff",
-                    "on-secondary": "#ffffff",
-                    "on-primary-container": "#4338CA",
-                    "tertiary-container": "#E0E7FF",
-                    "on-error-container": "#B91C1C",
-                    "surface-container-high": "#EBEFF9",
-                    "on-tertiary-container": "#4338CA",
-                    "surface": "#F5F3FF",
-                    "on-background": "#1E1B4B",
-                    "surface-tint": "#6366F1",
-                    "outline": "#C7CCE6",
-                    "primary": "#6366F1",
-                    "tertiary-fixed-dim": "#818CF8",
-                    "on-primary": "#ffffff",
-                    "on-secondary-container": "#047857",
-                    "on-surface": "#1E1B4B",
-                    "secondary": "#059669",
-                    "error": "#DC2626",
-                    "outline-variant": "#E0E7FF",
-                    "secondary-container": "#D1FAE5",
-                    "surface-variant": "#EBEFF9",
-                    "on-surface-variant": "#575299",
-                    "tertiary": "#6366F1",
-                    "surface-container-lowest": "#FFFFFF"
+                    "background": "#E9E4D6",
+                    "on-tertiary": "#F7F4EC",
+                    "surface-container": "#EFEADC",
+                    "surface-container-highest": "#DED8C6",
+                    "on-error": "#F7F4EC",
+                    "on-secondary": "#0B0B0C",
+                    "on-primary-container": "#8E0011",
+                    "tertiary-container": "#F6D9D5",
+                    "on-error-container": "#8E0011",
+                    "surface-container-high": "#E4DECD",
+                    "on-tertiary-container": "#8E0011",
+                    "surface": "#E9E4D6",
+                    "on-background": "#141311",
+                    "surface-tint": "#E2001A",
+                    "outline": "#B9B09A",
+                    "primary": "#E2001A",
+                    "tertiary-fixed-dim": "#E2001A",
+                    "on-primary": "#F7F4EC",
+                    "on-secondary-container": "#6B5410",
+                    "on-surface": "#141311",
+                    "secondary": "#C9A227",
+                    "error": "#E2001A",
+                    "outline-variant": "#1C1A16",
+                    "secondary-container": "#F2E7C4",
+                    "surface-variant": "#E4DECD",
+                    "on-surface-variant": "#4B4A46",
+                    "tertiary": "#E2001A",
+                    "surface-container-lowest": "#F7F4EC"
                 },
-                "borderRadius": { "DEFAULT": "0.5rem", "sm": "0.375rem", "lg": "0.75rem", "xl": "1rem", "full": "9999px" },
+                // Sharp corners everywhere: the design system has no rounding.
+                "borderRadius": { "DEFAULT": "0", "sm": "0", "lg": "0", "xl": "0", "2xl": "0", "3xl": "0", "full": "0" },
                 "spacing": {
                     "stack-sm": "0.5rem", "gutter": "1.5rem", "margin-mobile": "1rem",
                     "margin-desktop": "2rem", "stack-lg": "2rem", "stack-md": "1rem", "container-max": "1280px"
                 },
                 "fontFamily": {
-                    "headline-xl": ["Crimson Pro","serif"], "headline-lg": ["Crimson Pro","serif"], "headline-lg-mobile": ["Crimson Pro","serif"],
-                    "label-md": ["Hanken Grotesk","sans-serif"], "headline-md": ["Crimson Pro","serif"], "body-lg": ["Hanken Grotesk","sans-serif"],
-                    "label-sm": ["Hanken Grotesk","sans-serif"], "body-md": ["Hanken Grotesk","sans-serif"]
+                    "headline-xl": ["Anton","sans-serif"], "headline-lg": ["Anton","sans-serif"], "headline-lg-mobile": ["Anton","sans-serif"],
+                    "label-md": ["IBM Plex Sans","sans-serif"], "headline-md": ["Anton","sans-serif"], "body-lg": ["IBM Plex Sans","sans-serif"],
+                    "label-sm": ["IBM Plex Mono","monospace"], "body-md": ["IBM Plex Sans","sans-serif"]
                 },
                 "fontSize": {
-                    "headline-xl": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
-                    "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
-                    "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                    "headline-xl": ["46px", { "lineHeight": "48px", "letterSpacing": "0.005em", "fontWeight": "400" }],
+                    "headline-lg": ["32px", { "lineHeight": "34px", "fontWeight": "400" }],
+                    "headline-lg-mobile": ["24px", { "lineHeight": "26px", "fontWeight": "400" }],
                     "label-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }],
-                    "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                    "headline-md": ["24px", { "lineHeight": "26px", "fontWeight": "400" }],
                     "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
-                    "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
-                    "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    "label-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.12em", "fontWeight": "600" }],
+                    "body-md": ["15px", { "lineHeight": "24px", "fontWeight": "400" }]
                 }
             }
         }
     }
 </script>
 <style>
-    body { font-family: 'Hanken Grotesk', sans-serif; }
-    h1,h2,h3,h4 { font-family: 'Crimson Pro', serif; }
-    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    /* Custom components use these vars so they follow the theme on their own;
+       theme.css only has to repoint the Tailwind-generated utility classes. */
+    :root{--c-page:#E9E4D6;--c-paper:#F7F4EC;--c-ink:#141311;--c-sub:#4B4A46;--c-edge:#1C1A16;
+          --c-hi:#E4DECD;--c-rule:#DED8C6;--crimson:#E2001A;--gold:#C9A227;
+          --snap:cubic-bezier(.2,1.45,.35,1)}
+    html.dark{--c-page:#0B0B0C;--c-paper:#141317;--c-ink:#F7F4EC;--c-sub:#A9A499;--c-edge:#3A3A3E;
+              --c-hi:#1E1E23;--c-rule:#2A2A2C;color-scheme:dark}
+
+    body { font-family: 'IBM Plex Sans', sans-serif; }
+    h1,h2,h3,h4 { font-family: 'Anton', sans-serif; text-transform: uppercase; letter-spacing: .005em; }
+    ::selection { background: var(--crimson); color: #F7F4EC; }
+    :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+    .material-symbols-outlined { font-family: 'Material Symbols Sharp'; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
     .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
-    .chat-scroll::-webkit-scrollbar { width: 6px; }
+    .mono { font-family: 'IBM Plex Mono', monospace; }
+    /* custom components below set display; keep Tailwind's hidden authoritative */
+    .hidden { display:none !important; }
+    .tagline { font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; }
+
+    .chat-scroll::-webkit-scrollbar { width: 8px; }
     .chat-scroll::-webkit-scrollbar-track { background: transparent; }
-    .chat-scroll::-webkit-scrollbar-thumb { background-color: #CBD1E6; border-radius: 10px; }
+    .chat-scroll::-webkit-scrollbar-thumb { background-color: var(--c-edge); }
 
     .spin { animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* typing cursor */
-    .cursor { display:inline-block; width:6px; height:1rem; background:#6366F1; border-radius:1px; margin-left:2px; vertical-align:text-bottom; animation:blink 1s steps(2) infinite; }
+    .cursor { display:inline-block; width:8px; height:1rem; background:var(--crimson); margin-left:2px; vertical-align:text-bottom; animation:blink 1s steps(2) infinite; }
     @keyframes blink { 0%,50%{opacity:1} 50.01%,100%{opacity:0} }
 
-    /* teacher-only "Sources used" dropdown */
+    /* ---- shared shapes ---- */
+    .hard { border:2px solid var(--c-edge); }
+    .cast { box-shadow:6px 6px 0 var(--c-edge); }
+    .cast-red { box-shadow:6px 6px 0 var(--crimson); }
+
+    /* ---- message bubbles ---- */
+    .bub-you { max-width:85%; background:var(--crimson); color:#F7F4EC; padding:1rem 1.25rem;
+        font-size:15px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere;
+        box-shadow:6px 6px 0 var(--c-edge); animation:pop .32s var(--snap) both }
+    .bub-ai { max-width:85%; background:var(--c-paper); color:var(--c-ink); border:2px solid var(--c-edge);
+        padding:1rem 1.25rem; font-size:15px; line-height:1.65; overflow-wrap:anywhere; box-shadow:6px 6px 0 var(--gold) }
+    @keyframes pop { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
+
+    /* ---- sidebar conversation rows ---- */
+    .chat-row { display:flex; align-items:center; border-left:3px solid transparent; color:var(--c-sub);
+        transition:background-color .18s ease,border-color .2s var(--snap),color .18s ease }
+    .chat-row:hover { background:var(--c-hi); color:var(--c-ink) }
+    .chat-row.on { background:var(--c-hi); border-left-color:var(--crimson); color:var(--c-ink) }
+
+    /* ---- buttons ---- */
+    .kbtn { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+        font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:700; letter-spacing:.13em;
+        text-transform:uppercase; padding:.85rem 1rem; border:2px solid var(--crimson); background:var(--crimson);
+        color:#F7F4EC; overflow:hidden; cursor:pointer; transition:transform .14s var(--snap) }
+    .kbtn > * { position:relative; z-index:2 }
+    .kbtn::before { content:""; position:absolute; inset:-2px -30%; background:var(--c-edge);
+        transform:translateX(-115%) skewX(-16deg); transition:transform .36s var(--snap); z-index:1 }
+    .kbtn:hover:not(:disabled)::before { transform:translateX(0) skewX(-16deg) }
+    .kbtn:active:not(:disabled) { transform:translate(2px,2px) }
+    .kbtn:disabled { opacity:.55; cursor:default }
+    .kbtn-ghost { background:transparent; border-color:var(--c-edge); color:var(--c-ink) }
+    .kbtn-ghost::before { background:var(--crimson) }
+    .kbtn-ghost:hover:not(:disabled) { color:#F7F4EC; border-color:var(--crimson) }
+
+    .ibtn { width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+        border:2px solid transparent; color:var(--c-sub);
+        transition:background-color .18s,color .18s,border-color .18s,transform .2s var(--snap) }
+    .ibtn:hover { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC; transform:rotate(-6deg) }
+
+    /* ---- input bar ---- */
+    .composer { background:var(--c-paper); border:2px solid var(--c-edge); box-shadow:6px 6px 0 var(--c-edge);
+        transition:box-shadow .2s ease,border-color .2s ease }
+    .composer:focus-within { border-color:var(--crimson); box-shadow:6px 6px 0 var(--crimson) }
+
+    .fld { background:var(--c-paper); border:2px solid var(--c-edge); color:var(--c-ink); border-radius:0;
+        transition:box-shadow .18s,border-color .18s }
+    .fld:focus { outline:none; border-color:var(--crimson); box-shadow:5px 5px 0 var(--crimson) }
+
+    /* ---- teacher-only "Sources used" dropdown ---- */
     .src-drop summary { list-style: none; }
     .src-drop summary::-webkit-details-marker { display: none; }
     .src-drop[open] .chev { transform: rotate(180deg); }
+    .src-drop { border:2px solid var(--gold); background:var(--c-paper); color:var(--c-ink) }
 
-    /* markdown inside AI bubbles */
+    /* ---- markdown inside AI bubbles ---- */
     .ai-prose p { margin:0 0 .75rem; }
     .ai-prose p:last-child, .ai-prose ul:last-child, .ai-prose ol:last-child, .ai-prose pre:last-child { margin-bottom:0; }
-    .ai-prose ul { list-style:disc; padding-left:1.25rem; margin:0 0 .75rem; }
+    .ai-prose ul { list-style:square; padding-left:1.25rem; margin:0 0 .75rem; }
     .ai-prose ol { list-style:decimal; padding-left:1.25rem; margin:0 0 .75rem; }
     .ai-prose li { margin:.25rem 0; }
+    .ai-prose li::marker { color:var(--crimson); }
     .ai-prose strong { font-weight:700; }
     .ai-prose em { font-style:italic; }
-    .ai-prose h1,.ai-prose h2,.ai-prose h3 { font-weight:700; line-height:1.3; margin:.75rem 0 .5rem; font-family:'Crimson Pro',serif; }
+    .ai-prose h1,.ai-prose h2,.ai-prose h3 { font-family:'IBM Plex Sans',sans-serif; text-transform:none;
+        font-weight:700; line-height:1.3; margin:.85rem 0 .45rem; letter-spacing:0; }
     .ai-prose h1:first-child,.ai-prose h2:first-child,.ai-prose h3:first-child { margin-top:0; }
-    .ai-prose h1 { font-size:1.35rem; } .ai-prose h2 { font-size:1.15rem; } .ai-prose h3 { font-size:1.02rem; }
-    .ai-prose a { color:#4F46E5; text-decoration:underline; }
-    .ai-prose code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.88em; background:rgba(99,102,241,.1); border:1px solid #E0E7FF; padding:1px 5px; border-radius:5px; }
-    .ai-prose pre { background:#F3F2FC; border:1px solid #E0E7FF; border-radius:.5rem; padding:.75rem; overflow-x:auto; margin:.5rem 0; }
-    .ai-prose pre code { background:none; border:none; padding:0; font-size:.8rem; line-height:1.55; display:block; color:#1E1B4B; }
-    .ai-prose blockquote { border-left:3px solid #E0E7FF; padding-left:.75rem; margin:.5rem 0; color:#575299; }
+    .ai-prose h1 { font-size:1.25rem; } .ai-prose h2 { font-size:1.1rem; } .ai-prose h3 { font-size:1rem; }
+    .ai-prose a { color:var(--crimson); text-decoration:underline; text-underline-offset:2px; }
+    .ai-prose code { font-family:'IBM Plex Mono',monospace; font-size:.86em; background:var(--c-hi); border:1px solid var(--c-edge); padding:1px 5px; }
+    .ai-prose pre { background:var(--c-hi); border:2px solid var(--c-edge); padding:.75rem; overflow-x:auto; margin:.6rem 0; }
+    .ai-prose pre code { background:none; border:none; padding:0; font-size:.8rem; line-height:1.55; display:block; color:var(--c-ink); }
+    .ai-prose blockquote { border-left:4px solid var(--crimson); padding-left:.75rem; margin:.6rem 0; color:var(--c-sub); }
+
+    @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
 <link href="theme.css" rel="stylesheet"/>
 </head>
 <body class="bg-background text-on-background h-full antialiased overflow-hidden flex">
+
+<div class="px" aria-hidden="true"><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><span class="px-mark"><span class="px-tag">Chronos</span></span></div>
 
 <!-- Auth loading gate: shown until we know the user is a signed-in student -->
 <div class="fixed inset-0 z-50 flex items-center justify-center bg-background" id="authGate">
@@ -120,72 +196,68 @@
 
 <!-- Join-class gate: the tutor is unusable until the student joins a class -->
 <div class="hidden fixed inset-0 z-40 flex items-center justify-center bg-background p-margin-mobile" id="joinGate">
-<div class="w-full max-w-sm bg-surface-container-lowest border border-outline-variant rounded-xl shadow-sm p-stack-lg text-center" id="joinCard">
-<div class="w-14 h-14 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center mx-auto mb-stack-md">
+<div class="w-full max-w-sm bg-surface-container-lowest hard cast-red p-stack-lg text-center" id="joinCard">
+<div class="w-14 h-14 bg-secondary text-on-secondary flex items-center justify-center mx-auto mb-stack-md">
 <span class="material-symbols-outlined text-[28px]">group_add</span>
 </div>
-<h1 class="font-headline-md text-headline-md text-on-background mb-1">Join a class</h1>
-<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Enter the code your teacher gave you to start using the tutor.</p>
-<input class="w-full rounded-lg border-outline-variant bg-surface-container-low text-on-background font-body-md text-body-md px-4 py-3 text-center tracking-widest uppercase focus:border-primary focus:ring-1 focus:ring-primary transition-colors" id="joinCodeInput" maxlength="12" placeholder="CLASS CODE" type="text"/>
-<p class="hidden mt-stack-md font-label-md text-label-md text-on-error-container bg-error-container rounded-lg px-3 py-2" id="joinErr"></p>
-<button class="w-full mt-stack-md py-3 bg-primary text-on-primary rounded-lg font-label-md text-label-md flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50" id="joinBtn">Join</button>
+<h1 class="font-headline-md text-headline-md text-on-background mb-2">Join a class 🔑</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Pop in the code your teacher gave you and you&rsquo;re in.</p>
+<input class="fld w-full mono px-4 py-3 text-center tracking-[.25em] uppercase text-[15px]" id="joinCodeInput" maxlength="12" placeholder="CLASS CODE" type="text"/>
+<p class="hidden mt-stack-md font-label-sm text-label-sm text-on-error-container bg-error-container border-2 border-error px-3 py-2" id="joinErr"></p>
+<button class="kbtn w-full mt-stack-md" id="joinBtn"><span>Join class</span></button>
 <button class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" id="joinLogoutBtn">Sign out</button>
 </div>
 </div>
 
 <!-- Sidebar -->
-<nav class="hidden md:flex h-full w-64 fixed left-0 top-0 bg-surface-container-low flex-col p-stack-md z-10 border-r border-outline-variant">
-<a class="mb-stack-lg flex items-center gap-3 px-1" href="landing.html">
-<span class="w-10 h-10 rounded-xl bg-primary text-on-primary flex items-center justify-center flex-shrink-0">
-<span class="material-symbols-outlined fill">schema</span>
-</span>
+<nav class="hidden md:flex h-full w-64 fixed left-0 top-0 bg-surface-container-low flex-col p-stack-md z-10" style="border-right:3px solid var(--crimson)">
+<a class="mb-stack-lg flex items-center gap-2.5 px-1" href="landing.html">
 <div>
-<h1 class="font-headline-md text-headline-md font-bold text-on-background leading-none">Chronos</h1>
-<span class="font-label-sm text-label-sm text-on-surface-variant" id="modeLabel">Student Mode</span>
+<h1 class="font-headline-md text-headline-md text-on-background leading-none">Chronos<span class="text-primary">.</span></h1>
+<span class="font-label-sm text-label-sm text-on-surface-variant" id="modeLabel">Student mode</span>
 </div>
 </a>
 <!-- Class switcher: which class's tutor you're talking to -->
 <div class="mb-stack-md">
-<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider px-2 mb-1">Class</p>
-<div class="flex gap-1">
+<p class="font-label-sm text-label-sm text-on-surface-variant px-1 mb-1.5">Class</p>
+<div class="flex gap-1.5">
 <div class="relative flex-1 min-w-0">
-<span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">school</span>
-<select class="appearance-none w-full min-w-0 rounded-xl border border-outline-variant bg-surface-container-low text-on-background font-label-md text-label-md pl-9 pr-9 py-2.5 hover:bg-surface-container-high focus:border-primary focus:ring-2 focus:ring-primary/40 outline-none transition-colors cursor-pointer" id="classSwitcher" title="Active class"></select>
+<select class="fld appearance-none w-full min-w-0 font-label-md text-label-md pl-3 pr-8 py-2.5 outline-none cursor-pointer" id="classSwitcher" title="Active class"></select>
 <span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
 </div>
-<button class="flex-shrink-0 w-10 flex items-center justify-center rounded-xl border border-outline-variant text-on-surface-variant hover:bg-surface-container-high transition-colors" id="joinAnotherBtn" title="Join another class">
+<button class="flex-shrink-0 w-10 flex items-center justify-center hard text-on-surface-variant hover:bg-primary hover:text-on-primary hover:border-primary transition-colors" id="joinAnotherBtn" title="Join another class">
 <span class="material-symbols-outlined text-[18px]">add</span>
 </button>
 </div>
 </div>
-<button class="w-full bg-primary text-on-primary font-label-md text-label-md py-3 px-4 rounded-xl mb-stack-md flex items-center justify-center gap-2 hover:opacity-90 transition-opacity" id="newChatBtn">
-<span class="material-symbols-outlined text-lg">add</span> New Chat
+<button class="kbtn w-full mb-stack-md" id="newChatBtn">
+<span><span class="material-symbols-outlined text-lg align-middle">add</span> New chat</span>
 </button>
-<a class="hidden w-full mb-stack-md flex items-center gap-3 px-4 py-2.5 text-on-surface-variant hover:bg-surface-container-high rounded-xl font-label-md text-label-md transition-colors border border-outline-variant" href="teacherknowledge.html" id="teacherBackLink">
+<a class="hidden w-full mb-stack-md items-center gap-3 px-4 py-2.5 hard text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="teacherknowledge.html" id="teacherBackLink">
 <span class="material-symbols-outlined text-[18px]">arrow_back</span> Teacher panel
 </a>
-<p class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider px-2 mb-2">Conversations</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant px-1 mb-2">Conversations</p>
 <div class="flex-1 overflow-y-auto chat-scroll -mx-1 px-1 space-y-1" id="chatList"></div>
-<div class="mt-auto pt-stack-md border-t border-outline-variant">
+<div class="mt-auto pt-stack-md" style="border-top:2px solid var(--c-edge)">
 <div class="flex items-center justify-between mb-2">
-<span class="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant min-w-0">
+<span class="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant min-w-0 normal-case tracking-normal">
 <span class="material-symbols-outlined text-[18px] flex-shrink-0">account_circle</span>
 <span class="truncate" id="userEmail" title="">…</span>
 </span>
-<span class="flex items-center gap-1 flex-shrink-0">
-<button aria-label="How this works" class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="tutHelp" title="How this works">
+<span class="flex items-center gap-0.5 flex-shrink-0">
+<button aria-label="How this works" class="ibtn" id="tutHelp" title="How this works">
 <span class="material-symbols-outlined text-[18px]">help</span>
 </button>
-<button class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" data-theme-toggle="" title="Switch to dark mode">
+<button class="ibtn" data-theme-toggle="" title="Switch to dark mode">
 <span class="material-symbols-outlined text-[18px]">dark_mode</span>
 </button>
-<button class="w-8 h-8 flex items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors" id="logoutBtn" title="Sign out">
+<button class="ibtn" id="logoutBtn" title="Sign out">
 <span class="material-symbols-outlined text-[18px]">logout</span>
 </button>
 </span>
 </div>
 <span class="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
-<span class="w-2 h-2 rounded-full bg-outline" id="statusDot"></span>
+<span class="w-2.5 h-2.5 bg-outline" id="statusDot"></span>
 <span id="statusText">Checking…</span>
 </span>
 </div>
@@ -194,12 +266,9 @@
 <!-- Main -->
 <main class="flex-1 flex md:ml-64 h-full relative">
 <!-- Mobile header -->
-<header class="md:hidden fixed top-0 w-full bg-surface-container-lowest border-b border-outline-variant h-16 flex items-center justify-between px-margin-mobile z-20">
-<div class="flex items-center gap-2">
-<span class="w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center"><span class="material-symbols-outlined text-[18px] fill">schema</span></span>
-<h1 class="font-headline-md text-headline-md font-bold text-on-background">Chronos</h1>
-</div>
-<button class="bg-primary text-on-primary rounded-full w-10 h-10 flex items-center justify-center" id="newChatBtnMobile">
+<header class="md:hidden fixed top-0 w-full bg-surface-container-lowest h-16 flex items-center justify-between px-margin-mobile z-20" style="border-bottom:3px solid var(--crimson)">
+<h1 class="font-headline-md text-headline-md text-on-background">Chronos<span class="text-primary">.</span></h1>
+<button class="w-10 h-10 flex items-center justify-center bg-primary text-on-primary" id="newChatBtnMobile">
 <span class="material-symbols-outlined text-lg">add</span>
 </button>
 </header>
@@ -211,13 +280,13 @@
 </div>
 <!-- Input -->
 <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-background via-background to-transparent pt-10 pb-gutter px-gutter">
-<div class="max-w-3xl mx-auto bg-surface-container-lowest border border-outline-variant rounded-xl p-2 flex items-end shadow-sm focus-within:border-primary transition-colors">
+<div class="composer max-w-3xl mx-auto p-2 flex items-end">
 <textarea class="w-full bg-transparent border-none focus:ring-0 resize-none max-h-32 min-h-[44px] py-3 px-3 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant" id="input" placeholder="Ask a question…" rows="1"></textarea>
-<button class="p-2 m-1 bg-secondary text-on-secondary rounded-lg hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-default flex-shrink-0 flex items-center justify-center" id="sendBtn">
+<button class="p-2.5 m-1 bg-secondary text-on-secondary hover:bg-primary hover:text-on-primary transition-colors disabled:opacity-40 disabled:cursor-default flex-shrink-0 flex items-center justify-center" id="sendBtn">
 <span class="material-symbols-outlined fill">send</span>
 </button>
 </div>
-<p class="text-center mt-2 font-label-sm text-[11px] text-on-surface-variant">Answers are grounded in your teacher's knowledge base · Enter to send, Shift+Enter for a new line</p>
+<p class="text-center mt-3 font-label-sm text-label-sm text-on-surface-variant">Answers come from your teacher&rsquo;s material &middot; Enter to send, Shift+Enter for a new line</p>
 </div>
 </section>
 
@@ -227,6 +296,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
 <script src="theme.js"></script>
+<script src="transition.js"></script>
 <script>
   // Backend base (same-origin in deployment; dev server via Live Server/file://).
   // Chronos.BASE comes from auth.js and uses the same detection.
@@ -323,7 +393,7 @@
     chats.forEach(c=>{
       const on=c.id===activeChatId;
       const row=document.createElement("div");
-      row.className="group flex items-center rounded-xl transition-colors "+(on?"bg-secondary-container text-on-secondary-container":"text-on-surface-variant hover:bg-surface-container-high");
+      row.className="group chat-row"+(on?" on":"");
       const it=document.createElement("button");
       it.className="flex-1 min-w-0 text-left px-3 py-2.5 font-label-md text-label-md truncate";
       it.textContent=c.title;
@@ -344,9 +414,9 @@
     if(!c||c.messages.length===0){
       const e=document.createElement("div");
       e.className="flex flex-col items-center text-center mt-24 px-6";
-      e.innerHTML='<div class="w-14 h-14 rounded-2xl bg-secondary-container text-on-secondary-container flex items-center justify-center mb-4"><span class="material-symbols-outlined text-[28px] fill">robot_2</span></div>'+
-        '<h2 class="font-headline-md text-headline-md text-on-background mb-2">Ask your Tutor</h2>'+
-        '<p class="font-body-md text-body-md text-on-surface-variant max-w-sm">Answers are grounded only in your teacher’s rules and uploaded materials.</p>';
+      e.innerHTML='<div class="w-16 h-16 bg-primary text-on-primary flex items-center justify-center mb-5" style="box-shadow:6px 6px 0 var(--c-edge)"><span class="material-symbols-outlined text-[30px] fill">forum</span></div>'+
+        '<h2 class="font-headline-md text-headline-md text-on-background mb-2">Ask away 👋</h2>'+
+        '<p class="font-body-md text-body-md text-on-surface-variant max-w-sm">Everything here comes out of what your teacher uploaded. If it’s not in there, you’ll get told that rather than a made up answer.</p>';
       els.messagesInner.appendChild(e);
       return;
     }
@@ -356,19 +426,18 @@
 
   function buildMsgEl(m){
     if(m.role==="student"){
-      const w=document.createElement("div");w.className="flex flex-col items-end mb-stack-lg";
+      const w=document.createElement("div");w.className="flex flex-col items-end mb-stack-lg pr-1.5";
       const b=document.createElement("div");
-      b.className="max-w-[85%] bg-primary text-on-primary rounded-2xl rounded-tr-sm px-5 py-4 font-body-md text-body-md shadow-sm whitespace-pre-wrap break-words";
+      b.className="bub-you";
       b.textContent=m.content;
       w.appendChild(b);return w;
     }
-    const w=document.createElement("div");w.className="flex flex-col items-start mb-stack-lg";
-    const label=document.createElement("div");label.className="flex items-center gap-2 mb-2 ml-1";
-    label.innerHTML='<span class="material-symbols-outlined text-secondary text-sm fill">robot_2</span>'+
-      '<span class="font-label-sm text-label-sm text-secondary">Chronos</span>'+
-      '<span class="flex items-center gap-1 bg-secondary-container text-on-secondary-container px-2 py-0.5 rounded-full"><span class="material-symbols-outlined text-[12px]">verified</span><span class="font-label-sm text-[10px]">Grounded in Knowledge Base</span></span>';
+    const w=document.createElement("div");w.className="flex flex-col items-start mb-stack-lg pl-0.5";
+    const label=document.createElement("div");label.className="flex items-center gap-2 mb-2";
+    label.innerHTML='<span class="tagline text-primary">Chronos</span>'+
+      '<span class="inline-flex items-center gap-1 bg-secondary text-on-secondary px-2 py-0.5"><span class="material-symbols-outlined text-[12px]">verified</span><span class="tagline">Grounded</span></span>';
     const b=document.createElement("div");
-    b.className="ai-prose max-w-[85%] bg-surface-container-low border border-outline-variant rounded-2xl rounded-tl-sm px-5 py-4 font-body-md text-body-md text-on-surface break-words";
+    b.className="ai-prose bub-ai";
     if(m.content){b.innerHTML=renderMarkdown(m.content);}
     w.appendChild(label);w.appendChild(b);
     // Sources are teacher-only: students never see the underlying material,
@@ -381,18 +450,20 @@
   // that expands to the exact passages the tutor drew on. Hidden from students.
   function buildSourcesDropdown(rules){
     const d=document.createElement("details");
-    d.className="src-drop mt-2 ml-1 max-w-[85%] bg-surface-container-low border border-outline-variant rounded-lg";
+    d.className="src-drop mt-3 max-w-[85%]";
     const s=document.createElement("summary");
-    s.className="cursor-pointer select-none px-3 py-2 font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1.5";
+    s.className="cursor-pointer select-none px-3 py-2 tagline flex items-center gap-1.5";
     s.innerHTML='<span class="material-symbols-outlined text-[16px]">menu_book</span>'+
       '<span>Sources used ('+rules.length+')</span>'+
       '<span class="material-symbols-outlined text-[18px] ml-auto chev transition-transform">expand_more</span>';
     d.appendChild(s);
     const body=document.createElement("div");
-    body.className="px-3 pb-3 space-y-1.5 border-t border-outline-variant";
+    body.className="px-3 pb-3 space-y-1.5";
+    body.style.borderTop="2px solid var(--gold)";
     rules.forEach(x=>{
       const ln=document.createElement("p");
-      ln.className="font-label-sm text-label-sm text-on-surface-variant leading-snug pt-1.5";
+      ln.className="font-body-md text-[13px] leading-snug pt-2";
+      ln.style.color="var(--c-sub)";
       ln.textContent=x;
       body.appendChild(ln);
     });
@@ -464,9 +535,9 @@
   function setSending(on){els.sendBtn.disabled=on;els.input.disabled=on;if(!on)els.input.focus();}
 
   function setStatus(state){
-    if(state==="online"){els.statusDot.className="w-2 h-2 rounded-full bg-secondary";els.statusText.textContent="Online";}
-    else if(state==="waking"){els.statusDot.className="w-2 h-2 rounded-full bg-[#c79a3c] animate-pulse";els.statusText.textContent="Waking server…";}
-    else{els.statusDot.className="w-2 h-2 rounded-full bg-error";els.statusText.textContent="Offline";}
+    if(state==="online"){els.statusDot.className="w-2.5 h-2.5 bg-secondary";els.statusText.textContent="Online";}
+    else if(state==="waking"){els.statusDot.className="w-2.5 h-2.5 bg-secondary animate-pulse";els.statusText.textContent="Waking server…";}
+    else{els.statusDot.className="w-2.5 h-2.5 bg-error";els.statusText.textContent="Offline";}
   }
 
   async function checkServer(){
@@ -489,8 +560,8 @@
   els.newChatBtnMobile.onclick=newChat;
   els.input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}});
   els.input.addEventListener("input",()=>{els.input.style.height="auto";els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";});
-  $s("logoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}location.replace("login.html?role=student");};
-  $s("joinLogoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}location.replace("login.html?role=student");};
+  $s("logoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("login.html?role=student",true);};
+  $s("joinLogoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("login.html?role=student",true);};
   $s("classSwitcher").onchange=e=>switchClass(e.target.value);
   $s("joinAnotherBtn").onclick=()=>showJoinGate();
   $s("joinBtn").onclick=submitJoin;
@@ -550,15 +621,15 @@
   // Base to create one instead of showing the student join-code box.
   function showTeacherNoClassGate(){
     $s("joinCard").innerHTML=
-      '<div class="w-14 h-14 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center mx-auto mb-stack-md">'+
+      '<div class="w-14 h-14 bg-secondary text-on-secondary flex items-center justify-center mx-auto mb-stack-md">'+
         '<span class="material-symbols-outlined text-[28px]">school</span></div>'+
-      '<h1 class="font-headline-md text-headline-md text-on-background mb-1">Create a class first</h1>'+
-      '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You don’t have any classes yet. Create one in the Knowledge Base to start using the tutor with your own material.</p>'+
-      '<a class="w-full inline-flex items-center justify-center gap-2 py-3 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity" href="teacherknowledge.html">'+
-        '<span class="material-symbols-outlined text-[18px]">add</span> Go to Knowledge Base</a>'+
+      '<h1 class="font-headline-md text-headline-md text-on-background mb-2">Make a class first 🎒</h1>'+
+      '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You haven’t got any classes yet. Set one up in the Knowledge Base and you can try the tutor on your own material.</p>'+
+      '<a class="kbtn w-full" href="teacherknowledge.html"><span>'+
+        '<span class="material-symbols-outlined text-[18px] align-middle">add</span> Go to Knowledge Base</span></a>'+
       '<button class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" id="teacherGateLogout">Sign out</button>';
     const out=$s("teacherGateLogout");
-    if(out)out.onclick=async()=>{try{await Chronos.logout();}catch(e){}location.replace("login.html?role=teacher");};
+    if(out)out.onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("login.html?role=teacher",true);};
     $s("joinGate").classList.remove("hidden");
   }
 
@@ -586,9 +657,9 @@
     IS_TEACHER=info.role==="teacher";
     const em=$s("userEmail");em.textContent=info.email||"Account";em.title=info.email||"";
     // Reflect the signed-in role: a teacher trying the tutor isn't in "Student Mode".
-    const ml=$s("modeLabel");if(ml)ml.textContent=IS_TEACHER?"Teacher Mode":"Student Mode";
+    const ml=$s("modeLabel");if(ml)ml.textContent=IS_TEACHER?"Teacher mode":"Student mode";
     // Show a way back to the teacher panels when a teacher is using the tutor.
-    if(IS_TEACHER){$s("teacherBackLink").classList.remove("hidden");}
+    if(IS_TEACHER){$s("teacherBackLink").classList.remove("hidden");$s("teacherBackLink").classList.add("flex");}
     $s("authGate").remove();
     const hasClass=await loadClasses();
     if(!hasClass){ info.role==="teacher" ? showTeacherNoClassGate() : showJoinGate(); }
@@ -605,28 +676,25 @@
 </script>
 
 <!-- How-it-works tutorial -->
-<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile bg-black/40 backdrop-blur-sm" id="tut">
-<div class="w-full max-w-md bg-surface-container-lowest border border-outline-variant rounded-xl shadow-xl p-stack-lg max-h-[85vh] overflow-y-auto">
+<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile" style="background:rgba(11,11,12,.72)" id="tut">
+<div class="w-full max-w-md bg-surface-container-lowest hard cast-red p-stack-lg max-h-[85vh] overflow-y-auto">
 <div class="flex items-start justify-between gap-3 mb-stack-md">
-<div class="flex items-center gap-3">
-<span class="w-10 h-10 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined">waving_hand</span></span>
 <h2 class="font-headline-md text-headline-md text-on-background" id="tutTitle"></h2>
-</div>
-<button class="text-on-surface-variant hover:text-primary transition-colors flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
+<button class="ibtn flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
 </div>
 <div class="space-y-stack-md" id="tutBody"></div>
 <div class="flex items-center justify-center gap-1.5 mt-stack-md" id="tutDots"></div>
-<button class="mt-stack-lg w-full py-2.5 bg-primary text-on-primary rounded-lg font-label-md text-label-md hover:opacity-90 transition-opacity" id="tutDone">Continue</button>
+<button class="kbtn w-full mt-stack-lg" id="tutDone"><span>Continue</span></button>
 </div>
 </div>
 <script>
   (function(){
-    const TITLE="Welcome to your tutor";
+    const TITLE="Quick tour 👋";
     const KEY="chronos_tut_student_v2";
     const STEPS=[
-      {icon:"school",title:"Pick your class",text:"Use the class menu on the left to choose what you're asking about. Each class only knows what that teacher put in it."},
-      {icon:"forum",title:"Just ask",text:"Type a question and press Enter. Answers come straight from your teacher's notes and files, so the tutor does not make things up."},
-      {icon:"flag",title:"If it's not there, it'll say so",text:"Asked something your teacher hasn't covered? The tutor tells you instead of guessing. Worth a quick heads up to your teacher so they can add it."},
+      {icon:"school",title:"Pick your class 📚",text:"Use the class menu on the left. Each class only knows what that teacher put into it, so make sure you're on the right one."},
+      {icon:"forum",title:"Just ask 💬",text:"Type your question and hit Enter. Answers come straight out of your teacher's notes and files, so it isn't making things up."},
+      {icon:"flag",title:"If it's not there, it'll say so 🤷",text:"Asked something your teacher hasn't covered yet? You'll get told, not fobbed off with a guess. Worth mentioning to them so they can add it."},
     ];
     let idx=0;
     const body=document.getElementById("tutBody");
@@ -637,16 +705,16 @@
     function render(){
       const s=STEPS[idx];
       body.innerHTML='<div class="flex items-start gap-3">'+
-        '<span class="w-8 h-8 flex-shrink-0 rounded-lg bg-surface-container text-secondary flex items-center justify-center border border-outline-variant"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
-        '<div><h3 class="font-label-md text-label-md text-on-surface mb-0.5">'+s.title+'</h3>'+
+        '<span class="w-10 h-10 flex-shrink-0 bg-primary text-on-primary flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
+        '<div><h3 class="font-label-md text-label-md text-on-surface mb-0.5" style="font-family:\'IBM Plex Sans\',sans-serif;text-transform:none">'+s.title+'</h3>'+
         '<p class="font-body-md text-body-md text-on-surface-variant leading-snug">'+s.text+'</p></div></div>';
       dots.innerHTML="";
       STEPS.forEach((_,i)=>{
         const d=document.createElement("span");
-        d.className="h-1.5 rounded-full transition-all "+(i===idx?"w-5 bg-primary":"w-1.5 bg-outline-variant");
+        d.className="h-2 transition-all "+(i===idx?"w-6 bg-primary":"w-2 bg-outline");
         dots.appendChild(d);
       });
-      doneBtn.textContent = idx===STEPS.length-1 ? "Got it" : "Continue";
+      doneBtn.querySelector("span").textContent = idx===STEPS.length-1 ? "Got it" : "Continue";
     }
 
     const modal=document.getElementById("tut");

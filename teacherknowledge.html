@@ -4,77 +4,141 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
 <title>Chronos | Knowledge Base</title>
+<link href="transition.css" rel="stylesheet"/>
+<script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;family=Crimson+Pro:wght@400;500;600;700&amp;family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600;700&amp;family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
   tailwind.config = {
     darkMode: "class",
     theme: { extend: {
-      colors: { "primary": "#6366F1", "background-dark": "#0A0A0F", "surface": "#181825", "muted": "#94A3B8", "accent": "#059669" },
-      fontFamily: { "display": ["Crimson Pro","serif"], "body": ["Hanken Grotesk","sans-serif"], "mono": ["JetBrains Mono","monospace"] },
-      borderRadius: { "DEFAULT": "0.5rem", "sm": "0.375rem", "lg": "0.75rem", "xl": "1rem", "full": "9999px" },
+      colors: {
+        // shared Chronos tokens
+        "void":"#0B0B0C", "paper":"#F7F4EC", "page":"#E9E4D6", "crimson":"#E2001A",
+        "ink":"#141311", "gold":"#C9A227", "steel":"#4B4A46", "edge":"#1C1A16", "hi":"#E4DECD",
+        // legacy names this page's runtime-built class strings still use — same values
+        "primary":"#E2001A", "background-dark":"#E9E4D6", "surface":"#F7F4EC",
+        "muted":"#4B4A46", "accent":"#C9A227"
+      },
+      fontFamily: { "display": ["Anton","sans-serif"], "body": ["IBM Plex Sans","sans-serif"], "mono": ["IBM Plex Mono","monospace"] },
+      borderRadius: { "DEFAULT": "0", "sm": "0", "lg": "0", "xl": "0", "full": "0" },
     } }
   }
 </script>
 <style>
-  body { font-family: 'Hanken Grotesk', sans-serif; background-color: #0A0A0F; color: #F1F5F9; }
-  h1,h2,h3,h4 { font-family: 'Crimson Pro', serif; }
-  .font-mono { font-family: 'JetBrains Mono', monospace; }
-  .glass-panel { background-color: rgba(24,24,37,.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-  .border-subtle { border: 1px solid rgba(255,255,255,.08); }
-  .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+  :root{--page:#E9E4D6;--paper:#F7F4EC;--ink:#141311;--sub:#4B4A46;--edge:#1C1A16;--hi:#E4DECD;
+        --crimson:#E2001A;--gold:#C9A227;--snap:cubic-bezier(.2,1.45,.35,1)}
+  html.dark{--page:#0B0B0C;--paper:#141317;--ink:#F7F4EC;--sub:#A9A499;--edge:#3A3A3E;--hi:#1E1E23;color-scheme:dark}
+  body { font-family:'IBM Plex Sans',sans-serif; background:var(--page); color:var(--ink); }
+  h1,h2,h3,h4 { font-family:'Anton',sans-serif; text-transform:uppercase; letter-spacing:.005em; font-weight:400; }
+  ::selection { background:var(--crimson); color:#F7F4EC; }
+  :focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
+  .material-symbols-outlined { font-family:'Material Symbols Sharp'; }
+  .font-mono { font-family:'IBM Plex Mono',monospace; }
+  /* custom components below set display; keep Tailwind's hidden authoritative */
+  .hidden { display:none !important; }
+  .lbl { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; }
+
+  /* structural surfaces — replaces the old glass/blur panels */
+  .panel { background:var(--paper); border:2px solid var(--edge); }
+  .cast { box-shadow:6px 6px 0 var(--edge); }
+  .cast-red { box-shadow:6px 6px 0 var(--crimson); }
+  .rule-line { border-bottom:1px solid var(--hi); }
+
+  .custom-scrollbar::-webkit-scrollbar { width: 8px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #3e3d52; border-radius: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--edge); }
   .spin { animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* nav */
+  .nav-item { position:relative; display:flex; align-items:center; gap:.75rem; padding:.7rem .85rem;
+    border-left:3px solid transparent; color:var(--sub); overflow:hidden;
+    transition:color .18s,background-color .18s,border-color .2s var(--snap) }
+  .nav-item > * { position:relative; z-index:2 }
+  .nav-item::before { content:""; position:absolute; inset:0; background:var(--crimson);
+    transform:translateX(-102%); transition:transform .3s var(--snap); z-index:1 }
+  .nav-item:hover::before { transform:translateX(0) }
+  .nav-item:hover { color:#F7F4EC }
+  .nav-item.on { border-left-color:var(--crimson); background:var(--hi); color:var(--ink); font-weight:600 }
+
+  /* buttons */
+  .kbtn { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:700; letter-spacing:.13em;
+    text-transform:uppercase; padding:.65rem 1rem; border:2px solid var(--crimson); background:var(--crimson);
+    color:#F7F4EC; overflow:hidden; cursor:pointer; transition:transform .14s var(--snap) }
+  .kbtn > * { position:relative; z-index:2 }
+  .kbtn::before { content:""; position:absolute; inset:-2px -30%; background:var(--edge);
+    transform:translateX(-115%) skewX(-16deg); transition:transform .36s var(--snap); z-index:1 }
+  .kbtn:hover:not(:disabled)::before { transform:translateX(0) skewX(-16deg) }
+  .kbtn:active:not(:disabled) { transform:translate(2px,2px) }
+  .kbtn:disabled { opacity:.5; cursor:default }
+  .kbtn-ghost { background:transparent; border-color:var(--edge); color:var(--ink) }
+  .kbtn-ghost::before { background:var(--crimson) }
+  .kbtn-ghost:hover:not(:disabled) { color:#F7F4EC; border-color:var(--crimson) }
+
+  .ibtn { width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+    border:2px solid transparent; color:var(--sub);
+    transition:background-color .18s,color .18s,border-color .18s,transform .2s var(--snap) }
+  .ibtn:hover { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC; transform:rotate(-6deg) }
+
+  /* fields */
+  .fld { background:var(--paper); border:2px solid var(--edge); color:var(--ink); border-radius:0;
+    transition:box-shadow .18s,border-color .18s }
+  .fld:focus { outline:none; border-color:var(--crimson); box-shadow:4px 4px 0 var(--crimson) }
+  .fld::placeholder { color:var(--sub); opacity:.65 }
+
+  /* dropzone */
+  .dz { border:3px dashed var(--edge); background:var(--paper); cursor:pointer;
+    transition:border-color .2s,transform .22s var(--snap),box-shadow .22s }
+  .dz:hover, .dz.hot { border-color:var(--crimson); transform:translate(-3px,-3px); box-shadow:8px 8px 0 var(--crimson) }
+
+  /* code pill */
+  .codepill { align-items:center; gap:.4rem; background:var(--gold); color:#0B0B0C;
+    padding:.5rem .75rem; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; letter-spacing:.14em }
 </style>
 <link href="theme.css" rel="stylesheet"/>
 </head>
-<body class="bg-background-dark min-h-screen">
+<body class="min-h-screen">
+
+<div class="px" aria-hidden="true"><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><span class="px-mark"><span class="px-tag">Chronos</span></span></div>
 
 <!-- Auth loading gate -->
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-background-dark" id="gate">
-<span class="material-symbols-outlined text-muted text-3xl spin">progress_activity</span>
+<div class="fixed inset-0 z-50 flex items-center justify-center" style="background:var(--page)" id="gate">
+<span class="material-symbols-outlined text-3xl spin" style="color:var(--sub)">progress_activity</span>
 </div>
 
 <!-- App -->
 <div class="hidden min-h-screen flex overflow-hidden" id="app">
 
 <!-- Sidebar -->
-<div class="relative hidden md:flex h-screen w-[250px] flex-col glass-panel border-r border-subtle shrink-0 z-20">
+<div class="relative hidden md:flex h-screen w-[250px] flex-col shrink-0 z-20" style="background:var(--paper);border-right:3px solid var(--crimson)">
 <div class="flex h-full flex-col justify-between p-4">
 <div class="flex flex-col gap-6">
-<a class="flex gap-3 items-center mt-2 px-2" href="landing.html">
-<div class="size-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
-<span class="material-symbols-outlined text-primary" style="font-variation-settings:'FILL' 1;">schema</span>
-</div>
-<div class="flex flex-col">
-<h1 class="text-[#F1F5F9] text-base font-bold leading-normal">Chronos</h1>
-<p class="text-muted text-xs font-mono leading-normal">Teacher Portal</p>
-</div>
+<a class="flex flex-col mt-2 px-2" href="landing.html">
+<h1 class="text-[26px] leading-none">Chronos<span class="text-crimson">.</span></h1>
+<p class="lbl mt-1" style="color:var(--sub)">Teacher portal</p>
 </a>
-<div class="flex flex-col gap-2 mt-4">
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-sm bg-surface border-l-2 border-primary" href="teacherknowledge.html">
-<span class="material-symbols-outlined text-[#F1F5F9] text-[20px]" style="font-variation-settings:'FILL' 1;">menu_book</span>
-<p class="text-[#F1F5F9] text-sm font-bold">Knowledge Base</p>
+<div class="flex flex-col gap-1 mt-4">
+<a class="nav-item on" href="teacherknowledge.html">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings:'FILL' 1;">menu_book</span>
+<p class="text-sm">Knowledge base</p>
 </a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-sm hover:bg-surface/50 transition-colors" href="teacherstats.html">
-<span class="material-symbols-outlined text-muted text-[20px]">analytics</span>
-<p class="text-muted text-sm font-medium">Analytics</p>
+<a class="nav-item" href="teacherstats.html">
+<span class="material-symbols-outlined text-[20px]">analytics</span>
+<p class="text-sm">Analytics</p>
 </a>
-<a class="flex items-center gap-3 px-3 py-2.5 rounded-sm hover:bg-surface/50 transition-colors" href="student.html">
-<span class="material-symbols-outlined text-muted text-[20px]">forum</span>
-<p class="text-muted text-sm font-medium">Student Tutor</p>
+<a class="nav-item" href="student.html">
+<span class="material-symbols-outlined text-[20px]">forum</span>
+<p class="text-sm">Student tutor</p>
 </a>
 </div>
 </div>
-<button class="flex items-center gap-3 px-3 py-3 border-t border-subtle mt-auto text-left hover:bg-surface/40 transition-colors rounded-sm" id="lockBtn" title="Sign out">
-<div class="w-8 h-8 rounded-full bg-surface border border-muted/30 flex items-center justify-center flex-shrink-0">
-<span class="material-symbols-outlined text-muted text-[18px]">account_circle</span>
-</div>
+<button class="flex items-center gap-3 px-3 py-3 mt-auto text-left transition-colors hover:bg-hi" style="border-top:2px solid var(--edge)" id="lockBtn" title="Sign out">
+<span class="material-symbols-outlined text-[20px] flex-shrink-0" style="color:var(--sub)">account_circle</span>
 <div class="flex flex-col min-w-0">
-<p class="text-sm font-medium text-[#F1F5F9] truncate" id="userEmail" title="">…</p>
-<p class="text-xs font-mono text-muted">Log out</p>
+<p class="text-sm font-medium truncate" id="userEmail" title="">…</p>
+<p class="lbl" style="color:var(--sub)">Log out</p>
 </div>
 </button>
 </div>
@@ -83,30 +147,30 @@
 <!-- Main -->
 <main class="flex-1 flex flex-col h-screen overflow-hidden relative">
 <!-- Header -->
-<header class="min-h-20 flex flex-wrap items-center justify-between gap-3 px-6 lg:px-8 py-3 border-b border-subtle shrink-0 bg-background-dark/80 backdrop-blur-md z-10">
+<header class="min-h-20 flex flex-wrap items-center justify-between gap-3 px-6 lg:px-8 py-3 shrink-0 z-10" style="background:var(--paper);border-bottom:3px solid var(--crimson)">
 <div>
-<h2 class="text-[24px] font-bold text-[#F1F5F9]">Knowledge Base</h2>
-<p class="text-sm text-muted mt-1">Everything this class's tutor is allowed to know. Your rules and your documents, nothing else.</p>
+<h2 class="text-[28px] leading-none">Knowledge base</h2>
+<p class="text-sm mt-1.5 max-w-md" style="color:var(--sub)">Everything this class&rsquo;s tutor is allowed to know. Your rules, your documents, and nothing else 🔒</p>
 </div>
 <div class="flex items-center gap-2 flex-wrap">
-<select class="bg-surface border border-subtle rounded-sm text-[#F1F5F9] text-sm font-mono px-3 py-2 max-w-[180px] focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer" id="classSelect" title="Active class"></select>
-<button class="flex items-center gap-1 px-3 py-2 rounded-sm border border-subtle text-muted hover:text-white hover:border-primary/50 text-sm font-mono transition-colors" id="newClassBtn" title="Create a class">
-<span class="material-symbols-outlined text-[18px]">add</span> New class
+<select class="fld text-sm font-mono px-3 py-2 max-w-[180px] outline-none cursor-pointer" id="classSelect" title="Active class"></select>
+<button class="kbtn kbtn-ghost" id="newClassBtn" title="Create a class">
+<span><span class="material-symbols-outlined text-[16px] align-middle">add</span> New class</span>
 </button>
-<span class="hidden items-center gap-1.5 px-3 py-2 rounded-sm bg-primary/10 border border-primary/20 text-primary text-sm font-mono" id="joinCodePill" title="Share this code with students">
+<span class="hidden codepill" id="joinCodePill" title="Share this code with students">
 <span class="material-symbols-outlined text-[16px]">vpn_key</span> <span id="joinCodeVal"></span>
 </span>
-<button class="hidden w-9 h-9 items-center justify-center rounded-sm text-muted hover:text-red-400 hover:bg-surface transition-colors" id="deleteClassBtn" title="Delete this class">
+<button class="hidden ibtn" id="deleteClassBtn" title="Delete this class">
 <span class="material-symbols-outlined text-[20px]">delete</span>
 </button>
-<button aria-label="How this works" class="w-9 h-9 flex items-center justify-center rounded-sm text-muted hover:text-white hover:bg-surface transition-colors" id="tutHelp" title="How this works">
+<button aria-label="How this works" class="ibtn" id="tutHelp" title="How this works">
 <span class="material-symbols-outlined text-[20px]">help</span>
 </button>
-<button class="w-9 h-9 flex items-center justify-center rounded-sm text-muted hover:text-white hover:bg-surface transition-colors" data-theme-toggle="" title="Switch to dark mode">
+<button class="ibtn" data-theme-toggle="" title="Switch to dark mode">
 <span class="material-symbols-outlined text-[20px]">dark_mode</span>
 </button>
-<button class="bg-primary hover:bg-primary/90 text-white text-sm font-medium py-2 px-4 rounded-sm flex items-center gap-2 transition-all shadow-[0_0_10px_rgba(79,70,229,0.2)]" id="uploadHeaderBtn">
-<span class="material-symbols-outlined text-[18px]">upload</span> Upload Source
+<button class="kbtn" id="uploadHeaderBtn">
+<span><span class="material-symbols-outlined text-[16px] align-middle">upload</span> Upload source</span>
 </button>
 </div>
 </header>
@@ -116,78 +180,72 @@
 <!-- Center -->
 <div class="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 lg:p-8 gap-6">
 <!-- Dropzone -->
-<div class="min-h-[180px] border-2 border-dashed border-primary/50 hover:border-primary rounded-sm bg-surface/30 flex flex-col items-center justify-center gap-3 p-6 transition-all hover:bg-surface/50 cursor-pointer text-center" id="dropZone">
-<div class="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-<span class="material-symbols-outlined text-primary text-[28px]">upload_file</span>
-</div>
+<div class="dz min-h-[180px] flex flex-col items-center justify-center gap-3 p-6 text-center" id="dropZone">
+<span class="material-symbols-outlined text-[34px] text-crimson">upload_file</span>
 <div>
-<p class="text-[#F1F5F9] font-medium text-lg">Upload a document</p>
-<p class="text-muted text-sm mt-1">Drag &amp; drop, or <span class="text-primary underline" id="browseLink">browse</span></p>
+<p class="text-lg font-semibold">Drop a document here</p>
+<p class="text-sm mt-1" style="color:var(--sub)">or <span class="text-crimson underline font-semibold" id="browseLink">browse your files</span></p>
 </div>
-<p class="text-xs font-mono text-muted">PDF · DOCX · TXT · MD · CSV</p>
+<p class="lbl" style="color:var(--sub)">PDF &middot; DOCX &middot; TXT &middot; MD &middot; CSV</p>
 <input accept=".pdf,.docx,.txt,.md,.csv" class="hidden" id="fileInput" type="file"/>
 </div>
 <!-- Selected file -->
-<div class="hidden items-center justify-between gap-3 p-3 rounded-sm bg-surface border border-subtle" id="fileInfo">
+<div class="hidden items-center justify-between gap-3 p-3 panel" id="fileInfo">
 <span class="flex items-center gap-2 text-sm min-w-0">
-<span class="material-symbols-outlined text-muted text-[18px] flex-shrink-0">draft</span>
-<span class="truncate text-[#F1F5F9]" id="fileName"></span>
+<span class="material-symbols-outlined text-[18px] flex-shrink-0 text-gold">draft</span>
+<span class="truncate font-medium" id="fileName"></span>
 </span>
 <span class="flex items-center gap-3 flex-shrink-0">
-<span class="text-xs font-mono text-muted" id="fileSize"></span>
-<button class="bg-primary hover:bg-primary/90 text-white text-sm py-1.5 px-4 rounded-sm flex items-center justify-center gap-2 disabled:opacity-40" disabled id="uploadBtn">Upload &amp; extract</button>
+<span class="lbl" style="color:var(--sub)" id="fileSize"></span>
+<button class="kbtn" disabled id="uploadBtn"><span>Upload &amp; extract</span></button>
 </span>
 </div>
 
 <!-- Rules / documents list -->
-<div class="flex-1 flex flex-col bg-surface border border-subtle rounded-sm overflow-hidden">
-<div class="flex flex-wrap items-center gap-3 p-3 border-b border-subtle bg-background-dark/40">
+<div class="flex-1 flex flex-col panel cast overflow-hidden">
+<div class="flex flex-wrap items-center gap-3 p-3" style="border-bottom:2px solid var(--edge)">
 <div class="relative flex-1 min-w-[160px]">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-muted text-[18px]">search</span>
-<input class="w-full bg-background-dark border border-subtle rounded-sm pl-9 pr-3 py-2 text-sm text-[#F1F5F9] focus:border-primary focus:ring-1 focus:ring-primary outline-none placeholder-muted/50" id="searchInput" placeholder="Search knowledge…" type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px]" style="color:var(--sub)">search</span>
+<input class="fld w-full pl-10 pr-3 py-2 text-sm outline-none" id="searchInput" placeholder="Search knowledge…" type="text"/>
 </div>
-<span class="text-xs font-mono text-muted" id="countPill">0 rules</span>
-<button class="flex items-center gap-1 px-2.5 py-2 text-xs font-mono text-muted hover:text-primary transition-colors" id="exportBtn" title="Copy rules for Bulk add">
+<span class="lbl" style="color:var(--sub)" id="countPill">0 rules</span>
+<button class="lbl flex items-center gap-1 px-2 py-2 hover:text-crimson transition-colors" style="color:var(--sub)" id="exportBtn" title="Copy rules for Bulk add">
 <span class="material-symbols-outlined text-[16px]">content_copy</span> Export
 </button>
-<button class="flex items-center gap-1 px-2.5 py-2 text-xs font-mono text-muted hover:text-primary transition-colors" id="refreshBtn">
+<button class="lbl flex items-center gap-1 px-2 py-2 hover:text-crimson transition-colors" style="color:var(--sub)" id="refreshBtn">
 <span class="material-symbols-outlined text-[16px]" id="refreshIcon">refresh</span> Refresh
 </button>
 </div>
-<div class="grid grid-cols-12 gap-4 px-4 py-2.5 border-b border-subtle text-xs font-mono text-muted tracking-wider">
-<div class="col-span-9">CONTENT</div>
-<div class="col-span-3 text-right">TYPE</div>
+<div class="grid grid-cols-12 gap-4 px-4 py-2.5 lbl" style="border-bottom:2px solid var(--edge);background:var(--hi);color:var(--sub)">
+<div class="col-span-9">Content</div>
+<div class="col-span-3 text-right">Type</div>
 </div>
 <div class="flex-1 overflow-y-auto custom-scrollbar" id="rulesList"></div>
-<p class="hidden text-center text-muted text-sm py-12" id="emptyState">No rules yet. Add one on the right to get started.</p>
+<p class="hidden text-center text-sm py-12" style="color:var(--sub)" id="emptyState">Empty shelf 📭 Add a rule on the right, or drag a document into the box above.</p>
 </div>
 </div>
 
 <!-- Right: add to knowledge base -->
-<div class="hidden lg:flex w-[340px] bg-surface border-l border-subtle flex-col shrink-0">
-<div class="p-5 border-b border-subtle">
-<h3 class="text-lg font-bold text-[#F1F5F9] flex items-center gap-2">
-<span class="material-symbols-outlined text-primary text-[20px]">gavel</span> Add a rule
-</h3>
-<p class="text-xs text-muted mt-1">Short instructions or facts the tutor must follow.</p>
+<div class="hidden lg:flex w-[340px] flex-col shrink-0" style="background:var(--paper);border-left:3px solid var(--edge)">
+<div class="p-5" style="border-bottom:2px solid var(--edge)">
+<h3 class="text-[20px] leading-none">Add a rule</h3>
+<p class="text-xs mt-2" style="color:var(--sub)">Short instructions or facts the tutor has to stick to.</p>
 </div>
 <div class="flex-1 p-5 overflow-y-auto custom-scrollbar flex flex-col gap-4">
 <div class="flex flex-col gap-2">
-<label class="text-xs font-mono text-muted uppercase tracking-wider" for="ruleId">Optional ID</label>
-<input class="w-full bg-background-dark border border-subtle rounded-sm p-2.5 text-sm font-mono text-[#F1F5F9] focus:border-primary focus:ring-1 focus:ring-primary outline-none placeholder-muted/40" id="ruleId" placeholder="rule_no_homework_answers" type="text"/>
+<label class="lbl" style="color:var(--sub)" for="ruleId">Optional ID</label>
+<input class="fld w-full p-2.5 text-sm font-mono outline-none" id="ruleId" placeholder="rule_no_homework_answers" type="text"/>
 </div>
 <div class="flex flex-col gap-2">
-<label class="text-xs font-mono text-muted uppercase tracking-wider" for="ruleText">Rule / document text</label>
-<textarea class="w-full h-40 bg-background-dark border border-subtle rounded-sm p-3 text-sm text-[#F1F5F9] focus:border-primary focus:ring-1 focus:ring-primary resize-none outline-none placeholder-muted/40" id="ruleText" placeholder="e.g. The tutor may explain concepts but must NOT complete assignments for students."></textarea>
+<label class="lbl" style="color:var(--sub)" for="ruleText">Rule / document text</label>
+<textarea class="fld w-full h-40 p-3 text-sm resize-none outline-none" id="ruleText" placeholder="e.g. The tutor may explain concepts but must NOT complete assignments for students."></textarea>
 </div>
 <div class="flex flex-col gap-2">
-<button class="w-full bg-primary hover:bg-primary/90 text-white text-sm font-medium py-2.5 rounded-sm transition-all flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(79,70,229,0.2)]" id="addBtn">
-<span class="material-symbols-outlined text-[18px]">add</span> Add rule
-</button>
-<button class="w-full border border-subtle hover:border-primary/50 text-muted hover:text-white text-sm font-mono py-2.5 rounded-sm transition-colors" id="bulkBtn">Bulk add (one per line)</button>
+<button class="kbtn w-full" id="addBtn"><span><span class="material-symbols-outlined text-[16px] align-middle">add</span> Add rule</span></button>
+<button class="kbtn kbtn-ghost w-full" id="bulkBtn"><span>Bulk add (one per line)</span></button>
 </div>
-<div class="text-xs text-muted leading-relaxed bg-background-dark border border-subtle rounded-sm p-3">
-<span class="text-[#F1F5F9] font-medium">Writing good rules:</span> be explicit and self-contained. One focused idea per rule works best.
+<div class="text-xs leading-relaxed p-3" style="color:var(--sub);border:2px solid var(--edge);border-left:4px solid var(--gold)">
+<span class="font-bold" style="color:var(--ink)">💡 Tip:</span> write each rule so it makes sense on its own. One idea per rule beats one long paragraph.
 </div>
 </div>
 </div>
@@ -202,6 +260,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
 <script src="theme.js"></script>
+<script src="transition.js"></script>
 <script>
   const BASE=Chronos.BASE;
   let RULES=[],CLASSES=[],ACTIVE_CLASS=null;
@@ -212,14 +271,15 @@
   function showToast(msg,ok){
     const t=$("toast");
     t.textContent=msg;
-    t.className="fixed bottom-6 right-6 z-[60] max-w-sm px-4 py-3 rounded-sm shadow-lg text-sm flex items-center gap-2 border "+
-      (ok?"bg-accent/15 text-accent border-accent/30":"bg-red-500/15 text-red-400 border-red-500/30");
+    t.className="fixed bottom-6 right-6 z-[60] max-w-sm px-4 py-3 text-sm font-medium flex items-center gap-2";
+    t.style.cssText="background:var(--paper);color:var(--ink);border:2px solid "+(ok?"var(--gold)":"var(--crimson)")+
+      ";box-shadow:6px 6px 0 "+(ok?"var(--gold)":"var(--crimson)")+";border-left-width:6px";
     clearTimeout(showToast._t);
-    showToast._t=setTimeout(()=>{t.className="hidden";},4000);
+    showToast._t=setTimeout(()=>{t.className="hidden";t.style.cssText="";},4000);
   }
 
   async function api(path,body){ return Chronos.apiJson(path,body||{}); }
-  async function lock(){ try{await Chronos.logout();}catch(e){} location.replace("login.html?role=teacher"); }
+  async function lock(){ try{await Chronos.logout();}catch(e){} ChronosWipe.go("login.html?role=teacher",true); }
 
   function withClass(body){return Object.assign({},body||{},{class_id:ACTIVE_CLASS});}
   function activeClassObj(){return CLASSES.find(c=>c.id===ACTIVE_CLASS);}
@@ -270,13 +330,13 @@
     $("app").classList.remove("hidden");
     if(window.__tutFirstVisit)window.__tutFirstVisit();
     await loadClasses();
-    if(!ACTIVE_CLASS)showToast("Create your first class to start adding rules.",true);
+    if(!ACTIVE_CLASS)showToast("Make your first class and you can start adding rules 🎒",true);
     loadRules();
   }).catch(e=>{
     // textContent, not innerHTML: this string comes off the wire.
     const g=$("gate");g.textContent="";
     const p=document.createElement("p");
-    p.className="text-red-400 text-center px-6";
+    p.className="text-crimson text-center px-6 font-medium";
     p.textContent=(e&&e.message)||"Sign-in required";
     g.appendChild(p);
   });
@@ -361,20 +421,20 @@
     const shown=RULES.filter(r=>!q||(r.text||"").toLowerCase().includes(q)||(r.id||"").toLowerCase().includes(q));
     $("emptyState").classList.toggle("hidden",RULES.length>0);
     if(RULES.length&&!shown.length){
-      list.innerHTML='<p class="text-center text-muted text-sm py-8">No rules match your search.</p>';
+      list.innerHTML='<p class="text-center text-sm py-8" style="color:var(--sub)">No rules match your search.</p>';
       return;
     }
     shown.forEach(r=>{
       const isFile=String(r.id||"").startsWith("file_");
       const row=document.createElement("div");
-      row.className="grid grid-cols-12 gap-4 px-4 py-3 border-b border-white/5 items-center hover:bg-background-dark/40 transition-colors group";
+      row.className="grid grid-cols-12 gap-4 px-4 py-3 rule-line items-center transition-colors group hover:bg-hi";
       const name=document.createElement("div"); name.className="col-span-9 flex items-center gap-3 min-w-0";
-      const ico=document.createElement("span"); ico.className="material-symbols-outlined text-[18px] flex-shrink-0 "+(isFile?"text-accent":"text-primary"); ico.textContent=isFile?"description":"gavel";
-      const txt=document.createElement("span"); txt.className="text-sm text-[#F1F5F9] truncate"; txt.textContent=r.text; txt.title=r.text;
+      const ico=document.createElement("span"); ico.className="material-symbols-outlined text-[18px] flex-shrink-0 "+(isFile?"text-gold":"text-crimson"); ico.textContent=isFile?"description":"gavel";
+      const txt=document.createElement("span"); txt.className="text-sm truncate"; txt.textContent=r.text; txt.title=r.text;
       name.appendChild(ico); name.appendChild(txt);
       const right=document.createElement("div"); right.className="col-span-3 flex items-center justify-end gap-3";
-      const tag=document.createElement("span"); tag.className="hidden sm:inline text-[11px] font-mono uppercase "+(isFile?"text-accent":"text-muted"); tag.textContent=isFile?"Document":"Rule";
-      const del=document.createElement("button"); del.className="text-muted hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"; del.title="Delete"; del.onclick=()=>delRule(r.id);
+      const tag=document.createElement("span"); tag.className="hidden sm:inline lbl "+(isFile?"text-gold":"text-steel"); tag.textContent=isFile?"Document":"Rule";
+      const del=document.createElement("button"); del.className="hover:text-crimson transition-colors opacity-0 group-hover:opacity-100"; del.style.color="var(--sub)"; del.title="Delete"; del.onclick=()=>delRule(r.id);
       del.innerHTML='<span class="material-symbols-outlined text-[18px]">delete</span>';
       right.appendChild(tag); right.appendChild(del);
       row.appendChild(name); row.appendChild(right);
@@ -411,8 +471,8 @@
 
   function setUploadBtn(busy){
     const b=$("uploadBtn");
-    if(busy){ b.disabled=true; b.innerHTML='<span class="material-symbols-outlined text-[16px] spin">progress_activity</span>Extracting…'; }
-    else{ b.disabled=false; b.textContent="Upload & extract"; }
+    if(busy){ b.disabled=true; b.innerHTML='<span><span class="material-symbols-outlined text-[16px] spin align-middle">progress_activity</span> Extracting…</span>'; }
+    else{ b.disabled=false; b.innerHTML='<span>Upload &amp; extract</span>'; }
   }
 
   async function uploadFile(){
@@ -457,36 +517,33 @@
   $("browseLink").onclick=e=>{e.stopPropagation();$("fileInput").click();};
   $("fileInput").addEventListener("change",()=>pickFile($("fileInput").files[0]));
   $("dropZone").addEventListener("click",()=>$("fileInput").click());
-  $("dropZone").addEventListener("dragover",e=>{e.preventDefault();$("dropZone").classList.add("border-primary","bg-surface/50");});
-  $("dropZone").addEventListener("dragleave",()=>$("dropZone").classList.remove("border-primary","bg-surface/50"));
-  $("dropZone").addEventListener("drop",e=>{e.preventDefault();$("dropZone").classList.remove("border-primary","bg-surface/50");const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)pickFile(f);});
+  $("dropZone").addEventListener("dragover",e=>{e.preventDefault();$("dropZone").classList.add("hot");});
+  $("dropZone").addEventListener("dragleave",()=>$("dropZone").classList.remove("hot"));
+  $("dropZone").addEventListener("drop",e=>{e.preventDefault();$("dropZone").classList.remove("hot");const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)pickFile(f);});
   ["dragover","drop"].forEach(ev=>window.addEventListener(ev,e=>{if(e.target!==$("fileInput"))e.preventDefault();}));
 </script>
 
 <!-- How-it-works tutorial -->
-<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" id="tut">
-<div class="w-full max-w-md bg-surface border border-subtle rounded-lg shadow-xl p-6 max-h-[85vh] overflow-y-auto">
+<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(11,11,12,.72)" id="tut">
+<div class="w-full max-w-md panel cast-red p-6 max-h-[85vh] overflow-y-auto">
 <div class="flex items-start justify-between gap-3 mb-5">
-<div class="flex items-center gap-3">
-<span class="w-10 h-10 rounded-lg bg-primary/15 text-primary flex items-center justify-center flex-shrink-0"><span class="material-symbols-outlined">menu_book</span></span>
-<h2 class="text-lg font-bold text-[#F1F5F9]" id="tutTitle"></h2>
-</div>
-<button class="text-muted hover:text-white transition-colors flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
+<h2 class="text-[22px] leading-none" id="tutTitle"></h2>
+<button class="ibtn flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
 </div>
 <div class="space-y-4" id="tutBody"></div>
-<div class="flex items-center justify-center gap-1.5 mt-4" id="tutDots"></div>
-<button class="mt-6 w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-sm font-medium text-sm transition-colors" id="tutDone">Continue</button>
+<div class="flex items-center justify-center gap-1.5 mt-5" id="tutDots"></div>
+<button class="kbtn w-full mt-6" id="tutDone"><span>Continue</span></button>
 </div>
 </div>
 <script>
   (function(){
-    const TITLE="Setting up your class";
+    const TITLE="Getting your class going 🎒";
     const KEY="chronos_tut_knowledge_v2";
     const STEPS=[
-      {icon:"add",title:"Make a class",text:"Each class is its own separate knowledge base. Create one, then share its join code (top of the page) so your students can get in."},
-      {icon:"gavel",title:"Add rules",text:"Type in the ground rules and key facts. Things like \"don't give away homework answers\" or \"stick to the textbook.\" One clear idea per rule works best."},
-      {icon:"description",title:"Upload your material",text:"Drop in PDFs, Word docs, or notes. We read the text so the tutor can answer from your actual course content."},
-      {icon:"lightbulb",title:"That is the tutor's whole world",text:"It only answers from what is here. If something is not in your rules or documents, the tutor says it does not know rather than guess."},
+      {icon:"add",title:"Make a class ➕",text:"Each class is its own separate shelf. Make one, then hand out its join code (up at the top) so your students can get in."},
+      {icon:"gavel",title:"Add your rules ⚖️",text:"Type in the ground rules and the key facts. Things like \"don't just hand over homework answers\" or \"stick to the textbook\". One idea per rule."},
+      {icon:"description",title:"Upload your material 📄",text:"Drag in PDFs, Word docs, lecture notes. We pull the text out so the tutor can answer from your actual course content."},
+      {icon:"lightbulb",title:"That's its whole world 🌍",text:"It only answers from what's on this page. Anything else and it says it doesn't know, rather than having a guess."},
     ];
     let idx=0;
     const body=document.getElementById("tutBody");
@@ -497,16 +554,16 @@
     function render(){
       const s=STEPS[idx];
       body.innerHTML='<div class="flex items-start gap-3">'+
-        '<span class="w-8 h-8 flex-shrink-0 rounded-sm bg-background-dark text-accent flex items-center justify-center border border-subtle"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
-        '<div><h3 class="text-sm font-bold text-[#F1F5F9] mb-0.5">'+s.title+'</h3>'+
-        '<p class="text-sm text-muted leading-snug">'+s.text+'</p></div></div>';
+        '<span class="w-10 h-10 flex-shrink-0 bg-crimson text-paper flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
+        '<div><h3 class="text-sm font-bold mb-0.5" style="font-family:\'IBM Plex Sans\',sans-serif;text-transform:none">'+s.title+'</h3>'+
+        '<p class="text-sm leading-snug" style="color:var(--sub)">'+s.text+'</p></div></div>';
       dots.innerHTML="";
       STEPS.forEach((_,i)=>{
         const d=document.createElement("span");
-        d.className="h-1.5 rounded-full transition-all "+(i===idx?"w-5 bg-primary":"w-1.5 bg-muted/30");
+        d.className="h-2 transition-all "+(i===idx?"w-6 bg-crimson":"w-2 bg-hi");
         dots.appendChild(d);
       });
-      doneBtn.textContent = idx===STEPS.length-1 ? "Got it" : "Continue";
+      doneBtn.querySelector("span").textContent = idx===STEPS.length-1 ? "Got it" : "Continue";
     }
 
     const modal=document.getElementById("tut");

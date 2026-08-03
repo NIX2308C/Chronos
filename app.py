@@ -574,6 +574,16 @@ def theme_js():
     return send_from_directory(BASE_DIR, 'theme.js')
 
 
+@app.route('/transition.css')
+def transition_css():
+    return send_from_directory(BASE_DIR, 'transition.css')
+
+
+@app.route('/transition.js')
+def transition_js():
+    return send_from_directory(BASE_DIR, 'transition.js')
+
+
 # ---------- auth ----------
 
 @app.route('/auth/config', methods=['GET'])

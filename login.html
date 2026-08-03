@@ -6,160 +6,218 @@
 <title>Chronos | Sign in</title>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600;700&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<link href="transition.css" rel="stylesheet"/>
+<script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
 <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <script id="tailwind-config">
   tailwind.config = { theme: { extend: {
-    colors: { bg:"#F5F3FF", fg:"#1E1B4B", primary:"#6366F1", secondary:"#818CF8", accent:"#059669", muted:"#EBEFF9", line:"#E0E7FF", danger:"#DC2626", ink2:"#575299" },
-    fontFamily: { display:["Crimson Pro","serif"], body:["Hanken Grotesk","sans-serif"] },
-    keyframes: { shake:{ '0%,100%':{transform:'translateX(0)'},'10%,30%,50%,70%,90%':{transform:'translateX(-4px)'},'20%,40%,60%,80%':{transform:'translateX(4px)'} } },
-    animation: { shake:'shake .5s cubic-bezier(.36,.07,.19,.97) both' }
+    colors: { void:"#0B0B0C", paper:"#F7F4EC", crimson:"#E2001A", ink:"#141311", gold:"#C9A227", steel:"#4B4A46", hair:"#2A2A2C" },
+    fontFamily: { display:["Anton","sans-serif"], body:["IBM Plex Sans","sans-serif"], mono:["IBM Plex Mono","monospace"] }
   }}}
 </script>
 <style>
-  :root{--bg:#F5F3FF;--fg:#1E1B4B;--primary:#6366F1;--secondary:#818CF8;--accent:#059669;--muted:#EBEFF9;--line:#E0E7FF;--ink2:#575299;--danger:#DC2626;--surface:#FFFFFF;--ln:#eceafe}
-  html.dark{--bg:#0F172A;--fg:#F1F5F9;--primary:#818CF8;--secondary:#6366F1;--accent:#34D399;--muted:#161F38;--line:#27314F;--ink2:#94A3B8;--danger:#F87171;--surface:#1B2547;--ln:#27314F;color-scheme:dark}
-  body{font-family:"Hanken Grotesk",sans-serif;color:var(--fg)}
-  h1,h2,.display{font-family:"Crimson Pro",serif}
-  .material-symbols-outlined{font-family:"Material Symbols Outlined";font-weight:normal;font-style:normal;line-height:1;display:inline-block;white-space:nowrap;direction:ltr}
-  ::selection{background:rgba(99,102,241,.2)}
-  .label{text-transform:uppercase;letter-spacing:.14em;font-size:11px;font-weight:700;color:var(--ink2)}
-  .field{width:100%;height:52px;background:var(--surface);border:1px solid var(--line);border-radius:14px;color:var(--fg);font-size:15px;padding-left:2.6rem;transition:border-color .2s,box-shadow .2s,background-color .2s}
-  .field::placeholder{color:#a7a3c9}
-  .field:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.16)}
-  .btn-primary{background:var(--primary);color:#fff;font-weight:700;border-radius:14px;transition:transform .25s cubic-bezier(.34,1.56,.64,1),box-shadow .25s;box-shadow:0 12px 26px -12px rgba(99,102,241,.9)}
-  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 18px 34px -14px rgba(99,102,241,.95)}
-  .btn-primary:active{transform:scale(.98)}
-  /* floating parallax source cards on the brand pane */
-  .float{position:absolute;will-change:transform;filter:drop-shadow(0 24px 40px rgba(30,27,75,.22))}
-  .doc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px;width:190px;transition:background-color .2s}
-  .doc .ln{height:7px;border-radius:4px;background:var(--ln);margin:6px 0}
-  .doc .ln.hl{background:rgba(5,150,105,.28)}
-  html.dark .doc .ln.hl{background:rgba(52,211,153,.32)}
-  .tag{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;color:#047857;background:rgba(5,150,105,.1);border:1px solid rgba(5,150,105,.3);border-radius:999px;padding:3px 8px;margin-top:5px}
-  html.dark .tag{color:#5EEAD4;background:rgba(52,211,153,.15);border-color:rgba(52,211,153,.35)}
-  @media (prefers-reduced-motion:reduce){ .float{transition:none!important} .animate-pulse{animation:none!important} }
+  :root{
+    --void:#0B0B0C; --paper:#F7F4EC; --crimson:#E2001A; --ink:#141311;
+    --gold:#C9A227; --steel:#4B4A46; --hair:#2A2A2C;
+    --snap:cubic-bezier(.2,1.45,.35,1);
+    /* themeable form side — light is the default "document" mode */
+    --pane:#E9E4D6; --surface:#F7F4EC; --on:#141311; --edge:#141311; --sub:#4B4A46; --field:#FFFFFF;
+  }
+  html.dark{--pane:#0B0B0C; --surface:#141317; --on:#F7F4EC; --edge:#F7F4EC; --sub:#A9A499; --field:#0B0B0C;color-scheme:dark}
+  *{box-sizing:border-box}
+  body{font-family:"IBM Plex Sans",sans-serif;background:var(--pane);color:var(--on);margin:0}
+  ::selection{background:var(--crimson);color:var(--paper)}
+  :focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+  .msym{font-family:"Material Symbols Sharp";font-weight:400;font-style:normal;line-height:1;display:inline-block;white-space:nowrap;direction:ltr}
+  .dsp{font-family:"Anton",sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.005em}
+  .mono{font-family:"IBM Plex Mono",monospace}
+  .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
 
-  /* dark overrides for the Tailwind utility classes compiled from tailwind.config
-     (those bake a static hex at load time, so they need an explicit repoint —
-     everything above using var(--x) picks up the theme automatically) */
-  html.dark .bg-bg      { background-color: var(--bg) !important; }
-  html.dark .bg-fg      { background-color: var(--fg) !important; }
-  html.dark .bg-fg\/10  { background-color: rgba(241,245,249,.1) !important; }
-  html.dark .bg-accent  { background-color: var(--accent) !important; }
-  html.dark .text-fg    { color: var(--fg) !important; }
-  html.dark .hover\:text-fg:hover { color: var(--fg) !important; }
-  html.dark .hover\:border-primary\/50:hover { border-color: rgba(129,140,248,.5) !important; }
-  html.dark .text-ink2  { color: var(--ink2) !important; }
-  html.dark .text-primary { color: var(--primary) !important; }
-  html.dark .text-accent  { color: var(--accent) !important; }
-  html.dark .text-danger  { color: var(--danger) !important; }
-  html.dark .border-line  { border-color: var(--line) !important; }
-  html.dark .bg-white  { background-color: var(--surface) !important; }
-  html.dark .peer-checked\:bg-white { background-color: var(--surface) !important; }
-  html.dark #brand { background: radial-gradient(120% 120% at 15% 10%, #1a1f3d, #0F172A 55%) !important; }
+  /* ---------- brand pane (always the poster side) ---------- */
+  #brand{background:var(--void);color:var(--paper)}
+  .halftone{position:absolute;inset:0;pointer-events:none;
+    background-image:radial-gradient(circle,rgba(226,0,26,.30) 1.1px,transparent 1.2px);background-size:9px 9px;
+    -webkit-mask-image:radial-gradient(120% 90% at 20% 8%,#000 0%,transparent 70%);
+    mask-image:radial-gradient(120% 90% at 20% 8%,#000 0%,transparent 70%)}
+  .brand-slab{position:absolute;top:-16%;left:-24%;width:70%;height:70%;background:var(--crimson);opacity:.14;transform:rotate(-16deg)}
+  .h-out{color:transparent;-webkit-text-stroke:2px var(--paper);display:block;line-height:.85}
+  .h-fill{display:inline-block;background:var(--crimson);color:var(--void);padding:.08em .22em .14em;
+    transform:rotate(-2.5deg);box-shadow:8px 8px 0 var(--paper);line-height:.85;margin-top:.08em}
+
+  /* floating evidence cards */
+  .float{position:absolute;will-change:transform}
+  .ev{background:var(--paper);color:var(--ink);border:2px solid var(--void);padding:13px;width:200px;
+    box-shadow:7px 7px 0 var(--crimson)}
+  .ev-alt{box-shadow:7px 7px 0 var(--gold)}
+  .ev-ln{height:7px;background:#DED8C6;margin:6px 0}
+  .ev-ln.hit{background:var(--gold)}
+  .cite{display:inline-flex;align-items:center;gap:5px;background:var(--gold);color:var(--void);padding:3px 8px;
+    font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:700;letter-spacing:.1em;margin-top:6px}
+
+  /* ---------- case file card ---------- */
+  .file-card{background:var(--surface);border:3px solid var(--edge);box-shadow:14px 14px 0 var(--crimson)}
+  .file-tab{position:absolute;top:-3px;left:2rem;transform:translateY(-100%);background:var(--crimson);
+    color:var(--paper);padding:.4rem 1rem}
+
+  /* ---------- role tabs ---------- */
+  .rtab{position:relative;flex:1;cursor:pointer;display:block}
+  .rtab-face{height:52px;display:flex;align-items:center;justify-content:center;gap:.5rem;
+    border:2px solid var(--edge);color:var(--sub);background:transparent;
+    font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    transition:background-color .22s ease,color .22s ease,transform .25s var(--snap)}
+  .rtab:hover .rtab-face{color:var(--on)}
+  .rtab input:checked + .rtab-face{background:var(--crimson);border-color:var(--crimson);color:var(--paper);transform:translateY(-4px);box-shadow:0 4px 0 var(--edge)}
+
+  /* ---------- fields ---------- */
+  .field{width:100%;height:54px;background:var(--field);border:2px solid var(--edge);border-radius:0;
+    color:var(--on);font-size:15px;padding-left:2.7rem;transition:box-shadow .18s ease,border-color .18s ease}
+  .field::placeholder{color:var(--sub);opacity:.7}
+  .field:focus{outline:none;border-color:var(--crimson);box-shadow:5px 5px 0 var(--crimson)}
+
+  /* ---------- buttons ---------- */
+  .pbtn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:.55rem;
+    font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;
+    padding:1.05rem 1.7rem;border:2px solid var(--crimson);background:var(--crimson);color:var(--paper);
+    overflow:hidden;cursor:pointer;transition:transform .15s var(--snap)}
+  .pbtn>*{position:relative;z-index:2}
+  .pbtn::before{content:"";position:absolute;inset:-2px -30%;background:var(--edge);
+    transform:translateX(-115%) skewX(-16deg);transition:transform .38s var(--snap);z-index:1}
+  .pbtn:hover:not(:disabled)::before{transform:translateX(0) skewX(-16deg)}
+  .pbtn:active:not(:disabled){transform:translate(2px,2px)}
+  .pbtn:disabled{opacity:.65;cursor:default}
+  html.dark .pbtn::before{background:var(--paper)}
+  html.dark .pbtn:hover:not(:disabled){color:var(--void)}
+
+  .linkbtn{position:relative;color:var(--crimson);font-weight:700}
+  .linkbtn::after{content:"";position:absolute;left:0;bottom:-2px;height:2px;width:0;background:var(--crimson);transition:width .28s var(--snap)}
+  .linkbtn:hover::after{width:100%}
+
+  .ico-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+    border:2px solid var(--edge);color:var(--on);transition:background-color .2s,color .2s,transform .2s var(--snap)}
+  .ico-btn:hover{background:var(--crimson);border-color:var(--crimson);color:var(--paper);transform:rotate(-6deg)}
+
+  @keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-5px)}20%,40%,60%,80%{transform:translateX(5px)}}
+  .shake{animation:shake .5s cubic-bezier(.36,.07,.19,.97) both}
+  @keyframes slamUp{from{opacity:0;transform:translateY(38px)}to{opacity:1;transform:none}}
+  .file-card{animation:slamUp .6s var(--snap) both}
+
+  @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} .file-card{opacity:1} }
 </style>
 </head>
-<body class="bg-bg font-body min-h-screen flex flex-col md:flex-row antialiased">
+<body class="min-h-screen flex flex-col md:flex-row antialiased">
 
-<!-- Left pane: branding -->
-<div class="hidden md:flex md:w-1/2 lg:w-3/5 relative overflow-hidden" id="brand" style="background:radial-gradient(120% 120% at 15% 10%, #ede9ff, #F5F3FF 55%)">
-  <!-- floating source cards (parallax) -->
-  <div class="float" style="top:20%;left:12%;transform:rotate(-7deg);--d:1.1"><div class="doc">
-    <div class="text-[10px] font-bold text-ink2 mb-1">Biology_Unit3.pdf</div><div class="ln"></div><div class="ln hl"></div><div class="ln" style="width:65%"></div>
-    <div class="tag"><span class="material-symbols-outlined" style="font-size:12px">bookmark</span> cited · p.12</div></div></div>
-  <div class="float" style="bottom:16%;right:14%;transform:rotate(6deg);--d:1.7"><div class="doc" style="width:200px">
-    <div class="text-[10px] font-bold text-ink2 mb-1">Class rules</div>
-    <div class="text-[12px] text-fg flex items-center gap-2 my-1.5"><span class="material-symbols-outlined text-accent" style="font-size:15px">check_circle</span> Only cite provided files</div>
-    <div class="text-[12px] text-fg flex items-center gap-2"><span class="material-symbols-outlined text-accent" style="font-size:15px">check_circle</span> Never invent facts</div></div></div>
+<div class="px" aria-hidden="true"><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><span class="px-mark"><span class="px-tag">Chronos</span></span></div>
+
+<!-- ===== Left: poster pane ===== -->
+<div class="hidden md:flex md:w-1/2 lg:w-[55%] relative overflow-hidden" id="brand">
+  <div class="brand-slab"></div>
+  <div class="halftone"></div>
+
+  <div class="float" style="top:17%;right:12%;--d:1.1"><div class="ev" style="transform:rotate(-6deg)">
+    <div class="mono text-[10px] font-bold mb-1.5">BIOLOGY_UNIT3.PDF</div>
+    <div class="ev-ln"></div><div class="ev-ln hit"></div><div class="ev-ln" style="width:64%"></div>
+    <div class="cite">P.12</div></div></div>
+  <div class="float" style="bottom:13%;right:20%;--d:1.7"><div class="ev ev-alt" style="transform:rotate(5deg)">
+    <div class="mono text-[10px] font-bold mb-1.5">CLASS_RULES.TXT</div>
+    <div class="text-[12.5px] leading-snug">Cite only the uploaded files. Never fill a gap with a guess.</div></div></div>
 
   <div class="relative z-10 p-12 flex flex-col justify-between h-full w-full">
-    <div class="flex items-center gap-2.5">
-      <span class="material-symbols-outlined text-primary text-3xl">menu_book</span>
-      <span class="display font-semibold text-2xl tracking-tight">Chronos</span>
-    </div>
-    <div class="max-w-md">
-      <h2 class="display font-semibold text-[2.6rem] leading-[1.05] mb-4">It won&rsquo;t<br/><span class="text-primary italic">make it up.</span></h2>
-      <p class="text-ink2 text-lg">Answers come only from the material your teacher provides, always with the source they came from.</p>
-      <div class="mt-8 flex items-center gap-4 text-sm text-ink2">
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-accent animate-pulse" id="statusDot"></span>
-          <span id="statusText">Connecting…</span>
-        </div>
-        <div class="h-4 w-px bg-fg/10"></div>
-        <div>Curriculum-grounded</div>
+    <a href="landing.html" class="flex items-baseline gap-1.5 w-fit">
+      <span class="dsp text-[26px] leading-none">Chronos</span>
+      <span class="w-2 h-2 bg-crimson inline-block"></span>
+    </a>
+
+    <div class="max-w-lg">
+      <div class="tag text-crimson mb-5">Built on your files, not the internet</div>
+      <h2 class="dsp text-[clamp(2.6rem,5.6vw,4.6rem)] mb-6">
+        <span class="h-out">It won&rsquo;t</span>
+        <span class="h-fill">Make it up.</span>
+      </h2>
+      <p class="text-[1.05rem] leading-relaxed text-[#A9A499] max-w-sm">Answers come out of whatever your teacher uploaded 📎 tagged with the file they came from, every time.</p>
+      <div class="mt-9 flex items-center gap-4 tag text-[#A9A499]">
+        <span class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 bg-gold inline-block" id="statusDot"></span>
+          <span id="statusText">Connecting&hellip;</span>
+        </span>
+        <span class="w-px h-4 bg-hair"></span>
+        <span>Curriculum-grounded</span>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Right pane: form -->
-<div class="w-full md:w-1/2 lg:w-2/5 flex items-center justify-center p-6 sm:p-12 min-h-screen relative">
-  <div class="absolute top-8 left-8 md:hidden flex items-center gap-2.5 z-20">
-    <span class="material-symbols-outlined text-primary text-2xl">menu_book</span>
-    <span class="display font-semibold text-xl tracking-tight">Chronos</span>
-  </div>
-  <button class="absolute top-8 right-8 z-20 w-9 h-9 flex items-center justify-center rounded-full border border-line text-ink2 hover:text-fg hover:border-primary/50 transition-colors" data-theme-toggle="" title="Switch to dark mode">
-    <span class="material-symbols-outlined text-[19px]">dark_mode</span>
+<!-- ===== Right: case file ===== -->
+<div class="w-full md:w-1/2 lg:w-[45%] flex items-center justify-center p-6 sm:p-12 min-h-screen relative">
+  <a href="landing.html" class="absolute top-7 left-7 md:hidden flex items-baseline gap-1.5 z-20">
+    <span class="dsp text-[22px] leading-none">Chronos</span><span class="w-1.5 h-1.5 bg-crimson inline-block"></span>
+  </a>
+  <button class="ico-btn absolute top-7 right-7 z-20" data-theme-toggle="" title="Switch to dark mode">
+    <span class="msym text-[19px]">dark_mode</span>
   </button>
 
-  <div class="w-full max-w-[420px] bg-white border border-line p-8 rounded-3xl flex flex-col relative z-10" style="box-shadow:0 40px 80px -40px rgba(30,27,75,.35)">
-    <div class="mb-8">
-      <h1 class="display font-semibold text-4xl mb-1.5" id="title">Welcome back</h1>
-      <p class="text-ink2 text-[15px]" id="subtitle">Sign in to pick up where you left off.</p>
-    </div>
+  <div class="w-full max-w-[430px] relative z-10 mt-10 md:mt-0">
+    <div class="file-card p-8 relative">
+      <span class="file-tab tag" id="fileTab">Sign in</span>
 
-    <!-- Role selector -->
-    <div class="flex h-12 w-full items-center p-1 rounded-2xl border border-line mb-7" style="background:var(--muted)" id="roleTabs">
-      <label class="relative flex-1 h-full cursor-pointer">
-        <input checked class="peer sr-only" name="role" type="radio" value="student"/>
-        <div class="absolute inset-0 rounded-xl peer-checked:bg-white peer-checked:shadow-sm transition-all duration-200"></div>
-        <div class="relative h-full flex items-center justify-center gap-2 text-sm font-bold text-ink2 peer-checked:text-primary transition-colors">
-          <span class="material-symbols-outlined text-lg">school</span> Student
-        </div>
-      </label>
-      <label class="relative flex-1 h-full cursor-pointer">
-        <input class="peer sr-only" name="role" type="radio" value="teacher"/>
-        <div class="absolute inset-0 rounded-xl peer-checked:bg-white peer-checked:shadow-sm transition-all duration-200"></div>
-        <div class="relative h-full flex items-center justify-center gap-2 text-sm font-bold text-ink2 peer-checked:text-primary transition-colors">
-          <span class="material-symbols-outlined text-lg">science</span> Teacher
-        </div>
-      </label>
-    </div>
+      <div class="mb-8">
+        <h1 class="dsp text-[2.6rem] leading-none mb-2" id="title">Welcome back</h1>
+        <p class="text-[15px]" style="color:var(--sub)" id="subtitle">Good to see you again 👋</p>
+      </div>
 
-    <form class="flex flex-col gap-5" id="loginForm">
-      <div class="flex flex-col gap-2">
-        <label class="label" for="email">Email address</label>
-        <div class="relative">
-          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-ink2 pointer-events-none"><span class="material-symbols-outlined text-[20px]">alternate_email</span></span>
-          <input autocomplete="email" class="field" id="email" name="email" placeholder="name@institution.edu" type="email"/>
+      <!-- Role -->
+      <div class="mb-7">
+        <div class="tag mb-3" style="color:var(--sub)">I am a</div>
+        <div class="flex gap-3" id="roleTabs">
+          <label class="rtab">
+            <input checked class="sr-only" name="role" type="radio" value="student"/>
+            <span class="rtab-face"><span class="msym text-[18px]">school</span> Student</span>
+          </label>
+          <label class="rtab">
+            <input class="sr-only" name="role" type="radio" value="teacher"/>
+            <span class="rtab-face"><span class="msym text-[18px]">science</span> Teacher</span>
+          </label>
         </div>
       </div>
-      <div class="flex flex-col gap-2">
-        <label class="label" for="password">Password</label>
-        <div class="relative" id="password-container">
-          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-ink2 pointer-events-none"><span class="material-symbols-outlined text-[20px]">lock</span></span>
-          <input autocomplete="current-password" class="field pr-10" id="password" name="password" placeholder="••••••••" type="password"/>
-          <button class="absolute inset-y-0 right-0 flex items-center pr-3 text-ink2 hover:text-fg transition-colors" onclick="togglePasswordVisibility()" type="button"><span class="material-symbols-outlined text-[20px]" id="visibility-icon">visibility_off</span></button>
-        </div>
-      </div>
-      <div class="hidden flex-col gap-2" id="codeWrap">
-        <label class="label" for="teacherCode">Teacher access code</label>
-        <div class="relative">
-          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-ink2 pointer-events-none"><span class="material-symbols-outlined text-[20px]">vpn_key</span></span>
-          <input class="field" id="teacherCode" placeholder="Code from your admin" type="password"/>
-        </div>
-        <p class="text-[12px] text-ink2">Required to create a teacher account.</p>
-      </div>
-      <p class="hidden items-center gap-1.5 text-[13px] text-danger font-medium" id="err"><span class="material-symbols-outlined text-[15px]">error</span><span id="errText"></span></p>
-      <button class="mt-2 w-full h-[52px] btn-primary flex items-center justify-center gap-2 group relative overflow-hidden disabled:opacity-70" id="submitBtn" type="submit">
-        <span class="relative z-10 flex items-center gap-2" id="submitLabel">Sign in <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span></span>
-      </button>
-    </form>
 
-    <div class="mt-8 pt-6 border-t border-line text-center">
-      <p class="text-[15px] text-ink2"><span id="toggleText">New here?</span> <button class="text-primary hover:text-fg transition-colors font-bold" id="toggleMode" type="button">Create an account</button></p>
-      <a class="inline-block mt-4 text-[13px] text-ink2 hover:text-fg transition-colors" href="landing.html">← Back to home</a>
+      <form class="flex flex-col gap-5" id="loginForm">
+        <div class="flex flex-col gap-2">
+          <label class="tag" style="color:var(--sub)" for="email">Email address</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none" style="color:var(--sub)"><span class="msym text-[20px]">alternate_email</span></span>
+            <input autocomplete="email" class="field" id="email" name="email" placeholder="name@institution.edu" type="email"/>
+          </div>
+        </div>
+        <div class="flex flex-col gap-2">
+          <label class="tag" style="color:var(--sub)" for="password">Password</label>
+          <div class="relative" id="password-container">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none" style="color:var(--sub)"><span class="msym text-[20px]">lock</span></span>
+            <input autocomplete="current-password" class="field pr-11" id="password" name="password" placeholder="••••••••" type="password"/>
+            <button class="absolute inset-y-0 right-0 flex items-center pr-3 transition-colors hover:text-crimson" style="color:var(--sub)" onclick="togglePasswordVisibility()" type="button"><span class="msym text-[20px]" id="visibility-icon">visibility_off</span></button>
+          </div>
+        </div>
+        <div class="hidden flex-col gap-2" id="codeWrap">
+          <label class="tag" style="color:var(--sub)" for="teacherCode">Teacher access code</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none" style="color:var(--sub)"><span class="msym text-[20px]">vpn_key</span></span>
+            <input class="field" id="teacherCode" placeholder="Code from your admin" type="password"/>
+          </div>
+          <p class="text-[12.5px]" style="color:var(--sub)">Your school admin has this. Teacher accounts need it.</p>
+        </div>
+
+        <p class="hidden items-center gap-2 text-[13px] font-semibold text-crimson border-2 border-crimson px-3 py-2.5" id="err">
+          <span class="msym text-[16px]">error</span><span id="errText"></span></p>
+
+        <button class="pbtn w-full mt-2" id="submitBtn" type="submit">
+          <span id="submitLabel">Sign in <span class="msym text-[18px]">arrow_forward</span></span>
+        </button>
+      </form>
+
+      <div class="mt-8 pt-6 text-center" style="border-top:2px solid var(--edge)">
+        <p class="text-[15px]" style="color:var(--sub)"><span id="toggleText">New here?</span>
+          <button class="linkbtn" id="toggleMode" type="button">Create an account</button></p>
+        <a class="inline-block mt-4 tag hover:text-crimson transition-colors" style="color:var(--sub)" href="landing.html">&larr; Back to home</a>
+      </div>
     </div>
   </div>
 </div>
@@ -168,10 +226,12 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
 <script src="theme.js"></script>
+<script src="transition.js"></script>
 <script>
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   let mode = "signin"; // or "signup"
+  const ARROW = ' <span class="msym text-[18px]">arrow_forward</span>';
 
   // Preselect the role from ?role= (teacher panels redirect here with it).
   if (params.get("role") === "teacher") {
@@ -179,16 +239,21 @@
   }
 
   function currentRole(){ const r=document.querySelector('input[name=role]:checked'); return r?r.value:"student"; }
-  function showErr(msg){ $("errText").textContent=msg||""; $("err").classList.toggle("hidden",!msg); }
+  function showErr(msg){
+    $("errText").textContent=msg||"";
+    $("err").classList.toggle("hidden",!msg);
+    $("err").classList.toggle("flex",!!msg);
+    if(msg){ const c=document.querySelector(".file-card"); c.classList.remove("shake"); void c.offsetWidth; c.classList.add("shake"); }
+  }
 
   function paintMode(){
     const role=currentRole(), isUp=mode==="signup";
     $("title").textContent = isUp ? "Create account" : "Welcome back";
+    $("fileTab").textContent = isUp ? "New account" : "Sign in";
     $("subtitle").textContent = isUp
-      ? (role==="teacher" ? "Set up your teacher account." : "Start learning with Chronos.")
-      : "Sign in to pick up where you left off.";
-    $("submitLabel").innerHTML = (isUp?"Create account":"Sign in") +
-      ' <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>';
+      ? (role==="teacher" ? "Two fields and you're set up." : "Takes about ten seconds.")
+      : "Good to see you again 👋";
+    $("submitLabel").innerHTML = (isUp?"Create account":"Sign in") + ARROW;
     $("password").autocomplete = isUp ? "new-password" : "current-password";
     $("toggleText").textContent = isUp ? "Already have an account?" : "New here?";
     $("toggleMode").textContent = isUp ? "Sign in" : "Create an account";
@@ -210,31 +275,32 @@
 
   async function submit(){
     const email=$("email").value.trim(), password=$("password").value;
-    if(!email||!password){ showErr("Enter your email and password."); return; }
+    if(!email||!password){ showErr("Need both your email and password to get you in."); return; }
     showErr("");
     const btn=$("submitBtn"); btn.disabled=true;
     const lbl=$("submitLabel").innerHTML;
-    $("submitLabel").innerHTML='<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>';
+    $("submitLabel").innerHTML='<span class="msym text-[18px] animate-spin">progress_activity</span>';
     try{
       const info = mode==="signup"
         ? await Chronos.signup(email,password,currentRole(),$("teacherCode").value.trim())
         : await Chronos.login(email,password);
-      // Honor the account's real role for the redirect.
-      location.replace(info.role==="teacher" ? "teacherknowledge.html" : "student.html");
+      // Honor the account's real role for the redirect. Route it through the
+      // page wipe so a successful sign-in transitions like any other nav.
+      ChronosWipe.go(info.role==="teacher" ? "teacherknowledge.html" : "student.html", true);
     }catch(e){
-      showErr(e.message||"Something went wrong.");
+      showErr(e.message||"That didn't work. Give it another go?");
       btn.disabled=false; $("submitLabel").innerHTML=lbl;
     }
   }
 
   $("loginForm").addEventListener("submit", e=>{ e.preventDefault(); submit(); });
-  if(params.get("denied")) showErr("Please sign in with the right account for that area.");
+  if(params.get("denied")) showErr("That page needs a different account. Sign in with the right one.");
   paintMode();
 
   // Reflect server reachability in the left-pane status line.
   (async()=>{
-    try{ const r=await fetch(Chronos.BASE+"/health",{cache:"no-store"}); if(r.ok){$("statusText").textContent="System Online"; return;} }catch(e){}
-    $("statusDot").classList.remove("bg-accent","animate-pulse"); $("statusDot").classList.add("bg-danger");
+    try{ const r=await fetch(Chronos.BASE+"/health",{cache:"no-store"}); if(r.ok){$("statusText").textContent="System online"; return;} }catch(e){}
+    $("statusDot").classList.remove("bg-gold"); $("statusDot").classList.add("bg-crimson");
     $("statusText").textContent="Server offline";
   })();
 
@@ -242,11 +308,11 @@
   Chronos.ready.then(()=>{
     Chronos.onUser(async(user)=>{
       if(!user) return;
-      try{ const info=await Chronos.me(); if(info) location.replace(info.role==="teacher"?"teacherknowledge.html":"student.html"); }catch(e){}
+      try{ const info=await Chronos.me(); if(info) ChronosWipe.go(info.role==="teacher"?"teacherknowledge.html":"student.html", true); }catch(e){}
     });
   }).catch(e=>showErr(e.message));
 
-  // Subtle pointer parallax on the brand-pane source cards (continuity with the landing page).
+  // Subtle pointer parallax on the brand-pane evidence cards (continuity with the landing page).
   (function(){
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const brand = document.getElementById("brand");
@@ -256,8 +322,7 @@
       const r = brand.getBoundingClientRect();
       const px = (e.clientX-r.left)/r.width - .5, py = (e.clientY-r.top)/r.height - .5;
       floats.forEach(f=>{ const d=+getComputedStyle(f).getPropertyValue("--d")||1;
-        const base = f.style.transform.match(/rotate\([^)]+\)/)?.[0] || "";
-        f.style.transform = `translate3d(${px*d*22}px, ${py*d*22}px, 0) ${base}`; });
+        f.style.transform = `translate3d(${px*d*24}px, ${py*d*24}px, 0)`; });
     }, {passive:true});
   })();
 </script>

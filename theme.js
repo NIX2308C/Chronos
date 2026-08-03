@@ -25,7 +25,7 @@
 
   function syncToggleIcons(theme) {
     document.querySelectorAll("[data-theme-toggle]").forEach(function (btn) {
-      var icon = btn.querySelector(".material-symbols-outlined");
+      var icon = btn.querySelector(".msym, .material-symbols-outlined");
       if (icon) icon.textContent = theme === "dark" ? "light_mode" : "dark_mode";
       btn.setAttribute("title", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");
       btn.setAttribute("aria-label", theme === "dark" ? "Switch to light mode" : "Switch to dark mode");

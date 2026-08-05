@@ -231,6 +231,10 @@
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
   let mode = "signin"; // or "signup"
+  // True while a sign-in/sign-up is in flight. Creating a Firebase account signs
+  // the user in immediately, which wakes the "already signed in?" watcher below
+  // while signup is still mid-flight — see the comment there.
+  let busy = false;
   const ARROW = ' <span class="msym text-[18px]">arrow_forward</span>';
 
   // Preselect the role from ?role= (teacher panels redirect here with it).
@@ -274,9 +278,11 @@
   }
 
   async function submit(){
+    if(busy) return;  // Enter still fires submit on a disabled button — one account, not two.
     const email=$("email").value.trim(), password=$("password").value;
     if(!email||!password){ showErr("Need both your email and password to get you in."); return; }
     showErr("");
+    busy = true;
     const btn=$("submitBtn"); btn.disabled=true;
     const lbl=$("submitLabel").innerHTML;
     $("submitLabel").innerHTML='<span class="msym text-[18px] animate-spin">progress_activity</span>';
@@ -289,7 +295,7 @@
       ChronosWipe.go(info.role==="teacher" ? "teacherknowledge.html" : "student.html", true);
     }catch(e){
       showErr(e.message||"That didn't work. Give it another go?");
-      btn.disabled=false; $("submitLabel").innerHTML=lbl;
+      busy=false; btn.disabled=false; $("submitLabel").innerHTML=lbl;
     }
   }
 
@@ -305,10 +311,24 @@
   })();
 
   // Already signed in? Skip the form and go where they belong.
+  //
+  // Deliberately silent while `busy`: creating a Firebase account signs the user
+  // in the instant it succeeds, so during signup this watcher fires *before*
+  // /auth/register has assigned a role. It then raced the signup — asking the
+  // server "who am I?" at the same moment signup was asking "make me a teacher".
+  // Whichever answered first won, so a fast signup got redirected as a roleless
+  // student, and the losing half (including the rollback that deletes the account
+  // when the teacher code is wrong) was torn down by the navigation — leaving a
+  // Firebase account nobody could sign into. submit() owns the redirect; this
+  // only handles someone arriving already signed in.
   Chronos.ready.then(()=>{
     Chronos.onUser(async(user)=>{
-      if(!user) return;
-      try{ const info=await Chronos.me(); if(info) ChronosWipe.go(info.role==="teacher"?"teacherknowledge.html":"student.html", true); }catch(e){}
+      if(!user || busy) return;
+      try{
+        const info=await Chronos.me();
+        // No role means a half-finished signup, not a session to resume.
+        if(info && info.role) ChronosWipe.go(info.role==="teacher"?"teacherknowledge.html":"student.html", true);
+      }catch(e){}
     });
   }).catch(e=>showErr(e.message));
 

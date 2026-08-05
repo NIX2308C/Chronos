@@ -108,6 +108,48 @@
     return me();
   }
 
+  // Record the role on the backend for an account that already exists in Firebase.
+  // `rollback` says whether we created that account moments ago and may therefore
+  // delete it again: for a resumed signup the account predates this call, and
+  // deleting it over a wrong teacher code would destroy an account that may
+  // already be someone's. The server does its own cleanup either way — this is
+  // only the fast path for the tab that's still open.
+  async function register(cred, role, teacherCode, rollback) {
+    try {
+      const data = await apiJson("/auth/register", { role, teacher_code: teacherCode });
+      _role = data.role; _roleUid = cred.user.uid;
+      return data;
+    } catch (e) {
+      if (rollback) { try { await cred.user.delete(); } catch (_) {} }
+      await _auth.signOut().catch(() => {});
+      throw e;
+    }
+  }
+
+  // Finish a signup that died between "Firebase account created" and "role
+  // assigned" — a dropped request, or a tab closed at the wrong moment. That
+  // leaves the email taken by an account with no role, which nothing can sign
+  // into and which a plain retry can only ever bounce off as email-already-in-use.
+  // Signing in first means this can only ever repair an account whose password
+  // the caller already knows.
+  async function resumeSignup(email, password, role, teacherCode, takenErr) {
+    let cred;
+    try {
+      cred = await _auth.signInWithEmailAndPassword(email, password);
+    } catch (_) {
+      throw new Error(friendlyAuthError(takenErr));   // not ours to finish
+    }
+    // /auth/me answers only for accounts that have a role, so a failure here is
+    // the "unfinished" signal we're looking for.
+    let complete = false;
+    try { complete = !!(await me()); } catch (_) {}
+    if (complete) {
+      await _auth.signOut().catch(() => {});
+      throw new Error(friendlyAuthError(takenErr));   // a real, finished account
+    }
+    return register(cred, role, teacherCode, false);
+  }
+
   // Create the Firebase account, then record the role on the backend (teacher
   // requires the signup code). Rolls the account back if role setup fails so we
   // don't leave a half-created teacher.
@@ -117,18 +159,12 @@
     try {
       cred = await _auth.createUserWithEmailAndPassword(email, password);
     } catch (e) {
+      if (e && e.code && e.code.indexOf("email-already-in-use") !== -1) {
+        return resumeSignup(email, password, role, teacherCode, e);
+      }
       throw new Error(friendlyAuthError(e));
     }
-    try {
-      const data = await apiJson("/auth/register", { role, teacher_code: teacherCode });
-      _role = data.role; _roleUid = cred.user.uid;
-      return data;
-    } catch (e) {
-      // Couldn't set the role (e.g. wrong teacher code) — undo the account.
-      try { await cred.user.delete(); } catch (_) {}
-      await _auth.signOut().catch(() => {});
-      throw e;
-    }
+    return register(cred, role, teacherCode, true);
   }
 
   async function logout() {

@@ -10,6 +10,7 @@ Teachers sign in, create one or more classes, and add knowledge to each (PDFs, W
 
 - **Auth** is Firebase Email/Password. Teachers and students each have their own account and stay signed in across pages, so there's no re-login when switching panels.
 - Registering as a **teacher** requires the `TEACHER_SIGNUP_CODE`. Everyone else is a student. Roles live in Firestore (`Users/{uid}.role`).
+- Signing in and registering are two separate steps: the browser creates the Firebase account, then `/auth/register` assigns the role. An account with one but not the other is a half-finished signup — it can reach nothing except `/auth/register`, and a wrong teacher code deletes it server-side instead of leaving it stranded.
 - **Teachers** create classes (each gets a shareable join code), manage that class's rules, and view its analytics.
 - **Students** must join at least one class (via code) before they can use the tutor. They can join several and switch between them. Conversations are cloud-synced per account and scoped to the class they were started in.
 
@@ -55,9 +56,11 @@ The Pinecone index name is set in `app.py` (`INDEX_NAME`), so the API key is all
 A few optional overrides exist too:
 
 - `ALLOWED_ORIGINS` (comma-separated CORS allowlist; the default is local dev only, so set this in production)
-- `MAX_UPLOAD_MB` (default 10)
+- `MAX_UPLOAD_MB` (default 10) — the size on the wire
+- `MAX_EXTRACT_BYTES` (default 200 MB) and `MAX_EXTRACT_CHARS` (default 2,000,000) — the size *after* decompression. A `.docx` is a zip and a `.pdf` holds compressed streams, so a small upload can inflate enormously; these bound what actually reaches memory. Over the character cap the file is indexed up to the limit and the response says so
 - `CHAT_RATE_LIMIT` and `CHAT_RATE_WINDOW` (messages allowed per window, in seconds)
 - `JOIN_RATE_LIMIT` and `JOIN_RATE_WINDOW` (class-code attempts per window; default 10 per 5 minutes)
+- `REGISTER_RATE_LIMIT` and `REGISTER_RATE_WINDOW` (teacher-code attempts per window; default 5 per 15 minutes)
 - `HISTORY_TURNS` (how many past turns the tutor remembers, default 20)
 - `MAX_MESSAGES_RETURNED` (cap on messages returned for one conversation, default 500)
 - `ROLE_CACHE_TTL` (seconds a user's role is cached in-process, default 60)
@@ -65,7 +68,7 @@ A few optional overrides exist too:
 - `CHAT_MODEL` (the Gemini model, default `gemini-2.5-flash-lite`)
 - `FLASK_DEBUG`
 
-Rate limits are keyed by Firebase uid, not IP — behind a load balancer every request shares one IP, so an IP-keyed limit would throttle a whole class as though it were a single student.
+Rate limits are keyed by Firebase uid, not IP — behind a load balancer every request shares one IP, so an IP-keyed limit would throttle a whole class as though it were a single student. Teacher registration is the one exception, and it's keyed by IP: the attacker there isn't a signed-in student but anyone who can make a Firebase account, which is free and unlimited, so a per-account budget would reset on every guess.
 
 Retrieval is tunable as well. `RETRIEVAL_TOP_K` (default 5) sets how many knowledge chunks each answer draws on, and `RETRIEVAL_MIN_SCORE` (default 0.5, cosine) drops weakly related chunks, so off-topic questions get a truthful "not in my knowledge base" reply instead of being answered from the least-bad matches. Those unanswered questions then show up as **Knowledge Gaps** in the analytics. Firebase admin credentials are read from `firebase_credentials.json` locally, or the `FIREBASE_CREDENTIALS_JSON` env var when deployed.
 
@@ -86,7 +89,9 @@ Configuration goes in the Cloud Run service, not in the repo:
 - **Secrets** — `TEACHER_SIGNUP_CODE`, `GEMINI_API_KEY`, `PINECONE_API_KEY`, `FIREBASE_CREDENTIALS_JSON` (the full contents of `firebase_credentials.json`). Use Secret Manager and expose them to the service as environment variables rather than plain env vars, so they aren't readable from the service description.
 - **Plain env vars** — `FLASK_DEBUG=0`, `TRUST_PROXY_HOPS=1` (Cloud Run puts exactly one proxy in front of you, so trusting that single hop gives real client IPs without letting anyone forge `X-Forwarded-For`), `ALLOWED_ORIGINS` set to your real front-end origin, and the `FIREBASE_*` web config values.
 
-The Werkzeug debugger stays off unless you explicitly set `FLASK_DEBUG=1`. If `ALLOWED_ORIGINS` is left on the local-dev default, the app logs a warning at startup — your front-end will be CORS-blocked until you set it.
+The Werkzeug debugger stays off unless you explicitly set `FLASK_DEBUG=1`. If `ALLOWED_ORIGINS` is left on the local-dev default, or `TRUST_PROXY_HOPS` is still 0, the app logs a warning at startup — the first means your front-end will be CORS-blocked, the second means the teacher-code rate limit sees the load balancer's IP for every caller and throttles globally instead of per client.
+
+**Firestore rules** live in `firestore.rules` and deny all client access (`allow read, write: if false`). That is deliberate and load-bearing: nothing in the browser talks to Firestore, so every read and write goes through `app.py` via the Admin SDK, which bypasses rules. Relaxing them to the usual `if request.auth != null` would let any signed-in student write their own `Users/{uid}.role` and make themselves a teacher, bypassing `TEACHER_SIGNUP_CODE` entirely. Deploy with `firebase deploy --only firestore:rules`.
 
 **A note on memory:** the Google, Pinecone, and Firebase SDKs are heavy. Just importing them eats a few hundred MB, so there isn't much room to spare on Cloud Run's 512 MiB default instance. To avoid blowing past that on big files, uploads are processed in batches: the document is read, chunked, embedded, and pushed to Pinecone a little at a time instead of all at once, so memory stays roughly flat no matter how large the file is. `MAX_UPLOAD_MB` also defaults to 10. If you're still hitting out-of-memory errors when adding documents, drop that number lower or raise the service's memory limit.
 

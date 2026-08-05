@@ -1,0 +1,32 @@
+rules_version = '2';
+
+// Chronos keeps Firestore closed to clients on purpose.
+//
+// Nothing in the front-end talks to Firestore. The browser only ever holds a
+// Firebase *Auth* token, and every read and write goes through app.py, which
+// uses the Admin SDK — and the Admin SDK bypasses these rules entirely. So
+// denying everything here costs the app nothing and removes a whole parallel
+// attack surface: without it, any signed-in student could hit the Firestore
+// REST API directly and skip every check in app.py.
+//
+// What that would mean concretely, if this were ever relaxed to the common
+// `if request.auth != null`:
+//   - Users/{uid}.role is writable  -> a student grants themselves the teacher
+//     role and TEACHER_SIGNUP_CODE stops meaning anything
+//   - Classes/{id}.join_code is readable -> every class in the deployment is
+//     joinable by anyone
+//   - Users/{uid}/Chats/** is readable -> every student's tutoring history
+//
+// This file is the source of truth for what is deployed. It lives in the repo
+// so the posture is reviewable and restorable, not just console state that a
+// stray `firebase deploy` could overwrite unnoticed.
+//
+// Deploy with: firebase deploy --only firestore:rules
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

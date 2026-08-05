@@ -488,10 +488,13 @@
       const raw=await res.text();
       let data={};
       try{data=raw?JSON.parse(raw):{};}catch(e){data={};}
-      if(res.status===413)throw new Error("That file is too large to upload.");
+      // 413 is both "body too big" and "this archive expands to too much" — the
+      // server's own wording distinguishes them, so prefer it when there is one.
+      if(res.status===413)throw new Error(data.error||"That file is too large to upload.");
       if(res.status===401||res.status===403)throw new Error(data.error||"You're not allowed to upload to this class.");
       if(!res.ok||data.error)throw new Error(data.details||data.error||("Upload failed ("+res.status+")."));
-      showToast(`"${file.name}" → ${data.chunks} chunks stored. Total rules: ${data.total_vectors}`,true);
+      if(data.warning)showToast(data.warning,false);
+      else showToast(`"${file.name}" → ${data.chunks} chunks stored. Total rules: ${data.total_vectors}`,true);
       clearFile();
       loadRules();
     }catch(e){

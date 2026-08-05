@@ -5,6 +5,7 @@ import time
 import hmac
 import secrets
 import logging
+import zipfile
 from functools import wraps
 from collections import deque
 from threading import Lock
@@ -73,6 +74,13 @@ ALLOWED_ORIGINS = [
 # Reject oversized request bodies (uploads / chat payloads) to limit DoS/memory abuse.
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "10"))
 MAX_MESSAGE_CHARS = 8000
+# MAX_UPLOAD_MB bounds what arrives on the wire, not what it becomes. A .docx is
+# a zip and a .pdf holds compressed streams, so 10 MB of either can inflate to
+# gigabytes — on a 512 MiB instance that's an OOM that takes every class on the
+# box down with it. These cap the *decompressed* side: bytes for the archive
+# check, characters for the text every format ends up as.
+MAX_EXTRACT_BYTES = int(os.getenv("MAX_EXTRACT_BYTES", str(200 * 1024 * 1024)))
+MAX_EXTRACT_CHARS = int(os.getenv("MAX_EXTRACT_CHARS", "2000000"))   # ~2 MB of text
 
 # Lightweight rate limits. These are keyed by the caller's Firebase uid, not by
 # IP: every rate-limited route here is behind @require_auth, and a uid is both
@@ -85,6 +93,14 @@ CHAT_RATE_WINDOW = int(os.getenv("CHAT_RATE_WINDOW", "60"))   # seconds
 # are throttled hard (a code is 32^6 ≈ 1e9 wide, but only if you can't spray it).
 JOIN_RATE_LIMIT = int(os.getenv("JOIN_RATE_LIMIT", "10"))     # requests
 JOIN_RATE_WINDOW = int(os.getenv("JOIN_RATE_WINDOW", "300"))  # seconds
+# Teacher registration is gated by one shared code, which makes /auth/register the
+# most valuable thing on the app to brute-force: guessing it once yields every
+# class's material and every student's chat log. Unlike the limits above, this one
+# is keyed by IP — a uid costs an attacker nothing (anyone can mint a fresh
+# Firebase account against the public web API key), so a per-uid budget would
+# reset on every guess and throttle nothing at all.
+REGISTER_RATE_LIMIT = int(os.getenv("REGISTER_RATE_LIMIT", "5"))      # requests
+REGISTER_RATE_WINDOW = int(os.getenv("REGISTER_RATE_WINDOW", "900"))  # seconds
 
 # Number of proxies in front of the app whose X-Forwarded-For we trust. 0 (the
 # default) means "no proxy": request.remote_addr stays the direct peer and
@@ -143,6 +159,18 @@ if not DEBUG and all("127.0.0.1" in o or "localhost" in o for o in ALLOWED_ORIGI
     logger.warning(
         "ALLOWED_ORIGINS is still the local-dev default (%s). Set it to your "
         "deployed front-end origin(s).", ",".join(ALLOWED_ORIGINS)
+    )
+
+# The teacher-code throttle keys on request.remote_addr. Behind a proxy with
+# TRUST_PROXY_HOPS unset, that's the load balancer for *every* caller, so the
+# per-IP budget collapses into one global budget: it stops throttling the
+# attacker and starts locking legitimate teachers out instead.
+if not DEBUG and TRUST_PROXY_HOPS == 0:
+    logger.warning(
+        "TRUST_PROXY_HOPS is 0. If this is deployed behind a proxy (Cloud Run "
+        "puts exactly one in front of you), set it to 1 — otherwise every "
+        "request looks like it comes from the load balancer and the teacher "
+        "signup-code rate limit applies globally instead of per client."
     )
 
 
@@ -314,18 +342,34 @@ def invalidate_role(uid):
         _role_cache.pop(uid, None)
 
 
-def require_auth(fn):
-    """Gate: any signed-in Firebase user. Stashes the decoded token + uid on
-    `request` so the handler can use them."""
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        decoded = verify_user()
-        if not decoded:
-            return jsonify({"error": "Unauthorized. Please sign in."}), 401
-        request.user = decoded
-        request.uid = decoded["uid"]
-        return fn(*args, **kwargs)
-    return wrapper
+def require_auth(fn=None, *, allow_roleless=False):
+    """Gate: any signed-in Firebase user who has finished registering. Stashes the
+    decoded token + uid on `request` so the handler can use them.
+
+    The role check is part of the gate, not a nicety. Signing in and *registering*
+    are two separate steps: the browser creates the Firebase account itself
+    (anyone can, straight against the public web API key) and only then calls
+    /auth/register to be assigned a role. So a token with no role behind it is a
+    half-created account — and without this check it fell through every student
+    path as a de-facto student, able to join a class and use the tutor.
+
+    /auth/register is the one route that legitimately runs before a role exists;
+    it opts out with allow_roleless=True.
+    """
+    def decorate(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            decoded = verify_user()
+            if not decoded:
+                return jsonify({"error": "Unauthorized. Please sign in."}), 401
+            if not allow_roleless and not get_role(decoded["uid"]):
+                return jsonify({"error": "Finish creating your account first."}), 403
+            request.user = decoded
+            request.uid = decoded["uid"]
+            return f(*args, **kwargs)
+        return wrapper
+    # Usable bare (@require_auth) or called (@require_auth(allow_roleless=True)).
+    return decorate(fn) if fn else decorate
 
 
 def require_teacher(fn):
@@ -597,8 +641,29 @@ def auth_config():
     })
 
 
+def discard_unregistered_user(uid):
+    """Delete a Firebase account that never completed registration.
+
+    The browser has to create the Firebase account *before* it can prove it knows
+    the teacher code, so a wrong code leaves a real, usable account behind with no
+    role. auth.js tries to undo that itself, but a client-side rollback is a
+    courtesy and not a guarantee — a closed tab, a lost connection, or a redirect
+    firing mid-request skips it, and the account survives.
+
+    Only ever touches an account with no Users document, so an existing student
+    who fumbles the teacher code keeps the account they already had.
+    """
+    try:
+        if db.collection("Users").document(uid).get().exists:
+            return
+        fb_auth.delete_user(uid)
+        logger.info("Deleted half-created account %s (registration never completed).", uid)
+    except Exception:
+        logger.exception("Could not clean up half-created account %s", uid)
+
+
 @app.route('/auth/register', methods=['POST'])
-@require_auth
+@require_auth(allow_roleless=True)
 def auth_register():
     """Finish account setup after the browser has created a Firebase account.
     Records the user's role in Firestore. Becoming a teacher requires the
@@ -611,8 +676,17 @@ def auth_register():
         return jsonify({"error": "role must be 'teacher' or 'student'"}), 400
 
     if role == "teacher":
+        # Throttle before comparing: this is the only place the teacher code can
+        # be tested, so an unmetered comparison here is an open brute-force oracle.
+        if rate_limited(f"register:{request.remote_addr}", REGISTER_RATE_LIMIT, REGISTER_RATE_WINDOW):
+            return jsonify({"error": "Too many attempts. Please wait a few minutes."}), 429
         supplied = str(data.get("teacher_code") or "")
-        if not supplied or not hmac.compare_digest(supplied, TEACHER_SIGNUP_CODE):
+        # Compare as bytes: compare_digest rejects non-ASCII *str* with a TypeError,
+        # and `supplied` is attacker-controlled — as text, a code with an accent in
+        # it turned a wrong-code 403 into an unhandled 500.
+        if not hmac.compare_digest(supplied.encode("utf-8"), TEACHER_SIGNUP_CODE.encode("utf-8")):
+            logger.warning("Rejected teacher signup code from %s (uid %s).", request.remote_addr, request.uid)
+            discard_unregistered_user(request.uid)
             return jsonify({"error": "Wrong teacher code."}), 403
 
     uid = request.uid
@@ -1325,6 +1399,18 @@ def upload():
         elif fname.endswith(".docx"):
             if DocxDocument is None:
                 return jsonify({"error": "python-docx not installed"}), 500
+            # Check the archive's declared uncompressed size before handing it to
+            # python-docx, which would expand the whole thing into memory first.
+            # Reading the central directory decompresses nothing.
+            # ponytail: trusts the declared sizes, which a hand-built zip can
+            # understate; a hard ceiling would need a counting decompress stream.
+            try:
+                declared = sum(i.file_size for i in zipfile.ZipFile(file.stream).infolist())
+            except zipfile.BadZipFile:
+                return jsonify({"error": "That .docx isn't a readable Word file."}), 400
+            if declared > MAX_EXTRACT_BYTES:
+                return jsonify({"error": "That document expands to far too much content."}), 413
+            file.stream.seek(0)
             doc = DocxDocument(file.stream)
             text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
         elif fname.endswith((".txt", ".md", ".csv")):
@@ -1336,6 +1422,13 @@ def upload():
 
     if not text.strip():
         return jsonify({"error": "No text could be extracted from the file"}), 400
+
+    # Every format converges here, so one cap bounds the embedding cost and the
+    # peak memory of the chunk list for all of them — however the text got large.
+    truncated = len(text) > MAX_EXTRACT_CHARS
+    if truncated:
+        logger.info("Truncated %s from %d to %d characters.", file.filename, len(text), MAX_EXTRACT_CHARS)
+        text = text[:MAX_EXTRACT_CHARS]
 
     chunks = chunk_text(text)
     # Drop the source text (and its normalized copy inside chunk_text) before we
@@ -1372,7 +1465,15 @@ def upload():
         return server_error("Upload failed while indexing the document.", e)
 
     gc.collect()
-    return jsonify({"chunks": len(chunks), "stored": stored, "total_vectors": class_vector_count(class_id)})
+    result = {"chunks": len(chunks), "stored": stored, "total_vectors": class_vector_count(class_id)}
+    if truncated:
+        # Say so rather than silently indexing half a document — a teacher who
+        # thinks all of it landed would trust gaps that aren't really gaps.
+        result["warning"] = (
+            f"Only the first {MAX_EXTRACT_CHARS:,} characters were indexed. "
+            "Split the document and upload it in parts to add the rest."
+        )
+    return jsonify(result)
 
 
 @app.route('/health', methods=['GET'])

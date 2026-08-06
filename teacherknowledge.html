@@ -192,12 +192,22 @@
 </span>
 </div>
 
-<!-- Rules / documents list -->
+<!-- Documents -->
+<div class="flex flex-col panel overflow-hidden">
+<div class="flex items-center justify-between gap-3 p-3" style="border-bottom:1px solid var(--rule)">
+<span class="lbl" style="color:var(--sub)">Documents</span>
+<span class="lbl" style="color:var(--faint)" id="docCountPill">0 documents</span>
+</div>
+<div id="docsList"></div>
+<p class="hidden text-center text-sm py-8" style="color:var(--sub)" id="docsEmpty">No documents uploaded yet. Drop one above.</p>
+</div>
+
+<!-- Rules list -->
 <div class="flex-1 flex flex-col panel overflow-hidden">
 <div class="flex flex-wrap items-center gap-3 p-3" style="border-bottom:1px solid var(--rule)">
 <div class="relative flex-1 min-w-[160px]">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px]" style="color:var(--faint)">search</span>
-<input aria-label="Search knowledge base" class="fld w-full pl-10 pr-3 py-2 text-sm outline-none" id="searchInput" placeholder="Search knowledge…" type="text"/>
+<input aria-label="Search rules" class="fld w-full pl-10 pr-3 py-2 text-sm outline-none" id="searchInput" placeholder="Search rules…" type="text"/>
 </div>
 <span class="lbl" style="color:var(--sub)" id="countPill">0 rules</span>
 <button class="lbl flex items-center gap-1 px-2 py-2 transition-colors" style="color:var(--sub)" id="exportBtn" title="Copy rules for Bulk add">
@@ -208,21 +218,21 @@
 </button>
 </div>
 <div class="grid grid-cols-12 gap-4 px-4 py-2.5 lbl" style="border-bottom:1px solid var(--rule);color:var(--faint)">
-<div class="col-span-9">Content</div>
-<div class="col-span-3 text-right">Type</div>
+<div class="col-span-10">Rule</div>
+<div class="col-span-2 text-right">&nbsp;</div>
 </div>
 <div class="flex-1 overflow-y-auto custom-scrollbar" id="rulesList"></div>
-<p class="hidden text-center text-sm py-12" style="color:var(--sub)" id="emptyState">Empty shelf. Add a rule on the right, or drag a document into the box above.</p>
+<p class="hidden text-center text-sm py-12" style="color:var(--sub)" id="emptyState">No rules yet. Add one on the right.</p>
 </div>
 </div>
 
 <!-- Right: add to knowledge base -->
-<div data-right class="hidden lg:flex w-[340px] flex-col shrink-0" style="background:var(--paper);border-left:1px solid var(--rule)">
+<div data-right class="hidden lg:flex w-[340px] flex-col shrink-0 overflow-y-auto custom-scrollbar" style="background:var(--paper);border-left:1px solid var(--rule)">
 <div class="p-5" style="border-bottom:1px solid var(--rule)">
 <h3 class="text-[20px] leading-none">Add a rule</h3>
 <p class="text-xs mt-2" style="color:var(--sub)">Short instructions or facts the tutor has to stick to.</p>
 </div>
-<div class="flex-1 p-5 overflow-y-auto custom-scrollbar flex flex-col gap-4">
+<div class="p-5 flex flex-col gap-4" style="border-bottom:1px solid var(--rule)">
 <div class="flex flex-col gap-2">
 <label class="lbl" style="color:var(--sub)" for="ruleId">Optional ID</label>
 <input class="fld w-full p-2.5 text-sm outline-none" id="ruleId" placeholder="rule_no_homework_answers" type="text"/>
@@ -239,6 +249,20 @@
 <span class="font-bold" style="color:var(--ink)">Tip:</span> write each rule so it makes sense on its own. One idea per rule beats one long paragraph.
 </div>
 </div>
+
+<div class="p-5" style="border-bottom:1px solid var(--rule)">
+<h3 class="text-[20px] leading-none">Check what the class can answer</h3>
+<p class="text-xs mt-2" style="color:var(--sub)">Ask as a student would. You'll see the reply and the passages behind it.</p>
+</div>
+<div class="p-5 flex flex-col gap-3">
+<form class="flex gap-2" id="probeForm">
+<label class="sr-only" for="probeInput">Ask a question as a student would</label>
+<input class="fld flex-1 min-w-0 p-2.5 text-sm outline-none" id="probeInput" placeholder="Ask a question…" type="text"/>
+<button aria-label="Ask" class="ibtn flex-shrink-0" id="probeBtn" style="border:1px solid var(--field-b)" type="submit">
+<span class="material-symbols-outlined text-[18px]">arrow_upward</span>
+</button>
+</form>
+<div class="hidden text-sm p-3 panel" id="probeResult"></div>
 </div>
 </div>
 </main>
@@ -414,13 +438,15 @@
   }
 
   async function loadRules(){
-    if(!ACTIVE_CLASS){RULES=[];$("countPill").textContent="0 rules";renderRules();return;}
+    if(!ACTIVE_CLASS){RULES=[];$("countPill").textContent="0 rules";renderRules();renderDocs();return;}
     $("refreshIcon").classList.add("spin");
     try{
       const d=await api("/rules",withClass({}));
       RULES=d.rules||[];
-      $("countPill").textContent=(d.total_vectors||0)+" rule"+((d.total_vectors||0)===1?"":"s");
+      const ruleCount=RULES.filter(r=>!String(r.id||"").startsWith("file_")).length;
+      $("countPill").textContent=ruleCount+" rule"+(ruleCount===1?"":"s");
       renderRules();
+      renderDocs();
     }catch(e){showToast(e.message,false);}
     $("refreshIcon").classList.remove("spin");
   }
@@ -429,28 +455,146 @@
     const q=$("searchInput").value.trim().toLowerCase();
     const list=$("rulesList");
     list.innerHTML="";
-    const shown=RULES.filter(r=>!q||(r.text||"").toLowerCase().includes(q)||(r.id||"").toLowerCase().includes(q));
-    $("emptyState").classList.toggle("hidden",RULES.length>0);
-    if(RULES.length&&!shown.length){
+    const rules=RULES.filter(r=>!String(r.id||"").startsWith("file_"));
+    const shown=rules.filter(r=>!q||(r.text||"").toLowerCase().includes(q)||(r.id||"").toLowerCase().includes(q));
+    $("emptyState").classList.toggle("hidden",rules.length>0);
+    if(rules.length&&!shown.length){
       list.innerHTML='<p class="text-center text-sm py-8" style="color:var(--sub)">No rules match your search.</p>';
       return;
     }
     shown.forEach(r=>{
-      const isFile=String(r.id||"").startsWith("file_");
       const row=document.createElement("div");
       row.className="grid grid-cols-12 gap-4 px-4 py-3 rule-line items-center transition-colors group hover:bg-hi";
-      const name=document.createElement("div"); name.className="col-span-9 flex items-center gap-3 min-w-0";
-      const ico=document.createElement("span"); ico.className="material-symbols-outlined text-[18px] flex-shrink-0 "+(isFile?"text-gold":"text-crimson"); ico.textContent=isFile?"description":"gavel";
+      const name=document.createElement("div"); name.className="col-span-10 flex items-center gap-3 min-w-0";
+      const ico=document.createElement("span"); ico.className="material-symbols-outlined text-[18px] flex-shrink-0 text-crimson"; ico.textContent="gavel";
       const txt=document.createElement("span"); txt.className="text-sm truncate"; txt.textContent=r.text; txt.title=r.text;
       name.appendChild(ico); name.appendChild(txt);
-      const right=document.createElement("div"); right.className="col-span-3 flex items-center justify-end gap-3";
-      const tag=document.createElement("span"); tag.className="hidden sm:inline lbl "+(isFile?"text-gold":"text-steel"); tag.textContent=isFile?"Document":"Rule";
+      const right=document.createElement("div"); right.className="col-span-2 flex items-center justify-end";
       const del=document.createElement("button"); del.className="hover:text-crimson transition-colors opacity-0 group-hover:opacity-100"; del.style.color="var(--sub)"; del.title="Delete"; del.onclick=()=>delRule(r.id);
       del.innerHTML='<span class="material-symbols-outlined text-[18px]">delete</span>';
-      right.appendChild(tag); right.appendChild(del);
+      right.appendChild(del);
       row.appendChild(name); row.appendChild(right);
       list.appendChild(row);
     });
+  }
+
+  // --- documents: file-derived rule chunks share a "file_<uploadMs>_<n>" id and a
+  // metadata.source filename, so they're grouped back into one row per upload
+  // instead of showing every chunk as its own list item.
+  function docIcon(name){
+    const n=(name||"").toLowerCase();
+    if(n.endsWith(".pdf"))return "picture_as_pdf";
+    if(n.endsWith(".docx"))return "description";
+    if(n.endsWith(".csv"))return "table_chart";
+    return "draft";
+  }
+
+  function fmtWhen(ms){
+    if(!ms)return "";
+    const days=Math.floor((Date.now()-ms)/86400000);
+    if(days<=0)return "Added today";
+    if(days===1)return "Added yesterday";
+    if(days<7)return "Added "+days+" days ago";
+    return "Added "+new Date(ms).toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  }
+
+  function computeDocs(){
+    const map=new Map();
+    RULES.forEach(r=>{
+      if(!r.source)return;
+      const parts=String(r.id||"").split("_");
+      const ts=parts.length>1?parseInt(parts[1],10):NaN;
+      if(!map.has(r.source))map.set(r.source,{name:r.source,ids:[],ts:null});
+      const d=map.get(r.source);
+      d.ids.push(r.id);
+      if(isFinite(ts)&&(d.ts===null||ts<d.ts))d.ts=ts;
+    });
+    return Array.from(map.values()).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  }
+
+  function renderDocs(){
+    const docs=computeDocs();
+    const list=$("docsList");
+    list.innerHTML="";
+    $("docCountPill").textContent=docs.length+" document"+(docs.length===1?"":"s");
+    $("docsEmpty").classList.toggle("hidden",docs.length>0);
+    docs.forEach(d=>{
+      const row=document.createElement("div");
+      row.className="flex items-center justify-between gap-3 px-4 py-3 rule-line group hover:bg-hi";
+      const left=document.createElement("span"); left.className="flex items-center gap-3 min-w-0";
+      const ico=document.createElement("span"); ico.className="material-symbols-outlined text-[20px] flex-shrink-0"; ico.style.color="var(--faint)"; ico.textContent=docIcon(d.name);
+      const meta=document.createElement("span"); meta.className="min-w-0";
+      const nameEl=document.createElement("span"); nameEl.className="block text-sm font-medium truncate"; nameEl.textContent=d.name; nameEl.title=d.name;
+      const subEl=document.createElement("span"); subEl.className="block text-xs mt-0.5"; subEl.style.color="var(--faint)";
+      subEl.textContent=d.ids.length+" chunk"+(d.ids.length===1?"":"s")+(d.ts?(" · "+fmtWhen(d.ts)):"");
+      meta.appendChild(nameEl); meta.appendChild(subEl);
+      left.appendChild(ico); left.appendChild(meta);
+      const del=document.createElement("button");
+      del.className="ibtn flex-shrink-0 opacity-0 group-hover:opacity-100";
+      del.title="Remove document";
+      del.onclick=()=>removeDoc(d);
+      del.innerHTML='<span class="material-symbols-outlined text-[18px]">delete</span>';
+      row.appendChild(left); row.appendChild(del);
+      list.appendChild(row);
+    });
+  }
+
+  async function removeDoc(d){
+    if(!ensureClass())return;
+    if(!confirm('Delete "'+d.name+'" ('+d.ids.length+' chunk'+(d.ids.length===1?"":"s")+')? This cannot be undone.'))return;
+    try{
+      for(const id of d.ids){ await api("/delete_rule",withClass({id})); }
+      showToast("Document deleted",true);
+      loadRules();
+    }catch(e){showToast(e.message,false);}
+  }
+
+  async function probeAsk(e){
+    e.preventDefault();
+    if(!ensureClass())return;
+    const input=$("probeInput");
+    const q=input.value.trim();
+    if(!q)return;
+    const btn=$("probeBtn"),box=$("probeResult");
+    btn.disabled=true;
+    box.classList.remove("hidden");
+    box.textContent="Thinking…";
+    try{
+      // ponytail: reuses the real /chat endpoint as the preview mechanism instead of
+      // a separate no-persist route — a teacher passes /chat's user_in_class check on
+      // their own class, and /stats only walks class Members (teachers aren't one),
+      // so these probe exchanges land in the teacher's own chat history and never
+      // leak into class analytics.
+      const d=await api("/chat",{class_id:ACTIVE_CLASS,message:q});
+      box.innerHTML="";
+      const ans=document.createElement("p");
+      ans.className="font-display text-[16px] leading-relaxed";
+      ans.style.margin="0";
+      ans.textContent=d.response||"";
+      box.appendChild(ans);
+      const used=d.rules_used||[];
+      if(used.length){
+        const src=document.createElement("div");
+        src.className="mt-3 pt-3 text-xs leading-relaxed";
+        src.style.cssText="border-top:1px solid var(--rule2);color:var(--faint)";
+        used.forEach(u=>{
+          const line=document.createElement("div"); line.className="truncate"; line.textContent=u; line.title=u;
+          src.appendChild(line);
+        });
+        box.appendChild(src);
+      }else{
+        const gap=document.createElement("p");
+        gap.className="text-xs mt-3"; gap.style.cssText="margin:0;color:var(--crimson-d)";
+        gap.textContent="Not in the knowledge base — recorded as a gap.";
+        box.appendChild(gap);
+      }
+      input.value="";
+    }catch(e){
+      box.classList.add("hidden");
+      box.textContent="";
+      showToast(e.message,false);
+    }
+    btn.disabled=false;
   }
 
   async function delRule(id){
@@ -527,6 +671,7 @@
   $("exportBtn").onclick=exportRules;
   $("refreshBtn").onclick=loadRules;
   $("uploadBtn").onclick=uploadFile;
+  $("probeForm").addEventListener("submit",probeAsk);
   $("searchInput").addEventListener("input",renderRules);
   $("uploadHeaderBtn").onclick=()=>$("fileInput").click();
   $("browseLink").onclick=e=>{e.stopPropagation();$("fileInput").click();};

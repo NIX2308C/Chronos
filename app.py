@@ -1125,7 +1125,10 @@ def list_rules():
             include_metadata=True,
             namespace=class_id,
         )
-        rules = [{"id": m["id"], "text": m["metadata"].get("text", "")} for m in resp["matches"]]
+        rules = [
+            {"id": m["id"], "text": m["metadata"].get("text", ""), "source": m["metadata"].get("source")}
+            for m in resp["matches"]
+        ]
         return jsonify({"rules": rules, "total_vectors": count})
     except Exception as e:
         return server_error("Could not list rules.", e)

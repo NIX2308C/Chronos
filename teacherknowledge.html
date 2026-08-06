@@ -7,7 +7,7 @@
 <link href="transition.css" rel="stylesheet"/>
 <script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600;700&amp;family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
   tailwind.config = {
     darkMode: "class",
@@ -20,94 +20,81 @@
         "primary":"#E2001A", "background-dark":"#E9E4D6", "surface":"#F7F4EC",
         "muted":"#4B4A46", "accent":"#C9A227"
       },
-      fontFamily: { "display": ["Anton","sans-serif"], "body": ["IBM Plex Sans","sans-serif"], "mono": ["IBM Plex Mono","monospace"] },
+      fontFamily: { "display": ["Newsreader","serif"], "body": ["Schibsted Grotesk","sans-serif"] },
       borderRadius: { "DEFAULT": "0", "sm": "0", "lg": "0", "xl": "0", "full": "0" },
     } }
   }
 </script>
 <style>
-  :root{--page:#E9E4D6;--paper:#F7F4EC;--ink:#141311;--sub:#4B4A46;--edge:#1C1A16;--hi:#E4DECD;
-        --crimson:#E2001A;--gold:#C9A227;--snap:cubic-bezier(.2,1.45,.35,1)}
-  html.dark{--page:#0B0B0C;--paper:#141317;--ink:#F7F4EC;--sub:#A9A499;--edge:#3A3A3E;--hi:#1E1E23;color-scheme:dark}
-  body { font-family:'IBM Plex Sans',sans-serif; background:var(--page); color:var(--ink); }
-  h1,h2,h3,h4 { font-family:'Anton',sans-serif; text-transform:uppercase; letter-spacing:.005em; font-weight:400; }
+  :root{--page:#E9E4D6;--paper:#F7F4EC;--side:#EFEADC;--ink:#141311;--sub:#5D5B55;--faint:#8C8880;
+        --rule:#DED8C6;--rule2:#E0DACA;--field-b:#C9C2AC;--field:#FFFDF7;--hi:#E4DECD;
+        --crimson:#E2001A;--crimson-d:#B10014;--gold:#C9A227;--snap:cubic-bezier(.2,1.45,.35,1)}
+  html.dark{--page:#0B0B0C;--paper:#141317;--side:#18181C;--ink:#F7F4EC;--sub:#A9A499;--faint:#8C8880;
+            --rule:#2E2E33;--rule2:#2E2E33;--field-b:#3A3A3E;--field:#0F0F12;--hi:#1E1E23;color-scheme:dark}
+  *{box-sizing:border-box}
+  body { margin:0; font-family:'Schibsted Grotesk',sans-serif; background:var(--page); color:var(--ink); overflow:hidden }
+  h1,h2,h3,h4 { font-family:'Newsreader',serif; font-weight:400; letter-spacing:-.015em }
   ::selection { background:var(--crimson); color:#F7F4EC; }
-  :focus-visible { outline:3px solid var(--gold); outline-offset:2px; }
+  :focus-visible { outline:2px solid var(--crimson); outline-offset:2px; }
   .material-symbols-outlined { font-family:'Material Symbols Sharp'; }
-  .font-mono { font-family:'IBM Plex Mono',monospace; }
-  /* Custom classes below set `display`, which would beat Tailwind's .hidden on a
-     tie. Scope the fix to those classes — a blanket `.hidden{display:none!important}`
-     also outranks `lg:flex`/`sm:inline`, which permanently hides every element that
-     is meant to appear only at a breakpoint (e.g. the Add-a-rule panel). */
-  .hidden.kbtn, .hidden.ibtn, .hidden.tab { display:none; }
-  .lbl { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:.15em; text-transform:uppercase; }
+  .lbl { font-size:11.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
+  .hidden.kbtn, .hidden.ibtn { display:none; }
 
-  /* structural surfaces — replaces the old glass/blur panels */
-  .panel { background:var(--paper); border:2px solid var(--edge); }
-  .cast { box-shadow:6px 6px 0 var(--edge); }
-  .cast-red { box-shadow:6px 6px 0 var(--crimson); }
-  .rule-line { border-bottom:1px solid var(--hi); }
+  /* structural surfaces */
+  .panel { background:var(--paper); border:1px solid var(--rule); }
+  .rule-line { border-bottom:1px solid var(--rule2); }
 
   .custom-scrollbar::-webkit-scrollbar { width: 8px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--edge); }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--field-b); }
   .spin { animation: spin .7s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pop { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
 
-  /* Teacher tab bar — shared with teacherstats.html, keep the two in sync.
-     Sits flush on the header's crimson bottom border so the active tab reads
-     as joined to the page below it. Scrolls sideways instead of collapsing,
-     so the sections stay reachable at any width. */
-  .tabs { display:flex; overflow-x:auto; scrollbar-width:none; margin-bottom:-3px; max-width:100% }
-  .tabs::-webkit-scrollbar { display:none }
-  .tab { position:relative; display:flex; align-items:center; gap:.45rem; flex:none;
-    padding:.6rem 1rem; border:3px solid var(--edge); border-bottom:none; background:transparent;
-    color:var(--sub); overflow:hidden; white-space:nowrap; transition:color .18s;
-    font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:700;
-    letter-spacing:.12em; text-transform:uppercase }
-  .tab + .tab { border-left:none }
-  .tab > * { position:relative; z-index:2 }
-  .tab::before { content:""; position:absolute; inset:0; background:var(--crimson);
-    transform:translateY(102%); transition:transform .26s var(--snap); z-index:1 }
-  .tab:hover::before { transform:translateY(0) }
-  .tab:hover { color:#F7F4EC }
-  .tab.on { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC }
-  .tab.on::before { display:none }
+  /* sidebar */
+  .side-link { display:flex; align-items:center; gap:10px; padding:11px 12px; font-size:14.5px; color:var(--ink);
+    text-decoration:none; transition:color .15s ease; }
+  .side-link:hover { color:var(--crimson-d); }
+  .side-link.on { background:var(--hi); font-weight:600; }
+  .class-row { width:100%; display:block; text-align:left; background:transparent; border:none; border-left:3px solid transparent;
+    padding:11px 12px; font:inherit; cursor:pointer; transition:background-color .15s ease; }
+  .class-row.on { background:var(--hi); border-left-color:var(--crimson); }
+  .class-row:hover:not(.on) { background:var(--hi); }
 
   /* buttons */
-  .kbtn { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
-    font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:700; letter-spacing:.13em;
-    text-transform:uppercase; padding:.65rem 1rem; border:2px solid var(--crimson); background:var(--crimson);
-    color:#F7F4EC; overflow:hidden; cursor:pointer; transition:transform .14s var(--snap) }
-  .kbtn > * { position:relative; z-index:2 }
-  .kbtn::before { content:""; position:absolute; inset:-2px -30%; background:var(--edge);
-    transform:translateX(-115%) skewX(-16deg); transition:transform .36s var(--snap); z-index:1 }
-  .kbtn:hover:not(:disabled)::before { transform:translateX(0) skewX(-16deg) }
-  .kbtn:active:not(:disabled) { transform:translate(2px,2px) }
+  .kbtn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
+    font-size:14px; font-weight:600; padding:.65rem 1.05rem; border:1px solid var(--crimson); background:var(--crimson);
+    color:#F7F4EC; cursor:pointer; transition:background-color .15s ease,border-color .15s ease }
+  .kbtn:hover:not(:disabled) { background:var(--ink); border-color:var(--ink) }
   .kbtn:disabled { opacity:.5; cursor:default }
-  .kbtn-ghost { background:transparent; border-color:var(--edge); color:var(--ink) }
-  .kbtn-ghost::before { background:var(--crimson) }
-  .kbtn-ghost:hover:not(:disabled) { color:#F7F4EC; border-color:var(--crimson) }
+  .kbtn-ghost { background:transparent; border-color:var(--field-b); color:var(--ink) }
+  .kbtn-ghost:hover:not(:disabled) { border-color:var(--ink); background:transparent; color:var(--ink) }
 
-  .ibtn { width:36px; height:36px; display:flex; align-items:center; justify-content:center;
-    border:2px solid transparent; color:var(--sub);
-    transition:background-color .18s,color .18s,border-color .18s,transform .2s var(--snap) }
-  .ibtn:hover { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC; transform:rotate(-6deg) }
+  .ibtn { width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    border:1px solid transparent; color:var(--sub); background:transparent; cursor:pointer;
+    transition:background-color .15s,color .15s,border-color .15s }
+  .ibtn:hover { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC }
 
   /* fields */
-  .fld { background:var(--paper); border:2px solid var(--edge); color:var(--ink); border-radius:0;
-    transition:box-shadow .18s,border-color .18s }
-  .fld:focus { outline:none; border-color:var(--crimson); box-shadow:4px 4px 0 var(--crimson) }
-  .fld::placeholder { color:var(--sub); opacity:.65 }
+  .fld { background:var(--field); border:1px solid var(--field-b); color:var(--ink); border-radius:0;
+    transition:border-color .15s }
+  .fld:focus { outline:none; border-color:var(--crimson); }
+  .fld::placeholder { color:var(--faint); }
 
   /* dropzone */
-  .dz { border:3px dashed var(--edge); background:var(--paper); cursor:pointer;
-    transition:border-color .2s,transform .22s var(--snap),box-shadow .22s }
-  .dz:hover, .dz.hot { border-color:var(--crimson); transform:translate(-3px,-3px); box-shadow:8px 8px 0 var(--crimson) }
+  .dz { border:2px dashed var(--field-b); background:var(--field); cursor:pointer; transition:border-color .15s }
+  .dz:hover, .dz.hot { border-color:var(--crimson); }
 
   /* code pill */
-  .codepill { align-items:center; gap:.4rem; background:var(--gold); color:#0B0B0C;
-    padding:.5rem .75rem; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:700; letter-spacing:.14em }
+  .codepill { align-items:center; gap:.4rem; background:transparent; border:1px solid var(--field-b); color:var(--ink);
+    padding:.5rem .75rem; font-size:13px; font-weight:600; cursor:pointer; transition:border-color .15s,color .15s }
+  .codepill:hover { border-color:var(--crimson); color:var(--crimson-d) }
+
+  @media (max-width:980px){
+    [data-shell]{grid-template-columns:minmax(0,1fr)!important}
+    [data-side]{display:none!important}
+    [data-right]{display:none!important}
+  }
 </style>
 <link href="theme.css" rel="stylesheet"/>
 </head>
@@ -121,101 +108,106 @@
 </div>
 
 <!-- App -->
-<div class="hidden h-screen flex flex-col overflow-hidden" id="app">
+<div class="hidden" id="app" data-shell style="display:grid;grid-template-columns:264px minmax(0,1fr);height:100vh">
 
-<!-- Header: identity + the shared teacher tab bar + this page's controls.
-     The tabs live here rather than in a sidebar so they survive every width —
-     the old md-only sidebar left teachers with no way off the page on mobile. -->
-<header class="shrink-0 z-10" style="background:var(--paper);border-bottom:3px solid var(--crimson)">
-<div class="flex items-center justify-between gap-3 px-5 lg:px-7 pt-3 pb-2">
-<a class="flex items-baseline gap-2.5" href="landing.html">
-<h1 class="text-[24px] leading-none">Chronos<span class="text-crimson">.</span></h1>
-<span class="lbl" style="color:var(--sub)">Teacher</span>
-</a>
-<div class="flex items-center gap-1">
+<!-- Sidebar -->
+<aside data-side style="background:var(--side);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:0">
+<div style="padding:18px 20px 16px;border-bottom:1px solid var(--rule)">
+<a href="landing.html" style="color:var(--ink);font-family:Newsreader,serif;font-size:24px;line-height:1;text-decoration:none;letter-spacing:-.015em">Chronos<span style="color:var(--crimson)">.</span></a>
+<div class="lbl" style="color:var(--faint);margin-top:5px;letter-spacing:.04em">Teacher</div>
+</div>
+
+<div style="padding:16px 12px 8px">
+<div class="lbl" style="color:var(--faint);padding:0 8px 8px">Your classes</div>
+<div class="relative">
+<select aria-label="Active class" class="fld w-full text-sm px-3 py-2.5 outline-none cursor-pointer appearance-none" id="classSelect" title="Active class"></select>
+<span class="material-symbols-outlined text-[18px] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style="color:var(--faint)">unfold_more</span>
+</div>
+<div class="flex items-center gap-1 mt-2">
+<button class="flex-1 flex items-center gap-2 px-2 py-2 text-sm font-semibold" style="background:transparent;border:none;color:var(--ink);cursor:pointer" id="newClassBtn" title="Create a class">
+<span class="material-symbols-outlined text-[18px]">add</span>New class
+</button>
+<button class="hidden ibtn flex-shrink-0" id="deleteClassBtn" title="Delete this class">
+<span class="material-symbols-outlined text-[19px]">delete</span>
+</button>
+</div>
+<button class="hidden codepill w-full mt-1 justify-center" id="joinCodePill" title="Copy join code to share with students">
+<span class="material-symbols-outlined text-[16px]">vpn_key</span> <span id="joinCodeVal"></span>
+</button>
+</div>
+
+<nav style="margin-top:8px;padding:12px;border-top:1px solid var(--rule);display:flex;flex-direction:column">
+<span class="side-link on"><span class="material-symbols-outlined text-[19px]" style="font-variation-settings:'FILL' 1">folder_open</span>Class material</span>
+<a class="side-link" href="teacherstats.html"><span class="material-symbols-outlined text-[19px]">insights</span>Analytics</a>
+<a class="side-link" href="student.html"><span class="material-symbols-outlined text-[19px]">chat</span>Preview as student</a>
+</nav>
+
+<div style="margin-top:auto;border-top:1px solid var(--rule);padding:12px 16px;display:flex;align-items:center;gap:6px">
 <button aria-label="How this works" class="ibtn" id="tutHelp" title="How this works">
-<span class="material-symbols-outlined text-[20px]">help</span>
+<span class="material-symbols-outlined text-[19px]">help</span>
 </button>
 <button class="ibtn" data-theme-toggle="" title="Switch to dark mode">
-<span class="material-symbols-outlined text-[20px]">dark_mode</span>
+<span class="material-symbols-outlined text-[19px]">dark_mode</span>
 </button>
-<button class="ibtn !w-auto !px-2 gap-2" id="lockBtn" title="Sign out">
-<span class="material-symbols-outlined text-[20px]">account_circle</span>
-<span class="hidden lg:inline font-mono text-xs max-w-[150px] truncate" id="userEmail" title=""></span>
+<button class="ibtn !w-auto !px-2 gap-2 flex-1 justify-start" id="lockBtn" title="Sign out">
+<span class="material-symbols-outlined text-[19px]">account_circle</span>
+<span class="text-xs truncate min-w-0" id="userEmail" title=""></span>
 </button>
 </div>
+</aside>
+
+<!-- Main -->
+<main style="display:flex;flex-direction:column;min-width:0;min-height:0">
+<header style="border-bottom:3px solid var(--ink);padding:22px 36px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;flex:none">
+<div>
+<h1 class="text-[27px] leading-none mb-1">Knowledge base</h1>
+<p class="text-sm" style="color:var(--sub)">Everything this class&rsquo;s tutor is allowed to know. Your rules, your documents, and nothing else.</p>
 </div>
-<div class="flex items-end justify-between gap-x-4 gap-y-2 px-5 lg:px-7 flex-wrap">
-<nav class="tabs" aria-label="Teacher sections">
-<a class="tab on" href="teacherknowledge.html"><span class="material-symbols-outlined text-[17px]" style="font-variation-settings:'FILL' 1;">menu_book</span><span>Knowledge</span></a>
-<a class="tab" href="teacherstats.html"><span class="material-symbols-outlined text-[17px]">analytics</span><span>Analytics</span></a>
-<a class="tab" href="student.html"><span class="material-symbols-outlined text-[17px]">forum</span><span>Tutor</span></a>
-</nav>
-<div class="flex items-center gap-2 flex-wrap pb-2">
-<select class="fld text-sm font-mono px-3 py-2 max-w-[180px] outline-none cursor-pointer" id="classSelect" title="Active class"></select>
-<button class="kbtn kbtn-ghost" id="newClassBtn" title="Create a class">
-<span><span class="material-symbols-outlined text-[16px] align-middle">add</span> New class</span>
-</button>
-<span class="hidden codepill" id="joinCodePill" title="Share this code with students">
-<span class="material-symbols-outlined text-[16px]">vpn_key</span> <span id="joinCodeVal"></span>
-</span>
-<button class="hidden ibtn" id="deleteClassBtn" title="Delete this class">
-<span class="material-symbols-outlined text-[20px]">delete</span>
-</button>
 <button class="kbtn" id="uploadHeaderBtn">
-<span><span class="material-symbols-outlined text-[16px] align-middle">upload</span> Upload source</span>
+<span class="material-symbols-outlined text-[16px] align-middle">upload</span> Upload source
 </button>
-</div>
-</div>
 </header>
 
-<div class="px-5 lg:px-7 pt-5 shrink-0">
-<h2 class="text-[26px] leading-none">Knowledge base</h2>
-<p class="text-sm mt-1.5 max-w-lg" style="color:var(--sub)">Everything this class&rsquo;s tutor is allowed to know. Your rules, your documents, and nothing else.</p>
-</div>
-
-<!-- Workspace -->
-<div class="flex-1 flex overflow-hidden">
-<!-- Center -->
-<div class="flex-1 flex flex-col overflow-y-auto custom-scrollbar p-6 lg:p-8 gap-6">
+<div style="flex:1;display:flex;overflow:hidden;min-height:0">
+<div class="custom-scrollbar p-6 lg:p-8 flex flex-col gap-6" style="flex:1;overflow-y:auto;min-width:0">
 <!-- Dropzone -->
-<div class="dz min-h-[180px] flex flex-col items-center justify-center gap-3 p-6 text-center" id="dropZone">
-<span class="material-symbols-outlined text-[34px] text-crimson">upload_file</span>
+<div class="dz min-h-[160px] flex flex-col items-center justify-center gap-3 p-6 text-center" id="dropZone">
+<span class="material-symbols-outlined text-[32px]" style="color:var(--crimson)">upload_file</span>
 <div>
-<p class="text-lg font-semibold">Drop a document here</p>
-<p class="text-sm mt-1" style="color:var(--sub)">or <span class="text-crimson underline font-semibold" id="browseLink">browse your files</span></p>
+<p class="text-base font-semibold">Drop a document here</p>
+<p class="text-sm mt-1" style="color:var(--sub)">or <span style="color:var(--crimson-d);text-decoration:underline;font-weight:600" id="browseLink">browse your files</span></p>
 </div>
-<p class="lbl" style="color:var(--sub)">PDF &middot; DOCX &middot; TXT &middot; MD &middot; CSV</p>
+<p class="lbl" style="color:var(--faint)">PDF · DOCX · TXT · MD · CSV</p>
 <input accept=".pdf,.docx,.txt,.md,.csv" class="hidden" id="fileInput" type="file"/>
 </div>
 <!-- Selected file -->
 <div class="hidden items-center justify-between gap-3 p-3 panel" id="fileInfo">
 <span class="flex items-center gap-2 text-sm min-w-0">
-<span class="material-symbols-outlined text-[18px] flex-shrink-0 text-gold">draft</span>
+<span class="material-symbols-outlined text-[18px] flex-shrink-0" style="color:var(--gold)">draft</span>
 <span class="truncate font-medium" id="fileName"></span>
 </span>
 <span class="flex items-center gap-3 flex-shrink-0">
-<span class="lbl" style="color:var(--sub)" id="fileSize"></span>
+<span class="lbl" style="color:var(--faint)" id="fileSize"></span>
 <button class="kbtn" disabled id="uploadBtn"><span>Upload &amp; extract</span></button>
 </span>
 </div>
 
 <!-- Rules / documents list -->
-<div class="flex-1 flex flex-col panel cast overflow-hidden">
-<div class="flex flex-wrap items-center gap-3 p-3" style="border-bottom:2px solid var(--edge)">
+<div class="flex-1 flex flex-col panel overflow-hidden">
+<div class="flex flex-wrap items-center gap-3 p-3" style="border-bottom:1px solid var(--rule)">
 <div class="relative flex-1 min-w-[160px]">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px]" style="color:var(--sub)">search</span>
-<input class="fld w-full pl-10 pr-3 py-2 text-sm outline-none" id="searchInput" placeholder="Search knowledge…" type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px]" style="color:var(--faint)">search</span>
+<input aria-label="Search knowledge base" class="fld w-full pl-10 pr-3 py-2 text-sm outline-none" id="searchInput" placeholder="Search knowledge…" type="text"/>
 </div>
 <span class="lbl" style="color:var(--sub)" id="countPill">0 rules</span>
-<button class="lbl flex items-center gap-1 px-2 py-2 hover:text-crimson transition-colors" style="color:var(--sub)" id="exportBtn" title="Copy rules for Bulk add">
-<span class="material-symbols-outlined text-[16px]">content_copy</span> Export
+<button class="lbl flex items-center gap-1 px-2 py-2 transition-colors" style="color:var(--sub)" id="exportBtn" title="Copy rules for Bulk add">
+<span class="material-symbols-outlined text-[16px]">content_copy</span> Copy rules
 </button>
-<button class="lbl flex items-center gap-1 px-2 py-2 hover:text-crimson transition-colors" style="color:var(--sub)" id="refreshBtn">
+<button class="lbl flex items-center gap-1 px-2 py-2 transition-colors" style="color:var(--sub)" id="refreshBtn">
 <span class="material-symbols-outlined text-[16px]" id="refreshIcon">refresh</span> Refresh
 </button>
 </div>
-<div class="grid grid-cols-12 gap-4 px-4 py-2.5 lbl" style="border-bottom:2px solid var(--edge);background:var(--hi);color:var(--sub)">
+<div class="grid grid-cols-12 gap-4 px-4 py-2.5 lbl" style="border-bottom:1px solid var(--rule);color:var(--faint)">
 <div class="col-span-9">Content</div>
 <div class="col-span-3 text-right">Type</div>
 </div>
@@ -225,30 +217,32 @@
 </div>
 
 <!-- Right: add to knowledge base -->
-<div class="hidden lg:flex w-[340px] flex-col shrink-0" style="background:var(--paper);border-left:3px solid var(--edge)">
-<div class="p-5" style="border-bottom:2px solid var(--edge)">
+<div data-right class="hidden lg:flex w-[340px] flex-col shrink-0" style="background:var(--paper);border-left:1px solid var(--rule)">
+<div class="p-5" style="border-bottom:1px solid var(--rule)">
 <h3 class="text-[20px] leading-none">Add a rule</h3>
 <p class="text-xs mt-2" style="color:var(--sub)">Short instructions or facts the tutor has to stick to.</p>
 </div>
 <div class="flex-1 p-5 overflow-y-auto custom-scrollbar flex flex-col gap-4">
 <div class="flex flex-col gap-2">
 <label class="lbl" style="color:var(--sub)" for="ruleId">Optional ID</label>
-<input class="fld w-full p-2.5 text-sm font-mono outline-none" id="ruleId" placeholder="rule_no_homework_answers" type="text"/>
+<input class="fld w-full p-2.5 text-sm outline-none" id="ruleId" placeholder="rule_no_homework_answers" type="text"/>
 </div>
 <div class="flex flex-col gap-2">
 <label class="lbl" style="color:var(--sub)" for="ruleText">Rule / document text</label>
-<textarea class="fld w-full h-40 p-3 text-sm resize-none outline-none" id="ruleText" placeholder="e.g. The tutor may explain concepts but must NOT complete assignments for students."></textarea>
+<textarea class="fld w-full h-40 p-3 text-sm resize-none outline-none" id="ruleText" placeholder="e.g. Explain concepts, but don't do the assignment for the student."></textarea>
 </div>
 <div class="flex flex-col gap-2">
 <button class="kbtn w-full" id="addBtn"><span><span class="material-symbols-outlined text-[16px] align-middle">add</span> Add rule</span></button>
 <button class="kbtn kbtn-ghost w-full" id="bulkBtn"><span>Bulk add (one per line)</span></button>
 </div>
-<div class="text-xs leading-relaxed p-3" style="color:var(--sub);border:2px solid var(--edge);border-left:4px solid var(--gold)">
+<div class="text-xs leading-relaxed p-3" style="color:var(--sub);border:1px solid var(--rule);border-left:3px solid var(--gold)">
 <span class="font-bold" style="color:var(--ink)">Tip:</span> write each rule so it makes sense on its own. One idea per rule beats one long paragraph.
 </div>
 </div>
 </div>
 </div>
+</main>
+
 </div>
 
 <!-- Toast -->
@@ -270,8 +264,8 @@
     const t=$("toast");
     t.textContent=msg;
     t.className="fixed bottom-6 right-6 z-[60] max-w-sm px-4 py-3 text-sm font-medium flex items-center gap-2";
-    t.style.cssText="background:var(--paper);color:var(--ink);border:2px solid "+(ok?"var(--gold)":"var(--crimson)")+
-      ";box-shadow:6px 6px 0 "+(ok?"var(--gold)":"var(--crimson)")+";border-left-width:6px";
+    t.style.cssText="background:var(--paper);color:var(--ink);border:1px solid "+(ok?"var(--gold)":"var(--crimson)")+
+      ";border-left-width:4px";
     clearTimeout(showToast._t);
     showToast._t=setTimeout(()=>{t.className="hidden";t.style.cssText="";},4000);
   }
@@ -285,7 +279,7 @@
   function paintClassMeta(){
     const c=activeClassObj(),has=!!c;
     $("joinCodePill").classList.toggle("hidden",!has);
-    $("joinCodePill").classList.toggle("inline-flex",has);
+    $("joinCodePill").classList.toggle("flex",has);
     $("deleteClassBtn").classList.toggle("hidden",!has);
     $("deleteClassBtn").classList.toggle("flex",has);
     if(has)$("joinCodeVal").textContent=c.join_code||"";
@@ -319,6 +313,25 @@
     if(!confirm(`Delete "${c.name}" and all its rules? This cannot be undone.`))return;
     try{await Chronos.deleteClass(c.id);showToast("Class deleted",true);await loadClasses();loadRules();}
     catch(e){showToast(e.message,false);}
+  }
+
+  async function copyJoinCode(){
+    const c=activeClassObj();if(!c||!c.join_code)return;
+    const done=()=>showToast("Join code copied",true);
+    try{
+      if(navigator.clipboard&&navigator.clipboard.writeText){await navigator.clipboard.writeText(c.join_code);done();return;}
+      throw new Error("no clipboard api");
+    }catch(e){
+      try{
+        const ta=document.createElement("textarea");
+        ta.value=c.join_code;ta.style.position="fixed";ta.style.top="-9999px";
+        document.body.appendChild(ta);ta.focus();ta.select();
+        const ok=document.execCommand("copy");
+        document.body.removeChild(ta);
+        if(!ok)throw new Error("copy failed");
+        done();
+      }catch(e2){showToast("Couldn't copy to clipboard",false);}
+    }
   }
 
   // Gate the page: require a signed-in teacher, then reveal the app.
@@ -381,7 +394,7 @@
       .filter(r=>!String(r.id||"").startsWith("file_"))
       .map(r=>(r.text||"").replace(/\s*\n\s*/g," ").replace(/\s+/g," ").trim())
       .filter(Boolean);
-    if(!lines.length){showToast("No rules to export",false);return;}
+    if(!lines.length){showToast("No rules to copy",false);return;}
     const text=lines.join("\n");
     const ok=()=>showToast("Copied "+lines.length+" rule"+(lines.length===1?"":"s")+" to clipboard. Paste into Bulk add.",true);
     try{
@@ -484,7 +497,7 @@
     try{
       let res;
       try{res=await Chronos.apiFetch("/upload",{method:"POST",body:form});}
-      catch{throw new Error("Cannot reach the server. Is app.py running on port 5000?");}
+      catch{throw new Error("Couldn't reach the server. Check your connection and try again.");}
       const raw=await res.text();
       let data={};
       try{data=raw?JSON.parse(raw):{};}catch(e){data={};}
@@ -494,7 +507,7 @@
       if(res.status===401||res.status===403)throw new Error(data.error||"You're not allowed to upload to this class.");
       if(!res.ok||data.error)throw new Error(data.details||data.error||("Upload failed ("+res.status+")."));
       if(data.warning)showToast(data.warning,false);
-      else showToast(`"${file.name}" → ${data.chunks} chunks stored. Total rules: ${data.total_vectors}`,true);
+      else showToast(`"${file.name}" added. Total rules: ${data.total_vectors}`,true);
       clearFile();
       loadRules();
     }catch(e){
@@ -507,6 +520,7 @@
   $("lockBtn").onclick=lock;
   $("newClassBtn").onclick=newClass;
   $("deleteClassBtn").onclick=removeClass;
+  $("joinCodePill").onclick=copyJoinCode;
   $("classSelect").onchange=e=>{ACTIVE_CLASS=e.target.value;localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);paintClassMeta();loadRules();};
   $("addBtn").onclick=addRule;
   $("bulkBtn").onclick=bulkAdd;
@@ -526,7 +540,7 @@
 
 <!-- How-it-works tutorial -->
 <div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(11,11,12,.72)" id="tut">
-<div class="w-full max-w-md panel cast-red p-6 max-h-[85vh] overflow-y-auto">
+<div class="w-full max-w-md panel p-6 max-h-[85vh] overflow-y-auto">
 <div class="flex items-start justify-between gap-3 mb-5">
 <h2 class="text-[22px] leading-none" id="tutTitle"></h2>
 <button class="ibtn flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
@@ -541,7 +555,7 @@
     const TITLE="Getting your class going";
     const KEY="chronos_tut_knowledge_v2";
     const STEPS=[
-      {icon:"add",title:"Make a class",text:"Each class is its own separate shelf. Make one, then hand out its join code (up at the top) so your students can get in."},
+      {icon:"add",title:"Make a class",text:"Each class is its own separate shelf. Make one, then hand out its join code (up in the sidebar) so your students can get in."},
       {icon:"gavel",title:"Add your rules",text:"Type in the ground rules and the key facts. Things like \"don't just hand over homework answers\" or \"stick to the textbook\". One idea per rule."},
       {icon:"description",title:"Upload your material",text:"Drag in PDFs, Word docs, lecture notes. We pull the text out so the tutor can answer from your actual course content."},
       {icon:"lightbulb",title:"That's its whole world",text:"It only answers from what's on this page. Anything else and it says it doesn't know, rather than having a guess."},
@@ -556,7 +570,7 @@
       const s=STEPS[idx];
       body.innerHTML='<div class="flex items-start gap-3">'+
         '<span class="w-10 h-10 flex-shrink-0 bg-crimson text-paper flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
-        '<div><h3 class="text-sm font-bold mb-0.5" style="font-family:\'IBM Plex Sans\',sans-serif;text-transform:none">'+s.title+'</h3>'+
+        '<div><h3 class="text-sm font-bold mb-0.5" style="font-family:\'Schibsted Grotesk\',sans-serif">'+s.title+'</h3>'+
         '<p class="text-sm leading-snug" style="color:var(--sub)">'+s.text+'</p></div></div>';
       dots.innerHTML="";
       STEPS.forEach((_,i)=>{

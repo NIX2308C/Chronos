@@ -83,13 +83,13 @@ html.wiping .px-mark { opacity: 1; transform: scale(1) rotate(-7deg); transition
   display: block;
   background: #0B0B0C;
   color: #F7F4EC;
-  font-family: 'Anton', sans-serif;
+  font-family: 'Newsreader', serif;
+  font-weight: 400;
   font-size: clamp(2rem, 8vw, 5rem);
   line-height: 1;
-  letter-spacing: .01em;
-  text-transform: uppercase;
+  letter-spacing: -.015em;
   padding: .18em .34em .24em;
-  box-shadow: 12px 12px 0 #F7F4EC;
+  border: 1px solid #F7F4EC;
 }
 
 @media (prefers-reduced-motion: reduce) {

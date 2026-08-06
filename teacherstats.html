@@ -7,7 +7,7 @@
 <link href="transition.css" rel="stylesheet"/>
 <script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600;700&amp;family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
 <script id="tailwind-config">
   tailwind.config = {
     darkMode: "class",
@@ -24,96 +24,72 @@
         "surface-glass":"#F7F4EC", "surface-solid":"#F7F4EC",
         "surface":"#F7F4EC", "background-deep":"#E9E4D6", "outline-variant":"#1C1A16"
       },
-      fontFamily: { "display": ["Anton","sans-serif"], "body": ["IBM Plex Sans","sans-serif"], "mono": ["IBM Plex Mono","monospace"] },
+      fontFamily: { "display": ["Newsreader","serif"], "body": ["Schibsted Grotesk","sans-serif"] },
       borderRadius: { "DEFAULT": "0", "sm": "0", "lg": "0", "xl": "0", "full": "0" },
     } }
   }
 </script>
 <style>
-  :root{--page:#E9E4D6;--paper:#F7F4EC;--ink:#141311;--sub:#4B4A46;--edge:#1C1A16;--hi:#E4DECD;
-        --crimson:#E2001A;--gold:#C9A227;--snap:cubic-bezier(.2,1.45,.35,1)}
-  html.dark{--page:#0B0B0C;--paper:#141317;--ink:#F7F4EC;--sub:#A9A499;--edge:#3A3A3E;--hi:#1E1E23;color-scheme:dark}
-  body { font-family:'IBM Plex Sans',sans-serif; background:var(--page); color:var(--ink); overflow-x:hidden }
-  h1,h2,h3 { font-family:'Anton',sans-serif; text-transform:uppercase; letter-spacing:.005em; font-weight:400 }
+  :root{--page:#E9E4D6;--paper:#F7F4EC;--side:#EFEADC;--ink:#141311;--sub:#5D5B55;--faint:#8C8880;
+        --rule:#DED8C6;--rule2:#E0DACA;--field-b:#C9C2AC;--field:#FFFDF7;--hi:#E4DECD;
+        --crimson:#E2001A;--crimson-d:#B10014;--gold:#C9A227;--snap:cubic-bezier(.2,1.45,.35,1)}
+  html.dark{--page:#0B0B0C;--paper:#141317;--side:#18181C;--ink:#F7F4EC;--sub:#A9A499;--faint:#8C8880;
+            --rule:#2E2E33;--rule2:#2E2E33;--field-b:#3A3A3E;--field:#0F0F12;--hi:#1E1E23;color-scheme:dark}
+  body { margin:0; font-family:'Schibsted Grotesk',sans-serif; background:var(--page); color:var(--ink); overflow-x:hidden }
+  h1,h2,h3 { font-family:'Newsreader',serif; font-weight:400; letter-spacing:-.015em }
   ::selection { background:var(--crimson); color:#F7F4EC }
-  :focus-visible { outline:3px solid var(--gold); outline-offset:2px }
+  :focus-visible { outline:2px solid var(--crimson); outline-offset:2px }
   .material-symbols-outlined { font-family:'Material Symbols Sharp'; font-variation-settings:'FILL' 0,'wght' 400; vertical-align:middle }
-  .font-mono { font-family:'IBM Plex Mono',monospace }
-  .lbl { font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:700; letter-spacing:.15em; text-transform:uppercase }
-  /* Custom classes below set `display`, which would beat Tailwind's .hidden on a
-     tie. Scope the fix to those classes — a blanket `.hidden{display:none!important}`
-     also outranks `lg:inline`/`sm:inline`, which permanently hides every element that
-     is meant to appear only at a breakpoint. */
-  .hidden.kbtn, .hidden.ibtn, .hidden.tab, .hidden.chip { display:none }
+  .lbl { font-size:11.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase }
+  .hidden.kbtn, .hidden.ibtn, .hidden.chip { display:none }
 
-  /* panels replace the old glass/blur cards */
-  .panel { background:var(--paper); border:2px solid var(--edge) }
-  .cast { box-shadow:6px 6px 0 var(--edge) }
-  .cast-red { box-shadow:6px 6px 0 var(--crimson) }
-  /* diagonal-cut section header — the recurring structural device on this page */
-  .panel-head { background:var(--edge); color:#F7F4EC; padding:.7rem 1.5rem;
-    clip-path:polygon(0 0,100% 0,calc(100% - 22px) 100%,0 100%) }
+  .panel { background:var(--paper); border:1px solid var(--rule) }
+  .panel-head { background:var(--ink); color:#F7F4EC; padding:.7rem 1.5rem }
   .panel-head--red { background:var(--crimson) }
 
-  .kpi { position:relative; background:var(--paper); border:2px solid var(--edge); padding:1.5rem; overflow:hidden;
-    transition:transform .25s var(--snap),box-shadow .25s }
-  .kpi:hover { transform:translate(-4px,-5px); box-shadow:9px 10px 0 var(--edge) }
-  .kpi--red:hover { box-shadow:9px 10px 0 var(--crimson) }
-  .kpi-n { font-family:'Anton',sans-serif; font-size:3rem; line-height:1 }
+  .kpi { position:relative; background:var(--paper); border:1px solid var(--rule); padding:1.5rem }
+  .kpi--red { border-color:var(--crimson) }
+  .kpi-n { font-family:'Newsreader',serif; font-size:2.75rem; line-height:1 }
 
-  .bar-track { background:var(--hi); border:1px solid var(--edge) }
+  .bar-track { background:var(--hi) }
   .bar-fill { transition: width .8s var(--snap) }
   .donut-seg { transition: stroke-dasharray .8s cubic-bezier(.4,0,.2,1) }
   .spin { animation: spin .7s linear infinite }
   @keyframes spin { to { transform: rotate(360deg) } }
   .custom-scrollbar::-webkit-scrollbar { width: 8px }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--edge) }
-  .row-line { border-bottom:1px solid var(--hi) }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--field-b) }
+  .row-line { border-bottom:1px solid var(--rule2) }
 
-  /* Teacher tab bar — shared with teacherknowledge.html, keep the two in sync.
-     Sits flush on the header's crimson bottom border so the active tab reads
-     as joined to the page below it. Scrolls sideways instead of collapsing,
-     so the sections stay reachable at any width. */
-  .tabs { display:flex; overflow-x:auto; scrollbar-width:none; margin-bottom:-3px; max-width:100% }
-  .tabs::-webkit-scrollbar { display:none }
-  .tab { position:relative; display:flex; align-items:center; gap:.45rem; flex:none;
-    padding:.6rem 1rem; border:3px solid var(--edge); border-bottom:none; background:transparent;
-    color:var(--sub); overflow:hidden; white-space:nowrap; transition:color .18s;
-    font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:700;
-    letter-spacing:.12em; text-transform:uppercase }
-  .tab + .tab { border-left:none }
-  .tab > * { position:relative; z-index:2 }
-  .tab::before { content:""; position:absolute; inset:0; background:var(--crimson);
-    transform:translateY(102%); transition:transform .26s var(--snap); z-index:1 }
-  .tab:hover::before { transform:translateY(0) }
-  .tab:hover { color:#F7F4EC }
-  .tab.on { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC }
-  .tab.on::before { display:none }
+  /* sidebar (shared with teacherknowledge.html — keep the two in sync) */
+  .side-link { display:flex; align-items:center; gap:10px; padding:11px 12px; font-size:14.5px; color:var(--ink);
+    text-decoration:none; transition:color .15s ease; }
+  .side-link:hover { color:var(--crimson-d); }
+  .side-link.on { background:var(--hi); font-weight:600; }
 
-  /* buttons */
   .kbtn { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
-    font-family:'IBM Plex Mono',monospace; font-size:11.5px; font-weight:700; letter-spacing:.13em;
-    text-transform:uppercase; padding:.65rem 1rem; border:2px solid var(--crimson); background:var(--crimson);
-    color:#F7F4EC; overflow:hidden; cursor:pointer; transition:transform .14s var(--snap) }
-  .kbtn > * { position:relative; z-index:2 }
-  .kbtn::before { content:""; position:absolute; inset:-2px -30%; background:var(--edge);
-    transform:translateX(-115%) skewX(-16deg); transition:transform .36s var(--snap); z-index:1 }
-  .kbtn:hover:not(:disabled)::before { transform:translateX(0) skewX(-16deg) }
-  .kbtn:active:not(:disabled) { transform:translate(2px,2px) }
+    font-size:14px; font-weight:600; padding:.65rem 1.05rem; border:1px solid var(--crimson); background:var(--crimson);
+    color:#F7F4EC; cursor:pointer; transition:background-color .15s ease,border-color .15s ease }
+  .kbtn:hover:not(:disabled) { background:var(--ink); border-color:var(--ink) }
   .kbtn:disabled { opacity:.5; cursor:default }
 
-  .ibtn { width:36px; height:36px; display:flex; align-items:center; justify-content:center;
-    border:2px solid transparent; color:var(--sub);
-    transition:background-color .18s,color .18s,border-color .18s,transform .2s var(--snap) }
-  .ibtn:hover { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC; transform:rotate(-6deg) }
+  .ibtn { width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    border:1px solid transparent; color:var(--sub); background:transparent; cursor:pointer;
+    transition:background-color .15s,color .15s,border-color .15s }
+  .ibtn:hover { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC }
 
-  .fld { background:var(--paper); border:2px solid var(--edge); color:var(--ink); border-radius:0;
-    transition:box-shadow .18s,border-color .18s }
-  .fld:focus { outline:none; border-color:var(--crimson); box-shadow:4px 4px 0 var(--crimson) }
+  .fld { background:var(--field); border:1px solid var(--field-b); color:var(--ink); border-radius:0;
+    transition:border-color .15s }
+  .fld:focus { outline:none; border-color:var(--crimson) }
 
   .chip { display:inline-flex; align-items:center; padding:.2rem .5rem; background:var(--hi);
-    border:1px solid var(--edge); font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:600 }
+    border:1px solid var(--rule); font-size:11px; font-weight:600 }
 
+  @media (max-width:980px){
+    [data-shell]{grid-template-columns:minmax(0,1fr)!important}
+    [data-side]{display:none!important}
+    [data-cols]{grid-template-columns:minmax(0,1fr)!important;gap:38px!important}
+    [data-kpis]{grid-template-columns:1fr 1fr!important}
+  }
   @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
 <link href="theme.css" rel="stylesheet"/>
@@ -128,60 +104,64 @@
 </div>
 
 <!-- App -->
-<div class="hidden" id="app">
+<div class="hidden" id="app" data-shell style="display:grid;grid-template-columns:264px minmax(0,1fr);min-height:100vh">
 
-<!-- Header: same structure and tab bar as teacherknowledge.html, so the two
-     teacher pages navigate identically at every width. -->
-<header class="sticky top-0 w-full z-40" style="background:var(--paper);border-bottom:3px solid var(--crimson)">
-<div class="max-w-[1280px] mx-auto">
-<div class="flex items-center justify-between gap-3 px-5 lg:px-7 pt-3 pb-2">
-<a class="flex items-baseline gap-2.5" href="landing.html">
-<span class="font-display text-[24px] leading-none">Chronos<span class="text-crimson">.</span></span>
-<span class="lbl" style="color:var(--sub)">Teacher</span>
-</a>
-<div class="flex items-center gap-1">
-<button aria-label="How this works" class="ibtn" id="tutHelp" title="How this works">
-<span class="material-symbols-outlined text-[20px]">help</span>
-</button>
-<button class="ibtn" data-theme-toggle="" title="Switch to dark mode">
-<span class="material-symbols-outlined text-[20px]">dark_mode</span>
-</button>
-<button class="ibtn !w-auto !px-2 gap-2" id="lockBtn" title="Sign out">
-<span class="material-symbols-outlined text-[20px]">account_circle</span>
-<span class="hidden lg:inline font-mono text-xs max-w-[150px] truncate" id="userEmail" title=""></span>
-</button>
+<!-- Sidebar — identical structure to teacherknowledge.html so the two teacher
+     pages navigate identically at every width. -->
+<aside data-side style="background:var(--side);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:100vh;position:sticky;top:0">
+<div style="padding:18px 20px 16px;border-bottom:1px solid var(--rule)">
+<a href="landing.html" style="color:var(--ink);font-family:Newsreader,serif;font-size:24px;line-height:1;text-decoration:none;letter-spacing:-.015em">Chronos<span style="color:var(--crimson)">.</span></a>
+<div class="lbl" style="color:var(--faint);margin-top:5px;letter-spacing:.04em">Teacher</div>
+</div>
+
+<div style="padding:16px 12px 8px">
+<div class="lbl" style="color:var(--faint);padding:0 8px 8px">Your classes</div>
+<div class="relative">
+<select aria-label="Active class" class="fld w-full text-sm px-3 py-2.5 outline-none cursor-pointer appearance-none" id="classSelect" title="Class"></select>
+<span class="material-symbols-outlined text-[18px] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style="color:var(--faint)">unfold_more</span>
 </div>
 </div>
-<div class="flex items-end justify-between gap-x-4 gap-y-2 px-5 lg:px-7 flex-wrap">
-<nav class="tabs" aria-label="Teacher sections">
-<a class="tab" href="teacherknowledge.html"><span class="material-symbols-outlined text-[17px]">menu_book</span><span>Knowledge</span></a>
-<a class="tab on" href="teacherstats.html"><span class="material-symbols-outlined text-[17px]" style="font-variation-settings:'FILL' 1;">analytics</span><span>Analytics</span></a>
-<a class="tab" href="student.html"><span class="material-symbols-outlined text-[17px]">forum</span><span>Tutor</span></a>
+
+<nav style="margin-top:8px;padding:12px;border-top:1px solid var(--rule);display:flex;flex-direction:column">
+<a class="side-link" href="teacherknowledge.html"><span class="material-symbols-outlined text-[19px]">folder_open</span>Class material</a>
+<span class="side-link on"><span class="material-symbols-outlined text-[19px]" style="font-variation-settings:'FILL' 1">insights</span>Analytics</span>
+<a class="side-link" href="student.html"><span class="material-symbols-outlined text-[19px]">chat</span>Preview as student</a>
 </nav>
-<div class="flex items-center gap-2 flex-wrap pb-2">
-<select class="fld text-sm font-mono px-3 py-2 max-w-[160px] outline-none cursor-pointer" id="classSelect" title="Class"></select>
-<button class="kbtn" id="refreshBtn">
+
+<div style="padding:12px">
+<button class="kbtn w-full" id="refreshBtn">
 <span><span class="material-symbols-outlined text-[16px]" id="refreshIcon">refresh</span> Refresh</span>
 </button>
 </div>
-</div>
-</div>
-</header>
 
-<main class="relative z-10 pt-10 pb-24 px-6 max-w-[1280px] mx-auto">
+<div style="margin-top:auto;border-top:1px solid var(--rule);padding:12px 16px;display:flex;align-items:center;gap:6px">
+<button aria-label="How this works" class="ibtn" id="tutHelp" title="How this works">
+<span class="material-symbols-outlined text-[19px]">help</span>
+</button>
+<button class="ibtn" data-theme-toggle="" title="Switch to dark mode">
+<span class="material-symbols-outlined text-[19px]">dark_mode</span>
+</button>
+<button class="ibtn !w-auto !px-2 gap-2 flex-1 justify-start" id="lockBtn" title="Sign out">
+<span class="material-symbols-outlined text-[19px]">account_circle</span>
+<span class="text-xs truncate min-w-0" id="userEmail" title=""></span>
+</button>
+</div>
+</aside>
+
+<main class="relative z-10 pt-10 pb-24 px-6 max-w-[1200px]">
 <!-- Header -->
 <div class="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
 <div>
-<h1 class="text-[clamp(2.2rem,5vw,3.4rem)] leading-none mb-3">What they<br/>keep asking.</h1>
+<h1 class="text-[clamp(2rem,4.5vw,3rem)] leading-none mb-3">What they<br/>keep asking.</h1>
 <p class="text-[1.05rem] max-w-xl" style="color:var(--sub)">Every question, grouped by topic. Anything your material couldn&rsquo;t answer gets flagged as a gap.</p>
 </div>
-<span class="lbl flex items-center gap-2 px-3 py-2" style="border:2px solid var(--edge);color:var(--sub)">
+<span class="lbl flex items-center gap-2 px-3 py-2" style="border:1px solid var(--rule);color:var(--sub)">
 <span class="w-2 h-2 bg-gold"></span> Live
 </span>
 </div>
 
 <!-- KPI cards -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+<div data-kpis class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
 <div class="kpi">
 <h3 class="lbl mb-4" style="color:var(--sub)">Total questions</h3>
 <p class="kpi-n" id="qTotal">0</p>
@@ -194,14 +174,14 @@
 <h3 class="lbl mb-4" style="color:var(--sub)">Distinct topics</h3>
 <p class="kpi-n" id="cTotal">0</p>
 </div>
-<div class="kpi kpi--red" style="border-color:var(--crimson)">
+<div class="kpi kpi--red">
 <h3 class="lbl mb-4 text-crimson">Knowledge gaps</h3>
 <p class="kpi-n text-crimson" id="gapTotal">0</p>
 </div>
 </div>
 
 <!-- Questions by topic -->
-<section class="panel cast mb-6">
+<section class="panel mb-6">
 <div class="panel-head lbl">Questions by topic</div>
 <div class="p-6 lg:p-8">
 <div id="bars"><p class="text-sm" style="color:var(--sub)">Loading…</p></div>
@@ -209,9 +189,9 @@
 </section>
 
 <!-- Gaps + donut -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+<div data-cols class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 <!-- Knowledge gaps -->
-<div class="lg:col-span-2 panel cast-red flex flex-col" style="border-color:var(--crimson)">
+<div class="lg:col-span-2 panel flex flex-col" style="border-color:var(--crimson)">
 <div class="panel-head panel-head--red lbl flex items-center justify-between gap-4">
 <span>Knowledge gaps</span>
 <span class="hidden sm:inline opacity-80 normal-case tracking-normal font-normal text-[11px]">questions your material couldn&rsquo;t answer</span>
@@ -219,7 +199,7 @@
 <div class="flex-grow custom-scrollbar overflow-y-auto max-h-[420px]" id="gaps"></div>
 </div>
 <!-- Topic distribution donut -->
-<div class="panel cast flex flex-col">
+<div class="panel flex flex-col">
 <div class="panel-head lbl">Topic split</div>
 <div class="flex flex-col items-center p-6">
 <div class="relative w-44 h-44">
@@ -235,12 +215,12 @@
 </div>
 
 <!-- Recent queries -->
-<section class="panel cast">
+<section class="panel">
 <div class="panel-head lbl">Recent questions</div>
 <div class="overflow-x-auto">
 <table class="w-full text-left">
 <thead>
-<tr style="background:var(--hi);border-bottom:2px solid var(--edge)">
+<tr style="background:var(--hi);border-bottom:1px solid var(--rule)">
 <th class="lbl py-3 px-6 font-normal" style="color:var(--sub)">Question</th>
 <th class="lbl py-3 px-6 font-normal text-right" style="color:var(--sub)">Topic</th>
 </tr>
@@ -273,8 +253,8 @@
     const t=$("toast");
     t.textContent=msg;
     t.className="fixed bottom-6 right-6 z-[60] max-w-sm px-4 py-3 text-sm font-medium flex items-center gap-2";
-    t.style.cssText="background:var(--paper);color:var(--ink);border:2px solid "+(ok?"var(--gold)":"var(--crimson)")+
-      ";box-shadow:6px 6px 0 "+(ok?"var(--gold)":"var(--crimson)")+";border-left-width:6px";
+    t.style.cssText="background:var(--paper);color:var(--ink);border:1px solid "+(ok?"var(--gold)":"var(--crimson)")+
+      ";border-left-width:4px";
     clearTimeout(showToast._t);
     showToast._t=setTimeout(()=>{t.className="hidden";t.style.cssText="";},4000);
   }
@@ -434,7 +414,7 @@
 
 <!-- How-it-works tutorial -->
 <div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(11,11,12,.72)" id="tut">
-<div class="w-full max-w-md panel cast-red p-6 max-h-[85vh] overflow-y-auto">
+<div class="w-full max-w-md panel p-6 max-h-[85vh] overflow-y-auto">
 <div class="flex items-start justify-between gap-3 mb-5">
 <h2 class="text-[22px] leading-none" id="tutTitle"></h2>
 <button class="ibtn flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
@@ -449,7 +429,7 @@
     const TITLE="What you're looking at";
     const KEY="chronos_tut_stats_v2";
     const STEPS=[
-      {icon:"school",title:"One class at a time",text:"Use the class menu up top. Every number on this page is just for the class you've picked."},
+      {icon:"school",title:"One class at a time",text:"Use the class menu in the sidebar. Every number on this page is just for the class you've picked."},
       {icon:"forum",title:"What they keep asking",text:"Questions get grouped by topic, so you can see at a glance what your students keep circling back to."},
       {icon:"help",title:"Mind the gaps",text:"Knowledge Gaps are the questions your material couldn't answer. It's basically a ready made list of what to add next."},
       {icon:"history",title:"Recent questions",text:"A running feed of what's being asked, newest first, so you can catch something going wrong the same week it happens."},
@@ -464,7 +444,7 @@
       const s=STEPS[idx];
       body.innerHTML='<div class="flex items-start gap-3">'+
         '<span class="w-10 h-10 flex-shrink-0 bg-crimson text-paper flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
-        '<div><h3 class="text-sm font-bold mb-0.5" style="font-family:\'IBM Plex Sans\',sans-serif;text-transform:none">'+s.title+'</h3>'+
+        '<div><h3 class="text-sm font-bold mb-0.5" style="font-family:\'Schibsted Grotesk\',sans-serif">'+s.title+'</h3>'+
         '<p class="text-sm leading-snug" style="color:var(--sub)">'+s.text+'</p></div></div>';
       dots.innerHTML="";
       STEPS.forEach((_,i)=>{

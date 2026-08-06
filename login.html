@@ -6,101 +6,79 @@
 <title>Chronos | Sign in</title>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600;700&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
 <link href="transition.css" rel="stylesheet"/>
 <script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
 <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
 <script id="tailwind-config">
   tailwind.config = { theme: { extend: {
     colors: { void:"#0B0B0C", paper:"#F7F4EC", crimson:"#E2001A", ink:"#141311", gold:"#C9A227", steel:"#4B4A46", hair:"#2A2A2C" },
-    fontFamily: { display:["Anton","sans-serif"], body:["IBM Plex Sans","sans-serif"], mono:["IBM Plex Mono","monospace"] }
+    fontFamily: { display:["Newsreader","serif"], body:["Schibsted Grotesk","sans-serif"], mono:["Schibsted Grotesk","sans-serif"] }
   }}}
 </script>
 <style>
   :root{
     --void:#0B0B0C; --paper:#F7F4EC; --crimson:#E2001A; --ink:#141311;
-    --gold:#C9A227; --steel:#4B4A46; --hair:#2A2A2C;
-    --snap:cubic-bezier(.2,1.45,.35,1);
+    --gold:#C9A227; --steel:#5D5B55; --hair:#2A2A2C;
     /* themeable form side — light is the default "document" mode */
-    --pane:#E9E4D6; --surface:#F7F4EC; --on:#141311; --edge:#141311; --sub:#4B4A46; --field:#FFFFFF;
+    --pane:#E9E4D6; --surface:#F7F4EC; --on:#141311; --edge:#DED8C6; --sub:#5D5B55; --field:#FFFDF7;
   }
-  html.dark{--pane:#0B0B0C; --surface:#141317; --on:#F7F4EC; --edge:#F7F4EC; --sub:#A9A499; --field:#0B0B0C;color-scheme:dark}
+  html.dark{--pane:#0B0B0C; --surface:#141317; --on:#F7F4EC; --edge:#2E2E33; --sub:#A9A499; --field:#0F0F12;color-scheme:dark}
   *{box-sizing:border-box}
-  body{font-family:"IBM Plex Sans",sans-serif;background:var(--pane);color:var(--on);margin:0}
+  body{font-family:"Schibsted Grotesk",sans-serif;background:var(--pane);color:var(--on);margin:0}
   ::selection{background:var(--crimson);color:var(--paper)}
-  :focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+  :focus-visible{outline:2px solid var(--crimson);outline-offset:2px}
   .msym{font-family:"Material Symbols Sharp";font-weight:400;font-style:normal;line-height:1;display:inline-block;white-space:nowrap;direction:ltr}
-  .dsp{font-family:"Anton",sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.005em}
-  .mono{font-family:"IBM Plex Mono",monospace}
-  .tag{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+  .dsp{font-family:"Newsreader",serif;font-weight:400;letter-spacing:-.015em}
+  .tag{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
 
-  /* ---------- brand pane (always the poster side) ---------- */
+  /* ---------- brand pane ---------- */
   #brand{background:var(--void);color:var(--paper)}
-  .halftone{position:absolute;inset:0;pointer-events:none;
-    background-image:radial-gradient(circle,rgba(226,0,26,.30) 1.1px,transparent 1.2px);background-size:9px 9px;
-    -webkit-mask-image:radial-gradient(120% 90% at 20% 8%,#000 0%,transparent 70%);
-    mask-image:radial-gradient(120% 90% at 20% 8%,#000 0%,transparent 70%)}
-  .brand-slab{position:absolute;top:-16%;left:-24%;width:70%;height:70%;background:var(--crimson);opacity:.14;transform:rotate(-16deg)}
-  .h-out{color:transparent;-webkit-text-stroke:2px var(--paper);display:block;line-height:.85}
-  .h-fill{display:inline-block;background:var(--crimson);color:var(--void);padding:.08em .22em .14em;
-    transform:rotate(-2.5deg);box-shadow:8px 8px 0 var(--paper);line-height:.85;margin-top:.08em}
-
-  /* floating evidence cards */
   .float{position:absolute;will-change:transform}
-  .ev{background:var(--paper);color:var(--ink);border:2px solid var(--void);padding:13px;width:200px;
-    box-shadow:7px 7px 0 var(--crimson)}
-  .ev-alt{box-shadow:7px 7px 0 var(--gold)}
-  .ev-ln{height:7px;background:#DED8C6;margin:6px 0}
+  .ev{background:var(--paper);color:var(--ink);border:1px solid #34322D;padding:13px;width:200px}
+  .ev-ln{height:6px;background:#2A2925;margin:6px 0}
   .ev-ln.hit{background:var(--gold)}
   .cite{display:inline-flex;align-items:center;gap:5px;background:var(--gold);color:var(--void);padding:3px 8px;
-    font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:700;letter-spacing:.1em;margin-top:6px}
+    font-size:10px;font-weight:700;letter-spacing:.08em;margin-top:6px}
 
   /* ---------- case file card ---------- */
-  .file-card{background:var(--surface);border:3px solid var(--edge);box-shadow:14px 14px 0 var(--crimson)}
-  .file-tab{position:absolute;top:-3px;left:2rem;transform:translateY(-100%);background:var(--crimson);
+  .file-card{background:var(--surface);border:1px solid var(--edge)}
+  .file-tab{position:absolute;top:-1px;left:2rem;transform:translateY(-100%);background:var(--crimson);
     color:var(--paper);padding:.4rem 1rem}
 
   /* ---------- role tabs ---------- */
   .rtab{position:relative;flex:1;cursor:pointer;display:block}
   .rtab-face{height:52px;display:flex;align-items:center;justify-content:center;gap:.5rem;
-    border:2px solid var(--edge);color:var(--sub);background:transparent;
-    font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-    transition:background-color .22s ease,color .22s ease,transform .25s var(--snap)}
+    border:1px solid var(--edge);color:var(--sub);background:transparent;
+    font-size:13.5px;font-weight:600;transition:background-color .18s ease,color .18s ease,border-color .18s ease}
   .rtab:hover .rtab-face{color:var(--on)}
-  .rtab input:checked + .rtab-face{background:var(--crimson);border-color:var(--crimson);color:var(--paper);transform:translateY(-4px);box-shadow:0 4px 0 var(--edge)}
+  .rtab input:checked + .rtab-face{background:var(--crimson);border-color:var(--crimson);color:var(--paper)}
 
   /* ---------- fields ---------- */
-  .field{width:100%;height:54px;background:var(--field);border:2px solid var(--edge);border-radius:0;
-    color:var(--on);font-size:15px;padding-left:2.7rem;transition:box-shadow .18s ease,border-color .18s ease}
+  .field{width:100%;height:52px;background:var(--field);border:1px solid var(--edge);border-radius:0;
+    color:var(--on);font-size:15px;padding-left:2.7rem;transition:border-color .15s ease}
   .field::placeholder{color:var(--sub);opacity:.7}
-  .field:focus{outline:none;border-color:var(--crimson);box-shadow:5px 5px 0 var(--crimson)}
+  .field:focus{outline:none;border-color:var(--crimson)}
 
   /* ---------- buttons ---------- */
   .pbtn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:.55rem;
-    font-family:"IBM Plex Mono",monospace;font-weight:700;font-size:12.5px;letter-spacing:.14em;text-transform:uppercase;
-    padding:1.05rem 1.7rem;border:2px solid var(--crimson);background:var(--crimson);color:var(--paper);
-    overflow:hidden;cursor:pointer;transition:transform .15s var(--snap)}
-  .pbtn>*{position:relative;z-index:2}
-  .pbtn::before{content:"";position:absolute;inset:-2px -30%;background:var(--edge);
-    transform:translateX(-115%) skewX(-16deg);transition:transform .38s var(--snap);z-index:1}
-  .pbtn:hover:not(:disabled)::before{transform:translateX(0) skewX(-16deg)}
-  .pbtn:active:not(:disabled){transform:translate(2px,2px)}
+    font-weight:600;font-size:15.5px;padding:1.05rem 1.7rem;border:1px solid var(--crimson);background:var(--crimson);color:var(--paper);
+    cursor:pointer;transition:background-color .15s ease,border-color .15s ease}
+  .pbtn:hover:not(:disabled){background:var(--ink);border-color:var(--ink)}
   .pbtn:disabled{opacity:.65;cursor:default}
-  html.dark .pbtn::before{background:var(--paper)}
-  html.dark .pbtn:hover:not(:disabled){color:var(--void)}
+  html.dark .pbtn:hover:not(:disabled){background:var(--paper);border-color:var(--paper);color:var(--void)}
 
-  .linkbtn{position:relative;color:var(--crimson);font-weight:700}
-  .linkbtn::after{content:"";position:absolute;left:0;bottom:-2px;height:2px;width:0;background:var(--crimson);transition:width .28s var(--snap)}
-  .linkbtn:hover::after{width:100%}
+  .linkbtn{position:relative;color:var(--crimson);font-weight:600}
+  .linkbtn:hover{color:var(--on)}
 
   .ico-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;
-    border:2px solid var(--edge);color:var(--on);transition:background-color .2s,color .2s,transform .2s var(--snap)}
-  .ico-btn:hover{background:var(--crimson);border-color:var(--crimson);color:var(--paper);transform:rotate(-6deg)}
+    border:1px solid var(--edge);color:var(--on);transition:background-color .15s,color .15s,border-color .15s}
+  .ico-btn:hover{background:var(--crimson);border-color:var(--crimson);color:var(--paper)}
 
-  @keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-5px)}20%,40%,60%,80%{transform:translateX(5px)}}
-  .shake{animation:shake .5s cubic-bezier(.36,.07,.19,.97) both}
-  @keyframes slamUp{from{opacity:0;transform:translateY(38px)}to{opacity:1;transform:none}}
-  .file-card{animation:slamUp .6s var(--snap) both}
+  @keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-4px)}20%,40%,60%,80%{transform:translateX(4px)}}
+  .shake{animation:shake .4s ease both}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+  .file-card{animation:fadeUp .5s ease both}
 
   @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} .file-card{opacity:1} }
 </style>
@@ -111,29 +89,23 @@
 
 <!-- ===== Left: poster pane ===== -->
 <div class="hidden md:flex md:w-1/2 lg:w-[55%] relative overflow-hidden" id="brand">
-  <div class="brand-slab"></div>
-  <div class="halftone"></div>
-
-  <div class="float" style="top:17%;right:12%;--d:1.1"><div class="ev" style="transform:rotate(-6deg)">
-    <div class="mono text-[10px] font-bold mb-1.5">BIOLOGY_UNIT3.PDF</div>
+  <div class="float" style="top:17%;right:12%;--d:1.1"><div class="ev">
+    <div class="text-[10px] font-bold mb-1.5">BIOLOGY_UNIT3.PDF</div>
     <div class="ev-ln"></div><div class="ev-ln hit"></div><div class="ev-ln" style="width:64%"></div>
     <div class="cite">P.12</div></div></div>
-  <div class="float" style="bottom:13%;right:20%;--d:1.7"><div class="ev ev-alt" style="transform:rotate(5deg)">
-    <div class="mono text-[10px] font-bold mb-1.5">CLASS_RULES.TXT</div>
+  <div class="float" style="bottom:13%;right:20%;--d:1.7"><div class="ev">
+    <div class="text-[10px] font-bold mb-1.5">CLASS_RULES.TXT</div>
     <div class="text-[12.5px] leading-snug">Cite only the uploaded files. Never fill a gap with a guess.</div></div></div>
 
   <div class="relative z-10 p-12 flex flex-col justify-between h-full w-full">
-    <a href="landing.html" class="flex items-baseline gap-1.5 w-fit">
-      <span class="dsp text-[26px] leading-none">Chronos</span>
+    <a href="landing.html" class="flex items-baseline gap-1.5 w-fit" style="text-decoration:none;color:var(--paper)">
+      <span class="dsp text-[28px] leading-none">Chronos</span>
       <span class="w-2 h-2 bg-crimson inline-block"></span>
     </a>
 
     <div class="max-w-lg">
       <div class="tag text-crimson mb-5">Built on your files, not the internet</div>
-      <h2 class="dsp text-[clamp(2.6rem,5.6vw,4.6rem)] mb-6">
-        <span class="h-out">It won&rsquo;t</span>
-        <span class="h-fill">Make it up.</span>
-      </h2>
+      <h2 class="dsp text-[clamp(2.2rem,4.6vw,3.6rem)] leading-[1.08] mb-6">It won&rsquo;t make it up.</h2>
       <p class="text-[1.05rem] leading-relaxed text-[#A9A499] max-w-sm">Answers come out of whatever your teacher uploaded, tagged with the file they came from, every time.</p>
       <div class="mt-9 flex items-center gap-4 tag text-[#A9A499]">
         <span class="flex items-center gap-2">
@@ -149,7 +121,7 @@
 
 <!-- ===== Right: case file ===== -->
 <div class="w-full md:w-1/2 lg:w-[45%] flex items-center justify-center p-6 sm:p-12 min-h-screen relative">
-  <a href="landing.html" class="absolute top-7 left-7 md:hidden flex items-baseline gap-1.5 z-20">
+  <a href="landing.html" class="absolute top-7 left-7 md:hidden flex items-baseline gap-1.5 z-20" style="text-decoration:none;color:var(--on)">
     <span class="dsp text-[22px] leading-none">Chronos</span><span class="w-1.5 h-1.5 bg-crimson inline-block"></span>
   </a>
   <button class="ico-btn absolute top-7 right-7 z-20" data-theme-toggle="" title="Switch to dark mode">
@@ -161,7 +133,7 @@
       <span class="file-tab tag" id="fileTab">Sign in</span>
 
       <div class="mb-8">
-        <h1 class="dsp text-[2.6rem] leading-none mb-2" id="title">Welcome back</h1>
+        <h1 class="dsp text-[2.4rem] leading-none mb-2" id="title">Welcome back</h1>
         <p class="text-[15px]" style="color:var(--sub)" id="subtitle">Good to see you again.</p>
       </div>
 
@@ -205,7 +177,7 @@
           <p class="text-[12.5px]" style="color:var(--sub)">Your school admin has this. Teacher accounts need it.</p>
         </div>
 
-        <p class="hidden items-center gap-2 text-[13px] font-semibold text-crimson border-2 border-crimson px-3 py-2.5" id="err">
+        <p class="hidden items-center gap-2 text-[13px] font-semibold text-crimson px-3 py-2.5" style="border:1px solid var(--crimson)" id="err">
           <span class="msym text-[16px]">error</span><span id="errText"></span></p>
 
         <button class="pbtn w-full mt-2" id="submitBtn" type="submit">
@@ -213,7 +185,7 @@
         </button>
       </form>
 
-      <div class="mt-8 pt-6 text-center" style="border-top:2px solid var(--edge)">
+      <div class="mt-8 pt-6 text-center" style="border-top:1px solid var(--edge)">
         <p class="text-[15px]" style="color:var(--sub)"><span id="toggleText">New here?</span>
           <button class="linkbtn" id="toggleMode" type="button">Create an account</button></p>
         <a class="inline-block mt-4 tag hover:text-crimson transition-colors" style="color:var(--sub)" href="landing.html">&larr; Back to home</a>

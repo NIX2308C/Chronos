@@ -6,236 +6,187 @@
 <title>Chronos | Analytics</title>
 <link href="transition.css" rel="stylesheet"/>
 <script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
-  tailwind.config = {
-    darkMode: "class",
-    theme: { extend: {
-      colors: {
-        // shared Chronos tokens
-        "void":"#0B0B0C", "paper":"#F7F4EC", "page":"#E9E4D6", "crimson":"#E2001A",
-        "ink":"#141311", "gold":"#C9A227", "steel":"#4B4A46", "edge":"#1C1A16", "hi":"#E4DECD",
-        // legacy names this page's runtime-built class strings still use — same values
-        "text-main":"#141311", "text-muted":"#4B4A46",
-        "primary":"#E2001A", "primary-container":"#E2001A", "on-primary-container":"#F7F4EC",
-        "on-surface-variant":"#4B4A46", "accent-teal":"#C9A227",
-        "terminal-red":"#E2001A", "terminal-green":"#C9A227", "terminal-yellow":"#C9A227",
-        "surface-glass":"#F7F4EC", "surface-solid":"#F7F4EC",
-        "surface":"#F7F4EC", "background-deep":"#E9E4D6", "outline-variant":"#1C1A16"
-      },
-      fontFamily: { "display": ["Newsreader","serif"], "body": ["Schibsted Grotesk","sans-serif"] },
-      borderRadius: { "DEFAULT": "0", "sm": "0", "lg": "0", "xl": "0", "full": "0" },
-    } }
-  }
-</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
 <style>
-  :root{--page:#E9E4D6;--paper:#F7F4EC;--side:#EFEADC;--ink:#141311;--sub:#5D5B55;--faint:#8C8880;
-        --rule:#DED8C6;--rule2:#E0DACA;--field-b:#C9C2AC;--field:#FFFDF7;--hi:#E4DECD;
-        --crimson:#E2001A;--crimson-d:#B10014;--gold:#C9A227;--snap:cubic-bezier(.2,1.45,.35,1)}
-  html.dark{--page:#0B0B0C;--paper:#141317;--side:#18181C;--ink:#F7F4EC;--sub:#A9A499;--faint:#8C8880;
-            --rule:#2E2E33;--rule2:#2E2E33;--field-b:#3A3A3E;--field:#0F0F12;--hi:#1E1E23;color-scheme:dark}
-  body { margin:0; font-family:'Schibsted Grotesk',sans-serif; background:var(--page); color:var(--ink); overflow-x:hidden }
-  h1,h2,h3 { font-family:'Newsreader',serif; font-weight:400; letter-spacing:-.015em }
-  ::selection { background:var(--crimson); color:#F7F4EC }
-  :focus-visible { outline:2px solid var(--crimson); outline-offset:2px }
-  .material-symbols-outlined { font-family:'Material Symbols Sharp'; font-variation-settings:'FILL' 0,'wght' 400; vertical-align:middle }
-  .lbl { font-size:11.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase }
-  .hidden.kbtn, .hidden.ibtn, .hidden.chip { display:none }
+  :root{--page:#F7F4EC;--side:#EFEADC;--field:#FFFDF7;--ink:#141311;--sub:#5D5B55;--mid:#7A7871;
+        --faint:#8C8880;--dim:#A9A499;--rule:#DED8C6;--rule2:#E0DACA;--field-b:#C9C2AC;--hi:#E4DECD;
+        --bar:#E9E4D6;--barmid:#1C1A16;--crimson:#E2001A;--crimson-d:#B10014;--gold:#C9A227;--snap:cubic-bezier(.2,1.45,.35,1)}
+  html.dark{--page:#0B0B0C;--side:#18181C;--field:#0F0F12;--ink:#F7F4EC;--sub:#A9A499;--mid:#A9A499;
+        --faint:#8C8880;--dim:#6E6C66;--rule:#2E2E33;--rule2:#2E2E33;--field-b:#3A3A3E;--hi:#1E1E23;
+        --bar:#1E1E23;--barmid:#6E6C66;--crimson-d:#FF3B4E;color-scheme:dark}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--page);color:var(--ink);font-family:"Schibsted Grotesk",sans-serif;
+       -webkit-font-smoothing:antialiased;overflow:hidden}
+  h1,h2,h3{font-family:Newsreader,serif;font-weight:400;letter-spacing:-.018em}
+  ::selection{background:var(--crimson);color:#F7F4EC}
+  :focus-visible{outline:2px solid var(--crimson);outline-offset:2px}
+  a{color:var(--crimson-d)}
+  .hidden{display:none!important}
+  .msym{font-family:'Material Symbols Sharp';font-size:19px;line-height:1;flex:none}
+  .lbl{font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--sub);
+       font-family:"Schibsted Grotesk",sans-serif}
+  .trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .kpi-n{font-family:Newsreader,serif;font-size:33px;font-weight:400;line-height:1}
 
-  .panel { background:var(--paper); border:1px solid var(--rule) }
-  .panel-head { background:var(--ink); color:#F7F4EC; padding:.7rem 1.5rem }
-  .panel-head--red { background:var(--crimson) }
+  [data-scroll]{scrollbar-width:thin;scrollbar-color:var(--field-b) transparent}
+  [data-scroll]::-webkit-scrollbar{width:9px}
+  [data-scroll]::-webkit-scrollbar-thumb{background:var(--field-b)}
 
-  .kpi { position:relative; background:var(--paper); border:1px solid var(--rule); padding:1.5rem }
-  .kpi--red { border-color:var(--crimson) }
-  .kpi-n { font-family:'Newsreader',serif; font-size:2.75rem; line-height:1 }
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spin{display:inline-block;animation:spin .7s linear infinite}
 
-  .bar-track { background:var(--hi) }
-  .bar-fill { transition: width .8s var(--snap) }
-  .donut-seg { transition: stroke-dasharray .8s cubic-bezier(.4,0,.2,1) }
-  .spin { animation: spin .7s linear infinite }
-  @keyframes spin { to { transform: rotate(360deg) } }
-  .custom-scrollbar::-webkit-scrollbar { width: 8px }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--field-b) }
-  .row-line { border-bottom:1px solid var(--rule2) }
+  .class-row{width:100%;display:flex;align-items:center;text-align:left;background:transparent;border:none;
+    border-left:3px solid transparent;padding:11px 12px;font:inherit;cursor:pointer;transition:background-color .15s ease}
+  .class-row:hover:not(.on){background:var(--hi)}
+  .class-row.on{background:var(--hi);border-left-color:var(--crimson)}
+  .class-row.on .cr-name{font-weight:600}
+  .cr-name{display:block;font-size:14.5px;color:var(--ink)}
+  .cr-meta{display:block;font-size:12px;color:var(--faint);margin-top:3px}
+  .side-link{display:flex;align-items:center;gap:10px;padding:11px 12px;font-size:14.5px;color:var(--ink);
+    text-decoration:none;transition:color .15s ease}
+  .side-link:hover{color:var(--crimson-d)}
+  .side-link.on{background:var(--hi);font-weight:600}
 
-  /* sidebar (shared with teacherknowledge.html — keep the two in sync) */
-  .side-link { display:flex; align-items:center; gap:10px; padding:11px 12px; font-size:14.5px; color:var(--ink);
-    text-decoration:none; transition:color .15s ease; }
-  .side-link:hover { color:var(--crimson-d); }
-  .side-link.on { background:var(--hi); font-weight:600; }
-
-  .kbtn { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
-    font-size:14px; font-weight:600; padding:.65rem 1.05rem; border:1px solid var(--crimson); background:var(--crimson);
-    color:#F7F4EC; cursor:pointer; transition:background-color .15s ease,border-color .15s ease }
-  .kbtn:hover:not(:disabled) { background:var(--ink); border-color:var(--ink) }
-  .kbtn:disabled { opacity:.5; cursor:default }
-
-  .ibtn { width:34px; height:34px; display:flex; align-items:center; justify-content:center;
-    border:1px solid transparent; color:var(--sub); background:transparent; cursor:pointer;
-    transition:background-color .15s,color .15s,border-color .15s }
-  .ibtn:hover { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC }
-
-  .fld { background:var(--field); border:1px solid var(--field-b); color:var(--ink); border-radius:0;
-    transition:border-color .15s }
-  .fld:focus { outline:none; border-color:var(--crimson) }
-
-  .chip { display:inline-flex; align-items:center; padding:.2rem .5rem; background:var(--hi);
-    border:1px solid var(--rule); font-size:11px; font-weight:600 }
+  .rangebtn{background:var(--field);color:var(--ink);border:none;padding:9px 15px;font:inherit;font-size:13.5px;
+    font-weight:600;cursor:pointer;transition:background-color .15s,color .15s}
+  .rangebtn:hover:not(.on){background:var(--hi)}
+  .rangebtn.on{background:var(--ink);color:var(--page)}
+  .ibtn{width:32px;height:32px;display:grid;place-items:center;background:transparent;border:none;
+    color:var(--dim);cursor:pointer;transition:color .15s}
+  .ibtn:hover{color:var(--crimson-d)}
+  .bar-fill{transition:width .8s var(--snap)}
+  .gap-row{display:grid;grid-template-columns:minmax(0,1fr) 112px 132px;gap:20px;align-items:center;
+    border-bottom:1px solid var(--rule2);padding:15px 4px}
 
   @media (max-width:980px){
     [data-shell]{grid-template-columns:minmax(0,1fr)!important}
     [data-side]{display:none!important}
     [data-cols]{grid-template-columns:minmax(0,1fr)!important;gap:38px!important}
     [data-kpis]{grid-template-columns:1fr 1fr!important}
+    .gap-row{grid-template-columns:minmax(0,1fr) 112px!important}
+    .gap-row>a{display:none}
   }
   @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
-<link href="theme.css" rel="stylesheet"/>
 </head>
 <body>
 
 <div class="px" aria-hidden="true"><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><span class="px-mark"><span class="px-tag">Chronos</span></span></div>
 
 <!-- Auth loading gate -->
-<div class="fixed inset-0 z-50 flex items-center justify-center" style="background:var(--page)" id="gate">
-<span class="material-symbols-outlined text-3xl spin" style="color:var(--sub)">progress_activity</span>
+<div id="gate" style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:var(--page)">
+<span class="msym spin" style="font-size:30px;color:var(--sub)">progress_activity</span>
 </div>
 
-<!-- App -->
-<div class="hidden" id="app" data-shell style="display:grid;grid-template-columns:264px minmax(0,1fr);min-height:100vh">
+<div id="app" class="hidden" data-shell style="grid-template-columns:264px minmax(0,1fr);height:100vh">
 
 <!-- Sidebar — identical structure to teacherknowledge.html so the two teacher
      pages navigate identically at every width. -->
-<aside data-side style="background:var(--side);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:100vh;position:sticky;top:0">
-<div style="padding:18px 20px 16px;border-bottom:1px solid var(--rule)">
-<a href="landing.html" style="color:var(--ink);font-family:Newsreader,serif;font-size:24px;line-height:1;text-decoration:none;letter-spacing:-.015em">Chronos<span style="color:var(--crimson)">.</span></a>
-<div class="lbl" style="color:var(--faint);margin-top:5px;letter-spacing:.04em">Teacher</div>
-</div>
+<aside data-side style="background:var(--side);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:0">
+  <div style="padding:18px 20px 16px;border-bottom:1px solid var(--rule)">
+    <a href="landing.html" style="color:var(--ink);font-family:Newsreader,serif;font-size:24px;line-height:1;text-decoration:none;letter-spacing:-.015em">Chronos<span style="color:var(--crimson)">.</span></a>
+    <div style="font-size:12.5px;color:var(--mid);margin-top:4px">Teacher</div>
+  </div>
 
-<div style="padding:16px 12px 8px">
-<div class="lbl" style="color:var(--faint);padding:0 8px 8px">Your classes</div>
-<div class="relative">
-<select aria-label="Active class" class="fld w-full text-sm px-3 py-2.5 outline-none cursor-pointer appearance-none" id="classSelect" title="Class"></select>
-<span class="material-symbols-outlined text-[18px] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style="color:var(--faint)">unfold_more</span>
-</div>
-</div>
+  <div data-scroll style="padding:16px 12px 8px;overflow-y:auto;min-height:0">
+    <div style="font-size:12.5px;font-weight:600;color:var(--mid);padding:0 8px 8px">Your classes</div>
+    <div id="classList"></div>
+  </div>
 
-<nav style="margin-top:8px;padding:12px;border-top:1px solid var(--rule);display:flex;flex-direction:column">
-<a class="side-link" href="teacherknowledge.html"><span class="material-symbols-outlined text-[19px]">folder_open</span>Class material</a>
-<span class="side-link on"><span class="material-symbols-outlined text-[19px]" style="font-variation-settings:'FILL' 1">insights</span>Analytics</span>
-<a class="side-link" href="student.html"><span class="material-symbols-outlined text-[19px]">chat</span>Preview as student</a>
-</nav>
+  <nav style="margin-top:8px;padding:12px;border-top:1px solid var(--rule);display:flex;flex-direction:column">
+    <a class="side-link" href="teacherknowledge.html"><span class="msym">folder_open</span>Class material</a>
+    <span class="side-link on"><span class="msym" style="font-variation-settings:'FILL' 1">insights</span>Analytics</span>
+    <a class="side-link" href="student.html"><span class="msym">chat</span>Preview as student</a>
+  </nav>
 
-<div style="padding:12px">
-<button class="kbtn w-full" id="refreshBtn">
-<span><span class="material-symbols-outlined text-[16px]" id="refreshIcon">refresh</span> Refresh</span>
-</button>
-</div>
-
-<div style="margin-top:auto;border-top:1px solid var(--rule);padding:12px 16px;display:flex;align-items:center;gap:6px">
-<button aria-label="How this works" class="ibtn" id="tutHelp" title="How this works">
-<span class="material-symbols-outlined text-[19px]">help</span>
-</button>
-<button class="ibtn" data-theme-toggle="" title="Switch to dark mode">
-<span class="material-symbols-outlined text-[19px]">dark_mode</span>
-</button>
-<button class="ibtn !w-auto !px-2 gap-2 flex-1 justify-start" id="lockBtn" title="Sign out">
-<span class="material-symbols-outlined text-[19px]">account_circle</span>
-<span class="text-xs truncate min-w-0" id="userEmail" title=""></span>
-</button>
-</div>
+  <div style="margin-top:auto;border-top:1px solid var(--rule);padding:10px 14px 14px">
+    <div style="display:flex;gap:2px;margin-bottom:6px">
+      <button id="tutHelp" class="ibtn" aria-label="How this works" title="How this works"><span class="msym">help</span></button>
+      <button class="ibtn" data-theme-toggle title="Switch to dark mode"><span class="msym">dark_mode</span></button>
+      <button id="refreshBtn" class="ibtn" aria-label="Refresh" title="Refresh"><span class="msym" id="refreshIcon">refresh</span></button>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="userAvatar" style="width:30px;height:30px;background:var(--ink);color:var(--page);display:grid;place-items:center;font-size:12.5px;font-weight:600;flex:none"></span>
+      <span style="min-width:0">
+        <span id="userEmail" class="trunc" style="display:block;font-size:13.5px;font-weight:600"></span>
+        <span style="display:block;font-size:12px;color:var(--faint)">Teacher</span>
+      </span>
+      <button id="lockBtn" class="ibtn" style="margin-left:auto" aria-label="Sign out" title="Sign out"><span class="msym">logout</span></button>
+    </div>
+  </div>
 </aside>
 
-<main class="relative z-10 pt-10 pb-24 px-6 max-w-[1200px]">
-<!-- Header -->
-<div class="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
-<div>
-<h1 class="text-[clamp(2rem,4.5vw,3rem)] leading-none mb-3">What they<br/>keep asking.</h1>
-<p class="text-[1.05rem] max-w-xl" style="color:var(--sub)">Every question, grouped by topic. Anything your material couldn&rsquo;t answer gets flagged as a gap.</p>
-</div>
-<span class="lbl flex items-center gap-2 px-3 py-2" style="border:1px solid var(--rule);color:var(--sub)">
-<span class="w-2 h-2 bg-gold"></span> Live
-</span>
-</div>
+<main data-scroll style="min-width:0;min-height:0;overflow-y:auto">
+  <header style="border-bottom:3px solid var(--ink);padding:22px 36px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
+    <div style="min-width:0">
+      <h1 id="className" style="margin:0 0 5px;font-size:27px;line-height:1.1">&nbsp;</h1>
+      <p id="classMeta" style="margin:0;font-size:14px;color:var(--mid)"></p>
+    </div>
+    <div id="ranges" style="display:flex;gap:1px;border:1px solid var(--field-b)">
+      <button type="button" class="rangebtn" data-days="7">7 days</button>
+      <button type="button" class="rangebtn" data-days="30">30 days</button>
+      <button type="button" class="rangebtn on" data-days="0">This term</button>
+    </div>
+  </header>
 
-<!-- KPI cards -->
-<div data-kpis class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-<div class="kpi">
-<h3 class="lbl mb-4" style="color:var(--sub)">Total questions</h3>
-<p class="kpi-n" id="qTotal">0</p>
-</div>
-<div class="kpi">
-<h3 class="lbl mb-4" style="color:var(--sub)">Chat sessions</h3>
-<p class="kpi-n" id="sTotal">0</p>
-</div>
-<div class="kpi">
-<h3 class="lbl mb-4" style="color:var(--sub)">Distinct topics</h3>
-<p class="kpi-n" id="cTotal">0</p>
-</div>
-<div class="kpi kpi--red">
-<h3 class="lbl mb-4 text-crimson">Knowledge gaps</h3>
-<p class="kpi-n text-crimson" id="gapTotal">0</p>
-</div>
-</div>
+  <div style="padding:32px 36px 60px;max-width:1120px">
 
-<!-- Questions by topic -->
-<section class="panel mb-6">
-<div class="panel-head lbl">Questions by topic</div>
-<div class="p-6 lg:p-8">
-<div id="bars"><p class="text-sm" style="color:var(--sub)">Loading…</p></div>
-</div>
-</section>
+    <div data-kpis style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:36px;padding-bottom:30px;border-bottom:1px solid var(--rule2);margin-bottom:38px">
+      <div>
+        <div style="font-size:13.5px;color:var(--mid);margin-bottom:7px">Questions asked</div>
+        <div class="kpi-n" id="kQuestions">0</div>
+        <div style="font-size:13px;color:var(--faint);margin-top:6px" id="kQuestionsSub">&nbsp;</div>
+      </div>
+      <div>
+        <div style="font-size:13.5px;color:var(--mid);margin-bottom:7px">Students active</div>
+        <div class="kpi-n" id="kActive">0</div>
+        <div style="font-size:13px;color:var(--faint);margin-top:6px" id="kActiveSub">&nbsp;</div>
+      </div>
+      <div>
+        <div style="font-size:13.5px;color:var(--mid);margin-bottom:7px">Answered from material</div>
+        <div class="kpi-n" id="kGrounded">—</div>
+        <div style="font-size:13px;color:var(--faint);margin-top:6px">the rest hit a gap</div>
+      </div>
+      <div>
+        <div style="font-size:13.5px;color:var(--mid);margin-bottom:7px">Gaps to close</div>
+        <div class="kpi-n" id="kGaps" style="color:var(--crimson)">0</div>
+        <div style="font-size:13px;color:var(--faint);margin-top:6px">questions your material missed</div>
+      </div>
+    </div>
 
-<!-- Gaps + donut -->
-<div data-cols class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-<!-- Knowledge gaps -->
-<div class="lg:col-span-2 panel flex flex-col" style="border-color:var(--crimson)">
-<div class="panel-head panel-head--red lbl flex items-center justify-between gap-4">
-<span>Knowledge gaps</span>
-<span class="hidden sm:inline opacity-80 normal-case tracking-normal font-normal text-[11px]">questions your material couldn&rsquo;t answer</span>
-</div>
-<div class="flex-grow custom-scrollbar overflow-y-auto max-h-[420px]" id="gaps"></div>
-</div>
-<!-- Topic distribution donut -->
-<div class="panel flex flex-col">
-<div class="panel-head lbl">Topic split</div>
-<div class="flex flex-col items-center p-6">
-<div class="relative w-44 h-44">
-<svg class="w-full h-full -rotate-90" id="donut" viewBox="0 0 42 42"></svg>
-<div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-<span class="font-display text-3xl leading-none" id="donutTotal">0</span>
-<span class="lbl mt-1" style="color:var(--sub)">Questions</span>
-</div>
-</div>
-<div class="w-full mt-6 space-y-2" id="donutLegend"></div>
-</div>
-</div>
-</div>
+    <section style="margin-bottom:44px">
+      <h2 class="lbl" style="margin:0 0 6px">Start here &mdash; what your material didn&rsquo;t cover</h2>
+      <p style="margin:0 0 16px;font-size:14.5px;line-height:1.6;color:var(--sub);max-width:64ch">Questions the tutor declined, most-asked first. Each one is something a student wanted and the class material could not give them.</p>
+      <div style="border-top:1px solid var(--rule2)" id="gapsList"></div>
+      <p id="gapsEmpty" class="hidden" style="margin:22px 0 0;font-size:15px;line-height:1.6;color:var(--mid);max-width:52ch">No gaps in this window. Everything they asked, your material could answer.</p>
+    </section>
 
-<!-- Recent queries -->
-<section class="panel">
-<div class="panel-head lbl">Recent questions</div>
-<div class="overflow-x-auto">
-<table class="w-full text-left">
-<thead>
-<tr style="background:var(--hi);border-bottom:1px solid var(--rule)">
-<th class="lbl py-3 px-6 font-normal" style="color:var(--sub)">Question</th>
-<th class="lbl py-3 px-6 font-normal text-right" style="color:var(--sub)">Topic</th>
-</tr>
-</thead>
-<tbody id="feed">
-<tr><td class="py-4 px-6 text-sm" style="color:var(--sub)" colspan="2">Loading…</td></tr>
-</tbody>
-</table>
-</div>
-</section>
+    <div data-cols style="display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:48px">
+      <section>
+        <h2 class="lbl" style="margin:0 0 6px">Where the questions land</h2>
+        <p style="margin:0 0 18px;font-size:14.5px;line-height:1.6;color:var(--sub)">Grouped by topic across <span id="rangeLower">this term</span>.</p>
+        <div id="topics" style="display:flex;flex-direction:column;gap:16px"></div>
+        <p id="topicsEmpty" class="hidden" style="margin:0;font-size:14.5px;line-height:1.6;color:var(--mid)">No questions logged in this window yet.</p>
+      </section>
+
+      <section>
+        <h2 class="lbl" style="margin:0 0 6px">Most-asked questions</h2>
+        <p style="margin:0 0 18px;font-size:14.5px;line-height:1.6;color:var(--sub)">Answered from your material, but asked often enough to be worth revisiting in class.</p>
+        <div id="repeats" style="border-top:1px solid var(--rule2)"></div>
+        <p id="repeatsEmpty" class="hidden" style="margin:0;font-size:14.5px;line-height:1.6;color:var(--mid)">Nothing asked twice yet.</p>
+        <p style="margin:22px 0 0;font-size:13.5px;line-height:1.6;color:var(--faint)">Questions are shown per class and never attributed to an individual student.</p>
+      </section>
+    </div>
+
+  </div>
 </main>
+
 </div>
 
-<!-- Toast -->
-<div class="hidden" id="toast"></div>
+<div id="toast" class="hidden"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -243,185 +194,261 @@
 <script src="theme.js"></script>
 <script src="transition.js"></script>
 <script>
-  const BASE=Chronos.BASE;
   const $=id=>document.getElementById(id);
   const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  let CLASSES=[],ACTIVE_CLASS=null;
+  let CLASSES=[],ACTIVE_CLASS=null,DAYS=0,LAST=null;
   const CLASS_KEY="chronos_teacher_class";
+  const RANGE_KEY="chronos_stats_range";
+  const RANGE_WORDS={7:"the last seven days",30:"the last thirty days",0:"this term"};
 
   function showToast(msg,ok){
     const t=$("toast");
     t.textContent=msg;
-    t.className="fixed bottom-6 right-6 z-[60] max-w-sm px-4 py-3 text-sm font-medium flex items-center gap-2";
-    t.style.cssText="background:var(--paper);color:var(--ink);border:1px solid "+(ok?"var(--gold)":"var(--crimson)")+
-      ";border-left-width:4px";
+    t.className="";
+    t.style.cssText="position:fixed;bottom:24px;right:24px;z-index:60;max-width:24rem;padding:12px 16px;"+
+      "font-size:14px;font-weight:500;background:var(--field);color:var(--ink);border:1px solid "+
+      (ok?"var(--gold)":"var(--crimson)")+";border-left-width:4px";
     clearTimeout(showToast._t);
     showToast._t=setTimeout(()=>{t.className="hidden";t.style.cssText="";},4000);
   }
 
   async function api(path,body){ return Chronos.apiJson(path,body||{}); }
-  // Escapes for BOTH text and attribute contexts. The old textContent→innerHTML
-  // trick escapes < > &, but leaves quotes alone — and these strings land inside
-  // title="..." attributes. Category names are model output derived from student
-  // questions, so a quote in one would have broken out of the attribute.
-  function esc(s){
-    return String(s==null?"":s)
-      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-      .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
-  }
+  async function lock(){ try{await Chronos.logout();}catch(e){} ChronosWipe.go("login.html?role=teacher",true); }
+  function activeClassObj(){ return CLASSES.find(c=>c.id===ACTIVE_CLASS); }
+  const plural=(n,w)=>n+" "+w+(n===1?"":"s");
 
   function animateCount(el,target){
     target=Number(target)||0;
     if(reduceMotion){el.textContent=target;return;}
     const dur=600,t0=performance.now();
-    function step(now){const p=Math.min((now-t0)/dur,1);const e=1-Math.pow(1-p,3);el.textContent=Math.round(e*target);if(p<1)requestAnimationFrame(step);}
+    function step(now){
+      const p=Math.min((now-t0)/dur,1);
+      el.textContent=Math.round((1-Math.pow(1-p,3))*target);
+      if(p<1)requestAnimationFrame(step);
+    }
     requestAnimationFrame(step);
   }
 
-  async function lock(){ try{await Chronos.logout();}catch(e){} ChronosWipe.go("login.html?role=teacher",true); }
+  // ---------- classes ----------
+  function renderClasses(){
+    const list=$("classList");
+    list.innerHTML="";
+    if(!CLASSES.length){
+      const p=document.createElement("p");
+      p.style.cssText="margin:0;padding:4px 12px 8px;font-size:13px;color:var(--faint)";
+      p.textContent="No classes yet.";
+      list.appendChild(p);
+      return;
+    }
+    CLASSES.forEach(c=>{
+      const b=document.createElement("button");
+      b.type="button";
+      b.className="class-row"+(c.id===ACTIVE_CLASS?" on":"");
+      const inner=document.createElement("span"); inner.style.minWidth="0";
+      const n=document.createElement("span"); n.className="cr-name trunc"; n.textContent=c.name; n.title=c.name;
+      const m=document.createElement("span"); m.className="cr-meta"; m.textContent=c.join_code?("Join code "+c.join_code):"";
+      inner.appendChild(n); inner.appendChild(m);
+      b.appendChild(inner);
+      b.onclick=()=>{
+        if(c.id===ACTIVE_CLASS)return;
+        ACTIVE_CLASS=c.id;
+        localStorage.setItem(CLASS_KEY,c.id);
+        renderClasses(); paintHeader();
+        load().catch(e=>showToast(e.message,false));
+      };
+      list.appendChild(b);
+    });
+  }
+
+  function paintHeader(){
+    const c=activeClassObj();
+    $("className").textContent=c?c.name:"No class yet";
+    const words=RANGE_WORDS[DAYS];
+    $("rangeLower").textContent=words;
+    const label=words.charAt(0).toUpperCase()+words.slice(1);
+    const students=LAST?plural(LAST.students_total||0,"student"):"";
+    $("classMeta").textContent=c?((students?students+" · ":"")+label)
+                               :"Create a class on the Class material page first.";
+  }
 
   async function loadClasses(){
     CLASSES=await Chronos.listClasses();
-    const sel=$("classSelect");sel.innerHTML="";
-    if(!CLASSES.length){const o=document.createElement("option");o.textContent="No classes yet";o.disabled=true;sel.appendChild(o);}
-    CLASSES.forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
     let pick=localStorage.getItem(CLASS_KEY);
     if(!CLASSES.find(c=>c.id===pick))pick=CLASSES.length?CLASSES[0].id:null;
     ACTIVE_CLASS=pick;
-    if(ACTIVE_CLASS){sel.value=ACTIVE_CLASS;localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);}
+    if(ACTIVE_CLASS)localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);
+    renderClasses();
+    paintHeader();
   }
 
-  // Gate the page: require a signed-in teacher, then reveal and load analytics.
-  Chronos.requireRole("teacher").then(async info=>{
-    const em=$("userEmail");if(em){em.textContent=info.email||"Teacher";em.title=info.email||"";}
-    $("gate").classList.add("hidden");
-    $("app").classList.remove("hidden");
-    if(window.__tutFirstVisit)window.__tutFirstVisit();
-    await loadClasses();
-    if(!ACTIVE_CLASS){showToast("Create a class on the Knowledge Base page first.",true);return;}
-    try{await load();}catch(e){showToast(e.message,false);}
-  }).catch(e=>{
-    // textContent, not innerHTML: this string comes off the wire.
-    const g=$("gate");g.textContent="";
-    const p=document.createElement("p");
-    p.className="text-crimson text-center px-6 font-medium";
-    p.textContent=(e&&e.message)||"Sign-in required";
-    g.appendChild(p);
-  });
+  // ---------- analytics ----------
+  // Topic bar colours follow the design's ranking: the busiest topic is crimson,
+  // the quietest gold, everything between is ink.
+  function topicColor(i,n){
+    if(i===0)return "var(--crimson)";
+    if(i===n-1&&n>2)return "var(--gold)";
+    return "var(--barmid)";
+  }
+
+  function renderTopics(cats){
+    const box=$("topics");
+    box.innerHTML="";
+    $("topicsEmpty").classList.toggle("hidden",cats.length>0);
+    if(!cats.length)return;
+    const max=Math.max(...cats.map(c=>c.count))||1;
+    cats.forEach((c,i)=>{
+      const wrap=document.createElement("div");
+      const head=document.createElement("div");
+      head.style.cssText="display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:7px";
+      const name=document.createElement("span");
+      name.className="trunc"; name.style.fontSize="14.5px";
+      name.textContent=c.name; name.title=c.name;
+      const count=document.createElement("span");
+      count.style.cssText="font-size:13.5px;color:var(--mid);flex:none";
+      count.textContent=c.count;
+      head.appendChild(name); head.appendChild(count);
+      const track=document.createElement("div");
+      track.style.cssText="height:6px;background:var(--bar)";
+      const fill=document.createElement("div");
+      fill.className="bar-fill";
+      fill.style.cssText="height:100%;width:0;background:"+topicColor(i,cats.length);
+      track.appendChild(fill);
+      wrap.appendChild(head); wrap.appendChild(track);
+      box.appendChild(wrap);
+      requestAnimationFrame(()=>{fill.style.width=(c.count/max*100).toFixed(0)+"%";});
+    });
+  }
+
+  function renderGaps(rows){
+    const box=$("gapsList");
+    box.innerHTML="";
+    $("gapsEmpty").classList.toggle("hidden",rows.length>0);
+    rows.forEach(g=>{
+      const row=document.createElement("div"); row.className="gap-row";
+
+      const left=document.createElement("div"); left.style.minWidth="0";
+      const q=document.createElement("div");
+      q.style.cssText="font-size:15.5px;line-height:1.5";
+      q.textContent=g.question;
+      const sub=document.createElement("div");
+      sub.style.cssText="font-size:13px;color:var(--faint);margin-top:4px";
+      sub.textContent="Asked "+plural(g.count,"time");
+      left.appendChild(q); left.appendChild(sub);
+
+      const who=document.createElement("div");
+      who.style.cssText="font-size:14px;color:var(--sub)";
+      who.textContent=plural(g.students,"student");
+
+      const link=document.createElement("a");
+      link.href="teacherknowledge.html";
+      link.style.cssText="font-size:14px;font-weight:600;justify-self:start";
+      link.textContent="Add material";
+
+      row.appendChild(left); row.appendChild(who); row.appendChild(link);
+      box.appendChild(row);
+    });
+  }
+
+  function renderRepeats(rows){
+    const box=$("repeats");
+    box.innerHTML="";
+    // One-off questions aren't "most-asked" — only rows actually asked again.
+    const asked=rows.filter(r=>r.count>1);
+    $("repeatsEmpty").classList.toggle("hidden",asked.length>0);
+    asked.forEach(r=>{
+      const row=document.createElement("div");
+      row.style.cssText="display:flex;align-items:baseline;justify-content:space-between;gap:18px;"+
+        "border-bottom:1px solid var(--rule2);padding:13px 4px";
+      const q=document.createElement("span");
+      q.style.cssText="font-size:15px;line-height:1.5";
+      q.textContent=r.question;
+      const n=document.createElement("span");
+      n.style.cssText="font-size:13.5px;color:var(--mid);flex:none";
+      n.textContent=plural(r.count,"time");
+      row.appendChild(q); row.appendChild(n);
+      box.appendChild(row);
+    });
+  }
 
   async function load(){
-    if(!ACTIVE_CLASS){showToast("No class selected.",false);return;}
+    if(!ACTIVE_CLASS)return;
     $("refreshBtn").disabled=true;
     $("refreshIcon").classList.add("spin");
     try{
-      const d=await api("/stats",{class_id:ACTIVE_CLASS,limit:200});
-      animateCount($("qTotal"),d.total_questions);
-      animateCount($("sTotal"),d.total_sessions);
-      animateCount($("cTotal"),d.categories.length);
-
-      // bars by topic
-      const bars=$("bars"); bars.innerHTML="";
-      if(!d.categories.length){
-        bars.innerHTML='<p class="text-sm" style="color:var(--sub)">No questions logged yet.</p>';
-      }else{
-        const max=Math.max(...d.categories.map(c=>c.count));
-        d.categories.forEach((c,i)=>{
-          const row=document.createElement("div"); row.className="flex items-center gap-4 mb-3";
-          row.innerHTML=
-            '<div class="w-32 sm:w-40 flex-shrink-0 text-right text-sm truncate" title="'+esc(c.name)+'">'+esc(c.name)+'</div>'+
-            '<div class="flex-1 h-5 bar-track overflow-hidden"><div class="bar-fill h-full" style="width:0;background:'+DONUT_COLORS[i%DONUT_COLORS.length]+'" data-w="'+(c.count/max*100).toFixed(0)+'"></div></div>'+
-            '<div class="w-8 font-mono text-xs font-semibold">'+c.count+'</div>';
-          bars.appendChild(row);
-        });
-        requestAnimationFrame(()=>bars.querySelectorAll(".bar-fill").forEach(f=>{f.style.width=f.dataset.w+"%";}));
-      }
-
-      renderDonut(d.categories);
-
-      // knowledge gaps
-      const gaps=$("gaps"); gaps.innerHTML="";
-      $("gapTotal").textContent=d.unanswered_count||0;
-      if(!d.unanswered||!d.unanswered.length){
-        gaps.innerHTML='<p class="text-sm p-6" style="color:var(--sub)">No gaps yet. Everything they&rsquo;ve asked so far, your material could answer.</p>';
-      }else{
-        d.unanswered.forEach(r=>{
-          const row=document.createElement("div"); row.className="flex items-start gap-3 px-5 py-3 row-line transition-colors hover:bg-hi";
-          row.innerHTML='<span class="material-symbols-outlined text-crimson text-[18px] flex-shrink-0 mt-0.5">error</span>'+
-            '<span class="text-sm">'+esc(r.question)+'</span>';
-          gaps.appendChild(row);
-        });
-      }
-
-      // recent table
-      const feed=$("feed"); feed.innerHTML="";
-      if(!d.recent.length){
-        feed.innerHTML='<tr><td class="py-4 px-6 text-sm" style="color:var(--sub)" colspan="2">No recent questions.</td></tr>';
-      }else{
-        d.recent.forEach(r=>{
-          const tr=document.createElement("tr"); tr.className="row-line last:border-0 transition-colors hover:bg-hi";
-          tr.innerHTML=
-            '<td class="py-4 px-6 text-sm">'+esc(r.question)+'</td>'+
-            '<td class="py-4 px-6 text-right"><span class="chip">'+esc(r.category)+'</span></td>';
-          feed.appendChild(tr);
-        });
-      }
+      const d=await api("/stats",{class_id:ACTIVE_CLASS,limit:200,days:DAYS});
+      LAST=d;
+      animateCount($("kQuestions"),d.total_questions);
+      animateCount($("kActive"),d.students_active);
+      animateCount($("kGaps"),d.unanswered_count);
+      $("kQuestionsSub").textContent=DAYS?("conversations in the last "+plural(DAYS,"day")):"conversations logged so far";
+      $("kActiveSub").textContent="of "+plural(d.students_total||0,"student")+" in the class";
+      // Percentage of conversations that never had to refuse. Blank rather than
+      // "100%" when nothing was asked — an empty window has no rate to report.
+      $("kGrounded").textContent = d.total_questions
+        ? Math.round(d.grounded_conversations/d.total_questions*100)+"%"
+        : "—";
+      renderTopics(d.categories||[]);
+      renderGaps(d.unanswered||[]);
+      renderRepeats(d.repeats||[]);
+      paintHeader();
     }finally{
       $("refreshBtn").disabled=false;
       $("refreshIcon").classList.remove("spin");
     }
   }
 
-  // Categorical set held to mid-tone values so the same eight colors stay legible
-  // as fills on the light paper background AND on the near-black dark theme —
-  // charts are rendered once and are not re-drawn when the theme is toggled.
-  // Crimson leads because it is the brand accent.
-  const DONUT_COLORS=["#E2001A","#4A7BC8","#C9A227","#3E9B7C","#A96BB8","#D9803F","#6E9AB8","#A3B348"];
+  // ---------- wiring ----------
+  $("lockBtn").onclick=lock;
+  $("refreshBtn").onclick=()=>load().catch(e=>showToast(e.message,false));
+  $("ranges").addEventListener("click",e=>{
+    const btn=e.target.closest(".rangebtn");
+    if(!btn)return;
+    DAYS=Number(btn.dataset.days);
+    localStorage.setItem(RANGE_KEY,String(DAYS));
+    [...$("ranges").children].forEach(b=>b.classList.toggle("on",b===btn));
+    paintHeader();
+    load().catch(err=>showToast(err.message,false));
+  });
 
-  function renderDonut(cats){
-    const svg=$("donut"),legend=$("donutLegend");
-    svg.innerHTML="";legend.innerHTML="";
-    const total=cats.reduce((a,c)=>a+(c.count||0),0);
-    $("donutTotal").textContent=total;
-    if(!total){
-      svg.innerHTML='<circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#DED8C6" stroke-width="6"></circle>';
-      legend.innerHTML='<p class="text-xs text-center" style="color:var(--sub)">No data yet.</p>';
-      return;
-    }
-    let offset=0;
-    cats.forEach((c,i)=>{
-      const pct=c.count/total*100;
-      const color=DONUT_COLORS[i%DONUT_COLORS.length];
-      const seg=document.createElementNS("http://www.w3.org/2000/svg","circle");
-      seg.setAttribute("cx","21");seg.setAttribute("cy","21");seg.setAttribute("r","15.915");
-      seg.setAttribute("fill","transparent");seg.setAttribute("stroke",color);seg.setAttribute("stroke-width","6");
-      seg.setAttribute("stroke-dasharray",pct.toFixed(2)+" "+(100-pct).toFixed(2));
-      seg.setAttribute("stroke-dashoffset",(100-offset).toFixed(2));
-      svg.appendChild(seg);
-      offset+=pct;
-      const row=document.createElement("div");row.className="flex items-center justify-between gap-2";
-      row.innerHTML='<span class="flex items-center gap-2 min-w-0"><span class="w-3 h-3 flex-shrink-0" style="background:'+color+'"></span>'+
-        '<span class="text-xs truncate" title="'+esc(c.name)+'">'+esc(c.name)+'</span></span>'+
-        '<span class="font-mono text-xs flex-shrink-0" style="color:var(--sub)">'+Math.round(pct)+'%</span>';
-      legend.appendChild(row);
-    });
+  const savedRange=Number(localStorage.getItem(RANGE_KEY));
+  if(RANGE_WORDS[savedRange]!==undefined){
+    DAYS=savedRange;
+    [...$("ranges").children].forEach(b=>b.classList.toggle("on",Number(b.dataset.days)===DAYS));
   }
 
-  // wiring
-  $("lockBtn").onclick=lock;
-  $("refreshBtn").onclick=()=>{load().catch(e=>showToast(e.message,false));};
-  $("classSelect").onchange=e=>{ACTIVE_CLASS=e.target.value;localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);load().catch(err=>showToast(err.message,false));};
+  // Gate the page: require a signed-in teacher, then reveal and load analytics.
+  Chronos.requireRole("teacher").then(async info=>{
+    const email=info.email||"Teacher";
+    $("userEmail").textContent=email;
+    $("userEmail").title=email;
+    $("userAvatar").textContent=email.slice(0,2).toUpperCase();
+    $("gate").classList.add("hidden");
+    $("app").classList.remove("hidden");
+    $("app").style.display="grid";
+    if(window.__tutFirstVisit)window.__tutFirstVisit();
+    await loadClasses();
+    if(!ACTIVE_CLASS){showToast("Create a class on the Class material page first.",true);return;}
+    try{await load();}catch(e){showToast(e.message,false);}
+  }).catch(e=>{
+    // textContent, not innerHTML: this string comes off the wire.
+    const g=$("gate");g.textContent="";
+    const p=document.createElement("p");
+    p.style.cssText="color:var(--crimson-d);text-align:center;padding:0 24px;font-weight:500";
+    p.textContent=(e&&e.message)||"Sign-in required";
+    g.appendChild(p);
+  });
 </script>
 
 <!-- How-it-works tutorial -->
-<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4" style="background:rgba(11,11,12,.72)" id="tut">
-<div class="w-full max-w-md panel p-6 max-h-[85vh] overflow-y-auto">
-<div class="flex items-start justify-between gap-3 mb-5">
-<h2 class="text-[22px] leading-none" id="tutTitle"></h2>
-<button class="ibtn flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
+<div id="tut" class="hidden" style="position:fixed;inset:0;z-index:60;align-items:center;justify-content:center;padding:16px;background:rgba(11,11,12,.72)">
+<div style="width:100%;max-width:28rem;padding:24px;max-height:85vh;overflow-y:auto;background:var(--field);border:1px solid var(--field-b)">
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px">
+<h2 id="tutTitle" style="margin:0;font-size:22px;line-height:1"></h2>
+<button id="tutClose" class="ibtn" aria-label="Close"><span class="msym">close</span></button>
 </div>
-<div class="space-y-4" id="tutBody"></div>
-<div class="flex items-center justify-center gap-1.5 mt-5" id="tutDots"></div>
-<button class="kbtn w-full mt-6" id="tutDone"><span>Continue</span></button>
+<div id="tutBody"></div>
+<div id="tutDots" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:20px"></div>
+<button id="tutDone" style="width:100%;margin-top:24px;display:flex;align-items:center;justify-content:center;background:var(--crimson);color:#F7F4EC;border:1px solid var(--crimson);padding:11px 17px;font:inherit;font-size:14px;font-weight:600;cursor:pointer">Continue</button>
 </div>
 </div>
 <script>
@@ -429,10 +456,10 @@
     const TITLE="What you're looking at";
     const KEY="chronos_tut_stats_v2";
     const STEPS=[
-      {icon:"school",title:"One class at a time",text:"Use the class menu in the sidebar. Every number on this page is just for the class you've picked."},
-      {icon:"forum",title:"What they keep asking",text:"Questions get grouped by topic, so you can see at a glance what your students keep circling back to."},
-      {icon:"help",title:"Mind the gaps",text:"Knowledge Gaps are the questions your material couldn't answer. It's basically a ready made list of what to add next."},
-      {icon:"history",title:"Recent questions",text:"A running feed of what's being asked, newest first, so you can catch something going wrong the same week it happens."},
+      {icon:"school",title:"One class at a time",text:"Pick a class in the sidebar. Every number on this page is just for the class you've picked, over the date range up top."},
+      {icon:"help",title:"Gaps come first",text:"Knowledge gaps are the questions your material couldn't answer, most-asked first. It's a ready-made list of what to upload next."},
+      {icon:"forum",title:"Where questions land",text:"Questions get grouped by topic, so you can see at a glance what your students keep circling back to."},
+      {icon:"history",title:"Asked again and again",text:"Anything asked repeatedly is worth a minute of class time, even when the tutor answered it fine."},
     ];
     let idx=0;
     const body=document.getElementById("tutBody");
@@ -442,21 +469,22 @@
 
     function render(){
       const s=STEPS[idx];
-      body.innerHTML='<div class="flex items-start gap-3">'+
-        '<span class="w-10 h-10 flex-shrink-0 bg-crimson text-paper flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
-        '<div><h3 class="text-sm font-bold mb-0.5" style="font-family:\'Schibsted Grotesk\',sans-serif">'+s.title+'</h3>'+
-        '<p class="text-sm leading-snug" style="color:var(--sub)">'+s.text+'</p></div></div>';
+      body.innerHTML='<div style="display:flex;align-items:flex-start;gap:12px">'+
+        '<span style="width:40px;height:40px;flex:none;background:var(--crimson);color:#F7F4EC;display:grid;place-items:center">'+
+        '<span class="msym" style="font-size:20px">'+s.icon+'</span></span>'+
+        '<div><h3 style="margin:0 0 2px;font-family:inherit;font-size:14px;font-weight:700">'+s.title+'</h3>'+
+        '<p style="margin:0;font-size:14px;line-height:1.45;color:var(--sub)">'+s.text+'</p></div></div>';
       dots.innerHTML="";
       STEPS.forEach((_,i)=>{
         const d=document.createElement("span");
-        d.className="h-2 transition-all "+(i===idx?"w-6 bg-crimson":"w-2 bg-hi");
+        d.style.cssText="height:8px;width:"+(i===idx?"24px":"8px")+";background:"+(i===idx?"var(--crimson)":"var(--hi)")+";transition:width .2s";
         dots.appendChild(d);
       });
-      doneBtn.querySelector("span").textContent = idx===STEPS.length-1 ? "Got it" : "Continue";
+      doneBtn.textContent = idx===STEPS.length-1 ? "Got it" : "Continue";
     }
 
     const modal=document.getElementById("tut");
-    const open=()=>{idx=0;render();modal.classList.remove("hidden");};
+    const open=()=>{idx=0;render();modal.classList.remove("hidden");modal.style.display="flex";};
     const close=()=>{modal.classList.add("hidden");try{localStorage.setItem(KEY,"1");}catch(e){}};
     document.getElementById("tutClose").onclick=close;
     // Each click only ever advances one step — no skipping ahead, and no

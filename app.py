@@ -1162,6 +1162,33 @@ def _ts_seconds(ts):
         return 0.0
 
 
+def _group_questions(rows):
+    """Fold (ts, question, uid) rows into most-asked-first counts.
+
+    Questions are keyed case- and whitespace-insensitively so the same question
+    typed twice is one row, but the label keeps the first wording seen. `students`
+    counts distinct askers, which is what makes a gap worth acting on — one
+    student asking five times is not five students stuck.
+    """
+    out = {}
+    for ts, question, uid in rows:
+        text = " ".join(str(question or "").split())
+        if not text:
+            continue
+        key = text.lower()
+        row = out.get(key)
+        if row is None:
+            out[key] = row = {"question": text, "count": 0, "students": set(), "last_ts": ts}
+        row["count"] += 1
+        row["students"].add(uid)
+        row["last_ts"] = max(row["last_ts"], ts)
+    ranked = sorted(out.values(), key=lambda r: (r["count"], r["last_ts"]), reverse=True)
+    return [
+        {"question": r["question"], "count": r["count"], "students": len(r["students"])}
+        for r in ranked
+    ]
+
+
 # Wording the tutor falls back to when a question isn't covered by the material.
 _GAP_PHRASES = (
     "don't have", "do not have", "not in my", "isn't in", "is not in",
@@ -1276,12 +1303,20 @@ def stats():
     except (TypeError, ValueError):
         limit = 200
     limit = max(1, min(limit, 1000))
+    # Optional date window. 0/absent means "everything", which is what the
+    # dashboard's widest range asks for. Conversations carry a last-activity
+    # timestamp already, so this costs a comparison, not another read.
+    try:
+        days = int(data.get("days", 0))
+    except (TypeError, ValueError):
+        days = 0
+    cutoff = (time.time() - days * 86400) if days > 0 else None
 
     try:
         # One conversation = one chat doc. A follow-up answer in the same chat must
         # NOT count as another question/topic — the whole conversation counts once.
-        convos = []            # {opening, context, last_ts} per conversation
-        gaps = []              # (ts, question) the knowledge base couldn't answer
+        convos = []            # {opening, context, last_ts, uid, gapped} per conversation
+        gaps = []              # (ts, question, uid) the knowledge base couldn't answer
         session_count = 0
         legacy_chats = 0       # chats still needing the slow per-message read
         member_uids = [
@@ -1301,17 +1336,22 @@ def stats():
                     # Fast path: /chat already summarized this conversation, so
                     # the chat document alone answers everything below.
                     last_ts = _ts_seconds(d.get("last_active"))
+                    if cutoff is not None and last_ts < cutoff:
+                        continue
                     opening = (d.get("opening") or d.get("title") or "").strip()
                     if not opening:
                         continue
+                    chat_gaps = d.get("gaps") or []
                     convos.append({
                         "opening": opening,
                         "context": (d.get("context") or opening),
                         "last_ts": last_ts,
+                        "uid": uid,
+                        "gapped": bool(chat_gaps),
                     })
                     # Per-gap timestamps aren't stored; the chat's last activity
                     # is close enough for "most recent first" ordering.
-                    gaps.extend((last_ts, q) for q in (d.get("gaps") or []))
+                    gaps.extend((last_ts, q, uid) for q in chat_gaps)
                     continue
 
                 # Legacy path, for conversations written before summaries existed:
@@ -1319,6 +1359,7 @@ def stats():
                 # with the question right before it.
                 legacy_chats += 1
                 msgs = []
+                chat_gaps = []          # (ts, question) this conversation couldn't answer
                 last_student = None     # (timestamp, content) of the latest question
                 for msg in chat.reference.collection("Messages").order_by("timestamp").stream():
                     m = msg.to_dict() or {}
@@ -1329,15 +1370,21 @@ def stats():
                             msgs.append((m.get("timestamp"), content))
                             last_student = (m.get("timestamp"), content)
                     elif role == "teacher" and last_student and _is_unanswered(m):
-                        gaps.append((_ts_seconds(last_student[0]), last_student[1]))
+                        chat_gaps.append((_ts_seconds(last_student[0]), last_student[1]))
                         last_student = None
                 if msgs:
                     msgs.sort(key=lambda x: _ts_seconds(x[0]))
+                    last_ts = max(_ts_seconds(t) for t, _ in msgs)
+                    if cutoff is not None and last_ts < cutoff:
+                        continue
                     convos.append({
                         "opening": msgs[0][1],                          # the question that started it
                         "context": " ".join(c for _, c in msgs[:4])[:_SUMMARY_CONTEXT_CHARS],
-                        "last_ts": max(_ts_seconds(t) for t, _ in msgs),
+                        "last_ts": last_ts,
+                        "uid": uid,
+                        "gapped": bool(chat_gaps),
                     })
+                    gaps.extend((ts, q, uid) for ts, q in chat_gaps)
 
         if legacy_chats:
             logger.info(
@@ -1363,15 +1410,26 @@ def stats():
             for i in range(len(convos))
         ][-25:][::-1]
 
-        # Most-recent-first list of questions the knowledge base couldn't answer.
-        gaps.sort(key=lambda g: g[0])
-        unanswered = [{"question": q} for _, q in gaps][-25:][::-1]
+        # Openings a class keeps coming back to. Grouped case/whitespace-insensitively
+        # so "What is osmosis?" and "what is osmosis" are one row, labelled with the
+        # first wording seen.
+        repeats = _group_questions(
+            (c["last_ts"], c["opening"], c["uid"]) for c in convos
+        )[:8]
+
+        # Gaps, most-asked first — the dashboard leads with them, so frequency
+        # matters more than recency here.
+        unanswered = _group_questions(gaps)[:25]
 
         return jsonify({
             "total_questions": total_questions,
-            "total_sessions": session_count,
+            "total_sessions": session_count,   # every chat ever; not date-windowed
+            "students_total": len(member_uids),
+            "students_active": len({c["uid"] for c in convos}),
+            "grounded_conversations": sum(1 for c in convos if not c["gapped"]),
             "categories": [{"name": k, "count": v} for k, v in sorted_cats],
             "recent": recent,
+            "repeats": repeats,
             "unanswered": unanswered,
             "unanswered_count": len(gaps),
         })

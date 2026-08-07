@@ -6,193 +6,207 @@
 <title>Chronos | Sign in</title>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
 <link href="transition.css" rel="stylesheet"/>
 <script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
-<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-<script id="tailwind-config">
-  tailwind.config = { theme: { extend: {
-    colors: { void:"#0B0B0C", paper:"#F7F4EC", crimson:"#E2001A", ink:"#141311", gold:"#C9A227", steel:"#4B4A46", hair:"#2A2A2C" },
-    fontFamily: { display:["Newsreader","serif"], body:["Schibsted Grotesk","sans-serif"], mono:["Schibsted Grotesk","sans-serif"] }
-  }}}
-</script>
 <style>
-  :root{
-    --void:#0B0B0C; --paper:#F7F4EC; --crimson:#E2001A; --ink:#141311;
-    --gold:#C9A227; --steel:#5D5B55; --hair:#2A2A2C;
-    /* themeable form side — light is the default "document" mode */
-    --pane:#E9E4D6; --surface:#F7F4EC; --on:#141311; --edge:#DED8C6; --sub:#5D5B55; --field:#FFFDF7;
-  }
-  html.dark{--pane:#0B0B0C; --surface:#141317; --on:#F7F4EC; --edge:#2E2E33; --sub:#A9A499; --field:#0F0F12;color-scheme:dark}
+  :root{--page:#F7F4EC;--field:#FFFDF7;--ink:#141311;--sub:#5D5B55;--mid:#7A7871;--faint:#8C8880;
+        --edge:#C9C2AC;--rule:#E0DACA;--crimson:#E2001A;--crimson-d:#B10014;--gold:#C9A227;
+        --err-bg:#F6D9D5;--err-fg:#8E0011}
+  html.dark{--page:#0B0B0C;--field:#0F0F12;--ink:#F7F4EC;--sub:#A9A499;--mid:#A9A499;--faint:#8C8880;
+        --edge:#3A3A3E;--rule:#2E2E33;--crimson-d:#FF3B4E;--err-bg:#2A0B0B;--err-fg:#FF8A80;color-scheme:dark}
   *{box-sizing:border-box}
-  body{font-family:"Schibsted Grotesk",sans-serif;background:var(--pane);color:var(--on);margin:0}
-  ::selection{background:var(--crimson);color:var(--paper)}
-  :focus-visible{outline:2px solid var(--crimson);outline-offset:2px}
-  .msym{font-family:"Material Symbols Sharp";font-weight:400;font-style:normal;line-height:1;display:inline-block;white-space:nowrap;direction:ltr}
-  .dsp{font-family:"Newsreader",serif;font-weight:400;letter-spacing:-.015em}
-  .tag{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  body{margin:0;background:var(--page);color:var(--ink);font-family:"Schibsted Grotesk",sans-serif;
+       -webkit-font-smoothing:antialiased;overflow-x:hidden}
+  ::selection{background:var(--crimson);color:#F7F4EC}
+  :focus-visible{outline:2px solid var(--crimson);outline-offset:3px}
+  a{color:var(--crimson-d);text-decoration:none}
+  a:hover{color:var(--ink)}
+  input,button{font-family:inherit}
+  .hidden{display:none!important}
+  .msym{font-family:'Material Symbols Sharp';font-weight:400;line-height:1;display:inline-block;white-space:nowrap;direction:ltr}
+  .dsp{font-family:Newsreader,serif;font-weight:400;letter-spacing:-.015em}
 
-  /* ---------- brand pane ---------- */
-  #brand{background:var(--void);color:var(--paper)}
-  .float{position:absolute;will-change:transform}
-  .ev{background:var(--paper);color:var(--ink);border:1px solid #34322D;padding:13px;width:200px}
-  .ev-ln{height:6px;background:#2A2925;margin:6px 0}
-  .ev-ln.hit{background:var(--gold)}
-  .cite{display:inline-flex;align-items:center;gap:5px;background:var(--gold);color:var(--void);padding:3px 8px;
-    font-size:10px;font-weight:700;letter-spacing:.08em;margin-top:6px}
+  @keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-4px)}20%,40%,60%,80%{transform:translateX(4px)}}
+  .spin{display:inline-block;animation:spin .7s linear infinite}
+  .shake{animation:shake .4s ease both}
 
-  /* ---------- case file card ---------- */
-  .file-card{background:var(--surface);border:1px solid var(--edge)}
-  .file-tab{position:absolute;top:-1px;left:2rem;transform:translateY(-100%);background:var(--crimson);
-    color:var(--paper);padding:.4rem 1rem}
+  .wrap{max-width:1280px;margin:0 auto;padding:0 28px}
+  .navtab{display:block;color:var(--ink);padding:10px 16px;border-bottom:3px solid transparent;white-space:nowrap}
+  .navtab:hover{border-bottom-color:var(--edge);color:var(--ink)}
+  .navtab.on{border-bottom-color:var(--crimson)}
 
-  /* ---------- role tabs ---------- */
-  .rtab{position:relative;flex:1;cursor:pointer;display:block}
-  .rtab-face{height:52px;display:flex;align-items:center;justify-content:center;gap:.5rem;
-    border:1px solid var(--edge);color:var(--sub);background:transparent;
-    font-size:13.5px;font-weight:600;transition:background-color .18s ease,color .18s ease,border-color .18s ease}
-  .rtab:hover .rtab-face{color:var(--on)}
-  .rtab input:checked + .rtab-face{background:var(--crimson);border-color:var(--crimson);color:var(--paper)}
+  .rolebtn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;height:48px;
+    font-size:14.5px;font-weight:600;cursor:pointer;background:var(--field);color:var(--ink);
+    border:1px solid var(--edge);transition:background-color .18s,color .18s,border-color .18s}
+  .rolebtn:hover{border-color:var(--ink)}
+  .rolebtn[aria-pressed="true"]{background:var(--crimson);border-color:var(--crimson);color:#F7F4EC}
 
-  /* ---------- fields ---------- */
-  .field{width:100%;height:52px;background:var(--field);border:1px solid var(--edge);border-radius:0;
-    color:var(--on);font-size:15px;padding-left:2.7rem;transition:border-color .15s ease}
-  .field::placeholder{color:var(--sub);opacity:.7}
-  .field:focus{outline:none;border-color:var(--crimson)}
+  .fieldwrap{position:relative}
+  .fieldwrap>.msym{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:20px;
+    color:var(--faint);pointer-events:none}
+  .field{width:100%;height:50px;background:var(--field);border:1px solid var(--edge);color:var(--ink);
+    font-size:15px;padding:0 14px 0 42px;transition:border-color .15s,box-shadow .15s}
+  .field::placeholder{color:var(--faint)}
+  .field:focus{outline:none;border-color:var(--crimson);box-shadow:0 0 0 3px rgba(226,0,26,.12)}
+  .flabel{display:block;font-size:13.5px;font-weight:600;color:var(--sub);margin-bottom:7px}
 
-  /* ---------- buttons ---------- */
-  .pbtn{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:.55rem;
-    font-weight:600;font-size:15.5px;padding:1.05rem 1.7rem;border:1px solid var(--crimson);background:var(--crimson);color:var(--paper);
-    cursor:pointer;transition:background-color .15s ease,border-color .15s ease}
+  .pbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;margin-top:4px;
+    background:var(--crimson);color:#F7F4EC;border:1px solid var(--crimson);font-size:15.5px;font-weight:600;
+    cursor:pointer;transition:background-color .15s,border-color .15s}
   .pbtn:hover:not(:disabled){background:var(--ink);border-color:var(--ink)}
   .pbtn:disabled{opacity:.65;cursor:default}
-  html.dark .pbtn:hover:not(:disabled){background:var(--paper);border-color:var(--paper);color:var(--void)}
+  html.dark .pbtn:hover:not(:disabled){color:var(--page)}
+  .ico-btn{width:34px;height:34px;display:grid;place-items:center;background:transparent;border:none;
+    color:var(--faint);cursor:pointer;transition:color .15s}
+  .ico-btn:hover{color:var(--crimson)}
 
-  .linkbtn{position:relative;color:var(--crimson);font-weight:600}
-  .linkbtn:hover{color:var(--on)}
-
-  .ico-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;
-    border:1px solid var(--edge);color:var(--on);transition:background-color .15s,color .15s,border-color .15s}
-  .ico-btn:hover{background:var(--crimson);border-color:var(--crimson);color:var(--paper)}
-
-  @keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-4px)}20%,40%,60%,80%{transform:translateX(4px)}}
-  .shake{animation:shake .4s ease both}
-  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
-  .file-card{animation:fadeUp .5s ease both}
-
-  @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} .file-card{opacity:1} }
+  @media (max-width:1000px){
+    [data-split]{grid-template-columns:minmax(0,1fr)!important}
+    [data-showcase]{display:none!important}
+    [data-navlinks]{display:none!important}
+    [data-util]{display:none!important}
+  }
+  @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
 </head>
-<body class="min-h-screen flex flex-col md:flex-row antialiased">
+<body>
 
 <div class="px" aria-hidden="true"><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><span class="px-mark"><span class="px-tag">Chronos</span></span></div>
 
-<!-- ===== Left: poster pane ===== -->
-<div class="hidden md:flex md:w-1/2 lg:w-[55%] relative overflow-hidden" id="brand">
-  <div class="float" style="top:17%;right:12%;--d:1.1"><div class="ev">
-    <div class="text-[10px] font-bold mb-1.5">BIOLOGY_UNIT3.PDF</div>
-    <div class="ev-ln"></div><div class="ev-ln hit"></div><div class="ev-ln" style="width:64%"></div>
-    <div class="cite">P.12</div></div></div>
-  <div class="float" style="bottom:13%;right:20%;--d:1.7"><div class="ev">
-    <div class="text-[10px] font-bold mb-1.5">CLASS_RULES.TXT</div>
-    <div class="text-[12.5px] leading-snug">Cite only the uploaded files. Never fill a gap with a guess.</div></div></div>
-
-  <div class="relative z-10 p-12 flex flex-col justify-between h-full w-full">
-    <a href="landing.html" class="flex items-baseline gap-1.5 w-fit" style="text-decoration:none;color:var(--paper)">
-      <span class="dsp text-[28px] leading-none">Chronos</span>
-      <span class="w-2 h-2 bg-crimson inline-block"></span>
-    </a>
-
-    <div class="max-w-lg">
-      <div class="tag text-crimson mb-5">Built on your files, not the internet</div>
-      <h2 class="dsp text-[clamp(2.2rem,4.6vw,3.6rem)] leading-[1.08] mb-6">It won&rsquo;t make it up.</h2>
-      <p class="text-[1.05rem] leading-relaxed text-[#A9A499] max-w-sm">Answers come out of whatever your teacher uploaded, tagged with the file they came from, every time.</p>
-      <div class="mt-9 flex items-center gap-4 tag text-[#A9A499]">
-        <span class="flex items-center gap-2">
-          <span class="w-2.5 h-2.5 bg-gold inline-block" id="statusDot"></span>
-          <span id="statusText">Connecting&hellip;</span>
-        </span>
-        <span class="w-px h-4 bg-hair"></span>
-        <span>Curriculum-grounded</span>
-      </div>
-    </div>
+<div data-util style="background:#141311;color:#B5B0A5;font-size:12.5px;line-height:1.5">
+  <div class="wrap" style="padding-top:9px;padding-bottom:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span class="msym" style="font-size:16px;color:#C9A227">verified_user</span>
+    <span style="color:#E8E3D6">A tutor bound to your own class material.</span>
+    <span style="color:#8C8880">It answers only from the documents a teacher uploads.</span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:18px">
+      <span style="display:flex;align-items:center;gap:7px">
+        <span id="statusDot" style="width:8px;height:8px;background:#C9A227;display:inline-block"></span>
+        <span id="statusText" style="color:#8C8880">Connecting&hellip;</span>
+      </span>
+      <a href="landing.html#answers" style="color:#E8E3D6">How it works</a>
+    </span>
   </div>
 </div>
 
-<!-- ===== Right: case file ===== -->
-<div class="w-full md:w-1/2 lg:w-[45%] flex items-center justify-center p-6 sm:p-12 min-h-screen relative">
-  <a href="landing.html" class="absolute top-7 left-7 md:hidden flex items-baseline gap-1.5 z-20" style="text-decoration:none;color:var(--on)">
-    <span class="dsp text-[22px] leading-none">Chronos</span><span class="w-1.5 h-1.5 bg-crimson inline-block"></span>
-  </a>
-  <button class="ico-btn absolute top-7 right-7 z-20" data-theme-toggle="" title="Switch to dark mode">
-    <span class="msym text-[19px]">dark_mode</span>
-  </button>
+<header style="background:var(--page);border-bottom:3px solid var(--ink)">
+  <div class="wrap" style="padding-top:18px;padding-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap">
+    <a href="landing.html" style="color:var(--ink);display:flex;align-items:baseline;gap:12px">
+      <span class="dsp" style="font-size:30px;line-height:1">Chronos<span style="color:var(--crimson)">.</span></span>
+      <span style="font-size:12.5px;color:var(--sub)">An AI tutor for schools</span>
+    </a>
+    <span style="display:flex;align-items:center;gap:14px">
+      <button class="ico-btn" data-theme-toggle title="Switch to dark mode"><span class="msym" style="font-size:19px">dark_mode</span></button>
+      <a href="landing.html" style="display:flex;align-items:center;gap:6px;font-size:14px;color:var(--sub)">
+        <span class="msym" style="font-size:18px">arrow_back</span>Back to home
+      </a>
+    </span>
+  </div>
+  <div class="wrap">
+    <nav data-navlinks style="display:flex;gap:2px;font-size:14.5px;font-weight:600">
+      <a class="navtab" href="landing.html#answers">Answers</a>
+      <a class="navtab" href="landing.html#limits">Limits</a>
+      <a class="navtab" href="landing.html#teachers">Teachers</a>
+      <a class="navtab" href="landing.html#spec">Specifications</a>
+      <span class="navtab on">Sign in</span>
+    </nav>
+  </div>
+</header>
 
-  <div class="w-full max-w-[430px] relative z-10 mt-10 md:mt-0">
-    <div class="file-card p-8 relative">
-      <span class="file-tab tag" id="fileTab">Sign in</span>
+<main data-split style="display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);min-height:calc(100vh - 104px)">
 
-      <div class="mb-8">
-        <h1 class="dsp text-[2.4rem] leading-none mb-2" id="title">Welcome back</h1>
-        <p class="text-[15px]" style="color:var(--sub)" id="subtitle">Good to see you again.</p>
-      </div>
+  <section style="display:flex;align-items:center;justify-content:center;padding:56px 28px 72px">
+    <div id="formCard" style="width:100%;max-width:440px">
+      <p id="eyebrow" style="margin:0 0 12px;font-size:14px;font-weight:600;color:var(--crimson-d)">Sign in</p>
+      <h1 id="title" class="dsp" style="margin:0 0 10px;font-size:clamp(1.9rem,3.4vw,2.5rem);line-height:1.08;letter-spacing:-.02em">Welcome back</h1>
+      <p id="subtitle" style="margin:0 0 34px;font-size:16.5px;line-height:1.55;color:var(--sub)">Good to see you again.</p>
 
-      <!-- Role -->
-      <div class="mb-7">
-        <div class="tag mb-3" style="color:var(--sub)">I am a</div>
-        <div class="flex gap-3" id="roleTabs">
-          <label class="rtab">
-            <input checked class="sr-only" name="role" type="radio" value="student"/>
-            <span class="rtab-face"><span class="msym text-[18px]">school</span> Student</span>
-          </label>
-          <label class="rtab">
-            <input class="sr-only" name="role" type="radio" value="teacher"/>
-            <span class="rtab-face"><span class="msym text-[18px]">science</span> Teacher</span>
-          </label>
+      <div style="margin-bottom:26px">
+        <div style="font-size:13.5px;font-weight:600;color:var(--sub);margin-bottom:9px">I am a</div>
+        <div style="display:flex;gap:10px">
+          <button type="button" class="rolebtn" id="roleStudent" data-role="student" aria-pressed="true">
+            <span class="msym" style="font-size:19px">school</span>Student
+          </button>
+          <button type="button" class="rolebtn" id="roleTeacher" data-role="teacher" aria-pressed="false">
+            <span class="msym" style="font-size:19px">science</span>Teacher
+          </button>
         </div>
       </div>
 
-      <form class="flex flex-col gap-5" id="loginForm">
-        <div class="flex flex-col gap-2">
-          <label class="tag" style="color:var(--sub)" for="email">Email address</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none" style="color:var(--sub)"><span class="msym text-[20px]">alternate_email</span></span>
-            <input autocomplete="email" class="field" id="email" name="email" placeholder="name@institution.edu" type="email"/>
+      <form id="loginForm" style="display:flex;flex-direction:column;gap:18px">
+        <div>
+          <label class="flabel" for="email">Email address</label>
+          <div class="fieldwrap">
+            <span class="msym">alternate_email</span>
+            <input class="field" id="email" name="email" type="email" autocomplete="email" placeholder="name@institution.edu"/>
           </div>
         </div>
-        <div class="flex flex-col gap-2">
-          <label class="tag" style="color:var(--sub)" for="password">Password</label>
-          <div class="relative" id="password-container">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none" style="color:var(--sub)"><span class="msym text-[20px]">lock</span></span>
-            <input autocomplete="current-password" class="field pr-11" id="password" name="password" placeholder="••••••••" type="password"/>
-            <button class="absolute inset-y-0 right-0 flex items-center pr-3 transition-colors hover:text-crimson" style="color:var(--sub)" onclick="togglePasswordVisibility()" type="button"><span class="msym text-[20px]" id="visibility-icon">visibility_off</span></button>
+        <div>
+          <label class="flabel" for="password">Password</label>
+          <div class="fieldwrap">
+            <span class="msym">lock</span>
+            <input class="field" id="password" name="password" type="password" autocomplete="current-password" placeholder="••••••••" style="padding-right:46px"/>
+            <button type="button" id="pwToggle" aria-label="Show password" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;display:grid;place-items:center;background:transparent;border:none;cursor:pointer;color:var(--faint)">
+              <span class="msym" id="visibility-icon" style="font-size:20px">visibility_off</span>
+            </button>
           </div>
-        </div>
-        <div class="hidden flex-col gap-2" id="codeWrap">
-          <label class="tag" style="color:var(--sub)" for="teacherCode">Teacher access code</label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none" style="color:var(--sub)"><span class="msym text-[20px]">vpn_key</span></span>
-            <input class="field" id="teacherCode" placeholder="Code from your admin" type="password"/>
-          </div>
-          <p class="text-[12.5px]" style="color:var(--sub)">Your school admin has this. Teacher accounts need it.</p>
         </div>
 
-        <p class="hidden items-center gap-2 text-[13px] font-semibold text-crimson px-3 py-2.5" style="border:1px solid var(--crimson)" id="err">
-          <span class="msym text-[16px]">error</span><span id="errText"></span></p>
+        <div id="codeWrap" class="hidden" style="animation:pop .28s ease both">
+          <label class="flabel" for="teacherCode">Teacher access code</label>
+          <div class="fieldwrap">
+            <span class="msym">vpn_key</span>
+            <input class="field" id="teacherCode" type="password" placeholder="Code from your admin"/>
+          </div>
+          <p style="margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--mid)">Your school admin has this. Teacher accounts need it.</p>
+        </div>
 
-        <button class="pbtn w-full mt-2" id="submitBtn" type="submit">
-          <span id="submitLabel">Sign in <span class="msym text-[18px]">arrow_forward</span></span>
+        <p id="err" class="hidden" style="margin:0;align-items:center;gap:8px;font-size:13.5px;font-weight:500;color:var(--err-fg);background:var(--err-bg);border:1px solid var(--crimson);padding:11px 13px">
+          <span class="msym" style="font-size:17px">error</span><span id="errText"></span>
+        </p>
+
+        <button class="pbtn" id="submitBtn" type="submit">
+          <span id="submitLabel">Sign in</span><span class="msym" id="submitIcon" style="font-size:19px">arrow_forward</span>
         </button>
       </form>
 
-      <div class="mt-8 pt-6 text-center" style="border-top:1px solid var(--edge)">
-        <p class="text-[15px]" style="color:var(--sub)"><span id="toggleText">New here?</span>
-          <button class="linkbtn" id="toggleMode" type="button">Create an account</button></p>
-        <a class="inline-block mt-4 tag hover:text-crimson transition-colors" style="color:var(--sub)" href="landing.html">&larr; Back to home</a>
+      <div style="margin-top:28px;padding-top:22px;border-top:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <p style="margin:0;font-size:15px;color:var(--sub)"><span id="toggleText">New here?</span>
+          <button type="button" id="toggleMode" style="background:none;border:none;padding:0;font:inherit;font-weight:600;color:var(--crimson-d);cursor:pointer;border-bottom:1px solid var(--crimson-d)">Create an account</button>
+        </p>
       </div>
     </div>
+  </section>
+
+  <section data-showcase style="background:#0B0B0C;color:#F7F4EC;display:flex;flex-direction:column;justify-content:center;padding:56px 44px 64px">
+    <div style="max-width:440px">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
+        <div id="demoQ" class="hidden" style="max-width:82%;background:#242327;color:#E8E3D6;padding:12px 15px;font-size:14.5px;line-height:1.55;animation:pop .32s ease both"></div>
+      </div>
+      <p style="margin:0 0 22px;font-size:16.5px;line-height:1.7;color:#E8E3D6"><span id="demoA"></span><span id="demoCaret" class="hidden" style="width:8px;height:17px;background:#E2001A;margin-left:2px;vertical-align:text-bottom;animation:blink 1s steps(2) infinite;display:inline-block"></span></p>
+      <div id="demoSrc" class="hidden" style="border-top:1px solid #2A2A2C;padding-top:12px;animation:pop .3s ease both"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer style="background:#141311;color:#B5B0A5;padding:22px 0">
+  <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap;font-size:12.5px">
+    <div style="display:flex;align-items:center;gap:16px">
+      <span class="dsp" style="font-size:18px;line-height:1;color:#F7F4EC">Chronos<span style="color:#E2001A">.</span></span>
+      <span>&copy; 2026 Chronos. All rights reserved.</span>
+    </div>
+    <div style="display:flex;gap:20px">
+      <a href="landing.html#support" style="color:#B5B0A5">Privacy</a>
+      <a href="landing.html#support" style="color:#B5B0A5">Accessibility</a>
+      <a href="landing.html#support" style="color:#B5B0A5">Legal</a>
+      <span>United States / English</span>
+    </div>
   </div>
-</div>
+</footer>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -202,84 +216,92 @@
 <script>
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
-  let mode = "signin"; // or "signup"
+  let mode = "signin";   // or "signup"
+  let role = "student";  // or "teacher"
   // True while a sign-in/sign-up is in flight. Creating a Firebase account signs
   // the user in immediately, which wakes the "already signed in?" watcher below
   // while signup is still mid-flight — see the comment there.
   let busy = false;
-  const ARROW = ' <span class="msym text-[18px]">arrow_forward</span>';
 
   // Preselect the role from ?role= (teacher panels redirect here with it).
-  if (params.get("role") === "teacher") {
-    const t = document.querySelector('input[name=role][value="teacher"]'); if (t) t.checked = true;
-  }
+  if (params.get("role") === "teacher") role = "teacher";
 
-  function currentRole(){ const r=document.querySelector('input[name=role]:checked'); return r?r.value:"student"; }
   function showErr(msg){
-    $("errText").textContent=msg||"";
-    $("err").classList.toggle("hidden",!msg);
-    $("err").classList.toggle("flex",!!msg);
-    if(msg){ const c=document.querySelector(".file-card"); c.classList.remove("shake"); void c.offsetWidth; c.classList.add("shake"); }
+    $("errText").textContent = msg || "";
+    $("err").classList.toggle("hidden", !msg);
+    $("err").style.display = msg ? "flex" : "";
+    if(msg){ const c=$("formCard"); c.classList.remove("shake"); void c.offsetWidth; c.classList.add("shake"); }
   }
 
   function paintMode(){
-    const role=currentRole(), isUp=mode==="signup";
-    $("title").textContent = isUp ? "Create account" : "Welcome back";
-    $("fileTab").textContent = isUp ? "New account" : "Sign in";
+    const isUp = mode === "signup";
+    $("roleStudent").setAttribute("aria-pressed", String(role === "student"));
+    $("roleTeacher").setAttribute("aria-pressed", String(role === "teacher"));
+    $("eyebrow").textContent = isUp ? "New account" : "Sign in";
+    $("title").textContent = isUp ? "Create your account" : "Welcome back";
     $("subtitle").textContent = isUp
-      ? (role==="teacher" ? "Two fields and you're set up." : "Takes about ten seconds.")
+      ? (role === "teacher" ? "Two fields and your first class is next." : "Takes about ten seconds.")
       : "Good to see you again.";
-    $("submitLabel").innerHTML = (isUp?"Create account":"Sign in") + ARROW;
+    $("submitLabel").textContent = isUp ? "Create account" : "Sign in";
     $("password").autocomplete = isUp ? "new-password" : "current-password";
     $("toggleText").textContent = isUp ? "Already have an account?" : "New here?";
     $("toggleMode").textContent = isUp ? "Sign in" : "Create an account";
     // Teacher code only matters when creating a teacher account.
-    const showCode = isUp && role==="teacher";
-    $("codeWrap").classList.toggle("hidden", !showCode);
-    $("codeWrap").classList.toggle("flex", showCode);
+    $("codeWrap").classList.toggle("hidden", !(isUp && role === "teacher"));
     showErr("");
   }
 
-  document.querySelectorAll('input[name=role]').forEach(r=>r.addEventListener("change",paintMode));
-  $("toggleMode").onclick = () => { mode = mode==="signin" ? "signup" : "signin"; paintMode(); };
+  $("roleStudent").onclick = () => { role = "student"; paintMode(); };
+  $("roleTeacher").onclick = () => { role = "teacher"; paintMode(); };
+  $("toggleMode").onclick = () => { mode = mode === "signin" ? "signup" : "signin"; paintMode(); };
 
-  function togglePasswordVisibility(){
-    const p=$("password"), i=$("visibility-icon");
-    if(p.type==="password"){ p.type="text"; i.textContent="visibility"; }
-    else { p.type="password"; i.textContent="visibility_off"; }
-  }
+  $("pwToggle").onclick = () => {
+    const p = $("password"), i = $("visibility-icon");
+    const show = p.type === "password";
+    p.type = show ? "text" : "password";
+    i.textContent = show ? "visibility" : "visibility_off";
+    $("pwToggle").setAttribute("aria-label", show ? "Hide password" : "Show password");
+  };
 
   async function submit(){
     if(busy) return;  // Enter still fires submit on a disabled button — one account, not two.
-    const email=$("email").value.trim(), password=$("password").value;
-    if(!email||!password){ showErr("Need both your email and password to get you in."); return; }
+    const email = $("email").value.trim(), password = $("password").value;
+    if(!email || !password){ showErr("Need both your email and password to get you in."); return; }
     showErr("");
     busy = true;
-    const btn=$("submitBtn"); btn.disabled=true;
-    const lbl=$("submitLabel").innerHTML;
-    $("submitLabel").innerHTML='<span class="msym text-[18px] animate-spin">progress_activity</span>';
+    const btn = $("submitBtn"); btn.disabled = true;
+    const label = $("submitLabel").textContent;
+    $("submitLabel").textContent = mode === "signup" ? "Creating account…" : "Signing in…";
+    $("submitIcon").textContent = "progress_activity";
+    $("submitIcon").classList.add("spin");
     try{
-      const info = mode==="signup"
-        ? await Chronos.signup(email,password,currentRole(),$("teacherCode").value.trim())
-        : await Chronos.login(email,password);
+      const info = mode === "signup"
+        ? await Chronos.signup(email, password, role, $("teacherCode").value.trim())
+        : await Chronos.login(email, password);
       // Honor the account's real role for the redirect. Route it through the
       // page wipe so a successful sign-in transitions like any other nav.
-      ChronosWipe.go(info.role==="teacher" ? "teacherknowledge.html" : "student.html", true);
+      ChronosWipe.go(info.role === "teacher" ? "teacherknowledge.html" : "student.html", true);
     }catch(e){
-      showErr(e.message||"That didn't work. Give it another go?");
-      busy=false; btn.disabled=false; $("submitLabel").innerHTML=lbl;
+      showErr(e.message || "That didn't work. Give it another go?");
+      busy = false; btn.disabled = false;
+      $("submitLabel").textContent = label;
+      $("submitIcon").textContent = "arrow_forward";
+      $("submitIcon").classList.remove("spin");
     }
   }
 
-  $("loginForm").addEventListener("submit", e=>{ e.preventDefault(); submit(); });
+  $("loginForm").addEventListener("submit", e => { e.preventDefault(); submit(); });
   if(params.get("denied")) showErr("That page needs a different account. Sign in with the right one.");
   paintMode();
 
-  // Reflect server reachability in the left-pane status line.
+  // Reflect server reachability in the utility bar.
   (async()=>{
-    try{ const r=await fetch(Chronos.BASE+"/health",{cache:"no-store"}); if(r.ok){$("statusText").textContent="System online"; return;} }catch(e){}
-    $("statusDot").classList.remove("bg-gold"); $("statusDot").classList.add("bg-crimson");
-    $("statusText").textContent="Server offline";
+    try{
+      const r = await fetch(Chronos.BASE + "/health", {cache:"no-store"});
+      if(r.ok){ $("statusText").textContent = "System online"; return; }
+    }catch(e){}
+    $("statusDot").style.background = "#E2001A";
+    $("statusText").textContent = "Server offline";
   })();
 
   // Already signed in? Skip the form and go where they belong.
@@ -297,25 +319,62 @@
     Chronos.onUser(async(user)=>{
       if(!user || busy) return;
       try{
-        const info=await Chronos.me();
+        const info = await Chronos.me();
         // No role means a half-finished signup, not a session to resume.
-        if(info && info.role) ChronosWipe.go(info.role==="teacher"?"teacherknowledge.html":"student.html", true);
+        if(info && info.role) ChronosWipe.go(info.role === "teacher" ? "teacherknowledge.html" : "student.html", true);
       }catch(e){}
     });
-  }).catch(e=>showErr(e.message));
+  }).catch(e => showErr(e.message));
 
-  // Subtle pointer parallax on the brand-pane evidence cards (continuity with the landing page).
+  // Showcase pane: a canned question typing out its cited answer. No backend —
+  // this is the same promise the landing page makes, shown once while you sign in.
   (function(){
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const brand = document.getElementById("brand");
-    const floats = brand ? [...brand.querySelectorAll(".float")] : [];
-    if(!floats.length) return;
-    brand.addEventListener("pointermove", (e)=>{
-      const r = brand.getBoundingClientRect();
-      const px = (e.clientX-r.left)/r.width - .5, py = (e.clientY-r.top)/r.height - .5;
-      floats.forEach(f=>{ const d=+getComputedStyle(f).getPropertyValue("--d")||1;
-        f.style.transform = `translate3d(${px*d*24}px, ${py*d*24}px, 0)`; });
-    }, {passive:true});
+    const DEMOS = [
+      { q: "What's the difference between metaphor and simile?",
+        a: "A simile says one thing is like another and keeps the comparison visible. A metaphor says it simply is, and asks you to accept the substitution. Your handout calls that the difference between comparing and claiming.",
+        s: ["From Poetry Terms handout, page 2", "From Class Notes, week 3"] },
+      { q: "What is enjambment?",
+        a: "A line that breaks before its sentence finishes, so the meaning spills into the next line. Your notes ask you to read the hesitation as part of the meaning, not just the layout.",
+        s: ["From Poetry Terms handout, page 5", "From Annotated Poems packet, page 8"] }
+    ];
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const qEl=$("demoQ"), aEl=$("demoA"), caret=$("demoCaret"), srcEl=$("demoSrc");
+    let i = 0, timers = [];
+    const wait = ms => new Promise(r => timers.push(setTimeout(r, ms)));
+
+    function sources(list){
+      srcEl.textContent = "";
+      list.forEach(s => {
+        const d = document.createElement("div");
+        d.style.cssText = "font-size:13.5px;line-height:1.7;color:#8C8880";
+        d.textContent = s;
+        srcEl.appendChild(d);
+      });
+      srcEl.classList.remove("hidden");
+    }
+
+    async function run(){
+      const d = DEMOS[i % DEMOS.length];
+      timers.forEach(clearTimeout); timers = [];
+      qEl.classList.add("hidden"); srcEl.classList.add("hidden");
+      qEl.textContent = d.q; aEl.textContent = "";
+      if(reduce){ qEl.classList.remove("hidden"); aEl.textContent = d.a; sources(d.s); return; }
+      await wait(500);
+      qEl.classList.remove("hidden");
+      await wait(700);
+      caret.classList.remove("hidden");
+      for(let n = 1; n <= d.a.length; n++){
+        aEl.textContent = d.a.slice(0, n);
+        await wait(17);
+      }
+      caret.classList.add("hidden");
+      await wait(250);
+      sources(d.s);
+      await wait(5200);
+      i++;
+      run();
+    }
+    run();
   })();
 </script>
 </body></html>

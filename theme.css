@@ -26,7 +26,7 @@
    values — so they can be repointed together below.
 
    landing.html doesn't load this file: it is a single-register
-   poster page and stays dark-only by design.
+   poster page (light paper, with dark bands) and has no toggle.
    ============================================================ */
 
 html.dark {

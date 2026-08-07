@@ -117,11 +117,13 @@
     .cast-red { border-color:var(--crimson) !important; }
 
     /* ---- message bubbles ---- */
-    .bub-you { max-width:85%; background:var(--crimson); color:#F7F4EC; padding:1rem 1.25rem;
-        font-size:15px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere;
+    .bub-you { max-width:78%; background:var(--crimson); color:#F7F4EC; padding:12px 16px;
+        font-size:15.5px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere;
         animation:pop .32s var(--snap) both }
-    .bub-ai { max-width:85%; background:var(--c-paper); color:var(--c-ink); border:1px solid var(--c-rule);
-        padding:1rem 1.25rem; font-family:'Newsreader',serif; font-size:18px; line-height:1.6; overflow-wrap:anywhere }
+    /* The answer is the page, not a card in it: plain serif on the paper, no
+       chrome around it. Only the question gets a bubble. */
+    .bub-ai { color:var(--c-ink); font-family:'Newsreader',serif; font-size:19px; line-height:1.62;
+        overflow-wrap:anywhere }
     @keyframes pop { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
 
     /* ---- sidebar conversation rows ---- */
@@ -143,6 +145,19 @@
         border:1px solid transparent; color:var(--c-sub);
         transition:background-color .15s,color .15s,border-color .15s }
     .ibtn:hover { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC }
+
+    .slabel { font-size:12.5px; font-weight:600; color:var(--c-sub) }
+    .sendbtn { width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center;
+        background:var(--c-ink); color:var(--c-page); border:none; cursor:pointer; transition:background-color .15s ease }
+    .sendbtn:hover:not(:disabled) { background:var(--crimson); color:#F7F4EC }
+    .sendbtn:disabled { opacity:.4; cursor:default }
+
+    /* empty-state starter questions */
+    .starter { display:flex; align-items:center; justify-content:space-between; gap:1rem; width:100%;
+        text-align:left; background:transparent; border:none; border-bottom:1px solid var(--c-rule);
+        padding:15px 4px; font:inherit; font-size:15.5px; color:var(--c-ink); cursor:pointer;
+        transition:color .15s ease }
+    .starter:hover { color:var(--crimson) }
 
     /* ---- input bar ---- */
     .composer { background:var(--c-paper); border:1px solid var(--c-rule); transition:border-color .15s ease }
@@ -206,39 +221,40 @@
 </div>
 
 <!-- Sidebar -->
-<nav class="hidden md:flex h-full w-64 fixed left-0 top-0 bg-surface-container-low flex-col p-stack-md z-10" style="border-right:1px solid var(--c-rule)">
-<a class="mb-stack-lg flex items-center gap-2.5 px-1" href="landing.html">
-<div>
+<nav class="hidden md:flex h-full w-64 fixed left-0 top-0 bg-surface-container flex-col z-10" style="border-right:1px solid var(--c-rule)">
+<a class="block px-5 pt-4 pb-3.5" href="landing.html" style="border-bottom:1px solid var(--c-rule)">
 <h1 class="font-headline-md text-headline-md text-on-background leading-none">Chronos<span class="text-primary">.</span></h1>
-<span class="font-label-sm text-label-sm text-on-surface-variant" id="modeLabel">Student mode</span>
-</div>
+<span class="slabel block mt-1" style="font-weight:400" id="modeLabel">Student</span>
 </a>
 <!-- Class switcher: which class's tutor you're talking to -->
-<div class="mb-stack-md">
-<p class="font-label-sm text-label-sm text-on-surface-variant px-1 mb-1.5">Class</p>
+<div class="px-5 py-4" style="border-bottom:1px solid var(--c-rule)">
+<p class="slabel mb-2">Class</p>
 <div class="flex gap-1.5">
 <div class="relative flex-1 min-w-0">
 <select class="fld appearance-none w-full min-w-0 font-label-md text-label-md pl-3 pr-8 py-2.5 outline-none cursor-pointer" id="classSwitcher" title="Active class"></select>
-<span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">expand_more</span>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">unfold_more</span>
 </div>
 <button class="flex-shrink-0 w-10 flex items-center justify-center hard text-on-surface-variant hover:bg-primary hover:text-on-primary hover:border-primary transition-colors" id="joinAnotherBtn" title="Join another class">
 <span class="material-symbols-outlined text-[18px]">add</span>
 </button>
 </div>
 </div>
-<button class="kbtn w-full mb-stack-md" id="newChatBtn">
+<div class="px-5 pt-4">
+<button class="kbtn w-full" id="newChatBtn">
 <span><span class="material-symbols-outlined text-lg align-middle">add</span> New chat</span>
 </button>
-<a class="hidden w-full mb-stack-md items-center gap-3 px-4 py-2.5 hard text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="teacherknowledge.html" id="teacherBackLink">
+<a class="hidden w-full mt-2 items-center gap-3 px-4 py-2.5 hard text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="teacherknowledge.html" id="teacherBackLink">
 <span class="material-symbols-outlined text-[18px]">arrow_back</span> Teacher panel
 </a>
-<p class="font-label-sm text-label-sm text-on-surface-variant px-1 mb-2">Conversations</p>
-<div class="flex-1 overflow-y-auto chat-scroll -mx-1 px-1 space-y-1" id="chatList"></div>
-<div class="mt-auto pt-stack-md" style="border-top:1px solid var(--c-rule)">
-<div class="flex items-center justify-between mb-2">
-<span class="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant min-w-0 normal-case tracking-normal">
-<span class="material-symbols-outlined text-[18px] flex-shrink-0">account_circle</span>
-<span class="truncate" id="userEmail" title="">…</span>
+</div>
+<p class="slabel px-5 pt-4 pb-2">Recent</p>
+<div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-2 pb-3" id="chatList"></div>
+<div class="px-5 py-3.5" style="border-top:1px solid var(--c-rule)">
+<div class="flex items-center gap-2.5">
+<span class="w-[30px] h-[30px] flex-shrink-0 grid place-items-center text-[12.5px] font-semibold" style="background:var(--c-ink);color:var(--c-page)" id="userInitials">…</span>
+<span class="min-w-0 flex-1">
+<span class="slabel block truncate" id="userEmail" title="">…</span>
+<span class="slabel block" style="font-weight:400" id="roleLabel">Student</span>
 </span>
 <span class="flex items-center gap-0.5 flex-shrink-0">
 <button aria-label="How this works" class="ibtn" id="tutHelp" title="How this works">
@@ -252,15 +268,11 @@
 </button>
 </span>
 </div>
-<span class="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
-<span class="w-2.5 h-2.5 bg-outline" id="statusDot"></span>
-<span id="statusText">Checking…</span>
-</span>
 </div>
 </nav>
 
 <!-- Main -->
-<main class="flex-1 flex md:ml-64 h-full relative">
+<main class="flex-1 flex flex-col min-w-0 md:ml-64 h-full bg-surface-container-lowest">
 <!-- Mobile header -->
 <header class="md:hidden fixed top-0 w-full bg-surface-container-lowest h-16 flex items-center justify-between px-margin-mobile z-20" style="border-bottom:1px solid var(--c-rule)">
 <h1 class="font-headline-md text-headline-md text-on-background">Chronos<span class="text-primary">.</span></h1>
@@ -269,20 +281,34 @@
 </button>
 </header>
 
+<!-- Desktop header: which conversation, which class, and whether we're online -->
+<header class="hidden md:flex flex-none items-center justify-between gap-5 px-8 py-3.5" style="border-bottom:3px solid var(--c-ink)">
+<div class="min-w-0">
+<div class="font-label-md text-[16px] leading-tight text-on-background truncate" id="threadTitle">New chat</div>
+<div class="font-body-md text-[13px] text-on-surface-variant mt-0.5 truncate" id="threadClass"></div>
+</div>
+<span class="flex items-center gap-2 flex-none font-body-md text-[13px] text-on-surface-variant">
+<span class="w-2 h-2 block bg-outline" id="statusDot"></span>
+<span id="statusText">Checking…</span>
+</span>
+</header>
+
 <!-- Chat column -->
-<section class="flex-1 flex flex-col h-full pt-16 md:pt-0 max-w-3xl mx-auto w-full relative">
-<div class="flex-1 overflow-y-auto chat-scroll p-gutter pb-40" id="messages">
-<div id="messagesInner"></div>
+<section class="flex-1 flex flex-col min-h-0 pt-16 md:pt-0 w-full">
+<div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-6 md:px-8 pt-8 pb-6" id="messages">
+<div class="max-w-[720px] mx-auto" id="messagesInner"></div>
 </div>
 <!-- Input -->
-<div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-background via-background to-transparent pt-10 pb-gutter px-gutter">
-<div class="composer max-w-3xl mx-auto p-2 flex items-end">
-<textarea class="w-full bg-transparent border-none focus:ring-0 resize-none max-h-32 min-h-[44px] py-3 px-3 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant" id="input" placeholder="Ask a question…" rows="1"></textarea>
-<button class="p-2.5 m-1 bg-secondary text-on-secondary hover:bg-primary hover:text-on-primary transition-colors disabled:opacity-40 disabled:cursor-default flex-shrink-0 flex items-center justify-center" id="sendBtn">
-<span class="material-symbols-outlined fill">send</span>
+<div class="flex-none px-6 md:px-8 pt-4 pb-3.5" style="border-top:1px solid var(--c-rule)">
+<div class="max-w-[720px] mx-auto">
+<div class="composer p-2 pl-3.5 flex items-end gap-2.5">
+<textarea class="w-full bg-transparent border-none focus:ring-0 resize-none max-h-32 min-h-[44px] py-2 px-0 font-body-md text-[15.5px] text-on-surface placeholder:text-on-surface-variant" id="input" placeholder="Ask a question…" rows="1"></textarea>
+<button class="sendbtn" id="sendBtn" title="Send">
+<span class="material-symbols-outlined fill text-[19px]">arrow_upward</span>
 </button>
 </div>
-<p class="text-center mt-3 font-label-sm text-label-sm text-on-surface-variant">Answers come from your teacher&rsquo;s material &middot; Enter to send, Shift+Enter for a new line</p>
+<p class="text-center mt-2.5 font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal">Answers come from your teacher&rsquo;s uploaded material only.</p>
+</div>
 </div>
 </section>
 
@@ -366,7 +392,7 @@
   async function loadMessages(c){
     try{
       const d=await Chronos.apiJson("/chats/"+encodeURIComponent(c.id)+"/messages",undefined,"GET");
-      c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[]}));
+      c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],gap:m.role==="teacher"&&!(m.rules||[]).length}));
       c.loaded=true;
       if(c.id===activeChatId)renderMessages();
     }catch(e){setStatus("offline");}
@@ -386,6 +412,7 @@
 
   function renderSidebar(){
     els.chatList.innerHTML="";
+    paintHeader();
     chats.forEach(c=>{
       const on=c.id===activeChatId;
       const row=document.createElement("div");
@@ -404,15 +431,43 @@
     });
   }
 
+  // Class-agnostic openers — the server has no notion of suggested questions, so
+  // these work against any class's material rather than inventing topics.
+  const STARTERS=["What does this class cover so far?","Explain the main idea from the latest material.","What should I revise first?"];
+
+  function className(){const c=CLASSES.find(x=>x.id===ACTIVE_CLASS);return c?c.name:"";}
+
+  function paintHeader(){
+    const c=activeChat();
+    $s("threadTitle").textContent=(c&&c.title)||"New chat";
+    $s("threadClass").textContent=className();
+  }
+
   function renderMessages(){
     const c=activeChat();
     els.messagesInner.innerHTML="";
+    paintHeader();
     if(!c||c.messages.length===0){
       const e=document.createElement("div");
-      e.className="flex flex-col items-center text-center mt-24 px-6";
-      e.innerHTML='<div class="w-16 h-16 bg-primary text-on-primary flex items-center justify-center mb-5"><span class="material-symbols-outlined text-[30px] fill">forum</span></div>'+
-        '<h2 class="font-headline-md text-headline-md text-on-background mb-2">Ask away</h2>'+
-        '<p class="font-body-md text-body-md text-on-surface-variant max-w-sm">Everything here comes out of what your teacher uploaded. If it’s not in there, you’ll get told that rather than a made up answer.</p>';
+      e.className="pt-10 pb-2";
+      const h=document.createElement("h2");
+      h.className="font-headline-lg text-headline-lg text-on-background mb-3";
+      // textContent, not innerHTML: the class name is teacher-supplied.
+      h.textContent="Ask anything from "+(className()||"this class");
+      const p=document.createElement("p");
+      p.className="font-body-lg text-body-lg text-on-surface-variant mb-7 max-w-[48ch]";
+      p.textContent="Answers come from the documents your teacher uploaded. Where the material stops, so do the answers.";
+      const list=document.createElement("div");
+      list.style.borderTop="1px solid var(--c-rule)";
+      STARTERS.forEach(t=>{
+        const b=document.createElement("button");
+        b.className="starter";
+        b.innerHTML='<span></span><span class="material-symbols-outlined text-[19px] text-on-surface-variant flex-shrink-0">arrow_forward</span>';
+        b.firstChild.textContent=t;
+        b.onclick=()=>{els.input.value=t;send();};
+        list.appendChild(b);
+      });
+      e.appendChild(h);e.appendChild(p);e.appendChild(list);
       els.messagesInner.appendChild(e);
       return;
     }
@@ -428,18 +483,25 @@
       b.textContent=m.content;
       w.appendChild(b);return w;
     }
-    const w=document.createElement("div");w.className="flex flex-col items-start mb-stack-lg pl-0.5";
-    const label=document.createElement("div");label.className="flex items-center gap-2 mb-2";
-    label.innerHTML='<span class="tagline text-primary">Chronos</span>'+
-      '<span class="inline-flex items-center gap-1 bg-secondary text-on-secondary px-2 py-0.5"><span class="material-symbols-outlined text-[12px]">verified</span><span class="tagline">Grounded</span></span>';
+    const w=document.createElement("div");w.className="flex flex-col items-start mb-stack-lg";
     const b=document.createElement("div");
     b.className="ai-prose bub-ai";
     if(m.content){b.innerHTML=renderMarkdown(m.content);}
-    w.appendChild(label);w.appendChild(b);
+    w.appendChild(b);
+    // An answer with no sources behind it is the "not in this class's material"
+    // refusal — the same empty-rules signal the server counts as a knowledge gap.
+    if(m.gap)w.appendChild(gapNote());
     // Sources are teacher-only: students never see the underlying material,
     // teachers get a collapsible dropdown beneath the answer.
     if(IS_TEACHER&&m.rules&&m.rules.length){w.appendChild(buildSourcesDropdown(m.rules));}
     return w;
+  }
+
+  function gapNote(){
+    const p=document.createElement("p");
+    p.className="mt-3.5 text-primary text-[13.5px] leading-relaxed";
+    p.textContent="Sent to your teacher as a gap in the class material.";
+    return p;
   }
 
   // Teacher-only "Sources used" dropdown: a collapsed disclosure under an answer
@@ -516,9 +578,10 @@
       if(!res.ok||data.error){b.textContent=(data.details||data.error||"Something went wrong. Please try again.");tm.content=b.textContent;setSending(false);return;}
       // Adopt the server's chat id/title for a freshly-created conversation.
       if(data.chat_id&&c.isNew){c.id=data.chat_id;c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId&&activeChatId.startsWith("new_"))activeChatId=c.id;ALL_CHATS.unshift(c);renderSidebar();}
-      tm.content=data.response||"";tm.rules=data.rules_used||[];
+      tm.content=data.response||"";tm.rules=data.rules_used||[];tm.gap=!tm.rules.length;
       b.textContent="";
       typeOut(b,tm.content,()=>{
+        if(tm.gap)el.appendChild(gapNote());
         if(IS_TEACHER&&tm.rules.length){el.appendChild(buildSourcesDropdown(tm.rules));}
         scrollBottom();setSending(false);
       });
@@ -531,9 +594,9 @@
   function setSending(on){els.sendBtn.disabled=on;els.input.disabled=on;if(!on)els.input.focus();}
 
   function setStatus(state){
-    if(state==="online"){els.statusDot.className="w-2.5 h-2.5 bg-secondary";els.statusText.textContent="Online";}
-    else if(state==="waking"){els.statusDot.className="w-2.5 h-2.5 bg-secondary animate-pulse";els.statusText.textContent="Waking server…";}
-    else{els.statusDot.className="w-2.5 h-2.5 bg-error";els.statusText.textContent="Offline";}
+    if(state==="online"){els.statusDot.className="w-2 h-2 block bg-secondary";els.statusText.textContent="Online";}
+    else if(state==="waking"){els.statusDot.className="w-2 h-2 block bg-secondary animate-pulse";els.statusText.textContent="Waking server…";}
+    else{els.statusDot.className="w-2 h-2 block bg-error";els.statusText.textContent="Offline";}
   }
 
   async function checkServer(){
@@ -652,8 +715,10 @@
     USER=info;
     IS_TEACHER=info.role==="teacher";
     const em=$s("userEmail");em.textContent=info.email||"Account";em.title=info.email||"";
-    // Reflect the signed-in role: a teacher trying the tutor isn't in "Student Mode".
-    const ml=$s("modeLabel");if(ml)ml.textContent=IS_TEACHER?"Teacher mode":"Student mode";
+    $s("userInitials").textContent=(info.email||"?").slice(0,2).toUpperCase();
+    // Reflect the signed-in role: a teacher trying the tutor isn't a student.
+    const role=IS_TEACHER?"Teacher":"Student";
+    $s("modeLabel").textContent=role;$s("roleLabel").textContent=role;
     // Show a way back to the teacher panels when a teacher is using the tutor.
     if(IS_TEACHER){$s("teacherBackLink").classList.remove("hidden");$s("teacherBackLink").classList.add("flex");}
     $s("authGate").remove();

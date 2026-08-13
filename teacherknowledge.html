@@ -78,6 +78,8 @@
   .panel-hd{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
     padding:14px 18px;border-bottom:1px solid var(--rule2)}
   .panel-body{padding:0 18px;overflow-y:auto;min-height:0}
+  .panel-note{margin:0 18px 16px;padding:9px 11px;font-size:12.5px;line-height:1.5;color:var(--sub);
+    border:1px solid var(--rule2);border-left:3px solid var(--gold)}
 
   /* list rows: the trailing rule is dropped so the panel's own border ends the list */
   .doc-row{display:grid;grid-template-columns:minmax(0,1fr) 78px 32px;gap:12px;align-items:center;
@@ -188,6 +190,7 @@
           </div>
           <div id="rulesList" class="panel-body" data-scroll style="max-height:340px"></div>
           <p id="rulesEmpty" class="hidden" style="margin:0;padding:20px 18px;font-size:14.5px;line-height:1.6;color:var(--mid)">No rules yet. Type one above and hit Add.</p>
+          <p id="rulesNote" class="hidden panel-note">Showing the first <span data-cap></span> rules only &mdash; this class has more than the list can fetch.</p>
         </section>
 
         <section class="card panel">
@@ -202,6 +205,7 @@
           </div>
           <div id="docsList" class="panel-body" data-scroll style="max-height:472px"></div>
           <p id="docsEmpty" class="hidden" style="margin:0;padding:20px 18px;font-size:14.5px;line-height:1.6;color:var(--mid)">Nothing here yet. Add material before students start asking questions &mdash; until then, the tutor won&rsquo;t guess at answers.</p>
+          <p id="docsNote" class="hidden panel-note">This class has more chunks than the list can fetch, so the counts above are partial.</p>
         </section>
       </div>
 
@@ -232,6 +236,9 @@
 <script>
   let RULES=[],CLASSES=[],ACTIVE_CLASS=null,uploading=false;
   let EDITING=null;   // id of the rule currently open in the inline editor, if any
+  // /rules caps how much it fetches per kind and says so; the panels admit it
+  // rather than quietly showing a short list.
+  let TRUNC={rules:false,docs:false};
   const CLASS_KEY="chronos_teacher_class";
   const $=id=>document.getElementById(id);
   const flat=s=>String(s||"").replace(/\s+/g," ").trim();
@@ -320,6 +327,9 @@
     ACTIVE_CLASS=id;
     localStorage.setItem(CLASS_KEY,id);
     EDITING=null;
+    // Clear the composer too: text typed for one class would otherwise sit there
+    // and land in whichever class you switched to.
+    $("ruleText").value="";
     $("probeResult").classList.add("hidden");
     renderClasses();
     paintHeader();
@@ -377,10 +387,14 @@
   }
 
   async function loadRules(){
-    if(!ACTIVE_CLASS){RULES=[];EDITING=null;renderRules();renderDocs();paintHeader();return;}
+    if(!ACTIVE_CLASS){
+      RULES=[];EDITING=null;TRUNC={rules:false,docs:false};
+      renderRules();renderDocs();paintHeader();return;
+    }
     try{
       const d=await api("/rules",withClass({}));
       RULES=d.rules||[];
+      TRUNC={rules:!!d.rules_truncated,docs:!!d.docs_truncated};
     }catch(e){showToast(e.message,false);return;}
     // A rule deleted in another tab would otherwise leave the editor open on
     // something that no longer exists.
@@ -394,8 +408,11 @@
     const rules=handRules();
     const list=$("rulesList");
     list.innerHTML="";
-    $("ruleCount").textContent=rules.length+" in this class";
+    $("ruleCount").textContent=rules.length+(TRUNC.rules?"+":"")+" in this class";
     $("rulesEmpty").classList.toggle("hidden",rules.length>0);
+    $("rulesNote").classList.toggle("hidden",!TRUNC.rules);
+    // When the list is capped, what came back *is* the cap.
+    if(TRUNC.rules)$("rulesNote").querySelector("[data-cap]").textContent=rules.length;
     rules.forEach(r=>list.appendChild(r.id===EDITING?ruleEditor(r):ruleRow(r)));
   }
 
@@ -564,6 +581,7 @@
     list.innerHTML="";
     $("docCount").textContent=docs.length+" in this class";
     $("docsEmpty").classList.toggle("hidden",docs.length>0);
+    $("docsNote").classList.toggle("hidden",!TRUNC.docs);
     docs.forEach(d=>{
       const row=document.createElement("div"); row.className="doc-row";
 
@@ -595,11 +613,15 @@
     });
   }
 
+  // One request per 500 chunks, not one per chunk — /delete_rule takes an id list
+  // and the server caps it at 500.
   async function removeDoc(d){
     if(!ensureClass())return;
     if(!confirm('Delete "'+d.name+'" ('+d.ids.length+' chunk'+(d.ids.length===1?"":"s")+')? This cannot be undone.'))return;
     try{
-      for(const id of d.ids){ await api("/delete_rule",withClass({id})); }
+      for(let i=0;i<d.ids.length;i+=500){
+        await api("/delete_rule",withClass({ids:d.ids.slice(i,i+500)}));
+      }
       showToast("Document deleted",true);
       loadRules();
     }catch(e){showToast(e.message,false);}

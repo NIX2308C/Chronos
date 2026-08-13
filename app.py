@@ -166,6 +166,16 @@ CHAT_MODEL = os.getenv("CHAT_MODEL", "gemini-2.5-flash-lite")
 RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "5"))
 RETRIEVAL_MIN_SCORE = float(os.getenv("RETRIEVAL_MIN_SCORE", "0.5"))
 
+# Caps for what /rules hands the teacher's material page. Typed rules and file
+# chunks share a namespace, so they're fetched as two separate filtered queries:
+# one capped query for both let a few hundred chunks from a single PDF crowd every
+# typed rule out of the result, and the page would show a class with no rules.
+# Chunks get the larger cap because their count per file is displayed, and they
+# come back without their text, which keeps that response small.
+RULES_TOP_K = int(os.getenv("RULES_TOP_K", "100"))
+DOC_CHUNK_TOP_K = int(os.getenv("DOC_CHUNK_TOP_K", "600"))
+DELETE_IDS_MAX = 500        # Pinecone accepts up to 1000 ids per delete call
+
 # Directory this file lives in — used to serve the front-end HTML pages.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -1169,8 +1179,17 @@ def ingest():
 @app.route('/rules', methods=['POST'])
 @require_teacher
 def list_rules():
-    """List a class's rules. Pinecone has no 'list all' so we query broadly
-    within the class namespace. Body: { class_id }
+    """List a class's typed rules and its document chunks. Pinecone has no 'list
+    all', so we query broadly within the class namespace. Body: { class_id }
+
+    Two filtered queries rather than one — see RULES_TOP_K. Typed rules carry only
+    {"text": ...} in their metadata while file chunks also carry {"source": ...},
+    so $exists on `source` separates them. Chunk entries omit `text`: the caller
+    only groups them into one row per file by `source`, and shipping every chunk's
+    body made this response many times larger to no end.
+
+    `rules_truncated` / `docs_truncated` say the cap was hit and the lists are
+    partial, so the page can admit it rather than quietly showing a short list.
     """
     data = request.get_json(silent=True) or {}
     class_id = (data.get("class_id") or "").strip()
@@ -1179,19 +1198,42 @@ def list_rules():
     try:
         count = class_vector_count(class_id)
         if count == 0:
-            return jsonify({"rules": [], "total_vectors": 0})
+            return jsonify({"rules": [], "total_vectors": 0,
+                            "rules_truncated": False, "docs_truncated": False})
         zero = [0.0] * EMBED_DIM
-        resp = pinecone_index.query(
-            vector=zero,
-            top_k=min(count, 100),
-            include_metadata=True,
-            namespace=class_id,
-        )
+
+        def scan(cap, has_source):
+            top_k = min(count, cap)
+            if top_k <= 0:
+                return []
+            resp = pinecone_index.query(
+                vector=zero,
+                top_k=top_k,
+                include_metadata=True,
+                namespace=class_id,
+                filter={"source": {"$exists": has_source}},
+            )
+            return resp["matches"]
+
+        hand = scan(RULES_TOP_K, False)
+        chunks = scan(DOC_CHUNK_TOP_K, True)
+
         rules = [
-            {"id": m["id"], "text": m["metadata"].get("text", ""), "source": m["metadata"].get("source")}
-            for m in resp["matches"]
+            {"id": m["id"], "text": m["metadata"].get("text", ""), "source": None}
+            for m in hand
+        ] + [
+            {"id": m["id"], "source": m["metadata"].get("source")}
+            for m in chunks
         ]
-        return jsonify({"rules": rules, "total_vectors": count})
+        return jsonify({
+            "rules": rules,
+            "total_vectors": count,
+            # Compare against the cap, not against min(count, cap): `count` is the
+            # namespace total across both kinds, so a class of 3 rules would fetch
+            # top_k=3, match all 3, and report itself truncated.
+            "rules_truncated": len(hand) >= RULES_TOP_K,
+            "docs_truncated": len(chunks) >= DOC_CHUNK_TOP_K,
+        })
     except Exception as e:
         return server_error("Could not list rules.", e)
 
@@ -1199,20 +1241,40 @@ def list_rules():
 @app.route('/delete_rule', methods=['POST'])
 @require_teacher
 def delete_rule():
-    """Delete a rule by id from a class. Body: { class_id, id }"""
+    """Delete rules by id from a class. Body: { class_id, id } or { class_id, ids }
+
+    `ids` exists because deleting one document means deleting every chunk it was
+    split into — a long PDF is hundreds of vectors, and one request per chunk meant
+    hundreds of round-trips that each re-read the class from Firestore, with a
+    failure partway through leaving orphaned chunks no page can see. Pinecone's
+    delete already takes a list, so the batch costs the same as the single.
+    """
     data = request.get_json(silent=True) or {}
     class_id = (data.get("class_id") or "").strip()
     if not class_owned_by(class_id, request.uid):
         return jsonify({"error": "Unknown class, or you don't own it."}), 403
-    rid = data.get("id")
-    # JSON hands you whatever the caller typed: a list or dict here reaches
-    # Pinecone as a vector id and comes back as an unhandled 500.
-    if not isinstance(rid, str) or not rid.strip():
+
+    raw = data.get("ids")
+    if raw is None:
+        raw = [data.get("id")]
+    if not isinstance(raw, list):
+        return jsonify({"error": "ids must be a list"}), 400
+    if not raw:
         return jsonify({"error": "No id provided"}), 400
-    rid = rid.strip()[:512]     # Pinecone caps ids at 512 chars
+    if len(raw) > DELETE_IDS_MAX:
+        return jsonify({"error": f"Too many ids in one request (max {DELETE_IDS_MAX})."}), 400
+
+    # JSON hands you whatever the caller typed: a list or dict where an id belongs
+    # reaches Pinecone as a vector id and comes back as an unhandled 500.
+    ids = []
+    for rid in raw:
+        if not isinstance(rid, str) or not rid.strip():
+            return jsonify({"error": "No id provided"}), 400
+        ids.append(rid.strip()[:512])   # Pinecone caps ids at 512 chars
+
     try:
-        pinecone_index.delete(ids=[rid], namespace=class_id)
-        return jsonify({"status": "deleted", "id": rid})
+        pinecone_index.delete(ids=ids, namespace=class_id)
+        return jsonify({"status": "deleted", "ids": ids, "deleted": len(ids)})
     except Exception as e:
         return server_error("Delete failed.", e)
 

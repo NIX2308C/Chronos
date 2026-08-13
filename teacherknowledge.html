@@ -74,10 +74,20 @@
   .fld::placeholder{color:var(--faint)}
 
   .card{border:1px solid var(--field-b);background:var(--field)}
-  .doc-row{display:grid;grid-template-columns:minmax(0,1fr) 116px 40px;gap:16px;align-items:center;
-    border-bottom:1px solid var(--rule2);padding:15px 4px}
-  .doc-row .ibtn{opacity:0;transition:opacity .15s,color .15s}
-  .doc-row:hover .ibtn,.doc-row .ibtn:focus-visible{opacity:1}
+  .panel{display:flex;flex-direction:column;min-width:0;min-height:0}
+  .panel-hd{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+    padding:14px 18px;border-bottom:1px solid var(--rule2)}
+  .panel-body{padding:0 18px;overflow-y:auto;min-height:0}
+
+  /* list rows: the trailing rule is dropped so the panel's own border ends the list */
+  .doc-row{display:grid;grid-template-columns:minmax(0,1fr) 78px 32px;gap:12px;align-items:center;
+    border-bottom:1px solid var(--rule2);padding:13px 0}
+  .rule-row{display:grid;grid-template-columns:minmax(0,1fr) 32px 32px;gap:4px;align-items:center;
+    border-bottom:1px solid var(--rule2);padding:11px 0;cursor:pointer}
+  .doc-row:last-child,.rule-row:last-child{border-bottom:none}
+  .doc-row .ibtn,.rule-row .ibtn{opacity:0;transition:opacity .15s,color .15s}
+  .doc-row:hover .ibtn,.doc-row .ibtn:focus-visible,
+  .rule-row:hover .ibtn,.rule-row .ibtn:focus-visible{opacity:1}
 
   @media (max-width:980px){
     [data-shell]{grid-template-columns:minmax(0,1fr)!important}
@@ -160,44 +170,51 @@
         </div>
       </div>
 
-      <section style="margin-bottom:44px">
-        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;margin-bottom:14px">
-          <h2 class="lbl" style="margin:0;font-family:inherit">Documents</h2>
-          <span id="docCount" style="font-size:13.5px;color:var(--mid)"></span>
-        </div>
-        <div style="border-top:1px solid var(--rule2)">
-          <div style="display:grid;grid-template-columns:minmax(0,1fr) 116px 40px;gap:16px;padding:10px 4px 8px;border-bottom:1px solid var(--rule2)">
+      <div data-panels style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;margin-bottom:44px;align-items:start">
+
+        <section class="card panel">
+          <div class="panel-hd">
+            <h2 class="lbl" style="margin:0;font-family:inherit">Rules</h2>
+            <span id="ruleCount" style="font-size:13.5px;color:var(--mid)"></span>
+          </div>
+          <div style="padding:16px 18px;border-bottom:1px solid var(--rule2)">
+            <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:var(--sub)">Typed instructions the tutor follows alongside the documents &mdash; how to address students, what to withhold, which conventions to use. Students never see this text, only its effect on answers.</p>
+            <textarea id="ruleText" rows="4" aria-label="Rule text" class="fld" style="width:100%;padding:11px 12px;font-size:14.5px;line-height:1.6;resize:vertical" placeholder="Never give away answers to the end-of-chapter problems &mdash; walk students through the method instead."></textarea>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:11px;flex-wrap:wrap">
+              <button id="addRuleBtn" class="kbtn kbtn-dark" style="padding:10px 16px"><span class="msym" style="font-size:18px">add</span>Add</button>
+              <button id="bulkRuleBtn" class="kbtn kbtn-ghost" style="padding:9px 14px">Add bulk</button>
+              <span style="font-size:12.5px;color:var(--faint)">Add bulk takes one rule per line.</span>
+            </div>
+          </div>
+          <div id="rulesList" class="panel-body" data-scroll style="max-height:340px"></div>
+          <p id="rulesEmpty" class="hidden" style="margin:0;padding:20px 18px;font-size:14.5px;line-height:1.6;color:var(--mid)">No rules yet. Type one above and hit Add.</p>
+        </section>
+
+        <section class="card panel">
+          <div class="panel-hd">
+            <h2 class="lbl" style="margin:0;font-family:inherit">Documents</h2>
+            <span id="docCount" style="font-size:13.5px;color:var(--mid)"></span>
+          </div>
+          <div style="display:grid;grid-template-columns:minmax(0,1fr) 78px 32px;gap:12px;padding:9px 18px 8px;border-bottom:1px solid var(--rule2)">
             <span class="col-lbl">Document</span>
             <span class="col-lbl">Chunks</span>
             <span></span>
           </div>
-          <div id="docsList"></div>
-        </div>
-        <p id="docsEmpty" class="hidden" style="margin:22px 0 0;font-size:15px;line-height:1.6;color:var(--mid);max-width:52ch">Nothing here yet. Add material before students start asking questions &mdash; until then, the tutor won&rsquo;t guess at answers.</p>
-      </section>
-
-      <div data-panels style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px">
-        <section>
-          <h2 class="lbl" style="margin:0 0 8px;font-family:inherit;font-size:14px">Rules for this class</h2>
-          <p style="margin:0 0 14px;font-size:14.5px;line-height:1.6;color:var(--sub)">Typed instructions the tutor follows alongside the documents &mdash; how to address students, what to withhold, which conventions to use. One rule per line. Students never see this text, only its effect on answers.</p>
-          <textarea id="rulesText" rows="6" aria-label="Rules for this class" class="fld" style="width:100%;padding:13px 14px;font-size:14.5px;line-height:1.6;resize:vertical" placeholder="Never give away answers to the end-of-chapter problems &mdash; walk students through the method instead."></textarea>
-          <div style="display:flex;align-items:center;gap:14px;margin-top:12px">
-            <button id="saveRulesBtn" class="kbtn kbtn-dark" style="padding:11px 18px">Save rules</button>
-            <span id="rulesStatus" style="font-size:13.5px;color:var(--mid)"></span>
-          </div>
-        </section>
-
-        <section>
-          <h2 class="lbl" style="margin:0 0 8px;font-family:inherit;font-size:14px">Check what the class can answer</h2>
-          <p style="margin:0 0 14px;font-size:14.5px;line-height:1.6;color:var(--sub)">Ask as a student would. You will see the reply and the passages it was built from.</p>
-          <form id="probeForm" style="display:flex;gap:10px;margin-bottom:18px">
-            <label for="probeInput" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap">Ask a question as a student would</label>
-            <input id="probeInput" type="text" class="fld" placeholder="Ask a question&hellip;" style="flex:1;min-width:0;height:44px;padding:0 13px;font-size:14.5px"/>
-            <button id="probeBtn" type="submit" class="kbtn kbtn-dark" aria-label="Ask" style="width:44px;height:44px;padding:0;justify-content:center"><span class="msym">arrow_upward</span></button>
-          </form>
-          <div id="probeResult" class="card hidden" style="padding:18px 20px;animation:pop .3s ease both"></div>
+          <div id="docsList" class="panel-body" data-scroll style="max-height:472px"></div>
+          <p id="docsEmpty" class="hidden" style="margin:0;padding:20px 18px;font-size:14.5px;line-height:1.6;color:var(--mid)">Nothing here yet. Add material before students start asking questions &mdash; until then, the tutor won&rsquo;t guess at answers.</p>
         </section>
       </div>
+
+      <section>
+        <h2 class="lbl" style="margin:0 0 8px;font-family:inherit;font-size:14px">Check what the class can answer</h2>
+        <p style="margin:0 0 14px;font-size:14.5px;line-height:1.6;color:var(--sub);max-width:62ch">Ask as a student would. You will see the reply and the passages it was built from.</p>
+        <form id="probeForm" style="display:flex;gap:10px;margin-bottom:18px;max-width:640px">
+          <label for="probeInput" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap">Ask a question as a student would</label>
+          <input id="probeInput" type="text" class="fld" placeholder="Ask a question&hellip;" style="flex:1;min-width:0;height:44px;padding:0 13px;font-size:14.5px"/>
+          <button id="probeBtn" type="submit" class="kbtn kbtn-dark" aria-label="Ask" style="width:44px;height:44px;padding:0;justify-content:center"><span class="msym">arrow_upward</span></button>
+        </form>
+        <div id="probeResult" class="card hidden" style="padding:18px 20px;max-width:640px;animation:pop .3s ease both"></div>
+      </section>
 
     </div>
   </main>
@@ -213,7 +230,8 @@
 <script src="theme.js"></script>
 <script src="transition.js"></script>
 <script>
-  let RULES=[],CLASSES=[],ACTIVE_CLASS=null,rulesDirty=false,uploading=false;
+  let RULES=[],CLASSES=[],ACTIVE_CLASS=null,uploading=false;
+  let EDITING=null;   // id of the rule currently open in the inline editor, if any
   const CLASS_KEY="chronos_teacher_class";
   const $=id=>document.getElementById(id);
   const flat=s=>String(s||"").replace(/\s+/g," ").trim();
@@ -301,8 +319,7 @@
     if(id===ACTIVE_CLASS)return;
     ACTIVE_CLASS=id;
     localStorage.setItem(CLASS_KEY,id);
-    rulesDirty=false;
-    $("rulesStatus").textContent="";
+    EDITING=null;
     $("probeResult").classList.add("hidden");
     renderClasses();
     paintHeader();
@@ -325,7 +342,7 @@
     try{
       const c=await Chronos.createClass(name.trim());
       showToast("Class created"+(c.migrated_rules?`. Moved ${c.migrated_rules} existing rules in`:"")+". Code: "+c.join_code,true);
-      rulesDirty=false;
+      EDITING=null;
       await loadClasses(c.id);
       loadRules();
     }catch(e){showToast(e.message,false);}
@@ -337,7 +354,7 @@
     try{
       await Chronos.deleteClass(c.id);
       showToast("Class deleted",true);
-      rulesDirty=false;
+      EDITING=null;
       await loadClasses();
       loadRules();
     }catch(e){showToast(e.message,false);}
@@ -347,76 +364,165 @@
   // /rules returns every vector in the class. Ones with a `source` came out of an
   // uploaded file (many chunks per file); the rest are the teacher's typed rules,
   // which is what the textarea edits — one rule per line.
-  function handRules(){ return RULES.filter(r=>!r.source); }
+  // Pinecone's zero-vector query scores every match the same, so it hands them back
+  // in no meaningful order. Sorting on the millisecond stamp baked into a
+  // "rule_<ms>_<n>" id puts the newest first and keeps the list from reshuffling on
+  // every reload. Ids a teacher supplied by hand have no stamp and sort last.
+  function handRules(){
+    return RULES.filter(r=>!r.source).map(r=>{
+      const parts=String(r.id||"").split("_");
+      const ts=parts.length>1?parseInt(parts[1],10):NaN;
+      return Object.assign({},r,{ts:isFinite(ts)?ts:0});
+    }).sort((a,b)=>b.ts-a.ts);
+  }
 
   async function loadRules(){
-    if(!ACTIVE_CLASS){RULES=[];renderDocs();paintHeader();if(!rulesDirty)$("rulesText").value="";return;}
+    if(!ACTIVE_CLASS){RULES=[];EDITING=null;renderRules();renderDocs();paintHeader();return;}
     try{
       const d=await api("/rules",withClass({}));
       RULES=d.rules||[];
     }catch(e){showToast(e.message,false);return;}
+    // A rule deleted in another tab would otherwise leave the editor open on
+    // something that no longer exists.
+    if(EDITING&&!RULES.some(r=>r.id===EDITING))EDITING=null;
+    renderRules();
     renderDocs();
     paintHeader();
-    if(!rulesDirty)$("rulesText").value=handRules().map(r=>flat(r.text)).filter(Boolean).join("\n");
   }
 
-  // Multiset diff of the textarea against what's stored: unchanged lines are left
-  // alone, new lines get ingested, and rules whose line is gone get deleted.
-  // Duplicate text is matched one-for-one, so removing one of two identical lines
-  // deletes exactly one rule. Pure — test_rules_diff.js runs this very function.
-  function rulesDiff(lines,existing){
-    const norm=s=>String(s||"").replace(/\s+/g," ").trim();
-    const pool=new Map();
-    existing.forEach(r=>{
-      const t=norm(r.text);
-      if(!pool.has(t))pool.set(t,[]);
-      pool.get(t).push(r.id);
-    });
-    const adds=[];
-    lines.forEach(t=>{
-      const ids=pool.get(t);
-      if(ids&&ids.length)ids.shift();
-      else adds.push(t);
-    });
-    const removes=[];
-    pool.forEach(ids=>ids.forEach(id=>removes.push(id)));
-    return {adds:adds,removes:removes};
+  function renderRules(){
+    const rules=handRules();
+    const list=$("rulesList");
+    list.innerHTML="";
+    $("ruleCount").textContent=rules.length+" in this class";
+    $("rulesEmpty").classList.toggle("hidden",rules.length>0);
+    rules.forEach(r=>list.appendChild(r.id===EDITING?ruleEditor(r):ruleRow(r)));
   }
 
-  async function saveRules(){
+  function ruleRow(r){
+    const row=document.createElement("div"); row.className="rule-row";
+
+    const left=document.createElement("div");
+    left.style.cssText="min-width:0;display:flex;align-items:center;gap:11px";
+    const ico=document.createElement("span"); ico.className="msym";
+    ico.style.cssText="font-size:18px;color:var(--crimson)"; ico.textContent="gavel";
+    const txt=document.createElement("span"); txt.className="trunc";
+    txt.style.cssText="font-size:14.5px;line-height:1.5"; txt.textContent=r.text; txt.title=r.text;
+    left.appendChild(ico); left.appendChild(txt);
+
+    const label=flat(r.text).slice(0,60);
+    const edit=document.createElement("button");
+    edit.type="button"; edit.className="ibtn"; edit.title="Edit";
+    edit.setAttribute("aria-label","Edit rule: "+label);
+    edit.innerHTML='<span class="msym" style="font-size:18px">edit</span>';
+    edit.onclick=e=>{e.stopPropagation();openEditor(r.id);};
+
+    const del=document.createElement("button");
+    del.type="button"; del.className="ibtn"; del.title="Delete";
+    del.setAttribute("aria-label","Delete rule: "+label);
+    del.innerHTML='<span class="msym" style="font-size:18px">delete</span>';
+    del.onclick=e=>{e.stopPropagation();removeRule(r);};
+
+    row.appendChild(left); row.appendChild(edit); row.appendChild(del);
+    // Clicking the row is a mouse shortcut for the pencil, which stays the
+    // keyboard-reachable control.
+    row.onclick=()=>openEditor(r.id);
+    return row;
+  }
+
+  function openEditor(id){ EDITING=id; renderRules(); }
+
+  // /ingest upserts by vector id, so saving the same id with new text replaces the
+  // rule in place — re-embedded — instead of leaving the old wording behind as a
+  // second vector. Text is flattened for the same reason the composer flattens it:
+  // a rule is one line, and a stray newline would split it in the list.
+  function ruleEditor(r){
+    const box=document.createElement("div");
+    box.style.cssText="padding:11px 0;border-bottom:1px solid var(--rule2)";
+
+    const ta=document.createElement("textarea");
+    ta.className="fld"; ta.rows=3; ta.value=r.text||"";
+    ta.setAttribute("aria-label","Edit rule");
+    ta.style.cssText="width:100%;padding:10px 12px;font-size:14.5px;line-height:1.6;resize:vertical";
+
+    const bar=document.createElement("div");
+    bar.style.cssText="display:flex;align-items:center;gap:9px;margin-top:9px;flex-wrap:wrap";
+    const save=document.createElement("button");
+    save.type="button"; save.className="kbtn kbtn-dark"; save.style.padding="9px 15px";
+    save.textContent="Save";
+    const cancel=document.createElement("button");
+    cancel.type="button"; cancel.className="kbtn kbtn-ghost"; cancel.style.padding="8px 13px";
+    cancel.textContent="Cancel";
+    const hint=document.createElement("span");
+    hint.style.cssText="font-size:12.5px;color:var(--faint)";
+    hint.textContent="Enter saves · Esc cancels";
+    bar.appendChild(save); bar.appendChild(cancel); bar.appendChild(hint);
+
+    box.appendChild(ta); box.appendChild(bar);
+
+    const drop=()=>{EDITING=null;renderRules();};
+    const commit=async()=>{
+      const text=flat(ta.value);
+      if(!text){showToast("Rule text is empty",false);return;}
+      if(text===flat(r.text)){drop();return;}
+      save.disabled=true;cancel.disabled=true;
+      try{
+        await api("/ingest",withClass({items:[{id:r.id,text}]}));
+        EDITING=null;
+        showToast("Rule updated",true);
+        await loadRules();
+      }catch(e){
+        save.disabled=false;cancel.disabled=false;
+        showToast(e.message,false);
+      }
+    };
+    save.onclick=commit; cancel.onclick=drop;
+    ta.addEventListener("keydown",e=>{
+      if(e.key==="Escape"){e.preventDefault();drop();}
+      else if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();commit();}
+    });
+    // The node isn't in the document until renderRules appends it.
+    setTimeout(()=>{ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);},0);
+    return box;
+  }
+
+  async function removeRule(r){
     if(!ensureClass())return;
-    const lines=$("rulesText").value.split("\n").map(flat).filter(Boolean);
-    const {adds,removes}=rulesDiff(lines,handRules());
-    if(!adds.length&&!removes.length){
-      rulesDirty=false;
-      $("rulesStatus").textContent="No changes.";
-      clearStatus();
-      return;
-    }
-    if(removes.length&&!confirm("Saving removes "+removes.length+" rule"+(removes.length===1?"":"s")+". Continue?"))return;
-    const btn=$("saveRulesBtn");
-    btn.disabled=true;
-    $("rulesStatus").textContent="Saving…";
+    if(!confirm('Delete this rule?\n\n"'+flat(r.text)+'"'))return;
     try{
-      if(adds.length)await api("/ingest",withClass({items:adds.map(t=>({text:t}))}));
-      for(const id of removes)await api("/delete_rule",withClass({id}));
-      rulesDirty=false;
-      const parts=[];
-      if(adds.length)parts.push(adds.length+" added");
-      if(removes.length)parts.push(removes.length+" removed");
-      $("rulesStatus").textContent="Saved — "+parts.join(", ")+". Applies to new questions.";
-      clearStatus();
-      await loadRules();
-    }catch(e){
-      $("rulesStatus").textContent="";
-      showToast(e.message,false);
-    }
-    btn.disabled=false;
+      await api("/delete_rule",withClass({id:r.id}));
+      if(EDITING===r.id)EDITING=null;
+      showToast("Rule deleted",true);
+      loadRules();
+    }catch(e){showToast(e.message,false);}
   }
 
-  function clearStatus(){
-    clearTimeout(clearStatus._t);
-    clearStatus._t=setTimeout(()=>{$("rulesStatus").textContent="";},3200);
+  async function addRule(){
+    if(!ensureClass())return;
+    const text=flat($("ruleText").value);
+    if(!text){showToast("Rule text is empty",false);return;}
+    await pushRules([text],"Rule added");
+  }
+
+  async function bulkAdd(){
+    if(!ensureClass())return;
+    const lines=$("ruleText").value.split("\n").map(flat).filter(Boolean);
+    if(!lines.length){showToast("Nothing to add",false);return;}
+    await pushRules(lines,lines.length+" rule"+(lines.length===1?"":"s")+" added");
+  }
+
+  // One /ingest call for the whole batch: the server embeds in groups of 50, so a
+  // 200-line paste costs a couple of round-trips instead of 200.
+  async function pushRules(texts,okMsg){
+    const a=$("addRuleBtn"),b=$("bulkRuleBtn");
+    a.disabled=true;b.disabled=true;
+    try{
+      await api("/ingest",withClass({items:texts.map(t=>({text:t}))}));
+      $("ruleText").value="";
+      showToast(okMsg+". Applies to new questions.",true);
+      await loadRules();
+    }catch(e){showToast(e.message,false);}
+    a.disabled=false;b.disabled=false;
   }
 
   function docIcon(name){
@@ -599,8 +705,8 @@
   $("lockBtn").onclick=lock;
   $("newClassBtn").onclick=newClass;
   $("deleteClassBtn").onclick=removeClass;
-  $("saveRulesBtn").onclick=saveRules;
-  $("rulesText").addEventListener("input",()=>{rulesDirty=true;});
+  $("addRuleBtn").onclick=addRule;
+  $("bulkRuleBtn").onclick=bulkAdd;
   $("probeForm").addEventListener("submit",probeAsk);
   $("addBtn").onclick=()=>{ if(ensureClass())$("fileInput").click(); };
   $("fileInput").addEventListener("change",()=>{
@@ -627,7 +733,6 @@
     if(f)uploadFile(f);
   });
   ["dragover","drop"].forEach(ev=>window.addEventListener(ev,e=>e.preventDefault()));
-  window.addEventListener("beforeunload",e=>{ if(rulesDirty){e.preventDefault();e.returnValue="";} });
 
   // Gate the page: require a signed-in teacher, then reveal the app.
   Chronos.requireRole("teacher").then(async info=>{
@@ -670,7 +775,7 @@
     const KEY="chronos_tut_knowledge_v2";
     const STEPS=[
       {icon:"add",title:"Make a class",text:"Each class is its own separate shelf. Make one, then hand out its join code (up in the sidebar) so your students can get in."},
-      {icon:"gavel",title:"Write your rules",text:"Type the ground rules and key facts into the rules box, one per line. Things like \"don't just hand over homework answers\" or \"stick to the textbook\"."},
+      {icon:"gavel",title:"Write your rules",text:"Type a ground rule into the Rules box and hit Add — things like \"don't just hand over homework answers\" or \"stick to the textbook\". Got a whole list already? Paste it in, one per line, and hit Add bulk. Click any rule afterwards to reword it."},
       {icon:"description",title:"Upload your material",text:"Add PDFs, Word docs, lecture notes. We pull the text out so the tutor can answer from your actual course content."},
       {icon:"lightbulb",title:"That's its whole world",text:"It only answers from what's on this page. Anything else and it says it doesn't know, rather than having a guess."},
     ];

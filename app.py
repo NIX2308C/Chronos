@@ -10,7 +10,7 @@ from functools import wraps
 from collections import deque
 from threading import Lock
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, redirect
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 from google import genai
@@ -53,13 +53,23 @@ FIREBASE_AUTH_DOMAIN = os.getenv("FIREBASE_AUTH_DOMAIN", f"{FIREBASE_PROJECT_ID}
 # Werkzeug debugger on in a reachable deployment is a remote-code-execution risk.
 DEBUG = os.getenv("FLASK_DEBUG", "").lower() in ("1", "true", "yes", "on")
 
-# Refuse to start with a missing or well-known default teacher code — otherwise
-# anyone could self-register as a teacher and read all chat logs / edit the
-# knowledge base.
+# Refuse to start with a missing, short, or well-known default teacher code —
+# otherwise anyone could self-register as a teacher and read all chat logs / edit
+# the knowledge base. The length floor is the part that catches the realistic
+# mistake: a blocklist only ever knows the placeholders someone thought of, and
+# "test1234" is not on anybody's list. 12 chars of anything is past the point
+# where the REGISTER_RATE_LIMIT throttle is the only thing doing the work.
+TEACHER_CODE_MIN_LEN = 12
 if not TEACHER_SIGNUP_CODE or TEACHER_SIGNUP_CODE.lower() in ("changeme", "password", "admin", "skibidi"):
     raise SystemExit(
         "Refusing to start: set a strong TEACHER_SIGNUP_CODE in your .env "
         "(it is missing or set to an insecure default)."
+    )
+if len(TEACHER_SIGNUP_CODE) < TEACHER_CODE_MIN_LEN:
+    raise SystemExit(
+        f"Refusing to start: TEACHER_SIGNUP_CODE must be at least "
+        f"{TEACHER_CODE_MIN_LEN} characters. It is the only thing standing "
+        "between a stranger and every class's material and chat logs."
     )
 
 # Browser origins allowed to call this API (CORS). Defaults to the Live Server
@@ -93,6 +103,18 @@ CHAT_RATE_WINDOW = int(os.getenv("CHAT_RATE_WINDOW", "60"))   # seconds
 # are throttled hard (a code is 32^6 ≈ 1e9 wide, but only if you can't spray it).
 JOIN_RATE_LIMIT = int(os.getenv("JOIN_RATE_LIMIT", "10"))     # requests
 JOIN_RATE_WINDOW = int(os.getenv("JOIN_RATE_WINDOW", "300"))  # seconds
+# ...and a second budget keyed by IP, for the same reason /auth/register has one:
+# a uid costs an attacker nothing (anyone can mint a fresh Firebase account
+# against the public web API key), so a per-uid budget alone resets on every
+# guess and throttles nothing. This one is deliberately loose — a whole class
+# behind one school NAT joins on the same afternoon, and locking them out is a
+# worse outcome than a spray that still needs millions of years at this rate.
+JOIN_IP_RATE_LIMIT = int(os.getenv("JOIN_IP_RATE_LIMIT", "60"))   # requests per window
+# Teacher writes cost money on every call (Gemini embeddings, and a Gemini
+# generation per /stats). Nothing here is reachable without a teacher account, so
+# this is an abuse ceiling on a compromised or careless teacher, not a gate.
+TEACHER_RATE_LIMIT = int(os.getenv("TEACHER_RATE_LIMIT", "60"))     # requests
+TEACHER_RATE_WINDOW = int(os.getenv("TEACHER_RATE_WINDOW", "60"))   # seconds
 # Teacher registration is gated by one shared code, which makes /auth/register the
 # most valuable thing on the app to brute-force: guessing it once yields every
 # class's material and every student's chat log. Unlike the limits above, this one
@@ -193,10 +215,25 @@ def security_headers(resp):
     resp.headers.setdefault("X-Frame-Options", "DENY")          # clickjacking
     resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     resp.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+    # Cloud Run terminates TLS for you, but nothing stops a browser trying the
+    # first request to a custom domain over http — where a Firebase ID token is
+    # readable in transit. Only sent when the request already arrived over https,
+    # so local http development is unaffected.
+    if request.is_secure:
+        resp.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return resp
 
 
-client = genai.Client(api_key=GEMINI_KEY)
+# Bound every Gemini call. Left unset, google-genai passes timeout=None straight
+# to httpx, which means *no* timeout: one hung upstream request holds a Waitress
+# thread forever, and 16 of those (see WAITRESS_THREADS) is the whole instance
+# wedged for every class on it. Pinecone already defaults to 30s and the
+# Firestore client to 60s per RPC, so Gemini was the only unbounded caller.
+GEMINI_TIMEOUT_MS = int(os.getenv("GEMINI_TIMEOUT_MS", "60000"))
+client = genai.Client(
+    api_key=GEMINI_KEY,
+    http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS),
+)
 
 pc = Pinecone(api_key=PINE_KEY)
 pinecone_index = pc.Index(INDEX_NAME)
@@ -579,8 +616,10 @@ def rate_limited(key, limit=CHAT_RATE_LIMIT, window=CHAT_RATE_WINDOW):
 
 @app.route('/')
 @app.route('/landing.html')
-def page_landing():
-    return send_from_directory(BASE_DIR, 'landing.html')
+def page_home():
+    """The app opens on the sign-in page — there is no marketing landing page.
+    /landing.html stays as a redirect so old links and bookmarks don't 404."""
+    return redirect('/login.html', code=302)
 
 
 @app.route('/student.html')
@@ -766,7 +805,15 @@ def join_class():
     # Throttle before touching Firestore: this is the one endpoint where a
     # wrong answer is still informative (it tells you a code doesn't exist), so
     # it's the one an attacker would spray to find live classes.
-    if rate_limited(f"join:{request.uid}", JOIN_RATE_LIMIT, JOIN_RATE_WINDOW):
+    #
+    # Both keys, not either: the uid budget stops one signed-in student grinding
+    # codes, and the IP budget is what actually costs a determined attacker
+    # something — fresh Firebase accounts are free, so a per-uid limit alone
+    # resets on every guess. (With TRUST_PROXY_HOPS unset behind a proxy the IP
+    # key collapses to the load balancer for everyone, which is why the deploy
+    # warning at the top of this file exists.)
+    if (rate_limited(f"join:{request.uid}", JOIN_RATE_LIMIT, JOIN_RATE_WINDOW)
+            or rate_limited(f"joinip:{request.remote_addr}", JOIN_IP_RATE_LIMIT, JOIN_RATE_WINDOW)):
         return jsonify({"error": "Too many join attempts. Please wait a few minutes."}), 429
 
     data = request.get_json(silent=True) or {}
@@ -872,13 +919,21 @@ def chat_messages(chat_id):
     docs = list(
         chat_ref.collection("Messages").order_by("timestamp").limit(MAX_MESSAGES_RETURNED).stream()
     )
+    is_teacher = get_role(request.uid) == "teacher"
     messages = []
     for d in docs:
         m = d.to_dict() or {}
+        rules = m.get("rules") or []
         messages.append({
             "role": m.get("role"),
             "content": m.get("content", ""),
-            "rules": m.get("rules") or [],
+            # The retrieved source chunks are teacher-only. The UI already hid
+            # them from students, but hiding them in the browser is not hiding
+            # them: the same token fetches this route from a terminal. `grounded`
+            # carries the one bit the student UI actually needs (whether anything
+            # backed the answer) without shipping the material itself.
+            "rules": rules if is_teacher else [],
+            "grounded": bool(rules),
         })
     return jsonify({"messages": messages})
 
@@ -928,7 +983,8 @@ def chat():
     # The tutor only answers from the chosen class's knowledge base, and the user
     # must belong to that class — this is what stops non-members using the app.
     class_id = (data.get("class_id") or "").strip()
-    if not user_in_class(request.uid, class_id, get_role(request.uid)):
+    role = get_role(request.uid)
+    if not user_in_class(request.uid, class_id, role):
         return jsonify({"error": "Join this class before using the tutor."}), 403
 
     if not user_message or not isinstance(user_message, str) or not user_message.strip():
@@ -1028,7 +1084,11 @@ def chat():
 
         return jsonify({
             "response": final_answer,
-            "rules_used": teacher_rules,
+            # Teacher-only, same as /chats/<id>/messages: a student's own token
+            # would otherwise read back the class material verbatim, one question
+            # at a time, straight from the API the UI is careful not to show it in.
+            "rules_used": teacher_rules if role == "teacher" else [],
+            "grounded": bool(teacher_rules),
             "chat_id": chat_id,
             "title": title,
         })
@@ -1045,6 +1105,8 @@ def ingest():
     """Add one or more rules to a class's knowledge base.
     Body: { class_id, items: [{ id?, text }, ...] }  OR  { class_id, text, id? }
     """
+    if rate_limited(f"teach:{request.uid}", TEACHER_RATE_LIMIT, TEACHER_RATE_WINDOW):
+        return jsonify({"error": "Too many requests. Please slow down and try again shortly."}), 429
     data = request.get_json(silent=True) or {}
     class_id = (data.get("class_id") or "").strip()
     if not class_owned_by(class_id, request.uid):
@@ -1143,8 +1205,11 @@ def delete_rule():
     if not class_owned_by(class_id, request.uid):
         return jsonify({"error": "Unknown class, or you don't own it."}), 403
     rid = data.get("id")
-    if not rid:
+    # JSON hands you whatever the caller typed: a list or dict here reaches
+    # Pinecone as a vector id and comes back as an unhandled 500.
+    if not isinstance(rid, str) or not rid.strip():
         return jsonify({"error": "No id provided"}), 400
+    rid = rid.strip()[:512]     # Pinecone caps ids at 512 chars
     try:
         pinecone_index.delete(ids=[rid], namespace=class_id)
         return jsonify({"status": "deleted", "id": rid})
@@ -1294,6 +1359,10 @@ def stats():
     each member's conversations for this class. This keeps a teacher's analytics
     to their own class (no cross-teacher leakage) and needs no special index.
     """
+    # Every call here is a Gemini generation plus a walk of the class's chats —
+    # the most expensive thing a teacher account can trigger in a loop.
+    if rate_limited(f"teach:{request.uid}", TEACHER_RATE_LIMIT, TEACHER_RATE_WINDOW):
+        return jsonify({"error": "Too many requests. Please slow down and try again shortly."}), 429
     data = request.get_json(silent=True) or {}
     class_id = (data.get("class_id") or "").strip()
     if not class_owned_by(class_id, request.uid):
@@ -1440,6 +1509,8 @@ def stats():
 @app.route('/upload', methods=['POST'])
 @require_teacher
 def upload():
+    if rate_limited(f"teach:{request.uid}", TEACHER_RATE_LIMIT, TEACHER_RATE_WINDOW):
+        return jsonify({"error": "Too many requests. Please slow down and try again shortly."}), 429
     class_id = (request.form.get("class_id") or "").strip()
     if not class_owned_by(class_id, request.uid):
         return jsonify({"error": "Unknown class, or you don't own it."}), 403

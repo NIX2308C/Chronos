@@ -222,7 +222,7 @@
 
 <!-- Sidebar -->
 <nav class="hidden md:flex h-full w-64 fixed left-0 top-0 bg-surface-container flex-col z-10" style="border-right:1px solid var(--c-rule)">
-<a class="block px-5 pt-4 pb-3.5" href="landing.html" style="border-bottom:1px solid var(--c-rule)">
+<a class="block px-5 pt-4 pb-3.5" href="login.html" style="border-bottom:1px solid var(--c-rule)">
 <h1 class="font-headline-md text-headline-md text-on-background leading-none">Chronos<span class="text-primary">.</span></h1>
 <span class="slabel block mt-1" style="font-weight:400" id="modeLabel">Student</span>
 </a>
@@ -325,7 +325,11 @@
   const API_BASE=Chronos.BASE;
 
   // --- tiny self-contained markdown renderer (bold, italics, lists, code, headings, links) ---
-  function escapeHtml(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  // Quotes are escaped too: mdInline drops a matched URL straight into href="…",
+  // so anything reaching an attribute has to be quote-safe. Today the URL pattern
+  // forbids whitespace and can't start a second attribute, but that's one regex
+  // tweak away from being live XSS in model output.
+  function escapeHtml(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
   function mdInline(s){
     s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>');
     s=s.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>");
@@ -392,7 +396,9 @@
   async function loadMessages(c){
     try{
       const d=await Chronos.apiJson("/chats/"+encodeURIComponent(c.id)+"/messages",undefined,"GET");
-      c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],gap:m.role==="teacher"&&!(m.rules||[]).length}));
+      // gap follows the server's `grounded` flag, not the length of `rules` —
+      // students aren't sent the sources at all (see /chats/<id>/messages).
+      c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],gap:m.role==="teacher"&&!m.grounded}));
       c.loaded=true;
       if(c.id===activeChatId)renderMessages();
     }catch(e){setStatus("offline");}
@@ -578,7 +584,10 @@
       if(!res.ok||data.error){b.textContent=(data.details||data.error||"Something went wrong. Please try again.");tm.content=b.textContent;setSending(false);return;}
       // Adopt the server's chat id/title for a freshly-created conversation.
       if(data.chat_id&&c.isNew){c.id=data.chat_id;c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId&&activeChatId.startsWith("new_"))activeChatId=c.id;ALL_CHATS.unshift(c);renderSidebar();}
-      tm.content=data.response||"";tm.rules=data.rules_used||[];tm.gap=!tm.rules.length;
+      // `grounded` comes from the server, which is the only side that can see
+      // the sources: students are never sent rules_used, so an empty list here
+      // no longer means "nothing backed this answer".
+      tm.content=data.response||"";tm.rules=data.rules_used||[];tm.gap=!data.grounded;
       b.textContent="";
       typeOut(b,tm.content,()=>{
         if(tm.gap)el.appendChild(gapNote());

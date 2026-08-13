@@ -1,7 +1,6 @@
 // Shared dark-mode toggle for the app pages (student, teacherknowledge,
 // teacherstats, login). Light is the default brand experience; dark is an
 // opt-in the user can flip and which then persists via localStorage.
-// landing.html intentionally never loads this file and stays light-only.
 (function () {
   var KEY = "chronos-theme";
 

@@ -89,8 +89,94 @@ def test_docx_expansion_cap():
     assert upload(1 << 30) == 400, "expected the guard to be what rejected the bomb"
 
 
+def test_join_throttle_is_not_only_per_uid():
+    """A fresh Firebase account is free, so a per-uid budget alone throttles
+    nothing: the attacker just signs up again. The IP budget is the one that
+    costs them something."""
+    A._rate_hits.clear()
+    A.JOIN_RATE_LIMIT = 3
+    A.JOIN_IP_RATE_LIMIT = 5
+    ip = {"REMOTE_ADDR": "10.0.0.21"}
+
+    def attempt(uid):
+        signed_in_as(uid=uid, role="student")
+        return c.post("/classes/join", json={"join_code": "ZZZZZZ"}, environ_base=ip).status_code
+
+    # Spend one uid's whole budget, then rotate to a brand-new uid — the old
+    # behaviour handed the attacker a full fresh budget every time.
+    assert [attempt("burner1") for _ in range(4)][-1] == 429, "per-uid budget didn't apply"
+    codes = [attempt(f"burner{i}") for i in range(2, 6)]
+    assert 429 in codes, "rotating uids bypassed the join throttle entirely"
+
+
+def test_sources_are_not_sent_to_students():
+    """The class material must not leave the server for a student, whatever the
+    UI chooses to render."""
+    A._rate_hits.clear()
+    captured = {}
+
+    class _FakeMsgs:
+        def add(self, doc):
+            pass
+
+    class _FakeChatDoc:
+        id = "chat1"
+
+        def collection(self, _name):
+            return _FakeMsgs()
+
+        def get(self):
+            class _S:
+                exists = False
+                def to_dict(self):
+                    return {}
+            return _S()
+
+        def set(self, *_a, **_k):
+            pass
+
+    class _FakeChats:
+        def document(self, _id=None):
+            return _FakeChatDoc()
+
+    A.user_in_class = lambda uid, cid, role: True
+    A._user_chats = lambda uid: _FakeChats()
+    A.load_history = lambda *_a, **_k: []
+    A.embed = lambda _t: [0.0] * A.EMBED_DIM
+    A.summarize_exchange = lambda *_a, **_k: {}
+    A.pinecone_index = type("_PC", (), {
+        "query": lambda self, **kw: {"matches": [
+            {"metadata": {"text": "SECRET TEACHER MATERIAL"}, "score": 0.9}
+        ]},
+    })()
+    A.client = type("_G", (), {
+        "models": type("_M", (), {
+            "generate_content": lambda self, **kw: type("_R", (), {"text": "an answer"})()
+        })()
+    })()
+
+    def ask(role):
+        signed_in_as(uid="u-" + role, role=role)
+        r = c.post("/chat", json={"message": "hi", "class_id": "c1"})
+        assert r.status_code == 200, r.get_json()
+        return r.get_json()
+
+    student = ask("student")
+    assert student["rules_used"] == [], "student was sent the class material"
+    assert "SECRET TEACHER MATERIAL" not in A.json.dumps(student), "material leaked in the response"
+    # ...but the student still learns whether anything backed the answer, which is
+    # what the "knowledge gap" note in the UI hangs off now that rules are empty.
+    assert student["grounded"] is True, "students lost the grounded signal"
+
+    teacher = ask("teacher")
+    assert teacher["rules_used"] == ["SECRET TEACHER MATERIAL"], "teacher lost their sources"
+
+
 if __name__ == "__main__":
     test_gate()
     test_teacher_code()
     test_docx_expansion_cap()
-    print("ok — auth gate, teacher code, register throttle, and docx expansion cap all hold")
+    test_join_throttle_is_not_only_per_uid()
+    test_sources_are_not_sent_to_students()
+    print("ok — auth gate, teacher code, register + join throttles, docx expansion "
+          "cap, and teacher-only sources all hold")

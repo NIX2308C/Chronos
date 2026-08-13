@@ -26,8 +26,10 @@ The front-end is a small set of static pages that share one dark design: indigo 
 
 ## Pages
 
-- `/` is the landing page.
-- `/login.html` handles sign in and sign up, for students and teachers.
+- `/` is the sign-in page (there is no separate landing page; `/landing.html`
+  redirects here so old links still work).
+- `/login.html` handles sign in and sign up, for students and teachers. A user
+  who is already signed in is sent straight on to their own panel.
 - `/student.html` is the student tutor (you need to be in a class to use it).
 - `/teacherknowledge.html` is where teachers create classes and manage their knowledge (teacher only).
 - `/teacherstats.html` shows per-class analytics on student questions (teacher only).

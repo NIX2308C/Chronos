@@ -40,4 +40,13 @@ assert [r["question"] for r in out] == ["real"], out
 # Empty input is an empty list, not a crash.
 assert g([]) == []
 
-print("ok - stats grouping: dedupe, distinct askers, and ranking all hold")
+# Knowledge Gaps only lists questions a teacher can act on. Retrieval finds
+# nothing for a keysmash or a swear either, so without this they filled the list.
+q = A._is_real_question
+for junk in ["j", "g", "fuck", "shit", "fuck you", "wtf is this", "hi", "ok", "", None]:
+    assert not q(junk), junk
+for real in ["what is osmosis", "define photosynthesis", "How do I complete the square?",
+             "qu'est-ce que l'osmose"]:
+    assert q(real), real
+
+print("ok - stats grouping: dedupe, distinct askers, ranking, and gap filtering hold")

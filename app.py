@@ -1,5 +1,6 @@
 import os
 import gc
+import re
 import json
 import time
 import hmac
@@ -1316,6 +1317,33 @@ def _group_questions(rows):
     ]
 
 
+# Junk that retrieval fails on for reasons a teacher can't fix: a stray keypress,
+# a greeting, abuse. Without this filter every one of them lands in Knowledge
+# Gaps looking like uncovered course material.
+_PROFANITY = {
+    "fuck", "fucks", "fucking", "fucked", "fuk", "fck", "wtf", "stfu",
+    "shit", "shits", "shitty", "bullshit", "crap", "bitch", "bitches",
+    "cunt", "dick", "cock", "pussy", "asshole", "arsehole", "ass", "arse",
+    "bastard", "whore", "slut", "nigga", "nigger", "faggot", "fag",
+    "retard", "retarded", "twat", "wanker", "prick", "bollocks",
+}
+_WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
+_MIN_QUESTION_LETTERS = 8
+
+
+def _is_real_question(text):
+    """True when a gap row is worth showing a teacher.
+
+    An empty retrieval means "nothing matched", and "j" or "fuck" match nothing
+    just as surely as a genuinely uncovered topic does. Two words with at least
+    _MIN_QUESTION_LETTERS characters between them, and no slur among them.
+    """
+    words = _WORD_RE.findall(str(text or "").lower())
+    if len(words) < 2 or sum(len(w) for w in words) < _MIN_QUESTION_LETTERS:
+        return False
+    return not any(w in _PROFANITY for w in words)
+
+
 # Wording the tutor falls back to when a question isn't covered by the material.
 _GAP_PHRASES = (
     "don't have", "do not have", "not in my", "isn't in", "is not in",
@@ -1369,7 +1397,7 @@ def summarize_exchange(prev, is_new, question, answer, rules):
     if len(context) < _SUMMARY_CONTEXT_CHARS:
         summary["context"] = (context + " " + question).strip()[:_SUMMARY_CONTEXT_CHARS]
 
-    if _is_unanswered({"rules": rules, "content": answer}):
+    if _is_unanswered({"rules": rules, "content": answer}) and _is_real_question(question):
         gaps = [] if is_new else list(prev.get("gaps") or [])
         gaps.append(question[:_SUMMARY_OPENING_CHARS])
         summary["gaps"] = gaps[-_SUMMARY_MAX_GAPS:]
@@ -1472,7 +1500,9 @@ def stats():
                     opening = (d.get("opening") or d.get("title") or "").strip()
                     if not opening:
                         continue
-                    chat_gaps = d.get("gaps") or []
+                    # Re-filtered on read: chats summarized before _is_real_question
+                    # existed still carry keysmashes and abuse in their gap list.
+                    chat_gaps = [q for q in (d.get("gaps") or []) if _is_real_question(q)]
                     convos.append({
                         "opening": opening,
                         "context": (d.get("context") or opening),
@@ -1501,7 +1531,8 @@ def stats():
                             msgs.append((m.get("timestamp"), content))
                             last_student = (m.get("timestamp"), content)
                     elif role == "teacher" and last_student and _is_unanswered(m):
-                        chat_gaps.append((_ts_seconds(last_student[0]), last_student[1]))
+                        if _is_real_question(last_student[1]):
+                            chat_gaps.append((_ts_seconds(last_student[0]), last_student[1]))
                         last_student = None
                 if msgs:
                     msgs.sort(key=lambda x: _ts_seconds(x[0]))

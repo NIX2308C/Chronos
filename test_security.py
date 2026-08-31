@@ -135,12 +135,26 @@ def test_sources_are_not_sent_to_students():
         def set(self, *_a, **_k):
             pass
 
+    class _FakeQuery:
+        def limit(self, _n):
+            return self
+
+        def stream(self):
+            return iter(())
+
     class _FakeChats:
         def document(self, _id=None):
             return _FakeChatDoc()
 
+        # /chat also reads this student's other chats in the class (recollection)
+        # and their uploaded work. Both are empty here — this test is about what
+        # comes back out, not what went in.
+        def where(self, *_a, **_k):
+            return _FakeQuery()
+
     A.user_in_class = lambda uid, cid, role: True
     A._user_chats = lambda uid: _FakeChats()
+    A._user_files = lambda uid: _FakeChats()
     A.load_history = lambda *_a, **_k: []
     A.embed = lambda _t: [0.0] * A.EMBED_DIM
     A.summarize_exchange = lambda *_a, **_k: {}

@@ -163,6 +163,19 @@
     .composer { background:var(--c-paper); border:1px solid var(--c-rule); transition:border-color .15s ease }
     .composer:focus-within { border-color:var(--crimson) }
 
+    /* ---- the student's own work: assignment + rubric ---- */
+    .attach-btn { display:inline-flex; align-items:center; gap:5px; padding:4px 9px; font:inherit;
+        font-size:12.5px; background:transparent; border:1px solid var(--c-rule); color:var(--c-sub);
+        cursor:pointer; transition:color .15s ease, border-color .15s ease }
+    .attach-btn:hover:not(:disabled) { color:var(--crimson); border-color:var(--crimson) }
+    .attach-btn:disabled { opacity:.45; cursor:default }
+    .file-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 9px;
+        font-size:12.5px; background:var(--c-hi); color:var(--c-ink); max-width:15rem }
+    .file-chip .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+    .file-chip button { background:none; border:none; padding:0; cursor:pointer; color:var(--c-sub);
+        display:flex; align-items:center }
+    .file-chip button:hover { color:var(--crimson) }
+
     .fld { background:var(--c-paper); border:1px solid var(--c-rule); color:var(--c-ink); border-radius:0;
         transition:border-color .15s }
     .fld:focus { outline:none; border-color:var(--crimson) }
@@ -301,13 +314,25 @@
 <!-- Input -->
 <div class="flex-none px-6 md:px-8 pt-4 pb-3.5" style="border-top:1px solid var(--c-rule)">
 <div class="max-w-[720px] mx-auto">
+<!-- The student's own work: reviewed by the tutor, never added to the class material. -->
+<div class="flex items-center flex-wrap gap-2 mb-2" id="fileBar">
+<span class="flex items-center flex-wrap gap-2" id="fileChips"></span>
+<button class="attach-btn" data-kind="assignment" title="Your work, for the tutor to review">
+<span class="material-symbols-outlined text-[16px]">upload_file</span><span>Assignment</span>
+</button>
+<button class="attach-btn" data-kind="rubric" title="The criteria your work is marked against">
+<span class="material-symbols-outlined text-[16px]">checklist</span><span>Rubric</span>
+</button>
+<span class="font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal" id="fileErr"></span>
+<input accept=".pdf,.docx,.txt,.md,.csv" class="hidden" id="fileInput" type="file"/>
+</div>
 <div class="composer p-2 pl-3.5 flex items-end gap-2.5">
 <textarea class="w-full bg-transparent border-none focus:ring-0 resize-none max-h-32 min-h-[44px] py-2 px-0 font-body-md text-[15.5px] text-on-surface placeholder:text-on-surface-variant" id="input" placeholder="Ask a question…" rows="1"></textarea>
 <button class="sendbtn" id="sendBtn" title="Send">
 <span class="material-symbols-outlined fill text-[19px]">arrow_upward</span>
 </button>
 </div>
-<p class="text-center mt-2.5 font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal">Answers come from your teacher&rsquo;s uploaded material only.</p>
+<p class="text-center mt-2.5 font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal">Answers come from your teacher&rsquo;s material, plus any work you attach.</p>
 </div>
 </div>
 </section>
@@ -398,7 +423,8 @@
       const d=await Chronos.apiJson("/chats/"+encodeURIComponent(c.id)+"/messages",undefined,"GET");
       // gap follows the server's `grounded` flag, not the length of `rules` —
       // students aren't sent the sources at all (see /chats/<id>/messages).
-      c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],gap:m.role==="teacher"&&!m.grounded}));
+      c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],
+        reviewed:!!m.reviewed,gap:m.role==="teacher"&&!m.grounded&&!m.reviewed}));
       c.loaded=true;
       if(c.id===activeChatId)renderMessages();
     }catch(e){setStatus("offline");}
@@ -497,6 +523,7 @@
     // An answer with no sources behind it is the "not in this class's material"
     // refusal — the same empty-rules signal the server counts as a knowledge gap.
     if(m.gap)w.appendChild(gapNote());
+    if(m.reviewed)w.appendChild(reviewedNote());
     // Sources are teacher-only: students never see the underlying material,
     // teachers get a collapsible dropdown beneath the answer.
     if(IS_TEACHER&&m.rules&&m.rules.length){w.appendChild(buildSourcesDropdown(m.rules));}
@@ -507,6 +534,16 @@
     const p=document.createElement("p");
     p.className="mt-3.5 text-primary text-[13.5px] leading-relaxed";
     p.textContent="Sent to your teacher as a gap in the class material.";
+    return p;
+  }
+
+  // Answered from the work the student attached, because nothing in the class
+  // material matched. The teacher still counts it as a gap — but printing "not in
+  // my knowledge base" under a full review of their essay would just be untrue.
+  function reviewedNote(){
+    const p=document.createElement("p");
+    p.className="mt-3.5 text-on-surface-variant text-[13.5px] leading-relaxed";
+    p.textContent="Based on the work you attached — your class material doesn’t cover this.";
     return p;
   }
 
@@ -587,10 +624,12 @@
       // `grounded` comes from the server, which is the only side that can see
       // the sources: students are never sent rules_used, so an empty list here
       // no longer means "nothing backed this answer".
-      tm.content=data.response||"";tm.rules=data.rules_used||[];tm.gap=!data.grounded;
+      tm.content=data.response||"";tm.rules=data.rules_used||[];
+      tm.reviewed=!!data.reviewed;tm.gap=!data.grounded&&!tm.reviewed;
       b.textContent="";
       typeOut(b,tm.content,()=>{
         if(tm.gap)el.appendChild(gapNote());
+        if(tm.reviewed)el.appendChild(reviewedNote());
         if(IS_TEACHER&&tm.rules.length){el.appendChild(buildSourcesDropdown(tm.rules));}
         scrollBottom();setSending(false);
       });
@@ -663,6 +702,7 @@
   function applyClassFilter(){
     chats=ALL_CHATS.filter(c=>c.classId===ACTIVE_CLASS);
     activeChatId=null;
+    loadFiles();   // attachments are per class too — they don't follow you across
     if(chats.length){renderSidebar();selectChat(chats[0].id);}
     else newChat();
   }
@@ -675,6 +715,78 @@
     }catch(e){ALL_CHATS=[];}
     applyClassFilter();
   }
+
+  // ---- the student's own work (assignment + rubric) ----
+  // The server keys these by class, so this list is swapped on every class switch
+  // exactly like the conversations are: nothing a student attaches follows them
+  // into another class.
+  let FILES=[],FILE_MAX=3,PENDING_KIND=null;
+
+  function fileErr(msg){
+    const el=$s("fileErr");el.textContent=msg||"";
+    if(msg)setTimeout(()=>{if(el.textContent===msg)el.textContent="";},7000);
+  }
+
+  function renderFiles(){
+    const box=$s("fileChips");box.innerHTML="";
+    FILES.forEach(f=>{
+      const chip=document.createElement("span");chip.className="file-chip";
+      const icon=document.createElement("span");
+      icon.className="material-symbols-outlined text-[15px] flex-shrink-0";
+      icon.textContent=f.kind==="rubric"?"checklist":"description";
+      const nm=document.createElement("span");nm.className="nm";
+      // textContent, not innerHTML: this filename came off the student's disk.
+      nm.textContent=f.name;nm.title=f.kind+": "+f.name;
+      const x=document.createElement("button");x.title="Remove";
+      x.innerHTML='<span class="material-symbols-outlined text-[15px]">close</span>';
+      x.onclick=()=>removeFile(f.id);
+      chip.appendChild(icon);chip.appendChild(nm);chip.appendChild(x);
+      box.appendChild(chip);
+    });
+    document.querySelectorAll(".attach-btn").forEach(b=>{b.disabled=FILES.length>=FILE_MAX;});
+  }
+
+  async function loadFiles(){
+    FILES=[];renderFiles();
+    if(!ACTIVE_CLASS)return;
+    try{
+      const d=await Chronos.apiJson("/student/files?class_id="+encodeURIComponent(ACTIVE_CLASS),undefined,"GET");
+      FILES=d.files||[];if(d.max)FILE_MAX=d.max;
+    }catch(e){FILES=[];}
+    renderFiles();
+  }
+
+  async function uploadFile(kind,file){
+    if(!ACTIVE_CLASS)return;
+    const fd=new FormData();
+    fd.append("class_id",ACTIVE_CLASS);fd.append("kind",kind);fd.append("file",file);
+    document.querySelectorAll(".attach-btn").forEach(b=>{b.disabled=true;});
+    fileErr("Reading "+file.name+"…");
+    try{
+      // No Content-Type header: FormData has to set its own multipart boundary.
+      const res=await Chronos.apiFetch("/student/files",{method:"POST",body:fd});
+      let d={};try{d=await res.json();}catch(e){}
+      if(!res.ok||d.error){fileErr(d.error||"Could not attach that file.");renderFiles();return;}
+      FILES.push({id:d.id,name:d.name,kind:d.kind});
+      fileErr(d.warning||"");
+    }catch(e){fileErr("Can’t reach the server.");}
+    renderFiles();
+  }
+
+  async function removeFile(id){
+    try{await Chronos.apiJson("/student/files/"+encodeURIComponent(id),undefined,"DELETE");}
+    catch(e){fileErr((e&&e.message)||"Could not remove that file.");return;}
+    FILES=FILES.filter(f=>f.id!==id);renderFiles();
+  }
+
+  document.querySelectorAll(".attach-btn").forEach(b=>{
+    b.onclick=()=>{PENDING_KIND=b.dataset.kind;const i=$s("fileInput");i.value="";i.click();};
+  });
+  $s("fileInput").onchange=e=>{
+    const f=e.target.files&&e.target.files[0];
+    if(f&&PENDING_KIND)uploadFile(PENDING_KIND,f);
+    PENDING_KIND=null;
+  };
 
   function showJoinGate(){
     $s("joinErr").classList.add("hidden");

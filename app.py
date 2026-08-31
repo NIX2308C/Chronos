@@ -1518,7 +1518,7 @@ _PROFANITY = {
     "shit", "shits", "shitty", "bullshit", "crap", "bitch", "bitches",
     "cunt", "dick", "cock", "pussy", "asshole", "arsehole", "ass", "arse",
     "bastard", "whore", "slut", "nigga", "nigger", "faggot", "fag",
-    "retard", "retarded", "twat", "wanker", "prick", "bollocks",
+    "retard", "retarded", "twat", "wanker", "prick", "bollocks", "shit"
 }
 _WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
 _MIN_QUESTION_LETTERS = 8

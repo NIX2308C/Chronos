@@ -30,12 +30,12 @@
    ============================================================ */
 
 html.dark {
-  --d-page:    #0B0B0C;   /* page background — near black          */
-  --d-paper:   #141317;   /* cards, sidebars, bubbles, input bar    */
-  --d-raised:  #1E1E23;   /* hover fills, chips, table stripes      */
+  --d-page:    #0D0D10;   /* page background — near black          */
+  --d-paper:   #16161B;   /* cards, sidebars, bubbles, input bar    */
+  --d-raised:  #212128;   /* hover fills, chips, table stripes      */
   --d-text:    #F7F4EC;   /* primary text                           */
-  --d-muted:   #A9A499;   /* secondary text                         */
-  --d-edge:    #3A3A3E;   /* borders                                */
+  --d-muted:   #B3AEA3;   /* secondary text                         */
+  --d-edge:    #3D3D46;   /* borders                                */
   --d-crimson: #FF3B4E;   /* crimson lightened for TEXT on near-black
                              (fills keep the true brand #E2001A)    */
   color-scheme: dark;
@@ -109,9 +109,18 @@ html.dark .text-on-error-container  { color: #FF8A80 !important; }
 /* the chat input fades into the page background; repoint the
    gradient stops to the dark page color */
 html.dark .from-background {
-  --tw-gradient-from: #0B0B0C var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgb(11 11 12 / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-from: #0D0D10 var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(13 13 16 / 0) var(--tw-gradient-to-position) !important;
 }
 html.dark .via-background {
-  --tw-gradient-stops: var(--tw-gradient-from), #0B0B0C var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), #0D0D10 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
 }
+
+/* Give dark controls and overlays a little more depth while retaining the
+   app's square, print-inspired visual language. */
+html.dark input,
+html.dark textarea,
+html.dark select { caret-color: var(--d-crimson); }
+html.dark input::placeholder,
+html.dark textarea::placeholder { color: #85817A !important; opacity: 1; }
+html.dark .px-tag { background: #101014; }

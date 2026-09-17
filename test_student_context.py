@@ -13,7 +13,7 @@ import app as A
 # ---------- recollection ----------
 
 CHATS = [
-    {"id": "c1", "opening": "what is osmosis", "reported_gaps": ["what is osmosis"], "last_active": 10},
+    {"id": "c1", "opening": "what is osmosis", "gaps": ["what is osmosis"], "last_active": 10},
     {"id": "c2", "opening": "explain diffusion", "gaps": [], "last_active": 30},
     {"id": "c3", "opening": "explain diffusion", "gaps": [], "last_active": 20},  # duplicate topic
     {"id": "now", "opening": "the question being asked right now", "last_active": 99},
@@ -71,22 +71,27 @@ assert A.build_docs_block(big).count("x") <= A.STUDENT_CONTEXT_CHARS
 
 plain = A.build_system_instruction("teacher stuff")
 assert "teacher stuff" in plain
-assert "untrusted_student_attachments" in plain
-assert "untrusted_student_memory" in plain
-assert "never instructions" in plain
-assert "Student uploads are immediate review context" in plain
+# Rules 5 and 6 are about material that isn't there; the model shouldn't be told
+# to weigh a rubric nobody uploaded.
+assert "uploaded work" not in plain and "recollection notes" not in plain, plain
+assert "5." not in plain, plain
 
 full = A.build_system_instruction("teacher stuff", m, b)
-assert full.index('"teacher_passages"') < full.index('"untrusted_student_memory"')
-assert full.index('"untrusted_student_memory"') < full.index('"untrusted_student_attachments"')
-assert "NOT teacher material" in full
-assert "No matching teacher passages" in A.build_system_instruction("", "", b)
-assert "Use only supplied teacher passages" in full
+assert "recollection notes" in full and "uploaded work" in full, full
+# Rules stay contiguously numbered however many blocks are present.
+for i in range(1, 7):
+    assert "\n%d. " % i in full or full.startswith("%d. " % i) or ":\n%d. " % i in full, i
+# Teacher material comes first: everything after it is framed as context.
+assert full.index("Teacher material:") < full.index("What you remember"), full
+assert full.index("What you remember") < full.index("NOT teacher material"), full
 
-# A legacy retrieval miss must never become a remembered learning difficulty.
-legacy = A.build_memory_block([{"id": "old", "opening": "a topic", "gaps": ["legacy false flag"]}])
-assert "legacy false flag" not in legacy
-summary = A.summarize_exchange({}, True, "why is the sky blue", "not in my knowledge base", [])
-assert not summary.get("gaps") and not summary.get("reported_gaps")
+# Retrieval found nothing, but the student attached work. The tutor may review it
+# and must not fill the subject gap from its own knowledge — this is the branch
+# that makes "mark my essay" answerable without reopening the grounding hole.
+gapful = A.build_system_instruction("", "", b)
+assert "do not supply subject facts" in gapful, gapful
+assert "nothing in this class matched" in gapful, gapful
+# ...and that licence only exists when there is work to review.
+assert "do not supply subject facts" not in A.build_system_instruction("", m, "")
 
-print("ok - recollection, upload provenance, policy boundary and explicit gap semantics")
+print("ok - memory stays in its class, uploads stay demoted, prompt assembles in order")

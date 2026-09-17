@@ -3,7 +3,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
-<title>Chronos | Course material</title>
+<title>Chronos | Class material</title>
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
 <link href="transition.css" rel="stylesheet"/>
 <script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
@@ -98,7 +98,6 @@
     [data-panels]{grid-template-columns:minmax(0,1fr)!important}
   }
 </style>
-<link href="theme.css" rel="stylesheet"/>
 </head>
 <body>
 
@@ -118,18 +117,18 @@
     </div>
 
     <div data-scroll style="padding:16px 12px 8px;overflow-y:auto;min-height:0">
-      <div style="font-size:12.5px;font-weight:600;color:var(--mid);padding:0 8px 8px">Your courses</div>
+      <div style="font-size:12.5px;font-weight:600;color:var(--mid);padding:0 8px 8px">Your classes</div>
       <div id="classList"></div>
       <div style="display:flex;align-items:center;gap:4px;margin-top:4px">
-        <button id="newClassBtn" style="flex:1;display:flex;align-items:center;gap:7px;background:transparent;border:none;padding:12px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer" title="Create a course">
+        <button id="newClassBtn" style="flex:1;display:flex;align-items:center;gap:7px;background:transparent;border:none;padding:12px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer" title="Create a class">
           <span class="msym" style="font-size:18px">add</span>New class
         </button>
-        <button id="deleteClassBtn" class="ibtn hidden" title="Delete this course"><span class="msym" style="font-size:18px">delete</span></button>
+        <button id="deleteClassBtn" class="ibtn hidden" title="Delete this class"><span class="msym" style="font-size:18px">delete</span></button>
       </div>
     </div>
 
     <nav style="margin-top:8px;padding:12px;border-top:1px solid var(--rule);display:flex;flex-direction:column">
-      <span class="side-link on"><span class="msym" style="font-variation-settings:'FILL' 1">folder_open</span>Course material</span>
+      <span class="side-link on"><span class="msym" style="font-variation-settings:'FILL' 1">folder_open</span>Class material</span>
       <a class="side-link" href="teacherstats.html"><span class="msym">insights</span>Analytics</a>
       <a class="side-link" href="student.html"><span class="msym">chat</span>Preview as student</a>
     </nav>
@@ -174,13 +173,11 @@
         </div>
       </div>
 
-      <section id="courseSettings" class="tool-card course-settings" style="margin-bottom:28px" aria-label="Tutor settings"></section>
-
       <div data-panels style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;margin-bottom:44px;align-items:start">
 
         <section class="card panel">
           <div class="panel-hd">
-            <h2 class="lbl" style="margin:0;font-family:inherit">Custom rules</h2>
+            <h2 class="lbl" style="margin:0;font-family:inherit">Rules</h2>
             <span id="ruleCount" style="font-size:13.5px;color:var(--mid)"></span>
           </div>
           <div style="padding:16px 18px;border-bottom:1px solid var(--rule2)">
@@ -194,7 +191,7 @@
           </div>
           <div id="rulesList" class="panel-body" data-scroll style="max-height:340px"></div>
           <p id="rulesEmpty" class="hidden" style="margin:0;padding:20px 18px;font-size:14.5px;line-height:1.6;color:var(--mid)">No rules yet. Type one above and hit Add.</p>
-          <p id="rulesNote" class="hidden panel-note">Showing the first <span data-cap></span> rules only &mdash; this course has more than the list can fetch.</p>
+          <p id="rulesNote" class="hidden panel-note">Showing the first <span data-cap></span> rules only &mdash; this class has more than the list can fetch.</p>
         </section>
 
         <section class="card panel">
@@ -214,7 +211,7 @@
       </div>
 
       <section>
-        <h2 class="lbl" style="margin:0 0 8px;font-family:inherit;font-size:14px">Check what the course can answer</h2>
+        <h2 class="lbl" style="margin:0 0 8px;font-family:inherit;font-size:14px">Check what the class can answer</h2>
         <p style="margin:0 0 14px;font-size:14.5px;line-height:1.6;color:var(--sub);max-width:62ch">Ask as a student would. You will see the reply and the passages it was built from.</p>
         <form id="probeForm" style="display:flex;gap:10px;margin-bottom:18px;max-width:640px">
           <label for="probeInput" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap">Ask a question as a student would</label>
@@ -235,9 +232,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
-<script src="course-settings.js"></script>
-<script src="toolkit.js"></script>
-<script src="account.js"></script>
 <script src="theme.js"></script>
 <script src="transition.js"></script>
 <script>
@@ -265,7 +259,7 @@
   function withClass(body){ return Object.assign({},body||{},{class_id:ACTIVE_CLASS}); }
   function activeClassObj(){ return CLASSES.find(c=>c.id===ACTIVE_CLASS); }
   function ensureClass(){
-    if(!ACTIVE_CLASS){showToast("Create or pick a course first.",false);return false;}
+    if(!ACTIVE_CLASS){showToast("Create or pick a class first.",false);return false;}
     return true;
   }
   async function lock(){ try{await Chronos.logout();}catch(e){} ChronosWipe.go("login.html?role=teacher",true); }
@@ -289,14 +283,14 @@
     }
   }
 
-  // ---------- courses ----------
+  // ---------- classes ----------
   function renderClasses(){
     const list=$("classList");
     list.innerHTML="";
     if(!CLASSES.length){
       const p=document.createElement("p");
       p.style.cssText="margin:0;padding:4px 12px 8px;font-size:13px;color:var(--faint)";
-      p.textContent="No courses yet.";
+      p.textContent="No classes yet.";
       list.appendChild(p);
       return;
     }
@@ -320,8 +314,8 @@
     $("deleteClassBtn").classList.toggle("hidden",!c);
     $("copyBtn").classList.toggle("hidden",!(c&&c.join_code));
     if(!c){
-      $("className").textContent="No course yet";
-      $("classMeta").textContent="Make a course, then hand out its join code.";
+      $("className").textContent="No class yet";
+      $("classMeta").textContent="Make a class, then hand out its join code.";
       return;
     }
     $("className").textContent=c.name;
@@ -354,11 +348,11 @@
   }
 
   async function newClass(){
-    const name=prompt("Name your course (e.g. 'Physics 101'):");
+    const name=prompt("Name your class (e.g. 'Physics 101'):");
     if(!name||!name.trim())return;
     try{
       const c=await Chronos.createClass(name.trim());
-      showToast("Course created"+(c.migrated_rules?`. Moved ${c.migrated_rules} existing rules in`:"")+". Code: "+c.join_code,true);
+      showToast("Class created"+(c.migrated_rules?`. Moved ${c.migrated_rules} existing rules in`:"")+". Code: "+c.join_code,true);
       EDITING=null;
       await loadClasses(c.id);
       loadRules();
@@ -370,7 +364,7 @@
     if(!confirm(`Delete "${c.name}" and all its material? This cannot be undone.`))return;
     try{
       await Chronos.deleteClass(c.id);
-      showToast("Course deleted",true);
+      showToast("Class deleted",true);
       EDITING=null;
       await loadClasses();
       loadRules();
@@ -378,7 +372,7 @@
   }
 
   // ---------- rules + documents ----------
-  // /rules returns every vector in the course. Ones with a `source` came out of an
+  // /rules returns every vector in the class. Ones with a `source` came out of an
   // uploaded file (many chunks per file); the rest are the teacher's typed rules,
   // which is what the textarea edits — one rule per line.
   // Pinecone's zero-vector query scores every match the same, so it hands them back
@@ -394,7 +388,6 @@
   }
 
   async function loadRules(){
-    loadCourseSettings(ACTIVE_CLASS);
     if(!ACTIVE_CLASS){
       RULES=[];EDITING=null;TRUNC={rules:false,docs:false};
       renderRules();renderDocs();paintHeader();return;
@@ -416,7 +409,7 @@
     const rules=handRules();
     const list=$("rulesList");
     list.innerHTML="";
-    $("ruleCount").textContent=rules.length+(TRUNC.rules?"+":"")+" in this course";
+    $("ruleCount").textContent=rules.length+(TRUNC.rules?"+":"")+" in this class";
     $("rulesEmpty").classList.toggle("hidden",rules.length>0);
     $("rulesNote").classList.toggle("hidden",!TRUNC.rules);
     // When the list is capped, what came back *is* the cap.
@@ -587,7 +580,7 @@
     const docs=computeDocs();
     const list=$("docsList");
     list.innerHTML="";
-    $("docCount").textContent=docs.length+" in this course";
+    $("docCount").textContent=docs.length+" in this class";
     $("docsEmpty").classList.toggle("hidden",docs.length>0);
     $("docsNote").classList.toggle("hidden",!TRUNC.docs);
     docs.forEach(d=>{
@@ -665,7 +658,7 @@
       // 413 is both "body too big" and "this archive expands to too much" — the
       // server's own wording distinguishes them, so prefer it when there is one.
       if(res.status===413)throw new Error(data.error||"That file is too large to upload.");
-      if(res.status===401||res.status===403)throw new Error(data.error||"You're not allowed to upload to this course.");
+      if(res.status===401||res.status===403)throw new Error(data.error||"You're not allowed to upload to this class.");
       if(!res.ok||data.error)throw new Error(data.details||data.error||("Upload failed ("+res.status+")."));
       clearTimeout(t1);clearTimeout(t2);
       bar.style.animation="none";
@@ -704,7 +697,6 @@
       ans.style.cssText="margin:0;font-family:Newsreader,serif;font-size:18px;line-height:1.62";
       ans.textContent=d.response||"";
       box.appendChild(ans);
-      if(d.artifacts?.length)box.appendChild(ChronosTools.render(d.artifacts,d.chat_id));
       const used=d.rules_used||[];
       if(used.length){
         const src=document.createElement("div");
@@ -802,10 +794,10 @@
 </div>
 <script>
   (function(){
-    const TITLE="Getting your course going";
+    const TITLE="Getting your class going";
     const KEY="chronos_tut_knowledge_v2";
     const STEPS=[
-      {icon:"add",title:"Make a course",text:"Each class is its own separate shelf. Make one, then hand out its join code (up in the sidebar) so your students can get in."},
+      {icon:"add",title:"Make a class",text:"Each class is its own separate shelf. Make one, then hand out its join code (up in the sidebar) so your students can get in."},
       {icon:"gavel",title:"Write your rules",text:"Type a ground rule into the Rules box and hit Add — things like \"don't just hand over homework answers\" or \"stick to the textbook\". Got a whole list already? Paste it in, one per line, and hit Add bulk. Click any rule afterwards to reword it."},
       {icon:"description",title:"Upload your material",text:"Add PDFs, Word docs, lecture notes. We pull the text out so the tutor can answer from your actual course content."},
       {icon:"lightbulb",title:"That's its whole world",text:"It only answers from what's on this page. Anything else and it says it doesn't know, rather than having a guess."},

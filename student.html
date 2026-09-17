@@ -80,7 +80,7 @@
 </script>
 <style>
     /* Custom components use these vars so they follow the theme on their own;
-       theme.css only has to repoint the Tailwind-generated utility courses. */
+       theme.css only has to repoint the Tailwind-generated utility classes. */
     :root{--c-page:#E9E4D6;--c-paper:#F7F4EC;--c-ink:#141311;--c-sub:#5D5B55;--c-edge:#1C1A16;
           --c-hi:#E4DECD;--c-rule:#DED8C6;--crimson:#E2001A;--gold:#C9A227;
           --snap:cubic-bezier(.2,1.45,.35,1)}
@@ -94,8 +94,8 @@
     .material-symbols-outlined { font-family: 'Material Symbols Sharp'; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
     .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
     .mono { font-family: 'Schibsted Grotesk', sans-serif; }
-    /* Custom courses below set `display`, which would beat Tailwind's .hidden on a
-       tie. Scope the fix to those courses — a blanket `.hidden{display:none!important}`
+    /* Custom classes below set `display`, which would beat Tailwind's .hidden on a
+       tie. Scope the fix to those classes — a blanket `.hidden{display:none!important}`
        also outranks `md:flex`/`sm:inline`, which permanently hides every element that
        is meant to appear only at a breakpoint (e.g. the sidebar). */
     .hidden.kbtn, .hidden.ibtn, .hidden.chat-row { display:none; }
@@ -219,13 +219,13 @@
 <span class="material-symbols-outlined text-on-surface-variant text-3xl spin">progress_activity</span>
 </div>
 
-<!-- Join-class gate: the tutor is unusable until the student joins a course -->
+<!-- Join-class gate: the tutor is unusable until the student joins a class -->
 <div class="hidden fixed inset-0 z-40 flex items-center justify-center bg-background p-margin-mobile" id="joinGate">
 <div class="w-full max-w-sm bg-surface-container-lowest hard cast-red p-stack-lg text-center" id="joinCard">
 <div class="w-14 h-14 bg-secondary text-on-secondary flex items-center justify-center mx-auto mb-stack-md">
 <span class="material-symbols-outlined text-[28px]">group_add</span>
 </div>
-<h1 class="font-headline-md text-headline-md text-on-background mb-2">Join a course</h1>
+<h1 class="font-headline-md text-headline-md text-on-background mb-2">Join a class</h1>
 <p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Pop in the code your teacher gave you and you&rsquo;re in.</p>
 <input class="fld w-full mono px-4 py-3 text-center tracking-[.25em] uppercase text-[15px]" id="joinCodeInput" maxlength="12" placeholder="CLASS CODE" type="text"/>
 <p class="hidden mt-stack-md font-label-sm text-label-sm text-on-error-container bg-error-container border border-error px-3 py-2" id="joinErr"></p>
@@ -240,15 +240,15 @@
 <h1 class="font-headline-md text-headline-md text-on-background leading-none">Chronos<span class="text-primary">.</span></h1>
 <span class="slabel block mt-1" style="font-weight:400" id="modeLabel">Student</span>
 </a>
-<!-- Course switcher: which course's tutor you're talking to -->
+<!-- Class switcher: which class's tutor you're talking to -->
 <div class="px-5 py-4" style="border-bottom:1px solid var(--c-rule)">
-<p class="slabel mb-2">Course</p>
+<p class="slabel mb-2">Class</p>
 <div class="flex gap-1.5">
 <div class="relative flex-1 min-w-0">
 <select class="fld appearance-none w-full min-w-0 font-label-md text-label-md pl-3 pr-8 py-2.5 outline-none cursor-pointer" id="classSwitcher" title="Active class"></select>
 <span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">unfold_more</span>
 </div>
-<button class="flex-shrink-0 w-10 flex items-center justify-center hard text-on-surface-variant hover:bg-primary hover:text-on-primary hover:border-primary transition-colors" id="joinAnotherBtn" title="Join another course">
+<button class="flex-shrink-0 w-10 flex items-center justify-center hard text-on-surface-variant hover:bg-primary hover:text-on-primary hover:border-primary transition-colors" id="joinAnotherBtn" title="Join another class">
 <span class="material-symbols-outlined text-[18px]">add</span>
 </button>
 </div>
@@ -315,7 +315,7 @@
 <!-- Input -->
 <div class="flex-none px-6 md:px-8 pt-4 pb-3.5" style="border-top:1px solid var(--c-rule)">
 <div class="max-w-[720px] mx-auto">
-<!-- The student's own work: reviewed by the tutor, never added to the course material. -->
+<!-- The student's own work: reviewed by the tutor, never added to the class material. -->
 <div class="flex items-center flex-wrap gap-2 mb-2" id="fileBar">
 <span class="flex items-center flex-wrap gap-2" id="fileChips"></span>
 <button class="attach-btn" data-kind="assignment" title="Your work, for the tutor to review">
@@ -343,8 +343,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
-<script src="toolkit.js"></script>
-<script src="account.js"></script>
 <script src="theme.js"></script>
 <script src="transition.js"></script>
 <script>
@@ -393,7 +391,7 @@
   }
 
   // Conversations are stored server-side per signed-in student (cloud sync) and
-  // each belongs to a course. The tutor answers from the active course's rules.
+  // each belongs to a class. The tutor answers from the active class's rules.
   // Local chat shape: {id, title, classId, messages:[], loaded:bool, isNew:bool}
   //   id      — the server chat_id once saved; a temp id before the first message
   //   loaded  — whether this chat's messages have been fetched from the server
@@ -427,7 +425,7 @@
       // gap follows the server's `grounded` flag, not the length of `rules` —
       // students aren't sent the sources at all (see /chats/<id>/messages).
       c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],
-        artifacts:m.artifacts||[],general:!!m.general_knowledge,reviewed:!!m.reviewed,gap:m.role==="teacher"&&!m.grounded&&!m.reviewed&&!m.general_knowledge}));
+        reviewed:!!m.reviewed,gap:m.role==="teacher"&&!m.grounded&&!m.reviewed}));
       c.loaded=true;
       if(c.id===activeChatId)renderMessages();
     }catch(e){setStatus("offline");}
@@ -466,9 +464,9 @@
     });
   }
 
-  // Course-agnostic openers — the server has no notion of suggested questions, so
-  // these work against any course's material rather than inventing topics.
-  const STARTERS=["What does this course cover so far?","Explain the main idea from the latest material.","What should I revise first?"];
+  // Class-agnostic openers — the server has no notion of suggested questions, so
+  // these work against any class's material rather than inventing topics.
+  const STARTERS=["What does this class cover so far?","Explain the main idea from the latest material.","What should I revise first?"];
 
   function className(){const c=CLASSES.find(x=>x.id===ACTIVE_CLASS);return c?c.name:"";}
 
@@ -487,8 +485,8 @@
       e.className="pt-10 pb-2";
       const h=document.createElement("h2");
       h.className="font-headline-lg text-headline-lg text-on-background mb-3";
-      // textContent, not innerHTML: the course name is teacher-supplied.
-      h.textContent="Ask anything from "+(className()||"this course");
+      // textContent, not innerHTML: the class name is teacher-supplied.
+      h.textContent="Ask anything from "+(className()||"this class");
       const p=document.createElement("p");
       p.className="font-body-lg text-body-lg text-on-surface-variant mb-7 max-w-[48ch]";
       p.textContent="Answers come from the documents your teacher uploaded. Where the material stops, so do the answers.";
@@ -523,10 +521,8 @@
     b.className="ai-prose bub-ai";
     if(m.content){b.innerHTML=renderMarkdown(m.content);}
     w.appendChild(b);
-    // An answer with no sources behind it is the "not in this course's material"
+    // An answer with no sources behind it is the "not in this class's material"
     // refusal — the same empty-rules signal the server counts as a knowledge gap.
-    if(m.artifacts?.length)w.appendChild(ChronosTools.render(m.artifacts,activeChatId));
-    if(m.general){const note=document.createElement("small");note.textContent="Your teacher allows knowledge beyond course material.";w.appendChild(note);}
     if(m.gap)w.appendChild(gapNote());
     if(m.reviewed)w.appendChild(reviewedNote());
     // Sources are teacher-only: students never see the underlying material,
@@ -538,17 +534,17 @@
   function gapNote(){
     const p=document.createElement("p");
     p.className="mt-3.5 text-primary text-[13.5px] leading-relaxed";
-    p.textContent="Sent to your teacher as a gap in the course material.";
+    p.textContent="Sent to your teacher as a gap in the class material.";
     return p;
   }
 
-  // Answered from the work the student attached, because nothing in the course
+  // Answered from the work the student attached, because nothing in the class
   // material matched. The teacher still counts it as a gap — but printing "not in
   // my knowledge base" under a full review of their essay would just be untrue.
   function reviewedNote(){
     const p=document.createElement("p");
     p.className="mt-3.5 text-on-surface-variant text-[13.5px] leading-relaxed";
-    p.textContent="Based on the work you attached — your course material doesn’t cover this.";
+    p.textContent="Based on the work you attached — your class material doesn’t cover this.";
     return p;
   }
 
@@ -614,11 +610,11 @@
     setSending(true);
     const tm={role:"teacher",content:"",rules:[]};c.messages.push(tm);
     const el=buildMsgEl(tm);els.messagesInner.appendChild(el);
-    const b=el.querySelector(".ai-prose");b.innerHTML='<span class="cursor"></span><span role="status">Preparing your response and any permitted tools…</span>';scrollBottom();
+    const b=el.querySelector(".ai-prose");b.innerHTML='<span class="cursor"></span>';scrollBottom();
     try{
       // The tutor answers from this chat's class. Omit chat_id for a not-yet-saved
       // conversation; the server creates one.
-      const body={message:text,class_id:c.classId||ACTIVE_CLASS,document_ids:FILES.filter(f=>f.included!==false).map(f=>f.id)};
+      const body={message:text,class_id:c.classId||ACTIVE_CLASS};
       if(!c.isNew)body.chat_id=c.id;
       const res=await Chronos.apiFetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       setStatus("online");
@@ -630,13 +626,9 @@
       // the sources: students are never sent rules_used, so an empty list here
       // no longer means "nothing backed this answer".
       tm.content=data.response||"";tm.rules=data.rules_used||[];
-      tm.artifacts=data.artifacts||[];tm.general=!!data.general_knowledge;
-      tm.reviewed=!!data.reviewed;tm.gap=!data.grounded&&!tm.reviewed&&!tm.general;
+      tm.reviewed=!!data.reviewed;tm.gap=!data.grounded&&!tm.reviewed;
       b.textContent="";
       typeOut(b,tm.content,()=>{
-        if(tm.artifacts.length)el.appendChild(ChronosTools.render(tm.artifacts,c.id));
-        if(tm.general){const n=document.createElement("small");n.textContent="Your teacher allows knowledge beyond course material.";el.appendChild(n);}
-        if(data.memory_degraded){const n=document.createElement("small");n.textContent="Memory summary could not refresh; older details may need repeating.";el.appendChild(n);}
         if(tm.gap)el.appendChild(gapNote());
         if(tm.reviewed)el.appendChild(reviewedNote());
         if(IS_TEACHER&&tm.rules.length){el.appendChild(buildSourcesDropdown(tm.rules));}
@@ -689,7 +681,7 @@
     if(ACTIVE_CLASS)sel.value=ACTIVE_CLASS;
   }
 
-  // Load courses; returns true if the student is in at least one.
+  // Load classes; returns true if the student is in at least one.
   async function loadClasses(){
     try{CLASSES=await Chronos.listClasses();}catch(e){CLASSES=[];}
     let pick=localStorage.getItem(CLASS_KEY);
@@ -707,16 +699,16 @@
     applyClassFilter();
   }
 
-  // Show only the active course's conversations.
+  // Show only the active class's conversations.
   function applyClassFilter(){
     chats=ALL_CHATS.filter(c=>c.classId===ACTIVE_CLASS);
     activeChatId=null;
-    loadFiles();   // attachments are per course too — they don't follow you across
+    loadFiles();   // attachments are per class too — they don't follow you across
     if(chats.length){renderSidebar();selectChat(chats[0].id);}
     else newChat();
   }
 
-  // Load this student's saved conversations (all courses) from the server.
+  // Load this student's saved conversations (all classes) from the server.
   async function loadChats(){
     try{
       const d=await Chronos.apiJson("/chats",undefined,"GET");
@@ -728,7 +720,7 @@
   // ---- the student's own work (assignment + rubric) ----
   // The server keys these by class, so this list is swapped on every class switch
   // exactly like the conversations are: nothing a student attaches follows them
-  // into another course.
+  // into another class.
   let FILES=[],FILE_MAX=3,PENDING_KIND=null;
 
   function fileErr(msg){
@@ -749,8 +741,7 @@
       const x=document.createElement("button");x.title="Remove";
       x.innerHTML='<span class="material-symbols-outlined text-[15px]">close</span>';
       x.onclick=()=>removeFile(f.id);
-      const include=document.createElement("input");include.type="checkbox";include.checked=f.included!==false;include.setAttribute("aria-label","Include "+f.name+" with next message");include.onchange=()=>{f.included=include.checked;};
-      chip.appendChild(include);chip.appendChild(icon);chip.appendChild(nm);chip.appendChild(x);
+      chip.appendChild(icon);chip.appendChild(nm);chip.appendChild(x);
       box.appendChild(chip);
     });
     document.querySelectorAll(".attach-btn").forEach(b=>{b.disabled=FILES.length>=FILE_MAX;});
@@ -806,15 +797,15 @@
   }
   function hideJoinGate(){$s("joinGate").classList.add("hidden");}
 
-  // Teachers own courses — they should never be asked to *join* one with a code.
-  // If a teacher reaches the tutor without a course, point them at the Knowledge
+  // Teachers own classes — they should never be asked to *join* one with a code.
+  // If a teacher reaches the tutor without a class, point them at the Knowledge
   // Base to create one instead of showing the student join-code box.
   function showTeacherNoClassGate(){
     $s("joinCard").innerHTML=
       '<div class="w-14 h-14 bg-secondary text-on-secondary flex items-center justify-center mx-auto mb-stack-md">'+
         '<span class="material-symbols-outlined text-[28px]">school</span></div>'+
-      '<h1 class="font-headline-md text-headline-md text-on-background mb-2">Make a course first</h1>'+
-      '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You haven’t got any courses yet. Set one up in the Knowledge Base and you can try the tutor on your own material.</p>'+
+      '<h1 class="font-headline-md text-headline-md text-on-background mb-2">Make a class first</h1>'+
+      '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You haven’t got any classes yet. Set one up in the Knowledge Base and you can try the tutor on your own material.</p>'+
       '<a class="kbtn w-full" href="teacherknowledge.html"><span>'+
         '<span class="material-symbols-outlined text-[18px] align-middle">add</span> Go to Knowledge Base</span></a>'+
       '<button class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" id="teacherGateLogout">Sign out</button>';
@@ -825,7 +816,7 @@
 
   async function submitJoin(){
     const code=$s("joinCodeInput").value.trim().toUpperCase();
-    if(!code){$s("joinErr").textContent="Enter a course code.";$s("joinErr").classList.remove("hidden");return;}
+    if(!code){$s("joinErr").textContent="Enter a class code.";$s("joinErr").classList.remove("hidden");return;}
     $s("joinBtn").disabled=true;
     try{
       const cls=await Chronos.joinClass(code);
@@ -884,7 +875,7 @@
     const TITLE="Quick tour";
     const KEY="chronos_tut_student_v2";
     const STEPS=[
-      {icon:"school",title:"Pick your course",text:"Use the course menu on the left. Each course only knows what that teacher put into it, so make sure you're on the right one."},
+      {icon:"school",title:"Pick your class",text:"Use the class menu on the left. Each class only knows what that teacher put into it, so make sure you're on the right one."},
       {icon:"forum",title:"Just ask",text:"Type your question and hit Enter. Answers come straight out of your teacher's notes and files, so it isn't making things up."},
       {icon:"flag",title:"If it's not there, it'll say so",text:"Asked something your teacher hasn't covered yet? You'll get told, not fobbed off with a guess. Worth mentioning to them so they can add it."},
     ];

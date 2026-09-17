@@ -1,10 +1,10 @@
 # Chronos
 
-An AI tutor that answers students only from material the teacher provides. Teachers create **courses**, fill each with their own rules and course docs, and share a join code. Students join a class and ask questions, and the tutor responds using just that class's material. Answers stay on the curriculum instead of wandering off into whatever the model happens to know.
+An AI tutor that answers students only from material the teacher provides. Teachers create **classes**, fill each with their own rules and course docs, and share a join code. Students join a class and ask questions, and the tutor responds using just that class's material. Answers stay on the curriculum instead of wandering off into whatever the model happens to know.
 
 ## How it works
 
-Teachers sign in, create one or more classes, and add knowledge to each (PDFs or Word docs, plus private teacher instructions). Each course is an isolated knowledge base: its documents are embedded and stored in its own Pinecone **namespace**, so classes never bleed into each other. A student joins a class with its code, and when they ask something, Chronos pulls the most relevant pieces of *that class's* knowledge and hands them to Gemini, which writes an answer grounded only in those pieces. Every exchange is saved per student, and teachers see per-class analytics.
+Teachers sign in, create one or more classes, and add knowledge to each (PDFs, Word docs, or typed rules). Each class is an isolated knowledge base: its material is embedded and stored in its own Pinecone **namespace**, so classes never bleed into each other. A student joins a class with its code, and when they ask something, Chronos pulls the most relevant pieces of *that class's* knowledge and hands them to Gemini, which writes an answer grounded only in those pieces. Every exchange is saved per student, and teachers see per-class analytics.
 
 ## Accounts and classes
 
@@ -63,7 +63,7 @@ A few optional overrides exist too:
 - `CHAT_RATE_LIMIT` and `CHAT_RATE_WINDOW` (messages allowed per window, in seconds)
 - `JOIN_RATE_LIMIT` and `JOIN_RATE_WINDOW` (class-code attempts per window; default 10 per 5 minutes)
 - `REGISTER_RATE_LIMIT` and `REGISTER_RATE_WINDOW` (teacher-code attempts per window; default 5 per 15 minutes)
-- `HISTORY_TURNS` (recent messages replayed verbatim, default 20; rolling summaries preserve earlier learning context)
+- `HISTORY_TURNS` (how many past turns the tutor remembers, default 20)
 - `MAX_MESSAGES_RETURNED` (cap on messages returned for one conversation, default 500)
 - `ROLE_CACHE_TTL` (seconds a user's role is cached in-process, default 60)
 - `TRUST_PROXY_HOPS` (default 0; set to 1 on Cloud Run so client IPs in the logs are real)
@@ -72,7 +72,7 @@ A few optional overrides exist too:
 
 Rate limits are keyed by Firebase uid, not IP — behind a load balancer every request shares one IP, so an IP-keyed limit would throttle a whole class as though it were a single student. Teacher registration is the one exception, and it's keyed by IP: the attacker there isn't a signed-in student but anyone who can make a Firebase account, which is free and unlimited, so a per-account budget would reset on every guess.
 
-Retrieval is tunable as well. `RETRIEVAL_TOP_K` (default 5) sets how many knowledge chunks each answer draws on, and `RETRIEVAL_MIN_SCORE` (default 0.5, cosine) drops weakly related chunks, so off-topic questions get a truthful "not in my knowledge base" reply instead of being answered from the least-bad matches. Retrieval misses do not create learning-gap reports. Reports require the teacher to enable that toolkit and the student to explicitly submit a course learning difficulty. Firebase admin credentials are read from `firebase_credentials.json` locally, or the `FIREBASE_CREDENTIALS_JSON` env var when deployed.
+Retrieval is tunable as well. `RETRIEVAL_TOP_K` (default 5) sets how many knowledge chunks each answer draws on, and `RETRIEVAL_MIN_SCORE` (default 0.5, cosine) drops weakly related chunks, so off-topic questions get a truthful "not in my knowledge base" reply instead of being answered from the least-bad matches. Those unanswered questions then show up as **Knowledge Gaps** in the analytics. Firebase admin credentials are read from `firebase_credentials.json` locally, or the `FIREBASE_CREDENTIALS_JSON` env var when deployed.
 
 Then start it:
 
@@ -105,28 +105,7 @@ All endpoints below the auth layer expect a Firebase ID token in the `Authorizat
 
 - **Auth and classes:** `/auth/config`, `/auth/register`, `/auth/me`, `/classes` (GET list, POST create), `/classes/join`, `DELETE /classes/<id>`.
 - **Student (any signed-in user in the class):** `/chat`, `/chats`, `/chats/<id>/messages`, `DELETE /chats/<id>`, all class-scoped.
-- **Teacher (owner of the course):** `/ingest`, `/upload`, `/rules`, `/delete_rule`, `/course-settings`, `/stats`, all take a `class_id`.
+- **Teacher (owner of the class):** `/ingest`, `/upload`, `/rules`, `/delete_rule`, `/stats`, all take a `class_id`.
 - `/health` is a plain health check.
 
 Legacy rules from before classes existed are automatically migrated into the first class a teacher creates.
-
-
-## Tutor policy, context and tools
-
-Teacher documents are the only content embedded and searched in Pinecone. A question embedding is sent as the search query, scoped to the course namespace and filtered to document chunks. Teacher instructions are stored separately in `Classes/{id}/Config/tutor` and included with every answer, never selected by similarity. Existing typed rules migrate on first access; their old vectors remain but are excluded from retrieval. Migration refuses to silently truncate courses exceeding 100 rules or 30,000 rule characters; those need an administrator to reduce the legacy rule set before migration.
-
-Student assignments and rubrics stay in the student's Firestore files and go directly to Gemini as untrusted review context. They are **not embedded, indexed or searched in Pinecone**. Attachment checkboxes choose which saved course files accompany the next message. The API validates each selected ID against the student's files in that course. Leaving `document_ids` out preserves the older include-all behavior; an empty list includes none. Existing per-file extraction limits and truncation notices still apply.
-
-Context consists of private policy, up to 24,000 characters of retrieved teacher passages, selected attachments, recent messages (bounded to roughly 40,000 characters), a rolling conversation summary, and bounded recollections from other conversations in the same course. Every four exchanges Gemini compacts pending turns into a summary. Pending turns are persisted between calls, with up to eight retained after failures; the UI warns if compaction fails. Summaries are fallible learning context, never authoritative course facts. Old conversations begin accumulating rolling memory on their next exchange; this does not retroactively recover already-evicted history. Summaries, pending turns and tool cards are deleted with the conversation.
-
-All base switches start on; all toolkit switches start off. Teachers can enable practice, tutoring, visual, study, file, source and learning-gap tools. Study/file tools also require the study-material restriction to be off. Disabling teacher-only knowledge requires explicit confirmation and marks replies as allowing outside knowledge. Tool-generated learning content must still use teacher passages.
-
-The first prompt contains only permitted tool names and short descriptions. An ending `<{{quiz}}>` (or another permitted name) activates one tool. The server strips tags, checks permissions and supplies the full JSON contract in a second Gemini call. Output is bounded and checked for valid retrieved-source IDs before being rendered with DOM text APIs. No model-generated HTML, JavaScript or SVG executes. Cards persist with the conversation; currently disabled toolkits are filtered when saved chats load. This is prompt-based semantic grounding with structural/citation checks, not a proof that every generated claim or answer follows policy.
-
-Source cards share exact retrieved **document** excerpts only when that toolkit is enabled. Private teacher rules are never source cards. Newly uploaded PDFs retain page numbers; other documents have excerpt numbers, and older uploads may only have filenames. Re-upload older PDFs to add page provenance. Downloads are plain `.txt` files. Scratchpads are private browser UI state and clear when the card is rebuilt or the page is left.
-
-Learning-gap cards require student submission through `/learning-gap`; the endpoint checks membership, toolkit permission, length, basic abuse filtering and rate limits. Reports are stored separately from old automatic flags. Analytics measures reported difficulties rather than claiming that the absence of a report proves source coverage.
-
-Account settings use Firebase's existing profile and password-reset flows. API paths and Firestore collection names retain `classes` / `Classes` for compatibility; visible labels say Courses.
-
-Validation for this change was limited to JavaScript syntax and static code review. The Python app/tests and live Gemini, Pinecone and Firebase integrations were not run because this checkout has no service secrets. Before deploying, verify migration on a copied course, default-off permissions, saved tool cards, PDF citations, attachment selection, long-chat compaction, report submission, and both themes in the configured environment.

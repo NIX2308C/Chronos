@@ -33,6 +33,8 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   @keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-4px)}20%,40%,60%,80%{transform:translateX(4px)}}
   .spin{display:inline-block;animation:spin .7s linear infinite}
+  .login-gate{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:12px;background:var(--page);color:var(--sub);transition:opacity .18s ease}
   .shake{animation:shake .4s ease both}
 
   .wrap{max-width:1280px;margin:0 auto;padding:0 28px}
@@ -53,6 +55,8 @@
     font-size:15px;padding:0 14px 0 42px;transition:border-color .15s,box-shadow .15s}
   .field::placeholder{color:var(--faint)}
   .field:focus{outline:none;border-color:var(--crimson);box-shadow:0 0 0 3px rgba(226,0,26,.12)}
+  html.dark .field:-webkit-autofill,html.dark .field:-webkit-autofill:hover,html.dark .field:-webkit-autofill:focus{
+    -webkit-text-fill-color:var(--ink);-webkit-box-shadow:0 0 0 1000px var(--field) inset;caret-color:var(--ink)}
   .flabel{display:block;font-size:13.5px;font-weight:600;color:var(--sub);margin-bottom:7px}
 
   .pbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;margin-top:4px;
@@ -77,11 +81,15 @@
 <body>
 
 <div class="px" aria-hidden="true"><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><span class="px-mark"><span class="px-tag">Chronos</span></span></div>
+<div id="loginGate" class="login-gate" aria-live="polite">
+  <span class="msym spin" style="font-size:30px">progress_activity</span>
+  <span style="font-size:13px;font-weight:600">Checking your session</span>
+</div>
 
 <div data-util style="background:#141311;color:#B5B0A5;font-size:12.5px;line-height:1.5">
   <div class="wrap" style="padding-top:9px;padding-bottom:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <span class="msym" style="font-size:16px;color:#C9A227">verified_user</span>
-    <span style="color:#E8E3D6">A tutor bound to your own class material.</span>
+    <span style="color:#E8E3D6">A tutor bound to your own course material.</span>
     <span style="color:#8C8880">It answers only from the documents a teacher uploads.</span>
     <span style="margin-left:auto;display:flex;align-items:center;gap:18px">
       <span style="display:flex;align-items:center;gap:7px">
@@ -213,6 +221,11 @@
   // the user in immediately, which wakes the "already signed in?" watcher below
   // while signup is still mid-flight — see the comment there.
   let busy = false;
+  const gateStarted=performance.now();
+  function revealLogin(){
+    const done=()=>$("loginGate").classList.add("hidden");
+    setTimeout(done,Math.max(0,450-(performance.now()-gateStarted)));
+  }
 
   // Preselect the role from ?role= (teacher panels redirect here with it).
   if (params.get("role") === "teacher") role = "teacher";
@@ -231,7 +244,7 @@
     $("eyebrow").textContent = isUp ? "New account" : "Sign in";
     $("title").textContent = isUp ? "Create your account" : "Welcome back";
     $("subtitle").textContent = isUp
-      ? (role === "teacher" ? "Two fields and your first class is next." : "Takes about ten seconds.")
+      ? (role === "teacher" ? "Two fields and your first course is next." : "Takes about ten seconds.")
       : "Good to see you again.";
     $("submitLabel").textContent = isUp ? "Create account" : "Sign in";
     $("password").autocomplete = isUp ? "new-password" : "current-password";
@@ -308,14 +321,15 @@
   // only handles someone arriving already signed in.
   Chronos.ready.then(()=>{
     Chronos.onUser(async(user)=>{
-      if(!user || busy) return;
+      if(!user){revealLogin();return;}
+      if(busy)return;
       try{
         const info = await Chronos.me();
         // No role means a half-finished signup, not a session to resume.
         if(info && info.role) ChronosWipe.go(info.role === "teacher" ? "teacherknowledge.html" : "student.html", true);
-      }catch(e){}
+      }catch(e){revealLogin();}
     });
-  }).catch(e => showErr(e.message));
+  }).catch(e => {revealLogin();showErr(e.message);});
 
   // Showcase pane: a canned question typing out its cited answer. No backend —
   // this is the same promise the landing page makes, shown once while you sign in.

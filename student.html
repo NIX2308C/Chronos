@@ -186,6 +186,24 @@
     .src-drop summary::-webkit-details-marker { display: none; }
     .src-drop[open] .chev { transform: rotate(180deg); }
     .src-drop { border:1px solid var(--gold); background:var(--c-paper); color:var(--c-ink) }
+    .tool-card { width:min(100%,680px); border:1px solid var(--c-edge); background:var(--c-paper);
+        margin:.8rem 0 2rem; animation:pop .32s var(--snap) both }
+    .tool-head { display:flex; align-items:center; gap:.65rem; padding:.75rem 1rem;
+        border-bottom:3px solid var(--crimson); font-size:14px; font-weight:700 }
+    .tool-body { padding:1rem; color:var(--c-ink); font-size:14px; line-height:1.55 }
+    .tool-item { padding:.75rem 0; border-bottom:1px solid var(--c-rule) }
+    .tool-item:last-child { border-bottom:none }
+    .tool-option { display:block;width:100%;text-align:left;margin:.4rem 0 0;padding:.55rem .7rem;
+        border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);cursor:pointer }
+    .tool-option:hover { border-color:var(--crimson);color:var(--crimson) }
+    .scratchpad { width:100%;min-height:110px;margin-top:.75rem;padding:.75rem;background:var(--c-hi);
+        color:var(--c-ink);border:1px solid var(--c-rule);resize:vertical }
+    .visual-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.65rem}
+    .visual-node{position:relative;padding:.8rem;border:1px solid var(--c-rule);background:var(--c-hi)}
+    .visual-bar{height:7px;background:var(--c-rule);margin-top:.55rem;overflow:hidden}
+    .visual-bar span{display:block;height:100%;background:var(--crimson)}
+    .visual-timeline{border-left:3px solid var(--crimson);padding-left:1rem;margin-left:.35rem}
+    html.dark .kbtn:hover:not(:disabled){background:#FF5262;border-color:#FF5262;color:#0D0D10}
 
     /* ---- markdown inside AI bubbles ---- */
     .ai-prose p { margin:0 0 .75rem; }
@@ -225,11 +243,11 @@
 <div class="w-14 h-14 bg-secondary text-on-secondary flex items-center justify-center mx-auto mb-stack-md">
 <span class="material-symbols-outlined text-[28px]">group_add</span>
 </div>
-<h1 class="font-headline-md text-headline-md text-on-background mb-2">Join a class</h1>
+<h1 class="font-headline-md text-headline-md text-on-background mb-2">Join a course</h1>
 <p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Pop in the code your teacher gave you and you&rsquo;re in.</p>
 <input class="fld w-full mono px-4 py-3 text-center tracking-[.25em] uppercase text-[15px]" id="joinCodeInput" maxlength="12" placeholder="CLASS CODE" type="text"/>
 <p class="hidden mt-stack-md font-label-sm text-label-sm text-on-error-container bg-error-container border border-error px-3 py-2" id="joinErr"></p>
-<button class="kbtn w-full mt-stack-md" id="joinBtn"><span>Join class</span></button>
+<button class="kbtn w-full mt-stack-md" id="joinBtn"><span>Join course</span></button>
 <button class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" id="joinLogoutBtn">Sign out</button>
 </div>
 </div>
@@ -242,13 +260,13 @@
 </a>
 <!-- Class switcher: which class's tutor you're talking to -->
 <div class="px-5 py-4" style="border-bottom:1px solid var(--c-rule)">
-<p class="slabel mb-2">Class</p>
+<p class="slabel mb-2">Course</p>
 <div class="flex gap-1.5">
 <div class="relative flex-1 min-w-0">
-<select class="fld appearance-none w-full min-w-0 font-label-md text-label-md pl-3 pr-8 py-2.5 outline-none cursor-pointer" id="classSwitcher" title="Active class"></select>
+<select class="fld appearance-none w-full min-w-0 font-label-md text-label-md pl-3 pr-8 py-2.5 outline-none cursor-pointer" id="classSwitcher" title="Active course"></select>
 <span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">unfold_more</span>
 </div>
-<button class="flex-shrink-0 w-10 flex items-center justify-center hard text-on-surface-variant hover:bg-primary hover:text-on-primary hover:border-primary transition-colors" id="joinAnotherBtn" title="Join another class">
+<button class="flex-shrink-0 w-10 flex items-center justify-center hard text-on-surface-variant hover:bg-primary hover:text-on-primary hover:border-primary transition-colors" id="joinAnotherBtn" title="Join another course">
 <span class="material-symbols-outlined text-[18px]">add</span>
 </button>
 </div>
@@ -424,8 +442,8 @@
       const d=await Chronos.apiJson("/chats/"+encodeURIComponent(c.id)+"/messages",undefined,"GET");
       // gap follows the server's `grounded` flag, not the length of `rules` —
       // students aren't sent the sources at all (see /chats/<id>/messages).
-      c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],
-        reviewed:!!m.reviewed,gap:m.role==="teacher"&&!m.grounded&&!m.reviewed}));
+      c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],tool:m.tool||null,
+        reviewed:!!m.reviewed,gap:m.role==="teacher"?(m.gap===null?!m.grounded&&!m.reviewed:!!m.gap):false}));
       c.loaded=true;
       if(c.id===activeChatId)renderMessages();
     }catch(e){setStatus("offline");}
@@ -466,7 +484,7 @@
 
   // Class-agnostic openers — the server has no notion of suggested questions, so
   // these work against any class's material rather than inventing topics.
-  const STARTERS=["What does this class cover so far?","Explain the main idea from the latest material.","What should I revise first?"];
+  const STARTERS=["What does this course cover so far?","Explain the main idea from the latest material.","What should I revise first?"];
 
   function className(){const c=CLASSES.find(x=>x.id===ACTIVE_CLASS);return c?c.name:"";}
 
@@ -486,7 +504,7 @@
       const h=document.createElement("h2");
       h.className="font-headline-lg text-headline-lg text-on-background mb-3";
       // textContent, not innerHTML: the class name is teacher-supplied.
-      h.textContent="Ask anything from "+(className()||"this class");
+      h.textContent="Ask anything from "+(className()||"this course");
       const p=document.createElement("p");
       p.className="font-body-lg text-body-lg text-on-surface-variant mb-7 max-w-[48ch]";
       p.textContent="Answers come from the documents your teacher uploaded. Where the material stops, so do the answers.";
@@ -528,13 +546,51 @@
     // Sources are teacher-only: students never see the underlying material,
     // teachers get a collapsible dropdown beneath the answer.
     if(IS_TEACHER&&m.rules&&m.rules.length){w.appendChild(buildSourcesDropdown(m.rules));}
+    if(m.tool)w.appendChild(buildToolCard(m.tool));
     return w;
+  }
+
+  function buildToolCard(tool){
+    const card=document.createElement("section");card.className="tool-card";
+    const head=document.createElement("div");head.className="tool-head";
+    const icons={practice:"quiz",tutoring:"psychology",visual:"account_tree",study:"download",sources:"menu_book",gap_report:"flag"};
+    head.innerHTML='<span class="material-symbols-outlined text-[19px]">'+(icons[tool.type]||"extension")+'</span>';
+    const title=document.createElement("span");title.textContent=tool.title||"Learning tool";head.appendChild(title);card.appendChild(head);
+    const body=document.createElement("div");body.className="tool-body";card.appendChild(body);
+    if(tool.type==="practice"){
+      (tool.items||[]).forEach((item,i)=>{
+        const row=document.createElement("div");row.className="tool-item";
+        const q=document.createElement("strong");q.textContent=(i+1)+". "+(item.prompt||"");row.appendChild(q);
+        (item.options||[]).forEach(opt=>{const b=document.createElement("button");b.className="tool-option";b.textContent=opt;b.onclick=()=>{row.querySelectorAll(".tool-option").forEach(x=>x.style.borderColor="var(--c-rule)");b.style.borderColor="var(--crimson)";};row.appendChild(b);});
+        if(item.answer){const reveal=document.createElement("button");reveal.className="kbtn kbtn-ghost mt-2";reveal.textContent="Check answer";reveal.onclick=()=>{reveal.replaceWith(document.createTextNode("Answer: "+item.answer+(item.explanation?" — "+item.explanation:"")));};row.appendChild(reveal);}
+        body.appendChild(row);
+      });
+      if(tool.answers_withheld){const p=document.createElement("p");p.style.color="var(--c-sub)";p.textContent="Answers are withheld by your teacher. Use this as a self-check, then ask Chronos for a hint.";body.appendChild(p);}
+    }else if(tool.type==="tutoring"){
+      const p=document.createElement("p");p.textContent=tool.prompt||"Work through the next step here.";body.appendChild(p);
+      (tool.hints||[]).forEach((hint,i)=>{const d=document.createElement("details");d.className="tool-item";const s=document.createElement("summary");s.textContent="Hint "+(i+1);d.appendChild(s);const t=document.createElement("p");t.textContent=hint;d.appendChild(t);body.appendChild(d);});
+      const ta=document.createElement("textarea");ta.className="scratchpad";ta.placeholder="Your scratchpad — stays in this browser tab";body.appendChild(ta);
+    }else if(tool.type==="study"){
+      const pre=document.createElement("pre");pre.style.cssText="white-space:pre-wrap;margin:0 0 12px;font:13px/1.55 ui-monospace,monospace";pre.textContent=tool.content||"";body.appendChild(pre);
+      const a=document.createElement("a");a.className="kbtn";a.textContent="Download file";a.download=(tool.filename||"chronos-study-guide.txt").replace(/[^a-z0-9._-]/gi,"-");a.href=URL.createObjectURL(new Blob([tool.content||""],{type:"text/plain"}));body.appendChild(a);
+    }else if(tool.type==="visual"){
+      const items=tool.items||[],format=tool.format||"diagram";
+      const wrap=document.createElement("div");wrap.className=format==="timeline"?"visual-timeline":"visual-grid";
+      const values=items.map(x=>Number(x.value)||0),max=Math.max(...values,1);
+      items.forEach((item,i)=>{const row=document.createElement("div");row.className="visual-node";const b=document.createElement("strong");b.textContent=item.label||("Step "+(i+1));row.appendChild(b);const p=document.createElement("p");p.style.margin="4px 0 0";p.textContent=item.detail||"";row.appendChild(p);if(format==="graph"){const bar=document.createElement("div");bar.className="visual-bar";const fill=document.createElement("span");fill.style.width=Math.max(4,(Number(item.value)||0)/max*100)+"%";bar.appendChild(fill);row.appendChild(bar);}wrap.appendChild(row);});
+      body.appendChild(wrap);
+    }else{
+      const items=tool.items||[];
+      items.forEach((item,i)=>{const row=document.createElement("div");row.className="tool-item";const b=document.createElement("strong");b.textContent=item.label||item.name||("Step "+(i+1));row.appendChild(b);const p=document.createElement("p");p.style.margin="4px 0 0";p.textContent=item.detail||item.excerpt||"";row.appendChild(p);body.appendChild(row);});
+      if(tool.message){const p=document.createElement("p");p.style.margin="0";p.textContent=tool.message;body.appendChild(p);}
+    }
+    return card;
   }
 
   function gapNote(){
     const p=document.createElement("p");
     p.className="mt-3.5 text-primary text-[13.5px] leading-relaxed";
-    p.textContent="Sent to your teacher as a gap in the class material.";
+    p.textContent="Sent to your teacher as a gap in the course material.";
     return p;
   }
 
@@ -544,7 +600,7 @@
   function reviewedNote(){
     const p=document.createElement("p");
     p.className="mt-3.5 text-on-surface-variant text-[13.5px] leading-relaxed";
-    p.textContent="Based on the work you attached — your class material doesn’t cover this.";
+    p.textContent="Based on the work you attached — your course material doesn’t cover this.";
     return p;
   }
 
@@ -625,13 +681,21 @@
       // `grounded` comes from the server, which is the only side that can see
       // the sources: students are never sent rules_used, so an empty list here
       // no longer means "nothing backed this answer".
-      tm.content=data.response||"";tm.rules=data.rules_used||[];
-      tm.reviewed=!!data.reviewed;tm.gap=!data.grounded&&!tm.reviewed;
+      tm.content=data.response||"";tm.rules=data.rules_used||[];tm.tool=data.tool||null;
+      tm.reviewed=!!data.reviewed;tm.gap=!!data.gap;
       b.textContent="";
+      let toolWait=null;
+      if(tm.tool){
+        const names={practice:"practice activity",tutoring:"guided workspace",visual:"visual",study:"study file",sources:"source viewer",gap_report:"gap report"};
+        toolWait=document.createElement("p");toolWait.className="mt-3 text-on-surface-variant text-[13px]";
+        toolWait.textContent="Creating "+(names[tm.tool.type]||"learning tool")+"…";el.appendChild(toolWait);
+      }
       typeOut(b,tm.content,()=>{
         if(tm.gap)el.appendChild(gapNote());
         if(tm.reviewed)el.appendChild(reviewedNote());
         if(IS_TEACHER&&tm.rules.length){el.appendChild(buildSourcesDropdown(tm.rules));}
+        if(toolWait)toolWait.remove();
+        if(tm.tool)el.appendChild(buildToolCard(tm.tool));
         scrollBottom();setSending(false);
       });
     }catch(err){
@@ -804,10 +868,10 @@
     $s("joinCard").innerHTML=
       '<div class="w-14 h-14 bg-secondary text-on-secondary flex items-center justify-center mx-auto mb-stack-md">'+
         '<span class="material-symbols-outlined text-[28px]">school</span></div>'+
-      '<h1 class="font-headline-md text-headline-md text-on-background mb-2">Make a class first</h1>'+
-      '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You haven’t got any classes yet. Set one up in the Knowledge Base and you can try the tutor on your own material.</p>'+
+      '<h1 class="font-headline-md text-headline-md text-on-background mb-2">Make a course first</h1>'+
+      '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You haven’t got any courses yet. Set one up in Course setup and you can try the tutor on your own material.</p>'+
       '<a class="kbtn w-full" href="teacherknowledge.html"><span>'+
-        '<span class="material-symbols-outlined text-[18px] align-middle">add</span> Go to Knowledge Base</span></a>'+
+        '<span class="material-symbols-outlined text-[18px] align-middle">add</span> Go to Course setup</span></a>'+
       '<button class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" id="teacherGateLogout">Sign out</button>';
     const out=$s("teacherGateLogout");
     if(out)out.onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("login.html?role=teacher",true);};
@@ -816,7 +880,7 @@
 
   async function submitJoin(){
     const code=$s("joinCodeInput").value.trim().toUpperCase();
-    if(!code){$s("joinErr").textContent="Enter a class code.";$s("joinErr").classList.remove("hidden");return;}
+    if(!code){$s("joinErr").textContent="Enter a course code.";$s("joinErr").classList.remove("hidden");return;}
     $s("joinBtn").disabled=true;
     try{
       const cls=await Chronos.joinClass(code);
@@ -843,10 +907,15 @@
     $s("modeLabel").textContent=role;$s("roleLabel").textContent=role;
     // Show a way back to the teacher panels when a teacher is using the tutor.
     if(IS_TEACHER){$s("teacherBackLink").classList.remove("hidden");$s("teacherBackLink").classList.add("flex");}
-    $s("authGate").remove();
     const hasClass=await loadClasses();
-    if(!hasClass){ info.role==="teacher" ? showTeacherNoClassGate() : showJoinGate(); }
-    else { await loadChats(); if(window.__tutFirstVisit)window.__tutFirstVisit(); }
+    if(!hasClass){
+      $s("authGate").remove();
+      info.role==="teacher" ? showTeacherNoClassGate() : showJoinGate();
+    }else{
+      await loadChats();
+      $s("authGate").remove();
+      if(window.__tutFirstVisit)window.__tutFirstVisit();
+    }
     checkServer();setInterval(checkServer,15000);
   }).catch(e=>{
     // textContent, not innerHTML: this string comes off the wire.
@@ -875,7 +944,7 @@
     const TITLE="Quick tour";
     const KEY="chronos_tut_student_v2";
     const STEPS=[
-      {icon:"school",title:"Pick your class",text:"Use the class menu on the left. Each class only knows what that teacher put into it, so make sure you're on the right one."},
+      {icon:"school",title:"Pick your course",text:"Use the course menu on the left. Each course keeps its own material and memory, so make sure you're on the right one."},
       {icon:"forum",title:"Just ask",text:"Type your question and hit Enter. Answers come straight out of your teacher's notes and files, so it isn't making things up."},
       {icon:"flag",title:"If it's not there, it'll say so",text:"Asked something your teacher hasn't covered yet? You'll get told, not fobbed off with a guess. Worth mentioning to them so they can add it."},
     ];

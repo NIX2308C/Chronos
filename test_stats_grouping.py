@@ -49,4 +49,11 @@ for real in ["what is osmosis", "define photosynthesis", "How do I complete the 
              "qu'est-ce que l'osmose"]:
     assert q(real), real
 
+# New messages carry an explicit gap bit, so a private-upload review or an answer
+# allowed from general knowledge cannot become a gap merely because it has no
+# Pinecone excerpts attached.
+assert not A._is_unanswered({"gap": False, "rules": []})
+assert not A._is_unanswered({"reviewed": True, "rules": []})
+assert A._is_unanswered({"gap": True, "rules": ["even if a source was nearby"]})
+
 print("ok - stats grouping: dedupe, distinct askers, ranking, and gap filtering hold")

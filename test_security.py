@@ -116,8 +116,8 @@ def test_sources_are_not_sent_to_students():
     captured = {}
 
     class _FakeMsgs:
-        def add(self, doc):
-            pass
+        def document(self, _id=None):
+            return self
 
     class _FakeChatDoc:
         id = "chat1"
@@ -152,6 +152,15 @@ def test_sources_are_not_sent_to_students():
         def where(self, *_a, **_k):
             return _FakeQuery()
 
+    class _FakeBatch:
+        def set(self, *_a, **_k):
+            return self
+        def commit(self):
+            pass
+
+    A.db = type("_DB", (), {"batch": lambda self: _FakeBatch()})()
+    A.course_config = lambda _cid: (None, {"rules": {}}, A.normalize_policy())
+    A.roll_memory = lambda *_a, **_k: {}
     A.user_in_class = lambda uid, cid, role: True
     A._user_chats = lambda uid: _FakeChats()
     A._user_files = lambda uid: _FakeChats()

@@ -110,7 +110,7 @@ def validate_artifact(name, payload, source_ids):
     result = {"type": name, "title": clean(payload.get("title"), 120), "items": items,
               "text": clean(payload.get("text"), 12000),
               "rows": [[clean(c, 300) for c in r[:8]] for r in rows[:12]],
-              "edges": [{k: clean(e.get(k), 120) for k in ("from", "to", "label")} for e in edges[:16]]}
+              "edges": [{k: clean(e.get(k), 120) for k in ("from", "to", "label")} for e in edges[:16]}
     if name in ("quiz", "knowledge_check") and any(i["answer"] not in i["options"] or len(i["options"]) < 2 for i in items):
         raise ValueError("Quiz needs answer options")
     if name in ("hints", "socratic", "guided_problem"):

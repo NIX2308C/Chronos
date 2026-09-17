@@ -124,13 +124,3 @@ html.dark select { caret-color: var(--d-crimson); }
 html.dark input::placeholder,
 html.dark textarea::placeholder { color: #85817A !important; opacity: 1; }
 html.dark .px-tag { background: #101014; }
-
-/* Safari/Chrome otherwise paint saved-login fields bright white in dark mode,
-   and the inherited pale text becomes unreadable on the browser-owned fill. */
-html.dark input:-webkit-autofill,
-html.dark input:-webkit-autofill:hover,
-html.dark input:-webkit-autofill:focus {
-  -webkit-text-fill-color: var(--d-text) !important;
-  -webkit-box-shadow: 0 0 0 1000px var(--d-paper) inset !important;
-  caret-color: var(--d-text);
-}

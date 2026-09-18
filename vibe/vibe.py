@@ -36,7 +36,7 @@ from pathlib import Path
 # Constants
 # --------------------------------------------------------------------------
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 AGENT = "vibe/" + VERSION
 
 REPO_WEB_URL = "https://lol.tevproject.com/NIX/Chronos"
@@ -789,6 +789,56 @@ def reachable_objects(repo: Repo, commits, stop=frozenset()):
     return objects
 
 
+def check_closure(repo: Repo, tips):
+    """Walk everything `tips` reach. Returns (missing shas, commit shas seen).
+
+    Commits and trees get parsed - they are small, and any checkout has to read
+    them anyway - while blobs are only checked for existence. The commit set is
+    only trustworthy as "complete" when nothing came back missing.
+    """
+    missing = set()
+    commits = set()
+    trees = []
+    queue = [t for t in tips if t and t != ZERO]
+    while queue:
+        sha = queue.pop()
+        if sha in commits or sha in missing:
+            continue
+        if not repo.has_object(sha):
+            missing.add(sha)
+            continue
+        obj_type, data = repo.read_object(sha)
+        if obj_type != "commit":
+            continue
+        commits.add(sha)
+        info = parse_commit(data)
+        trees.append(info["tree"])
+        queue.extend(info["parent"])
+
+    seen = set()
+    while trees:
+        sha = trees.pop()
+        if sha in seen:
+            continue
+        seen.add(sha)
+        if not repo.has_object(sha):
+            missing.add(sha)
+            continue
+        obj_type, data = repo.read_object(sha)
+        if obj_type != "tree":
+            continue
+        for mode, _name, child in parse_tree(data):
+            if child in seen:
+                continue
+            if mode == "40000":
+                trees.append(child)
+            else:
+                seen.add(child)
+                if not repo.has_object(child):
+                    missing.add(child)
+    return missing, commits
+
+
 def recent_commits(repo: Repo, limit=200):
     """Commits we already have, newest first-ish - used as `have` lines."""
     tips = set()
@@ -959,14 +1009,27 @@ def remote_refs(service):
     return parse_ref_advertisement(data)
 
 
-def fetch(repo: Repo, quiet=False):
-    """Fetch all remote heads into refs/remotes/origin/*. Returns remote heads."""
-    refs, caps = remote_refs("git-upload-pack")
-    heads = {n: s for n, s in refs.items() if n.startswith("refs/heads/")}
-    if not heads:
-        return {}
+def fetch_into(repo: Repo, heads, caps, post, source, remote, quiet=False):
+    """Make the store hold everything `heads` reach, then move refs/remotes/<remote>/*.
 
-    wants = sorted({sha for sha in heads.values() if not repo.has_object(sha)})
+    `post` sends one upload-pack request body and returns the response bytes.
+    """
+    present = [sha for sha in heads.values() if repo.has_object(sha)]
+    missing, verified = check_closure(repo, present)
+
+    if missing:
+        # Claiming `have` for a commit whose objects are only half here is what
+        # makes this state stick: the server trims exactly the objects we are
+        # short of. So claim nothing and ask for the heads outright.
+        if not quiet:
+            warn("%d object(s) that should already be here are missing - "
+                 "asking %s for a complete copy" % (len(missing), source))
+        wants = sorted(set(heads.values()))
+        haves = []
+    else:
+        wants = sorted({sha for sha in heads.values() if not repo.has_object(sha)})
+        haves = [c for c in recent_commits(repo) if c in verified]
+
     if wants:
         wanted_caps = []
         for cap in ("side-band-64k", "ofs-delta", "thin-pack", "no-progress" if quiet else None):
@@ -982,35 +1045,57 @@ def fetch(repo: Repo, quiet=False):
                 line += " " + " ".join(wanted_caps)
             request += pkt((line + "\n").encode("ascii"))
         request += FLUSH
-        for sha in recent_commits(repo):
+        for sha in haves:
             request += pkt(("have %s\n" % sha).encode("ascii"))
         request += pkt(b"done\n")
 
-        response = http(
-            REMOTE_URL + "/git-upload-pack",
-            body=bytes(request),
-            content_type="application/x-git-upload-pack-request",
-            accept="application/x-git-upload-pack-result",
-        )
+        response = post(bytes(request))
         if sideband:
             packdata, _control = demux_sideband(response, progress=not quiet)
         else:
             marker = response.find(b"PACK")
             if marker < 0:
-                raise VibeError("no packfile in server response")
+                raise VibeError("no packfile in the response from %s" % source)
             packdata = response[marker:]
         unpack(repo, packdata, quiet=quiet)
 
-    for name, sha in heads.items():
-        branch = name[len("refs/heads/"):]
-        repo.write_ref("refs/remotes/origin/" + branch, sha)
-    # Drop remote-tracking refs for branches that no longer exist.
-    for name in list(repo.list_refs("refs/remotes/origin")):
-        branch = name[len("refs/remotes/origin/"):]
-        if ("refs/heads/" + branch) not in heads:
-            repo.delete_ref(name)
-    return heads
+        # Refuse to record refs that point into a store with holes, so the
+        # failure surfaces here instead of during some later checkout.
+        still, _ = check_closure(repo, list(heads.values()))
+        if still:
+            raise VibeError(
+                "%s did not send %d object(s) this repository needs (first: %s).\n"
+                "  The local copy has holes that the remote cannot fill.\n"
+                "  Clone a fresh one beside it and move your work across:\n"
+                "    vb clone %s %s-fresh"
+                % (source, len(still), short(sorted(still)[0]), REPO_WEB_URL, DEFAULT_DIR))
 
+    prefix = "refs/remotes/" + remote + "/"
+    for name, sha in heads.items():
+        repo.write_ref(prefix + name[len("refs/heads/"):], sha)
+    # Drop remote-tracking refs for branches that no longer exist.
+    for name in list(repo.list_refs("refs/remotes/" + remote)):
+        if ("refs/heads/" + name[len(prefix):]) not in heads:
+            repo.delete_ref(name)
+
+
+def fetch(repo: Repo, quiet=False):
+    """Fetch all remote heads into refs/remotes/origin/*. Returns remote heads."""
+    refs, caps = remote_refs("git-upload-pack")
+    heads = {n: s for n, s in refs.items() if n.startswith("refs/heads/")}
+    if not heads:
+        return {}
+
+    def post(body):
+        return http(
+            REMOTE_URL + "/git-upload-pack",
+            body=body,
+            content_type="application/x-git-upload-pack-request",
+            accept="application/x-git-upload-pack-result",
+        )
+
+    fetch_into(repo, heads, caps, post, REPO_HOST, "origin", quiet=quiet)
+    return heads
 
 
 def external_remote_refs(remote_url: str):
@@ -1033,49 +1118,16 @@ def fetch_github(repo: Repo, remote_url: str, quiet=False):
     if not heads:
         return {}
 
-    wants = sorted({sha for sha in heads.values() if not repo.has_object(sha)})
-    if wants:
-        wanted_caps = []
-        for cap in ("side-band-64k", "ofs-delta", "thin-pack", "no-progress" if quiet else None):
-            if cap and cap in caps:
-                wanted_caps.append(cap)
-        wanted_caps.append("agent=" + AGENT)
-        sideband = "side-band-64k" in caps
-
-        request = bytearray()
-        for index, sha in enumerate(wants):
-            line = "want %s" % sha
-            if index == 0:
-                line += " " + " ".join(wanted_caps)
-            request += pkt((line + "\n").encode("ascii"))
-        request += FLUSH
-        for sha in recent_commits(repo):
-            request += pkt(("have %s\n" % sha).encode("ascii"))
-        request += pkt(b"done\n")
-
-        response = external_http(
+    def post(body):
+        return external_http(
             remote_url + "/git-upload-pack",
-            body=bytes(request),
+            body=body,
             content_type="application/x-git-upload-pack-request",
             accept="application/x-git-upload-pack-result",
             auth=github_auth_header(),
         )
-        if sideband:
-            packdata, _control = demux_sideband(response, progress=not quiet)
-        else:
-            pack_marker = response.find(b"PACK")
-            if pack_marker < 0:
-                raise VibeError("no packfile in GitHub response")
-            packdata = response[pack_marker:]
-        unpack(repo, packdata, quiet=quiet)
 
-    for name, sha in heads.items():
-        branch = name[len("refs/heads/"):]
-        repo.write_ref("refs/remotes/github/" + branch, sha)
-    for name in list(repo.list_refs("refs/remotes/github")):
-        branch = name[len("refs/remotes/github/"):]
-        if ("refs/heads/" + branch) not in heads:
-            repo.delete_ref(name)
+    fetch_into(repo, heads, caps, post, "GitHub", "github", quiet=quiet)
     return heads
 
 

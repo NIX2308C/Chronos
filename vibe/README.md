@@ -188,6 +188,9 @@ git checkout without either one confusing the other:
 ## Known limits
 
 - Fetches `refs/heads/*` only (Gitea and one-shot GitHub imports) — no tags, no shallow clones, no submodules
+- Every fetch walks the commits and trees its refs reach to confirm nothing is
+  missing. Blobs are only checked for existence, so this costs about a tenth of
+  a second on a few hundred commits, but it is proportional to history size
 - No rebase, cherry-pick, stash, reset, or diff
 - Push always sends whole objects (no delta compression), so pushes are
   bigger on the wire than git's — fine for source trees, slow for large binaries
@@ -204,6 +207,12 @@ git checkout without either one confusing the other:
 | `NO_COLOR=1` | plain output |
 
 ## Versions
+
+**1.2.2** — a fetch no longer trusts a half-populated store. vibe checks that it
+really holds every object its refs reach before claiming `have` for them, so an
+interrupted download repairs itself on the next `pull` instead of failing forever
+with `object ... is missing from the local store`. Gitea and GitHub fetches now
+run through one code path.
 
 **1.2.1** — bug fixes: committing or merging on a detached HEAD no longer
 rewrites `main` and drops its commits; `vb recover --no-push` is fully offline;

@@ -29,7 +29,7 @@ about the new command yet) and check it worked:
 vb --version
 ```
 
-You should see `vibe 1.2.1` (or newer).
+You should see `vibe 1.2.2` (or newer).
 
 ### Log in
 
@@ -237,6 +237,18 @@ Check it grabbed the certs — this should print something over 100:
 
 ```bash
 grep -c "BEGIN CERTIFICATE" ~/.local/share/vibe/ca-certs.pem
+```
+
+**`object ... is missing from the local store`**
+An earlier download was cut off partway, leaving the repo with holes. `vb pull`
+repairs this by itself now — it notices the gap and re-downloads what's missing.
+If it instead tells you the remote can't fill the holes, the history you have
+locally isn't on the server any more; clone a fresh copy beside it and move your
+work across:
+
+```bash
+cd ..
+vb clone https://lol.tevproject.com/NIX/Chronos Chronos-fresh
 ```
 
 ### If TLS still fails

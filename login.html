@@ -58,7 +58,7 @@
   .pbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;margin-top:4px;
     background:var(--crimson);color:#F7F4EC;border:1px solid var(--crimson);font-size:15.5px;font-weight:600;
     cursor:pointer;transition:background-color .15s,border-color .15s}
-  .pbtn:hover:not(:disabled){background:var(--ink);border-color:var(--ink)}
+  .pbtn:hover:not(:disabled){background:#B90015;border-color:#B90015;color:#F7F4EC;transform:translateY(-1px)}
   .pbtn:disabled{opacity:.65;cursor:default}
   html.dark .pbtn:hover:not(:disabled){color:var(--page)}
   .ico-btn{width:34px;height:34px;display:grid;place-items:center;background:transparent;border:none;
@@ -81,7 +81,7 @@
 <div data-util style="background:#141311;color:#B5B0A5;font-size:12.5px;line-height:1.5">
   <div class="wrap" style="padding-top:9px;padding-bottom:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <span class="msym" style="font-size:16px;color:#C9A227">verified_user</span>
-    <span style="color:#E8E3D6">A tutor bound to your own class material.</span>
+    <span style="color:#E8E3D6">A tutor bound to your own course material.</span>
     <span style="color:#8C8880">It answers only from the documents a teacher uploads.</span>
     <span style="margin-left:auto;display:flex;align-items:center;gap:18px">
       <span style="display:flex;align-items:center;gap:7px">
@@ -231,7 +231,7 @@
     $("eyebrow").textContent = isUp ? "New account" : "Sign in";
     $("title").textContent = isUp ? "Create your account" : "Welcome back";
     $("subtitle").textContent = isUp
-      ? (role === "teacher" ? "Two fields and your first class is next." : "Takes about ten seconds.")
+      ? (role === "teacher" ? "Two fields and your first course is next." : "Takes about ten seconds.")
       : "Good to see you again.";
     $("submitLabel").textContent = isUp ? "Create account" : "Sign in";
     $("password").autocomplete = isUp ? "new-password" : "current-password";

@@ -49,4 +49,11 @@ for real in ["what is osmosis", "define photosynthesis", "How do I complete the 
              "qu'est-ce que l'osmose"]:
     assert q(real), real
 
+# Missing material, demonstrated confusion, and conduct are separate signals.
+assert A._issue_kind("I don't understand osmosis") == "academic"
+assert A._issue_kind("what is osmosis") is None
+assert A._issue_kind("fuck this homework") == "behavioral"
+assert A._issue_kind("I want to hurt myself") == "behavioral"
+assert not A._is_material_gap_question("I want to hurt myself")
+
 print("ok - stats grouping: dedupe, distinct askers, ranking, and gap filtering hold")

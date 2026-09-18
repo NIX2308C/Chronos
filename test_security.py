@@ -136,6 +136,9 @@ def test_sources_are_not_sent_to_students():
             pass
 
     class _FakeQuery:
+        def where(self, *_a, **_k):
+            return self
+
         def limit(self, _n):
             return self
 
@@ -156,6 +159,7 @@ def test_sources_are_not_sent_to_students():
     A._user_chats = lambda uid: _FakeChats()
     A._user_files = lambda uid: _FakeChats()
     A.load_history = lambda *_a, **_k: []
+    A.load_course_settings = lambda *_a, **_k: A.course_settings()
     A.embed = lambda _t: [0.0] * A.EMBED_DIM
     A.summarize_exchange = lambda *_a, **_k: {}
     A.pinecone_index = type("_PC", (), {

@@ -116,6 +116,11 @@ JOIN_IP_RATE_LIMIT = int(os.getenv("JOIN_IP_RATE_LIMIT", "60"))   # requests per
 # this is an abuse ceiling on a compromised or careless teacher, not a gate.
 TEACHER_RATE_LIMIT = int(os.getenv("TEACHER_RATE_LIMIT", "60"))     # requests
 TEACHER_RATE_WINDOW = int(os.getenv("TEACHER_RATE_WINDOW", "60"))   # seconds
+# Learning activities get their own budget rather than sharing the chat one. A
+# tool almost always follows a chat turn, so a shared bucket charged a student
+# two slots for one interaction and 429'd the quiz half of it first.
+TOOL_RATE_LIMIT = int(os.getenv("TOOL_RATE_LIMIT", "12"))     # requests
+TOOL_RATE_WINDOW = int(os.getenv("TOOL_RATE_WINDOW", "60"))   # seconds
 # Teacher registration is gated by one shared code, which makes /auth/register the
 # most valuable thing on the app to brute-force: guessing it once yields every
 # class's material and every student's chat log. Unlike the limits above, this one
@@ -873,56 +878,106 @@ def _source_context(matches):
     return "\n\n".join(blocks), sources
 
 
-_TOOL_MARKER_RE = re.compile(r"<chronos-tool>(.*?)</chronos-tool>", re.DOTALL | re.IGNORECASE)
 _ACK_RE = re.compile(r"^(?:hi|hello|hey|thanks|thank you|ok|okay|got it|cool|bye)[.! ]*$", re.IGNORECASE)
 
-
-def extract_tool_request(text, settings):
-    """Remove a model-selected tool marker; execution happens in /tools/run."""
-    text = str(text or "")
-    match = _TOOL_MARKER_RE.search(text)
-    clean = _TOOL_MARKER_RE.sub("", text).strip()
-    if not match:
-        return clean, None
-    try:
-        tool = json.loads(match.group(1))
-    except (TypeError, ValueError):
-        return clean, None
-    if not isinstance(tool, dict):
-        return clean, None
-    kind = str(tool.get("type") or "").strip().lower()
-    enabled = {
-        "quiz": settings.get("practice_tools"),
-        "flashcards": settings.get("practice_tools"),
-        "concept_map": settings.get("visual_tools"),
-        "review_sheet": settings.get("study_materials"),
-    }
-    if kind not in enabled or not enabled[kind]:
-        return clean, None
-    topic = str(tool.get("topic") or "").strip()[:300]
-    if not topic:
-        return clean, None
-    return clean, {"type": kind, "topic": topic}
+# Which course setting switches each activity type on.
+TOOL_SETTING_FOR_TYPE = {
+    "quiz": "practice_tools",
+    "flashcards": "practice_tools",
+    "concept_map": "visual_tools",
+    "review_sheet": "study_materials",
+}
+TOOL_FUNCTION_NAME = "create_practice_activity"
 
 
-def explicit_tool_request(message, settings):
-    """Turn an unambiguous student request into an enabled activity.
+def enabled_tool_types(settings):
+    """The activity types this course has switched on, in a stable order."""
+    return [t for t, key in TOOL_SETTING_FOR_TYPE.items() if settings.get(key)]
 
-    Tool markers remain useful for optional suggestions, but a student explicitly
-    asking "quiz me" should not depend on a lightweight chat model remembering a
-    hidden JSON suffix. This is deliberately narrow: it never turns an ordinary
-    explanatory question into an activity.
+
+def validate_tool_request(raw, settings):
+    """Normalize a tool request into {type, topic}, or None if it isn't allowed.
+
+    One gate for both callers. The model asks for an activity through a function
+    call, and the browser asks for one directly when a student taps a practice
+    chip — so the type is re-checked against the course's own settings here
+    rather than trusted from either side.
     """
-    text = " ".join(str(message or "").split())[:300]
-    lower = text.lower()
-    if settings.get("practice_tools"):
-        if re.search(r"\b(?:quiz me|give me (?:a )?quiz|test me|knowledge check)\b", lower):
-            topic = re.sub(r"\b(?:can you |could you |please |quiz me(?: on)?|give me (?:a )?quiz(?: on)?|test me(?: on)?|knowledge check(?: on)?)\b", "", text, flags=re.IGNORECASE).strip(" ?!.,")
-            return {"type": "quiz", "topic": topic or text}
-        if re.search(r"\b(?:flash ?cards?|make cards?)\b", lower):
-            topic = re.sub(r"\b(?:can you |could you |please |make |create |give me |flash ?cards?(?: on| for)?)\b", "", text, flags=re.IGNORECASE).strip(" ?!.,")
-            return {"type": "flashcards", "topic": topic or text}
+    if not isinstance(raw, dict):
+        return None
+    kind = str(raw.get("type") or "").strip().lower()
+    if kind not in enabled_tool_types(settings):
+        return None
+    topic = str(raw.get("topic") or "").strip()[:300]
+    if not topic:
+        return None
+    return {"type": kind, "topic": topic}
+
+
+def practice_activity_tool(settings):
+    """A Gemini function declaration covering this course's enabled activities.
+
+    This replaces a hidden <chronos-tool> marker the model was asked to append to
+    its prose. A lightweight chat model forgets a formatting convention like that
+    often enough that "quiz me" usually produced an ordinary answer instead, and
+    the regex fallback that used to paper over it only ever recognised a handful
+    of phrasings for two of the four activity types. A declared function is part
+    of the request contract rather than a request to remember something.
+    """
+    kinds = enabled_tool_types(settings)
+    if not kinds:
+        return None
+    return types.Tool(function_declarations=[{
+        "name": TOOL_FUNCTION_NAME,
+        "description": (
+            "Create an interactive practice activity for the student. Call this whenever "
+            "the student asks to be quizzed or tested, asks for flashcards, a concept map "
+            "or a review sheet, or when practising would clearly help them more than "
+            "another explanation. Answer the student normally as well."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "type": {"type": "STRING", "enum": kinds,
+                         "description": "Which kind of activity to build."},
+                "topic": {"type": "STRING",
+                          "description": "The specific course topic to build it from."},
+            },
+            "required": ["type", "topic"],
+        },
+    }])
+
+
+def tool_call_from_response(response, settings):
+    """Pull a create_practice_activity call out of a Gemini response, if it made one."""
+    try:
+        for candidate in (response.candidates or []):
+            for part in (getattr(candidate.content, "parts", None) or []):
+                call = getattr(part, "function_call", None)
+                if call and call.name == TOOL_FUNCTION_NAME:
+                    return validate_tool_request(dict(call.args or {}), settings)
+    except Exception:
+        # A malformed response should cost the student a quiz, never their answer.
+        logger.exception("Could not read a tool call off the model response.")
     return None
+
+
+def response_text(response):
+    """The visible text of a Gemini response, tolerating a function-call-only reply.
+
+    `.text` is None (and warns) when the model answered purely with a function
+    call, so the parts are joined by hand instead.
+    """
+    try:
+        parts = []
+        for candidate in (response.candidates or []):
+            for part in (getattr(candidate.content, "parts", None) or []):
+                if getattr(part, "text", None):
+                    parts.append(part.text)
+        return "".join(parts).strip()
+    except Exception:
+        logger.exception("Could not read text off the model response.")
+        return ""
 
 
 def build_system_instruction(context_block, memory_block="", docs_block="", settings=None,
@@ -991,19 +1046,17 @@ def build_system_instruction(context_block, memory_block="", docs_block="", sett
             "Teacher custom rules (always follow these when consistent with the base rules): "
             + " | ".join(str(r)[:1200] for r in custom_rules if str(r).strip())
         )
-    tool_types = []
-    if settings["practice_tools"]:
-        tool_types.extend(["quiz", "flashcards"])
-    if settings["visual_tools"]:
-        tool_types.append("concept_map")
-    if settings["study_materials"]:
-        tool_types.append("review_sheet")
+    tool_types = enabled_tool_types(settings)
     if tool_types:
+        # The activity itself is requested through the create_practice_activity
+        # function, declared on the request — not through anything the model has
+        # to remember to write. This only tells it when calling is appropriate.
         rules.append(
-            "If a tool would materially help, finish your normal visible reply then append exactly one "
-            "hidden marker: <chronos-tool>{\"type\":\"one enabled type\",\"topic\":\"specific course topic\"}" 
-            "</chronos-tool>. When a student explicitly asks to be quizzed or asks for flashcards, "
-            "always use the matching enabled tool. Enabled types: " + ", ".join(tool_types) + ". Do not expose the marker."
+            "You can build practice activities with the " + TOOL_FUNCTION_NAME + " function. "
+            "Available types: " + ", ".join(tool_types) + ". Call it whenever the student asks "
+            "to be quizzed or tested or asks for any of those, and whenever practising would help "
+            "more than another explanation. Still write your normal reply as well — a short "
+            "lead-in is enough when the activity is the point."
         )
     if settings["additional_instructions"]:
         rules.append(
@@ -1562,6 +1615,7 @@ def chat():
         docs_block = "" if is_ack else build_docs_block(load_student_docs(request.uid, class_id, chat_id))
         settings = load_course_settings(class_id)
 
+        tool_request = None
         if is_ack:
             final_answer = "You’re welcome. Send the next question whenever you’re ready."
         elif not teacher_rules and not docs_block and settings["grounded_only"]:
@@ -1584,18 +1638,24 @@ def chat():
                 context_block, memory_block, docs_block, settings, conversation_summary, custom_rules
             )
 
+            activity_tool = practice_activity_tool(settings)
+            config = types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.35,
+                tools=[activity_tool] if activity_tool else None,
+            )
             ai_response = client.models.generate_content(
                 model=CHAT_MODEL,
                 contents=contents,
-                config=types.GenerateContentConfig(system_instruction=system_instruction, temperature=0.35),
+                config=config,
             )
-            final_answer = ai_response.text
-
-        final_answer, tool_request = extract_tool_request(final_answer, settings)
-        # Explicit activity requests should work reliably even when the chat model
-        # elects to answer with a plain warm-up question instead of our marker.
-        if not tool_request:
-            tool_request = explicit_tool_request(user_message, settings)
+            final_answer = response_text(ai_response)
+            tool_request = tool_call_from_response(ai_response, settings)
+            if tool_request and not final_answer:
+                # The model can answer with the function call alone. The activity
+                # renders under a tutor message, so that message needs words.
+                final_answer = "Here's a %s on %s." % (
+                    tool_request["type"].replace("_", " "), tool_request["topic"])
 
         # An answer carried entirely by the student's own upload. It is still a
         # knowledge gap in the teacher's material (that's what `grounded` reports,
@@ -1645,6 +1705,10 @@ def chat():
             "grounded": bool(teacher_rules),
             "reviewed": reviewed,
             "tool_request": tool_request,
+            # What the student may ask for directly. Without this the browser has
+            # no way to know which practice chips to offer, and the toolkit is
+            # only ever reachable when the model decides to call the function.
+            "toolkits": enabled_tool_types(settings),
             "material_gap": material_gap,
             "issue_kind": issue_kind,
             "chat_id": chat_id,
@@ -1679,19 +1743,34 @@ def _tool_prompt(tool, context_block, custom_rules):
     }
     schema, instruction = specs[tool["type"]]
     policy = " | ".join(custom_rules)[:3000] or "(none)"
+    # With grounding off and an empty knowledge base there are no excerpts to
+    # confine the model to, and telling it to use only excerpts it wasn't given
+    # is how you get a refusal instead of an activity.
+    if context_block:
+        framing = ("Create one interactive learning item using ONLY the supplied course excerpts. "
+                   "Do not add facts not supported by those excerpts.")
+        material = f"\n\nCourse excerpts:\n{context_block}"
+    else:
+        framing = ("Create one interactive learning item on the requested topic from your own "
+                   "general knowledge. This course has no material on it and the teacher has "
+                   "turned off strict grounding. Keep it introductory and factually safe.")
+        material = ""
     return (
-        "Create one interactive learning item using ONLY the supplied course excerpts. "
-        "Do not add facts not supported by those excerpts. Return JSON only — no markdown.\n"
+        f"{framing} Return JSON only — no markdown.\n"
         f"Requested topic: {tool['topic']}\n{instruction}\n"
         f"Required shape: {schema}\n"
-        f"Teacher custom rules: {policy}\n\nCourse excerpts:\n{context_block}"
+        f"Teacher custom rules: {policy}{material}"
     )
 
 
 def _parse_tool_result(text, requested_type):
     """Validate a deliberately small JSON contract before the browser renders it."""
     clean = str(text or "").strip()
-    clean = re.sub(r"^```(?:json)?\\s*|\\s*```$", "", clean, flags=re.IGNORECASE).strip()
+    # `\s`, not `\\s`: in a raw string the doubled backslash matches a literal
+    # backslash followed by "s", so the fence was never stripped and every
+    # ```json-wrapped reply — which is most of them, whatever the prompt asks —
+    # failed json.loads and came back to the student as a 502.
+    clean = re.sub(r"^```(?:json)?\s*|\s*```$", "", clean, flags=re.IGNORECASE).strip()
     try:
         result = json.loads(clean)
     except (TypeError, ValueError):
@@ -1748,7 +1827,7 @@ def run_tool():
     intentionally a narrow, course-excerpt-only call whose result has a fixed UI
     contract, making it both cheaper and safer to render interactively.
     """
-    if rate_limited(f"tool:{request.uid}", limit=CHAT_RATE_LIMIT, window=CHAT_RATE_WINDOW):
+    if rate_limited(f"tool:{request.uid}", limit=TOOL_RATE_LIMIT, window=TOOL_RATE_WINDOW):
         return jsonify({"error": "Too many requests. Please slow down and try again shortly."}), 429
     data = request.get_json(silent=True) or {}
     class_id = str(data.get("class_id") or "").strip()
@@ -1761,27 +1840,44 @@ def run_tool():
     if not chat_ref.get().exists:
         return jsonify({"error": "Conversation not found."}), 404
     settings = load_course_settings(class_id)
-    _, tool = extract_tool_request(
-        "<chronos-tool>" + json.dumps(tool if isinstance(tool, dict) else {}) + "</chronos-tool>", settings
-    )
+    # Re-validated server-side because the browser reaches this route directly
+    # when a student taps a practice chip — the client never decides what is on.
+    tool = validate_tool_request(tool, settings)
     if not tool:
         return jsonify({"error": "That toolkit is disabled for this course."}), 400
     try:
+        # No `source` filter here, unlike /chat. Anything in the namespace is fair
+        # material for an activity, and narrowing to uploaded documents is what made
+        # this route unusable: migrate_legacy_custom_rules moves typed rules out of
+        # Pinecone into Firestore, so a course taught from typed rules alone has no
+        # document chunks at all and every request 422'd.
         matches = pinecone_index.query(vector=embed(tool["topic"]), top_k=RETRIEVAL_TOP_K,
-                                        include_metadata=True, namespace=class_id,
-                                        filter={"source": {"$exists": True}})["matches"]
+                                        include_metadata=True, namespace=class_id)["matches"]
         context_block, sources = _source_context(matches)
-        if not context_block:
-            return jsonify({"error": "I couldn't find enough course material to build that yet."}), 422
         custom_rules = [r["text"] for r in load_custom_rules(class_id)]
+        # Typed rules are the whole knowledge base for a course with no uploads, so
+        # they stand in as material when retrieval is empty.
+        if not context_block and custom_rules:
+            context_block = "\n".join("[Course rule %d]\n%s" % (i, r)
+                                      for i, r in enumerate(custom_rules, 1))
+        if not context_block and settings["grounded_only"]:
+            return jsonify({"error": "I couldn't find enough course material to build that yet."}), 422
         response = client.models.generate_content(model=TOOL_MODEL,
                                                   contents=_tool_prompt(tool, context_block, custom_rules),
                                                   config=types.GenerateContentConfig(temperature=0.2))
         result = _parse_tool_result(response.text, tool["type"])
         if not result:
             return jsonify({"error": "I couldn't make that learning activity. Please try again."}), 502
-        summary = "Used %d relevant course excerpt%s to create this %s on %s." % (
-            len(sources), "s" if len(sources) != 1 else "", tool["type"].replace("_", " "), tool["topic"])
+        kind_label = tool["type"].replace("_", " ")
+        if sources:
+            summary = "Used %d relevant course excerpt%s to create this %s on %s." % (
+                len(sources), "s" if len(sources) != 1 else "", kind_label, tool["topic"])
+        elif custom_rules:
+            summary = "Built this %s on %s from the course rules your teacher wrote." % (
+                kind_label, tool["topic"])
+        else:
+            summary = ("Built this %s on %s without course material, because strict grounding "
+                       "is turned off for this course." % (kind_label, tool["topic"]))
         chat_ref.collection("Messages").add({"role": "teacher", "content": "", "tool": result,
             "tool_summary": summary, "sources": sources, "timestamp": firestore.SERVER_TIMESTAMP})
         return jsonify({"tool": result, "tool_summary": summary,

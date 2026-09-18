@@ -64,7 +64,7 @@ Audit note: before the current separation, Pinecone contained teacher-entered ru
 - **Current conversation** replays only the latest `HISTORY_TURNS` messages. Before older turns fall out, Chronos maintains a bounded tutoring-state summary on the chat document. It tracks progress, confusion, learning gaps, open questions, and unfinished work, but is explicitly forbidden as a source of facts.
 - **Cross-conversation memory** is a bounded, course-scoped list of prior topics and explicit learning signals derived from chat metadata. It is never written to Pinecone.
 - **System and teacher policy** comes from compact Base Rules and custom teacher rules. Custom rules are always added to the tutor prompt, never retrieved as facts. Prompt secrecy and jailbreak resistance are permanent system protections, not teacher toggles. Optional practice, visual, study-material, and source-display tools are disabled by default.
-- **Interactive tools** use two stages: the tutor writes its visible lead-in and requests an enabled tool with a hidden marker; the client then shows a short “Creating…” card while a separate constrained Gemini call receives relevant teacher excerpts only and returns validated JSON for the quiz, flashcards, concept map, or review sheet.
+- **Interactive tools** use two stages. A student can ask for one directly — practice chips sit under the newest answer, showing only the activities the course has enabled — or the tutor can request one itself by calling the `create_practice_activity` function declared on the chat request. Either way the client then shows a short “Creating…” card while a separate constrained Gemini call receives the relevant course material only and returns validated JSON for the quiz, flashcards, concept map, or review sheet. The server re-checks the requested type against the course settings on the way in, so the chips cannot reach a disabled toolkit.
 
 The prompt orders these layers deliberately: system/base rules, retrieved teacher material, tutoring memory, and student work. Student text is always labelled untrusted and cannot promote itself into teacher-approved knowledge.
 
@@ -74,6 +74,7 @@ A few optional overrides exist too:
 - `MAX_UPLOAD_MB` (default 10) — the size on the wire
 - `MAX_EXTRACT_BYTES` (default 200 MB) and `MAX_EXTRACT_CHARS` (default 2,000,000) — the size *after* decompression. A `.docx` is a zip and a `.pdf` holds compressed streams, so a small upload can inflate enormously; these bound what actually reaches memory. Over the character cap the file is indexed up to the limit and the response says so
 - `CHAT_RATE_LIMIT` and `CHAT_RATE_WINDOW` (messages allowed per window, in seconds)
+- `TOOL_RATE_LIMIT` and `TOOL_RATE_WINDOW` (learning activities per window; default 12 per minute). Separate from the chat budget on purpose: an activity almost always follows a chat turn, so sharing one bucket charged a student twice for a single interaction and throttled the activity half first
 - `JOIN_RATE_LIMIT` and `JOIN_RATE_WINDOW` (course-code attempts per window; default 10 per 5 minutes)
 - `REGISTER_RATE_LIMIT` and `REGISTER_RATE_WINDOW` (teacher-code attempts per window; default 5 per 15 minutes)
 - `HISTORY_TURNS` (how many past turns the tutor remembers, default 20)
@@ -81,6 +82,7 @@ A few optional overrides exist too:
 - `ROLE_CACHE_TTL` (seconds a user's role is cached in-process, default 60)
 - `TRUST_PROXY_HOPS` (default 0; set to 1 on Cloud Run so client IPs in the logs are real)
 - `CHAT_MODEL` (the Gemini model, default `gemini-2.5-flash-lite`)
+- `TOOL_MODEL` (the model that builds learning activities; defaults to `CHAT_MODEL`)
 - `FLASK_DEBUG`
 
 Rate limits are keyed by Firebase uid, not IP — behind a load balancer every request shares one IP, so an IP-keyed limit would throttle a whole course as though it were a single student. Teacher registration is the one exception, and it's keyed by IP: the attacker there isn't a signed-in student but anyone who can make a Firebase account, which is free and unlimited, so a per-account budget would reset on every guess.
@@ -94,6 +96,22 @@ waitress-serve --port=5000 app:app
 ```
 
 and open http://localhost:5000.
+
+## Tests
+
+```bash
+python test_security.py && python test_stats_grouping.py && python test_student_context.py
+```
+
+Three plain-`assert` scripts, no test runner. They stub every collaborator that
+would reach Firestore, Pinecone or Gemini, so they run offline in about a second
+and need no real keys — but `app.py` still refuses to import without a valid
+`TEACHER_SIGNUP_CODE`, so a `.env` with a throwaway one (and dummy values for the
+rest) has to exist. They cover the auth gate, the teacher signup code and the
+throttles in front of it, the `.docx` decompression cap, that course material is
+never sent to a student, the analytics grouping, and the shape of the tutor's
+assembled prompt. Run them before committing; they are fast enough that there is
+no excuse not to.
 
 ## Deploying
 

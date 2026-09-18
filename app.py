@@ -594,14 +594,38 @@ def load_custom_rules(class_id):
     ]
 
 
-def save_custom_rules(class_id, rules):
-    cleaned = [
-        {"id": str(r.get("id") or secrets.token_urlsafe(9))[:128],
-         "text": str(r.get("text") or "").strip()[:1500]}
-        for r in rules if isinstance(r, dict) and str(r.get("text") or "").strip()
-    ]
-    db.collection("Classes").document(class_id).set({"custom_rules": cleaned}, merge=True)
-    return cleaned
+def mutate_custom_rules(class_id, change):
+    """Apply `change` to a course's custom rules inside a transaction.
+
+    `change` takes the current rules as an {id: rule} dict and returns the dict
+    to store. All three callers read the whole array, adjust it and write it back,
+    and the field is one array on one document — so without this, two teacher
+    tabs saving at once silently drop one side's edit. `change` must be pure and
+    idempotent: a contended transaction runs it again.
+    """
+    if not valid_doc_id(class_id):
+        return []
+    ref = db.collection("Classes").document(class_id)
+
+    @firestore.transactional
+    def apply(transaction):
+        snap = ref.get(transaction=transaction)
+        raw = (snap.to_dict() or {}).get("custom_rules", []) if snap.exists else []
+        current = {}
+        for r in raw:
+            if isinstance(r, dict) and str(r.get("text") or "").strip():
+                rid = str(r.get("id") or "")[:128]
+                current[rid] = {"id": rid, "text": str(r.get("text") or "").strip()[:1500]}
+        cleaned = [
+            {"id": str(r.get("id") or secrets.token_urlsafe(9))[:128],
+             "text": str(r.get("text") or "").strip()[:1500]}
+            for r in change(current).values()
+            if isinstance(r, dict) and str(r.get("text") or "").strip()
+        ]
+        transaction.set(ref, {"custom_rules": cleaned}, merge=True)
+        return cleaned
+
+    return apply(db.transaction())
 
 
 def get_user_classes(uid, role):
@@ -823,7 +847,16 @@ def load_student_docs(uid, class_id, chat_id):
             .where("chat_id", "==", chat_id).limit(STUDENT_DOCS_MAX).stream()
         )
     except Exception:
-        logger.exception("Could not load student uploads; answering without them.")
+        # Two equality filters need a composite index on the user's Files
+        # subcollection. Without one this raises on every message and the student
+        # silently gets feedback on an essay the tutor never saw, so say plainly
+        # what to go and create.
+        logger.exception(
+            "Could not load student uploads for class=%s chat=%s; answering without "
+            "them. If this is FAILED_PRECONDITION, Firestore needs a composite index "
+            "on Users/{uid}/Files over (class_id, chat_id) — the error carries a "
+            "link that creates it.", class_id, chat_id,
+        )
         return []
     return [d.to_dict() or {} for d in docs]
 
@@ -1948,8 +1981,9 @@ def ingest():
     if not isinstance(items, list):
         return jsonify({"error": "items must be a list"}), 400
 
-    existing = {r["id"]: r for r in load_custom_rules(class_id)}
-    saved = []
+    # Built before the transaction, so a retry re-applies the same additions
+    # instead of minting fresh ids for them.
+    additions, saved = {}, []
     for it in items:
         if not isinstance(it, dict):
             continue
@@ -1957,12 +1991,12 @@ def ingest():
         if not text:
             continue
         rid = str(it.get("id") or f"custom_{secrets.token_urlsafe(9)}")[:120]
-        existing[rid] = {"id": rid, "text": text}
+        additions[rid] = {"id": rid, "text": text}
         saved.append({"id": rid, "status": "ok"})
 
     if not saved:
         return jsonify({"error": "No items or text provided"}), 400
-    save_custom_rules(class_id, list(existing.values()))
+    mutate_custom_rules(class_id, lambda current: {**current, **additions})
     return jsonify({"results": saved, "total_vectors": class_vector_count(class_id)})
 
 
@@ -1989,10 +2023,12 @@ def migrate_legacy_custom_rules(class_id):
                 legacy.append({"id": str(match["id"])[:120], "text": text})
         if not legacy:
             return 0
-        current = {r["id"]: r for r in load_custom_rules(class_id)}
-        for rule in legacy:
-            current.setdefault(rule["id"], rule)
-        save_custom_rules(class_id, list(current.values()))
+        def absorb(current):
+            for rule in legacy:
+                current.setdefault(rule["id"], rule)
+            return current
+
+        mutate_custom_rules(class_id, absorb)
         pinecone_index.delete(ids=[r["id"] for r in legacy], namespace=class_id)
         return len(legacy)
     except Exception:
@@ -2098,7 +2134,10 @@ def delete_rule():
         custom_ids = [rid for rid in ids if rid in custom]
         vector_ids = [rid for rid in ids if rid not in custom]
         if custom_ids:
-            save_custom_rules(class_id, [r for rid, r in custom.items() if rid not in custom_ids])
+            doomed = set(custom_ids)
+            mutate_custom_rules(
+                class_id, lambda current: {rid: r for rid, r in current.items() if rid not in doomed}
+            )
         if vector_ids:
             pinecone_index.delete(ids=vector_ids, namespace=class_id)
         return jsonify({"status": "deleted", "ids": ids, "deleted": len(ids)})

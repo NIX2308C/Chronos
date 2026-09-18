@@ -17,7 +17,9 @@ Teachers sign in, create one or more courses, and add course material to each (P
 ## Stack
 
 - Flask backend (`app.py`), served with Waitress
-- Gemini for answers and embeddings
+- Gemini for answers and embeddings (see `OLLAMA.md` for the plan to move
+  answers onto a local model; embeddings stay where they are)
+- `profanity.py` for moderation — deterministic, no second model call
 - Pinecone for vector search (one namespace per course)
 - Firebase Authentication (email/password) plus Firestore (users, courses in the legacy `Classes` collection, chat logs)
 - Static HTML pages styled with Tailwind (via CDN), with shared auth in `auth.js`
@@ -65,6 +67,19 @@ Audit note: before the current separation, Pinecone contained teacher-entered ru
 - **Cross-conversation memory** is a bounded, course-scoped list of prior topics and explicit learning signals derived from chat metadata. It is never written to Pinecone.
 - **System and teacher policy** comes from compact Base Rules and custom teacher rules. Custom rules are always added to the tutor prompt, never retrieved as facts. Prompt secrecy and jailbreak resistance are permanent system protections, not teacher toggles. Optional practice, visual, study-material, and source-display tools are disabled by default.
 - **Interactive tools** use two stages. A student can ask for one directly — practice chips sit under the newest answer, showing only the activities the course has enabled — or the tutor can request one itself by calling the `create_practice_activity` function declared on the chat request. Either way the client then shows a short “Creating…” card while a separate constrained Gemini call receives the relevant course material only and returns validated JSON for the quiz, flashcards, concept map, or review sheet. The server re-checks the requested type against the course settings on the way in, so the chips cannot reach a disabled toolkit.
+- **Profanity** is caught before any of the above happens. `profanity.py`
+  normalizes a message (accents, leetspeak, padding, letters spaced out) and
+  then matches stems, so `f*ck`, `sh1t`, `fuuuck`, `f u c k` and `motherfucker`
+  are all the same thing to it. A match short-circuits `/chat`: no embedding, no
+  Pinecone query, no model call, and a fixed reply the student still sees in
+  their history. The exchange is dropped from history replay and the rolling
+  summary, so refusing to read it once doesn't just delay it by a turn. It
+  reaches the teacher under **Behavioral concerns** and deliberately nowhere
+  else — not Recent questions, Most repeated, the topic list, or Knowledge gaps,
+  where an undetected swear used to land looking like uncovered course material.
+  Detection errs towards letting mild words through: `dick`, `prick` and `hell`
+  are not flagged, because Moby Dick is on reading lists and you prick a finger
+  in biology, and blocking is outright — a false positive refuses real work.
 
 The prompt orders these layers deliberately: system/base rules, retrieved teacher material, tutoring memory, and student work. Student text is always labelled untrusted and cannot promote itself into teacher-approved knowledge.
 
@@ -116,6 +131,20 @@ matters most, that ordinary classroom English (`class`, `assess`, `cockpit`,
 `Scunthorpe`) is never flagged. `test_profanity.py` imports `profanity` alone and
 needs no environment at all. Run them before committing; they are fast enough that there is
 no excuse not to.
+
+## Planning documents
+
+Three things are written down but not built. Each says what it is waiting on:
+
+- `ANDROID.md` — shipping the app on Android as a Trusted Web Activity. Phase A
+  (making the pages usable on a phone) is the blocker and is pure web work.
+- `OLLAMA.md` — moving answer generation to a local model. The decision record:
+  what can move, what cannot, and the hosting choice that blocks the rest.
+- `OLLAMA_TASK.md` — the implementation brief for whoever (or whatever) does
+  that work: exact call sites, the traps, and what "done" means. Written for an
+  AI coding agent picking it up cold. Read `OLLAMA.md` first.
+
+`COMMIT_LOG.md` is the informal running history of what changed and why.
 
 ## Deploying
 

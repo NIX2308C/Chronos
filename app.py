@@ -305,7 +305,29 @@ client = genai.Client(
 )
 
 pc = Pinecone(api_key=PINE_KEY)
-pinecone_index = pc.Index(INDEX_NAME)
+
+
+class _LazyIndex:
+    """Defer Pinecone's index-host lookup to the first real call.
+
+    pc.Index(name) resolves the index host over the network, so importing this
+    module needed live Pinecone connectivity and a valid key. That is why the
+    three test files here — which stub every collaborator and touch nothing —
+    could never actually be run. Attribute access is proxied, so monkeypatching
+    `app.pinecone_index` still works exactly as before.
+    """
+
+    def __init__(self, name):
+        self._name = name
+        self._index = None
+
+    def __getattr__(self, attr):
+        if self._index is None:
+            self._index = pc.Index(self._name)
+        return getattr(self._index, attr)
+
+
+pinecone_index = _LazyIndex(INDEX_NAME)
 
 try:
     firebase_admin.get_app()
@@ -954,8 +976,8 @@ def practice_activity_tool(settings):
 def tool_call_from_response(response, settings):
     """Pull a create_practice_activity call out of a Gemini response, if it made one."""
     try:
-        for candidate in (response.candidates or []):
-            for part in (getattr(candidate.content, "parts", None) or []):
+        for candidate in (getattr(response, "candidates", None) or []):
+            for part in (getattr(getattr(candidate, "content", None), "parts", None) or []):
                 call = getattr(part, "function_call", None)
                 if call and call.name == TOOL_FUNCTION_NAME:
                     return validate_tool_request(dict(call.args or {}), settings)
@@ -973,13 +995,17 @@ def response_text(response):
     """
     try:
         parts = []
-        for candidate in (response.candidates or []):
-            for part in (getattr(candidate.content, "parts", None) or []):
+        for candidate in (getattr(response, "candidates", None) or []):
+            for part in (getattr(getattr(candidate, "content", None), "parts", None) or []):
                 if getattr(part, "text", None):
                     parts.append(part.text)
-        return "".join(parts).strip()
+        if parts:
+            return "".join(parts).strip()
     except Exception:
         logger.exception("Could not read text off the model response.")
+    try:
+        return (response.text or "").strip()
+    except Exception:
         return ""
 
 
@@ -1675,8 +1701,12 @@ def chat():
             "class_id": class_id,
             "message_count": int(prev.get("message_count") or 0) + 2,
         }
-        chat_meta.update(summary_update)
+        # Migration first, so a fresh batch summary wins over the backfill rather
+        # than the other way round. They can't both be set today, but reversed
+        # this writes summary_through backwards the moment either batch size is
+        # retuned.
         chat_meta.update(migration_summary_update)
+        chat_meta.update(summary_update)
         title = None
         if is_new:
             title = user_message[:40] + ("…" if len(user_message) > 40 else "")

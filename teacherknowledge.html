@@ -203,11 +203,16 @@
           <div id="groundingWarning" class="hidden" style="margin:10px 0;padding:10px 12px;border-left:3px solid var(--crimson);background:var(--hi);font-size:13px;line-height:1.5">Warning: Chronos may use general knowledge and will label it as outside the course material. Grounding behavior changes for every student in this course.</div>
           <div class="setting-row"><span><strong>Tutor instead of completing work</strong><small style="display:block;color:var(--sub);margin-top:3px">Guides with questions and steps instead of producing submission-ready work.</small></span><label class="switch"><input id="setGuide" type="checkbox"><span></span></label></div>
           <div class="setting-row"><span><strong>State uncertainty</strong><small style="display:block;color:var(--sub);margin-top:3px">Says what is missing instead of inventing details.</small></span><label class="switch"><input id="setUncertainty" type="checkbox"><span></span></label></div>
+          <label style="display:block;margin-top:14px;font-size:13px;font-weight:600">Additional instruction
+            <small style="display:block;color:var(--sub);font-weight:400;margin-top:3px">Free-text guidance added to every answer in this course. It cannot weaken the rules above.</small>
+            <textarea id="setExtra" class="fld" maxlength="1500" rows="3" placeholder="e.g. Always answer in French." style="display:block;width:100%;margin-top:6px;padding:9px 10px;resize:vertical"></textarea>
+          </label>
         </div>
       </section>
 
       <section class="card hidden" data-teacher-pane="tools" style="padding:18px 20px;margin-bottom:28px">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:10px"><div><h2 class="lbl" style="margin:0 0 5px;font-family:inherit">Toolkits and tutoring</h2><p style="margin:0;font-size:13.5px;line-height:1.5;color:var(--sub)">Optional student-facing activities. All are off until you choose otherwise.</p></div><button id="saveToolsBtn" class="kbtn kbtn-dark" style="padding:9px 14px">Save</button></div>
+        <div data-settings>
         <div class="setting-row"><span><strong>Allow Practice Tools</strong><small style="display:block;color:var(--sub);margin-top:3px">Quizzes and flashcards built from course material.</small></span><label class="switch"><input id="setPractice" type="checkbox"><span></span></label></div>
         <div class="setting-row"><span><strong>Allow Visual Tools</strong><small style="display:block;color:var(--sub);margin-top:3px">Simple grounded concept maps.</small></span><label class="switch"><input id="setVisual" type="checkbox"><span></span></label></div>
         <div class="setting-row"><span><strong>Allow Study Materials</strong><small style="display:block;color:var(--sub);margin-top:3px">Compact review sheets in the chat.</small></span><label class="switch"><input id="setStudy" type="checkbox"><span></span></label></div>
@@ -215,6 +220,7 @@
         <div class="setting-row"><span><strong>Reveal final answers</strong></span><label class="switch"><input id="setAnswers" type="checkbox"><span></span></label></div>
         <div class="setting-row"><span><strong>Allow worked examples</strong></span><label class="switch"><input id="setExamples" type="checkbox"><span></span></label></div>
         <label style="display:block;margin-top:14px;font-size:13px;font-weight:600">Hint strength<select id="setHints" class="fld" style="display:block;width:100%;margin-top:6px;padding:9px 10px"><option value="light">Light</option><option value="progressive">Progressive</option><option value="strong">Strong</option></select></label>
+        </div>
       </section>
 
       <div data-panels style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;margin-bottom:44px;align-items:start">
@@ -395,8 +401,11 @@
   function paintSettings(){
     Object.entries(SETTING_IDS).forEach(([key,id])=>{$(id).checked=!!(SETTINGS&&SETTINGS[key]);});
     $("setHints").value=(SETTINGS&&SETTINGS.hint_strength)||"progressive";
+    $("setExtra").value=(SETTINGS&&SETTINGS.additional_instructions)||"";
     $("groundingWarning").classList.toggle("hidden",!!$("setGrounded").checked);
-    document.querySelector("[data-settings]").style.opacity=ACTIVE_CLASS?"1":".55";
+    // Both panes, not just Base Rules — the Toolkits toggles are equally
+    // meaningless with no course selected and used to give no sign of it.
+    document.querySelectorAll("[data-settings]").forEach(el=>{el.style.opacity=ACTIVE_CLASS?"1":".55";});
   }
   async function loadSettings(){
     if(!ACTIVE_CLASS){SETTINGS=null;paintSettings();return;}
@@ -405,7 +414,7 @@
   }
   async function saveSettings(){
     if(!ensureClass())return;
-    const settings={hint_strength:$("setHints").value};
+    const settings={hint_strength:$("setHints").value,additional_instructions:$("setExtra").value};
     Object.entries(SETTING_IDS).forEach(([key,id])=>settings[key]=$(id).checked);
     $("saveSettingsBtn").disabled=true;$("saveToolsBtn").disabled=true;
     try{

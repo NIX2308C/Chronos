@@ -71,10 +71,10 @@ assert A.build_docs_block(big).count("x") <= A.STUDENT_CONTEXT_CHARS
 
 plain = A.build_system_instruction("teacher stuff")
 assert "teacher stuff" in plain
-# Rules 5 and 6 are about material that isn't there; the model shouldn't be told
-# to weigh a rubric nobody uploaded.
+# The model shouldn't be told to weigh a rubric nobody uploaded, or to recall a
+# conversation that never happened.
 assert "uploaded work" not in plain and "recollection notes" not in plain, plain
-assert "5." not in plain, plain
+assert "What you remember" not in plain and "NOT teacher material" not in plain, plain
 
 full = A.build_system_instruction("teacher stuff", m, b)
 assert "recollection notes" in full and "uploaded work" in full, full

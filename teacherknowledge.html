@@ -3,7 +3,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
-<title>Chronos | Class material</title>
+<title>Chronos | Course material</title>
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
 <link href="transition.css" rel="stylesheet"/>
 <script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
@@ -57,7 +57,7 @@
   .kbtn{display:inline-flex;align-items:center;gap:7px;background:var(--crimson);color:#F7F4EC;
     border:1px solid var(--crimson);padding:11px 17px;font-size:14px;font-weight:600;cursor:pointer;
     transition:background-color .15s,border-color .15s}
-  .kbtn:hover:not(:disabled){background:var(--ink);border-color:var(--ink)}
+  .kbtn:hover:not(:disabled){background:var(--crimson-d);border-color:var(--crimson-d);color:#F7F4EC;transform:translateY(-1px)}
   .kbtn:disabled{opacity:.5;cursor:default}
   .kbtn-ghost{background:transparent;border-color:var(--field-b);color:var(--ink);padding:10px 15px}
   .kbtn-ghost:hover:not(:disabled){background:transparent;border-color:var(--ink);color:var(--ink)}
@@ -68,6 +68,14 @@
   .ibtn:hover{color:var(--crimson-d)}
   .linkbtn{background:none;border:none;padding:0;font:inherit;color:var(--crimson-d);cursor:pointer;
     text-decoration:underline;font-weight:600}
+  .setting-row{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:13px 0;border-bottom:1px solid var(--rule2)}
+  .setting-row:last-child{border-bottom:none}
+  .switch{position:relative;width:40px;height:22px;flex:none;margin-top:1px}
+  .switch input{position:absolute;opacity:0;pointer-events:none}
+  .switch span{position:absolute;inset:0;background:var(--field-b);transition:background-color .18s}
+  .switch span:after{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:var(--field);transition:transform .18s}
+  .switch input:checked+span{background:var(--crimson)}
+  .switch input:checked+span:after{transform:translateX(18px)}
 
   /* fields */
   .fld{background:var(--field);border:1px solid var(--field-b);color:var(--ink);transition:border-color .15s}
@@ -91,6 +99,11 @@
   .doc-row .ibtn,.rule-row .ibtn{opacity:0;transition:opacity .15s,color .15s}
   .doc-row:hover .ibtn,.doc-row .ibtn:focus-visible,
   .rule-row:hover .ibtn,.rule-row .ibtn:focus-visible{opacity:1}
+  .teacher-tabs{display:flex;gap:6px;border-bottom:1px solid var(--rule2);margin:0 0 24px;padding-bottom:10px}
+  .teacher-tab{background:transparent;border:1px solid transparent;color:var(--sub);padding:8px 11px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:color .15s,background .15s}
+  .teacher-tab:hover,.teacher-tab.on{color:var(--ink);background:var(--hi);border-color:var(--field-b)}
+  [data-teacher-pane].hidden{display:none!important}
+  [data-panels].single-pane{grid-template-columns:minmax(0,1fr)!important}
 
   @media (max-width:980px){
     [data-shell]{grid-template-columns:minmax(0,1fr)!important}
@@ -117,18 +130,18 @@
     </div>
 
     <div data-scroll style="padding:16px 12px 8px;overflow-y:auto;min-height:0">
-      <div style="font-size:12.5px;font-weight:600;color:var(--mid);padding:0 8px 8px">Your classes</div>
+      <div style="font-size:12.5px;font-weight:600;color:var(--mid);padding:0 8px 8px">Your courses</div>
       <div id="classList"></div>
       <div style="display:flex;align-items:center;gap:4px;margin-top:4px">
-        <button id="newClassBtn" style="flex:1;display:flex;align-items:center;gap:7px;background:transparent;border:none;padding:12px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer" title="Create a class">
-          <span class="msym" style="font-size:18px">add</span>New class
+        <button id="newClassBtn" style="flex:1;display:flex;align-items:center;gap:7px;background:transparent;border:none;padding:12px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer" title="Create a course">
+          <span class="msym" style="font-size:18px">add</span>New course
         </button>
-        <button id="deleteClassBtn" class="ibtn hidden" title="Delete this class"><span class="msym" style="font-size:18px">delete</span></button>
+        <button id="deleteClassBtn" class="ibtn hidden" title="Delete this course"><span class="msym" style="font-size:18px">delete</span></button>
       </div>
     </div>
 
     <nav style="margin-top:8px;padding:12px;border-top:1px solid var(--rule);display:flex;flex-direction:column">
-      <span class="side-link on"><span class="msym" style="font-variation-settings:'FILL' 1">folder_open</span>Class material</span>
+      <span class="side-link on"><span class="msym" style="font-variation-settings:'FILL' 1">folder_open</span>Course material</span>
       <a class="side-link" href="teacherstats.html"><span class="msym">insights</span>Analytics</a>
       <a class="side-link" href="student.html"><span class="msym">chat</span>Preview as student</a>
     </nav>
@@ -173,16 +186,53 @@
         </div>
       </div>
 
+      <div class="teacher-tabs" role="tablist" aria-label="Course material sections">
+        <button class="teacher-tab on" type="button" data-teacher-tab="material">Course material</button>
+        <button class="teacher-tab" type="button" data-teacher-tab="rules">Tutor rules</button>
+        <button class="teacher-tab" type="button" data-teacher-tab="tools">Toolkits</button>
+      </div>
+
+      <section class="card hidden" data-teacher-pane="rules" style="padding:18px 20px;margin-bottom:28px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:10px">
+          <div><h2 class="lbl" style="margin:0 0 5px;font-family:inherit">Base Rules</h2>
+          <p style="margin:0;font-size:13.5px;line-height:1.5;color:var(--sub)">A few high-impact policies. Safety and prompt protection are always on.</p></div>
+          <button id="saveSettingsBtn" class="kbtn kbtn-dark" style="padding:9px 14px">Save</button>
+        </div>
+        <div data-settings>
+          <div class="setting-row"><span><strong>Use only teacher-provided material</strong><small style="display:block;color:var(--sub);margin-top:3px">Prevents outside knowledge and requires an honest refusal when material is missing.</small></span><label class="switch"><input id="setGrounded" type="checkbox"><span></span></label></div>
+          <div id="groundingWarning" class="hidden" style="margin:10px 0;padding:10px 12px;border-left:3px solid var(--crimson);background:var(--hi);font-size:13px;line-height:1.5">Warning: Chronos may use general knowledge and will label it as outside the course material. Grounding behavior changes for every student in this course.</div>
+          <div class="setting-row"><span><strong>Tutor instead of completing work</strong><small style="display:block;color:var(--sub);margin-top:3px">Guides with questions and steps instead of producing submission-ready work.</small></span><label class="switch"><input id="setGuide" type="checkbox"><span></span></label></div>
+          <div class="setting-row"><span><strong>State uncertainty</strong><small style="display:block;color:var(--sub);margin-top:3px">Says what is missing instead of inventing details.</small></span><label class="switch"><input id="setUncertainty" type="checkbox"><span></span></label></div>
+          <label style="display:block;margin-top:14px;font-size:13px;font-weight:600">Additional instruction
+            <small style="display:block;color:var(--sub);font-weight:400;margin-top:3px">Free-text guidance added to every answer in this course. It cannot weaken the rules above.</small>
+            <textarea id="setExtra" class="fld" maxlength="1500" rows="3" placeholder="e.g. Always answer in French." style="display:block;width:100%;margin-top:6px;padding:9px 10px;resize:vertical"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="card hidden" data-teacher-pane="tools" style="padding:18px 20px;margin-bottom:28px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:10px"><div><h2 class="lbl" style="margin:0 0 5px;font-family:inherit">Toolkits and tutoring</h2><p style="margin:0;font-size:13.5px;line-height:1.5;color:var(--sub)">Optional student-facing activities. All are off until you choose otherwise.</p></div><button id="saveToolsBtn" class="kbtn kbtn-dark" style="padding:9px 14px">Save</button></div>
+        <div data-settings>
+        <div class="setting-row"><span><strong>Allow Practice Tools</strong><small style="display:block;color:var(--sub);margin-top:3px">Quizzes and flashcards built from course material.</small></span><label class="switch"><input id="setPractice" type="checkbox"><span></span></label></div>
+        <div class="setting-row"><span><strong>Allow Visual Tools</strong><small style="display:block;color:var(--sub);margin-top:3px">Simple grounded concept maps.</small></span><label class="switch"><input id="setVisual" type="checkbox"><span></span></label></div>
+        <div class="setting-row"><span><strong>Allow Study Materials</strong><small style="display:block;color:var(--sub);margin-top:3px">Compact review sheets in the chat.</small></span><label class="switch"><input id="setStudy" type="checkbox"><span></span></label></div>
+        <div class="setting-row"><span><strong>Allow Source Display</strong><small style="display:block;color:var(--sub);margin-top:3px">Students may open retrieved course excerpts.</small></span><label class="switch"><input id="setSources" type="checkbox"><span></span></label></div>
+        <div class="setting-row"><span><strong>Reveal final answers</strong></span><label class="switch"><input id="setAnswers" type="checkbox"><span></span></label></div>
+        <div class="setting-row"><span><strong>Allow worked examples</strong></span><label class="switch"><input id="setExamples" type="checkbox"><span></span></label></div>
+        <label style="display:block;margin-top:14px;font-size:13px;font-weight:600">Hint strength<select id="setHints" class="fld" style="display:block;width:100%;margin-top:6px;padding:9px 10px"><option value="light">Light</option><option value="progressive">Progressive</option><option value="strong">Strong</option></select></label>
+        </div>
+      </section>
+
       <div data-panels style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;margin-bottom:44px;align-items:start">
 
-        <section class="card panel">
+        <section class="card panel hidden" data-teacher-pane="rules">
           <div class="panel-hd">
-            <h2 class="lbl" style="margin:0;font-family:inherit">Rules</h2>
+            <h2 class="lbl" style="margin:0;font-family:inherit">Custom teacher rules</h2>
             <span id="ruleCount" style="font-size:13.5px;color:var(--mid)"></span>
           </div>
           <div style="padding:16px 18px;border-bottom:1px solid var(--rule2)">
-            <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:var(--sub)">Typed instructions the tutor follows alongside the documents &mdash; how to address students, what to withhold, which conventions to use. Students never see this text, only its effect on answers.</p>
-            <textarea id="ruleText" rows="4" aria-label="Rule text" class="fld" style="width:100%;padding:11px 12px;font-size:14.5px;line-height:1.6;resize:vertical" placeholder="Never give away answers to the end-of-chapter problems &mdash; walk students through the method instead."></textarea>
+            <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:var(--sub)">Always sent to Chronos as course policy. Use this for conventions, assignment boundaries, or tone — never factual material. These rules are not stored in Pinecone.</p>
+            <textarea id="ruleText" rows="4" aria-label="Custom teacher rule" class="fld" style="width:100%;padding:11px 12px;font-size:14.5px;line-height:1.6;resize:vertical" placeholder="Ask students to show their reasoning before offering another hint."></textarea>
             <div style="display:flex;align-items:center;gap:10px;margin-top:11px;flex-wrap:wrap">
               <button id="addRuleBtn" class="kbtn kbtn-dark" style="padding:10px 16px"><span class="msym" style="font-size:18px">add</span>Add</button>
               <button id="bulkRuleBtn" class="kbtn kbtn-ghost" style="padding:9px 14px">Add bulk</button>
@@ -190,11 +240,11 @@
             </div>
           </div>
           <div id="rulesList" class="panel-body" data-scroll style="max-height:340px"></div>
-          <p id="rulesEmpty" class="hidden" style="margin:0;padding:20px 18px;font-size:14.5px;line-height:1.6;color:var(--mid)">No rules yet. Type one above and hit Add.</p>
-          <p id="rulesNote" class="hidden panel-note">Showing the first <span data-cap></span> rules only &mdash; this class has more than the list can fetch.</p>
+          <p id="rulesEmpty" class="hidden" style="margin:0;padding:20px 18px;font-size:14.5px;line-height:1.6;color:var(--mid)">No knowledge notes yet. Type one above and hit Add.</p>
+          <p id="rulesNote" class="hidden panel-note">Showing the first <span data-cap></span> knowledge notes only &mdash; this course has more than the list can fetch.</p>
         </section>
 
-        <section class="card panel">
+        <section class="card panel" data-teacher-pane="material">
           <div class="panel-hd">
             <h2 class="lbl" style="margin:0;font-family:inherit">Documents</h2>
             <span id="docCount" style="font-size:13.5px;color:var(--mid)"></span>
@@ -206,12 +256,12 @@
           </div>
           <div id="docsList" class="panel-body" data-scroll style="max-height:472px"></div>
           <p id="docsEmpty" class="hidden" style="margin:0;padding:20px 18px;font-size:14.5px;line-height:1.6;color:var(--mid)">Nothing here yet. Add material before students start asking questions &mdash; until then, the tutor won&rsquo;t guess at answers.</p>
-          <p id="docsNote" class="hidden panel-note">This class has more chunks than the list can fetch, so the counts above are partial.</p>
+          <p id="docsNote" class="hidden panel-note">This course has more chunks than the list can fetch, so the counts above are partial.</p>
         </section>
       </div>
 
       <section>
-        <h2 class="lbl" style="margin:0 0 8px;font-family:inherit;font-size:14px">Check what the class can answer</h2>
+        <h2 class="lbl" style="margin:0 0 8px;font-family:inherit;font-size:14px">Check what the course can answer</h2>
         <p style="margin:0 0 14px;font-size:14.5px;line-height:1.6;color:var(--sub);max-width:62ch">Ask as a student would. You will see the reply and the passages it was built from.</p>
         <form id="probeForm" style="display:flex;gap:10px;margin-bottom:18px;max-width:640px">
           <label for="probeInput" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap">Ask a question as a student would</label>
@@ -235,7 +285,7 @@
 <script src="theme.js"></script>
 <script src="transition.js"></script>
 <script>
-  let RULES=[],CLASSES=[],ACTIVE_CLASS=null,uploading=false;
+  let RULES=[],CLASSES=[],ACTIVE_CLASS=null,SETTINGS=null,uploading=false;
   let EDITING=null;   // id of the rule currently open in the inline editor, if any
   // /rules caps how much it fetches per kind and says so; the panels admit it
   // rather than quietly showing a short list.
@@ -259,7 +309,7 @@
   function withClass(body){ return Object.assign({},body||{},{class_id:ACTIVE_CLASS}); }
   function activeClassObj(){ return CLASSES.find(c=>c.id===ACTIVE_CLASS); }
   function ensureClass(){
-    if(!ACTIVE_CLASS){showToast("Create or pick a class first.",false);return false;}
+    if(!ACTIVE_CLASS){showToast("Create or pick a course first.",false);return false;}
     return true;
   }
   async function lock(){ try{await Chronos.logout();}catch(e){} ChronosWipe.go("login.html?role=teacher",true); }
@@ -290,7 +340,7 @@
     if(!CLASSES.length){
       const p=document.createElement("p");
       p.style.cssText="margin:0;padding:4px 12px 8px;font-size:13px;color:var(--faint)";
-      p.textContent="No classes yet.";
+      p.textContent="No courses yet.";
       list.appendChild(p);
       return;
     }
@@ -314,8 +364,8 @@
     $("deleteClassBtn").classList.toggle("hidden",!c);
     $("copyBtn").classList.toggle("hidden",!(c&&c.join_code));
     if(!c){
-      $("className").textContent="No class yet";
-      $("classMeta").textContent="Make a class, then hand out its join code.";
+      $("className").textContent="No course yet";
+      $("classMeta").textContent="Make a course, then hand out its join code.";
       return;
     }
     $("className").textContent=c.name;
@@ -334,7 +384,7 @@
     $("probeResult").classList.add("hidden");
     renderClasses();
     paintHeader();
-    loadRules();
+    Promise.all([loadRules(),loadSettings()]).catch(e=>showToast(e.message,false));
   }
 
   async function loadClasses(preferId){
@@ -347,15 +397,48 @@
     paintHeader();
   }
 
+  const SETTING_IDS={grounded_only:"setGrounded",guide_not_complete:"setGuide",state_uncertainty:"setUncertainty",practice_tools:"setPractice",visual_tools:"setVisual",study_materials:"setStudy",source_display:"setSources",reveal_final_answers:"setAnswers",worked_examples:"setExamples"};
+  function paintSettings(){
+    Object.entries(SETTING_IDS).forEach(([key,id])=>{$(id).checked=!!(SETTINGS&&SETTINGS[key]);});
+    $("setHints").value=(SETTINGS&&SETTINGS.hint_strength)||"progressive";
+    $("setExtra").value=(SETTINGS&&SETTINGS.additional_instructions)||"";
+    $("groundingWarning").classList.toggle("hidden",!!$("setGrounded").checked);
+    // Both panes, not just Base Rules — the Toolkits toggles are equally
+    // meaningless with no course selected and used to give no sign of it.
+    document.querySelectorAll("[data-settings]").forEach(el=>{el.style.opacity=ACTIVE_CLASS?"1":".55";});
+  }
+  async function loadSettings(){
+    if(!ACTIVE_CLASS){SETTINGS=null;paintSettings();return;}
+    const d=await Chronos.apiJson("/course-settings?class_id="+encodeURIComponent(ACTIVE_CLASS),undefined,"GET");
+    SETTINGS=d.settings||{};paintSettings();
+  }
+  async function saveSettings(){
+    if(!ensureClass())return;
+    const settings={hint_strength:$("setHints").value,additional_instructions:$("setExtra").value};
+    Object.entries(SETTING_IDS).forEach(([key,id])=>settings[key]=$(id).checked);
+    $("saveSettingsBtn").disabled=true;$("saveToolsBtn").disabled=true;
+    try{
+      const d=await api("/course-settings",withClass({settings}));SETTINGS=d.settings;paintSettings();showToast("Course settings saved",true);
+    }catch(e){showToast(e.message,false);}finally{$("saveSettingsBtn").disabled=false;$("saveToolsBtn").disabled=false;}
+  }
+
+  let TEACHER_TAB=localStorage.getItem("chronos-teacher-tab")||"material";
+  function paintTeacherTab(){
+    document.querySelectorAll("[data-teacher-pane]").forEach(el=>el.classList.toggle("hidden",el.dataset.teacherPane!==TEACHER_TAB));
+    document.querySelectorAll("[data-teacher-tab]").forEach(el=>el.classList.toggle("on",el.dataset.teacherTab===TEACHER_TAB));
+    const panels=document.querySelector("[data-panels]");if(panels)panels.classList.add("single-pane");
+  }
+  document.querySelectorAll("[data-teacher-tab]").forEach(btn=>btn.onclick=()=>{TEACHER_TAB=btn.dataset.teacherTab;localStorage.setItem("chronos-teacher-tab",TEACHER_TAB);paintTeacherTab();});
+
   async function newClass(){
-    const name=prompt("Name your class (e.g. 'Physics 101'):");
+    const name=prompt("Name your course (e.g. 'Physics 101'):");
     if(!name||!name.trim())return;
     try{
       const c=await Chronos.createClass(name.trim());
-      showToast("Class created"+(c.migrated_rules?`. Moved ${c.migrated_rules} existing rules in`:"")+". Code: "+c.join_code,true);
+      showToast("Course created"+(c.migrated_rules?`. Moved ${c.migrated_rules} existing rules in`:"")+". Code: "+c.join_code,true);
       EDITING=null;
       await loadClasses(c.id);
-      loadRules();
+      await Promise.all([loadRules(),loadSettings()]);
     }catch(e){showToast(e.message,false);}
   }
 
@@ -364,10 +447,10 @@
     if(!confirm(`Delete "${c.name}" and all its material? This cannot be undone.`))return;
     try{
       await Chronos.deleteClass(c.id);
-      showToast("Class deleted",true);
+      showToast("Course deleted",true);
       EDITING=null;
       await loadClasses();
-      loadRules();
+      await Promise.all([loadRules(),loadSettings()]);
     }catch(e){showToast(e.message,false);}
   }
 
@@ -392,11 +475,20 @@
       RULES=[];EDITING=null;TRUNC={rules:false,docs:false};
       renderRules();renderDocs();paintHeader();return;
     }
+    $("ruleCount").textContent="Loading…";$("docCount").textContent="Loading…";
+    $("rulesEmpty").classList.add("hidden");$("docsEmpty").classList.add("hidden");
+    $("rulesList").innerHTML='<p style="color:var(--mid);font-size:13px;padding:16px 0">Loading rules…</p>';
+    $("docsList").innerHTML='<p style="color:var(--mid);font-size:13px;padding:16px 0">Loading documents…</p>';
     try{
       const d=await api("/rules",withClass({}));
       RULES=d.rules||[];
       TRUNC={rules:!!d.rules_truncated,docs:!!d.docs_truncated};
-    }catch(e){showToast(e.message,false);return;}
+    }catch(e){
+      $("ruleCount").textContent="Unavailable";$("docCount").textContent="Unavailable";
+      $("rulesList").innerHTML='<p style="color:var(--crimson-d);font-size:13px;padding:16px 0">Could not load rules.</p>';
+      $("docsList").innerHTML='<p style="color:var(--crimson-d);font-size:13px;padding:16px 0">Could not load documents.</p>';
+      showToast(e.message,false);return;
+    }
     // A rule deleted in another tab would otherwise leave the editor open on
     // something that no longer exists.
     if(EDITING&&!RULES.some(r=>r.id===EDITING))EDITING=null;
@@ -409,7 +501,7 @@
     const rules=handRules();
     const list=$("rulesList");
     list.innerHTML="";
-    $("ruleCount").textContent=rules.length+(TRUNC.rules?"+":"")+" in this class";
+    $("ruleCount").textContent=rules.length+(TRUNC.rules?"+":"")+" in this course";
     $("rulesEmpty").classList.toggle("hidden",rules.length>0);
     $("rulesNote").classList.toggle("hidden",!TRUNC.rules);
     // When the list is capped, what came back *is* the cap.
@@ -580,7 +672,7 @@
     const docs=computeDocs();
     const list=$("docsList");
     list.innerHTML="";
-    $("docCount").textContent=docs.length+" in this class";
+    $("docCount").textContent=docs.length+" in this course";
     $("docsEmpty").classList.toggle("hidden",docs.length>0);
     $("docsNote").classList.toggle("hidden",!TRUNC.docs);
     docs.forEach(d=>{
@@ -658,7 +750,7 @@
       // 413 is both "body too big" and "this archive expands to too much" — the
       // server's own wording distinguishes them, so prefer it when there is one.
       if(res.status===413)throw new Error(data.error||"That file is too large to upload.");
-      if(res.status===401||res.status===403)throw new Error(data.error||"You're not allowed to upload to this class.");
+      if(res.status===401||res.status===403)throw new Error(data.error||"You're not allowed to upload to this course.");
       if(!res.ok||data.error)throw new Error(data.details||data.error||("Upload failed ("+res.status+")."));
       clearTimeout(t1);clearTimeout(t2);
       bar.style.animation="none";
@@ -728,6 +820,9 @@
   $("lockBtn").onclick=lock;
   $("newClassBtn").onclick=newClass;
   $("deleteClassBtn").onclick=removeClass;
+  $("saveSettingsBtn").onclick=saveSettings;
+  $("saveToolsBtn").onclick=saveSettings;
+  $("setGrounded").onchange=()=>$("groundingWarning").classList.toggle("hidden",$("setGrounded").checked);
   $("addRuleBtn").onclick=addRule;
   $("bulkRuleBtn").onclick=bulkAdd;
   $("probeForm").addEventListener("submit",probeAsk);
@@ -766,10 +861,11 @@
     $("gate").classList.add("hidden");
     $("app").classList.remove("hidden");
     $("app").style.display="grid";
+    paintTeacherTab();
     if(window.__tutFirstVisit)window.__tutFirstVisit();
     await loadClasses();
-    if(!ACTIVE_CLASS)showToast("Make your first class and you can start adding material.",true);
-    loadRules();
+    if(!ACTIVE_CLASS)showToast("Make your first course and you can start adding material.",true);
+    await Promise.all([loadRules(),loadSettings()]);
   }).catch(e=>{
     // textContent, not innerHTML: this string comes off the wire.
     const g=$("gate");g.textContent="";
@@ -794,11 +890,11 @@
 </div>
 <script>
   (function(){
-    const TITLE="Getting your class going";
+    const TITLE="Getting your course going";
     const KEY="chronos_tut_knowledge_v2";
     const STEPS=[
-      {icon:"add",title:"Make a class",text:"Each class is its own separate shelf. Make one, then hand out its join code (up in the sidebar) so your students can get in."},
-      {icon:"gavel",title:"Write your rules",text:"Type a ground rule into the Rules box and hit Add — things like \"don't just hand over homework answers\" or \"stick to the textbook\". Got a whole list already? Paste it in, one per line, and hit Add bulk. Click any rule afterwards to reword it."},
+      {icon:"add",title:"Make a course",text:"Each course is its own separate shelf. Make one, then hand out its join code (up in the sidebar) so your students can get in."},
+      {icon:"gavel",title:"Set the boundaries",text:"Use Base Rules for always-on tutor behavior. Knowledge notes below are factual course conventions that Chronos retrieves only when relevant."},
       {icon:"description",title:"Upload your material",text:"Add PDFs, Word docs, lecture notes. We pull the text out so the tutor can answer from your actual course content."},
       {icon:"lightbulb",title:"That's its whole world",text:"It only answers from what's on this page. Anything else and it says it doesn't know, rather than having a guess."},
     ];

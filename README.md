@@ -1,25 +1,25 @@
 # Chronos
 
-An AI tutor that answers students only from material the teacher provides. Teachers create **classes**, fill each with their own rules and course docs, and share a join code. Students join a class and ask questions, and the tutor responds using just that class's material. Answers stay on the curriculum instead of wandering off into whatever the model happens to know.
+An AI tutor that answers students only from material the teacher provides. Teachers create **courses**, fill each with their own rules and course docs, and share a join code. Students join a course and ask questions, and the tutor responds using just that course's material. Answers stay on the curriculum instead of wandering off into whatever the model happens to know.
 
 ## How it works
 
-Teachers sign in, create one or more classes, and add knowledge to each (PDFs, Word docs, or typed rules). Each class is an isolated knowledge base: its material is embedded and stored in its own Pinecone **namespace**, so classes never bleed into each other. A student joins a class with its code, and when they ask something, Chronos pulls the most relevant pieces of *that class's* knowledge and hands them to Gemini, which writes an answer grounded only in those pieces. Every exchange is saved per student, and teachers see per-class analytics.
+Teachers sign in, create one or more courses, and add course material to each (PDFs, Word docs, or text files). Each course is an isolated knowledge base: its material is embedded and stored in its own Pinecone **namespace**, so courses never bleed into each other. Custom teacher rules are stored as direct prompt policy instead of vectors. A student joins a course with its code, and when they ask something, Chronos pulls the most relevant pieces of *that course's* knowledge and hands them to Gemini, which writes an answer grounded only in those pieces. Every exchange is saved per student, and teachers see per-course analytics.
 
-## Accounts and classes
+## Accounts and courses
 
 - **Auth** is Firebase Email/Password. Teachers and students each have their own account and stay signed in across pages, so there's no re-login when switching panels.
 - Registering as a **teacher** requires the `TEACHER_SIGNUP_CODE`. Everyone else is a student. Roles live in Firestore (`Users/{uid}.role`).
 - Signing in and registering are two separate steps: the browser creates the Firebase account, then `/auth/register` assigns the role. An account with one but not the other is a half-finished signup — it can reach nothing except `/auth/register`, and a wrong teacher code deletes it server-side instead of leaving it stranded.
-- **Teachers** create classes (each gets a shareable join code), manage that class's rules, and view its analytics.
-- **Students** must join at least one class (via code) before they can use the tutor. They can join several and switch between them. Conversations are cloud-synced per account and scoped to the class they were started in.
+- **Teachers** create courses (each gets a shareable join code), manage that course's rules, and view its analytics.
+- **Students** must join at least one course (via code) before they can use the tutor. They can join several and switch between them. Conversations are cloud-synced per account and scoped to the course they were started in.
 
 ## Stack
 
 - Flask backend (`app.py`), served with Waitress
 - Gemini for answers and embeddings
-- Pinecone for vector search (one namespace per class)
-- Firebase Authentication (email/password) plus Firestore (users, classes, chat logs)
+- Pinecone for vector search (one namespace per course)
+- Firebase Authentication (email/password) plus Firestore (users, courses in the legacy `Classes` collection, chat logs)
 - Static HTML pages styled with Tailwind (via CDN), with shared auth in `auth.js`
 
 The front-end is a small set of static pages that share one dark design: indigo accents, Space Grotesk and Outfit type, and the same Chronos mark across every screen.
@@ -30,9 +30,9 @@ The front-end is a small set of static pages that share one dark design: indigo 
   redirects here so old links still work).
 - `/login.html` handles sign in and sign up, for students and teachers. A user
   who is already signed in is sent straight on to their own panel.
-- `/student.html` is the student tutor (you need to be in a class to use it).
-- `/teacherknowledge.html` is where teachers create classes and manage their knowledge (teacher only).
-- `/teacherstats.html` shows per-class analytics on student questions (teacher only).
+- `/student.html` is the student tutor (you need to be in a course to use it).
+- `/teacherknowledge.html` is where teachers create courses and manage their knowledge (teacher only).
+- `/teacherstats.html` shows per-course analytics on student questions (teacher only).
 
 ## Running it locally
 
@@ -55,24 +55,39 @@ FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
 
 The Pinecone index name is set in `app.py` (`INDEX_NAME`), so the API key is all you need in the environment. You also need to enable **Email/Password** sign-in in the Firebase console (Authentication > Sign-in method).
 
+## AI context and data boundaries
+
+Audit note: before the current separation, Pinecone contained teacher-entered rules as well as teacher uploads. Student assignments/rubrics were kept in Firestore and injected whole, but they were scoped only to a course, so they followed the student into every conversation in that course. Long chats replayed the latest 20 messages and had no rolling summary; the older cross-chat “memory” held only opening topics and retrieval misses. The behavior below removes prompt policy from retrieval and replaces those weak spots.
+
+- **Teacher course knowledge** is the only content embedded into Pinecone: teacher-uploaded document chunks use the course's namespace; retrieval sends at most the configured top matches and character budget to Gemini. Existing legacy typed-rule vectors are moved to custom policy and deleted from the namespace the next time a teacher opens that course.
+- **Student files** never touch Pinecone. Assignment and rubric text is stored under that student's Firestore account, scoped to one course and one conversation, and supplied only as non-authoritative review context until the student removes it or deletes the conversation.
+- **Current conversation** replays only the latest `HISTORY_TURNS` messages. Before older turns fall out, Chronos maintains a bounded tutoring-state summary on the chat document. It tracks progress, confusion, learning gaps, open questions, and unfinished work, but is explicitly forbidden as a source of facts.
+- **Cross-conversation memory** is a bounded, course-scoped list of prior topics and explicit learning signals derived from chat metadata. It is never written to Pinecone.
+- **System and teacher policy** comes from compact Base Rules and custom teacher rules. Custom rules are always added to the tutor prompt, never retrieved as facts. Prompt secrecy and jailbreak resistance are permanent system protections, not teacher toggles. Optional practice, visual, study-material, and source-display tools are disabled by default.
+- **Interactive tools** use two stages. A student can ask for one directly — practice chips sit under the newest answer, showing only the activities the course has enabled — or the tutor can request one itself by calling the `create_practice_activity` function declared on the chat request. Either way the client then shows a short “Creating…” card while a separate constrained Gemini call receives the relevant course material only and returns validated JSON for the quiz, flashcards, concept map, or review sheet. The server re-checks the requested type against the course settings on the way in, so the chips cannot reach a disabled toolkit.
+
+The prompt orders these layers deliberately: system/base rules, retrieved teacher material, tutoring memory, and student work. Student text is always labelled untrusted and cannot promote itself into teacher-approved knowledge.
+
 A few optional overrides exist too:
 
 - `ALLOWED_ORIGINS` (comma-separated CORS allowlist; the default is local dev only, so set this in production)
 - `MAX_UPLOAD_MB` (default 10) — the size on the wire
 - `MAX_EXTRACT_BYTES` (default 200 MB) and `MAX_EXTRACT_CHARS` (default 2,000,000) — the size *after* decompression. A `.docx` is a zip and a `.pdf` holds compressed streams, so a small upload can inflate enormously; these bound what actually reaches memory. Over the character cap the file is indexed up to the limit and the response says so
 - `CHAT_RATE_LIMIT` and `CHAT_RATE_WINDOW` (messages allowed per window, in seconds)
-- `JOIN_RATE_LIMIT` and `JOIN_RATE_WINDOW` (class-code attempts per window; default 10 per 5 minutes)
+- `TOOL_RATE_LIMIT` and `TOOL_RATE_WINDOW` (learning activities per window; default 12 per minute). Separate from the chat budget on purpose: an activity almost always follows a chat turn, so sharing one bucket charged a student twice for a single interaction and throttled the activity half first
+- `JOIN_RATE_LIMIT` and `JOIN_RATE_WINDOW` (course-code attempts per window; default 10 per 5 minutes)
 - `REGISTER_RATE_LIMIT` and `REGISTER_RATE_WINDOW` (teacher-code attempts per window; default 5 per 15 minutes)
 - `HISTORY_TURNS` (how many past turns the tutor remembers, default 20)
 - `MAX_MESSAGES_RETURNED` (cap on messages returned for one conversation, default 500)
 - `ROLE_CACHE_TTL` (seconds a user's role is cached in-process, default 60)
 - `TRUST_PROXY_HOPS` (default 0; set to 1 on Cloud Run so client IPs in the logs are real)
 - `CHAT_MODEL` (the Gemini model, default `gemini-2.5-flash-lite`)
+- `TOOL_MODEL` (the model that builds learning activities; defaults to `CHAT_MODEL`)
 - `FLASK_DEBUG`
 
-Rate limits are keyed by Firebase uid, not IP — behind a load balancer every request shares one IP, so an IP-keyed limit would throttle a whole class as though it were a single student. Teacher registration is the one exception, and it's keyed by IP: the attacker there isn't a signed-in student but anyone who can make a Firebase account, which is free and unlimited, so a per-account budget would reset on every guess.
+Rate limits are keyed by Firebase uid, not IP — behind a load balancer every request shares one IP, so an IP-keyed limit would throttle a whole course as though it were a single student. Teacher registration is the one exception, and it's keyed by IP: the attacker there isn't a signed-in student but anyone who can make a Firebase account, which is free and unlimited, so a per-account budget would reset on every guess.
 
-Retrieval is tunable as well. `RETRIEVAL_TOP_K` (default 5) sets how many knowledge chunks each answer draws on, and `RETRIEVAL_MIN_SCORE` (default 0.5, cosine) drops weakly related chunks, so off-topic questions get a truthful "not in my knowledge base" reply instead of being answered from the least-bad matches. Those unanswered questions then show up as **Knowledge Gaps** in the analytics. Firebase admin credentials are read from `firebase_credentials.json` locally, or the `FIREBASE_CREDENTIALS_JSON` env var when deployed.
+Retrieval is tunable as well. `RETRIEVAL_TOP_K` (default 5) sets how many knowledge chunks each answer draws on, and `RETRIEVAL_MIN_SCORE` (default 0.5, cosine) drops weakly related chunks. Unanswered questions become **material gaps**; explicit confusion becomes a separate learning signal, and conduct concerns are reported separately. Firebase admin credentials are read from `firebase_credentials.json` locally, or the `FIREBASE_CREDENTIALS_JSON` env var when deployed.
 
 Then start it:
 
@@ -81,6 +96,22 @@ waitress-serve --port=5000 app:app
 ```
 
 and open http://localhost:5000.
+
+## Tests
+
+```bash
+python test_security.py && python test_stats_grouping.py && python test_student_context.py
+```
+
+Three plain-`assert` scripts, no test runner. They stub every collaborator that
+would reach Firestore, Pinecone or Gemini, so they run offline in about a second
+and need no real keys — but `app.py` still refuses to import without a valid
+`TEACHER_SIGNUP_CODE`, so a `.env` with a throwaway one (and dummy values for the
+rest) has to exist. They cover the auth gate, the teacher signup code and the
+throttles in front of it, the `.docx` decompression cap, that course material is
+never sent to a student, the analytics grouping, and the shape of the tutor's
+assembled prompt. Run them before committing; they are fast enough that there is
+no excuse not to.
 
 ## Deploying
 
@@ -103,9 +134,9 @@ Because Cloud Run scales to zero and can run several instances at once, note tha
 
 All endpoints below the auth layer expect a Firebase ID token in the `Authorization: Bearer <token>` header (the front-end attaches this automatically).
 
-- **Auth and classes:** `/auth/config`, `/auth/register`, `/auth/me`, `/classes` (GET list, POST create), `/classes/join`, `DELETE /classes/<id>`.
-- **Student (any signed-in user in the class):** `/chat`, `/chats`, `/chats/<id>/messages`, `DELETE /chats/<id>`, all class-scoped.
-- **Teacher (owner of the class):** `/ingest`, `/upload`, `/rules`, `/delete_rule`, `/stats`, all take a `class_id`.
+- **Auth and courses:** `/auth/config`, `/auth/register`, `/auth/me`, `/classes` (legacy API name; GET list, POST create), `/classes/join`, `DELETE /classes/<id>`.
+- **Student (any signed-in user in the course):** `/chat`, `/chats`, `/chats/<id>/messages`, `DELETE /chats/<id>`, all course-scoped.
+- **Teacher (owner of the course):** `/ingest`, `/upload`, `/rules`, `/delete_rule`, `/stats`, and `/course-settings`; these retain the legacy `class_id` field.
 - `/health` is a plain health check.
 
-Legacy rules from before classes existed are automatically migrated into the first class a teacher creates.
+Legacy rules from before courses existed are automatically migrated into the first course a teacher creates.

@@ -13,9 +13,9 @@ import app as A
 # ---------- recollection ----------
 
 CHATS = [
-    {"id": "c1", "opening": "what is osmosis", "gaps": ["what is osmosis"], "last_active": 10},
-    {"id": "c2", "opening": "explain diffusion", "gaps": [], "last_active": 30},
-    {"id": "c3", "opening": "explain diffusion", "gaps": [], "last_active": 20},  # duplicate topic
+    {"id": "c1", "opening": "what is osmosis", "learning_gaps": ["what is osmosis"], "last_active": 10},
+    {"id": "c2", "opening": "explain diffusion", "learning_gaps": [], "last_active": 30},
+    {"id": "c3", "opening": "explain diffusion", "learning_gaps": [], "last_active": 20},  # duplicate topic
     {"id": "now", "opening": "the question being asked right now", "last_active": 99},
 ]
 
@@ -28,8 +28,8 @@ assert "right now" not in m, m
 assert m.index("explain diffusion") < m.index("what is osmosis"), m
 assert m.count("explain diffusion") == 1, m
 # Gaps are called out separately — that's the bit worth pitching an answer at.
-assert "may still be stuck" in m and "what is osmosis" in m, m
-assert "Earlier conversations in this class: 3" in m, m
+assert "uncertainty or confusion" in m and "what is osmosis" in m, m
+assert "Earlier conversations in this course: 3" in m, m
 
 # No chats, or only the current one, means the tutor remembers nothing and says
 # nothing — an empty block is dropped from the prompt entirely.
@@ -71,10 +71,10 @@ assert A.build_docs_block(big).count("x") <= A.STUDENT_CONTEXT_CHARS
 
 plain = A.build_system_instruction("teacher stuff")
 assert "teacher stuff" in plain
-# Rules 5 and 6 are about material that isn't there; the model shouldn't be told
-# to weigh a rubric nobody uploaded.
+# The model shouldn't be told to weigh a rubric nobody uploaded, or to recall a
+# conversation that never happened.
 assert "uploaded work" not in plain and "recollection notes" not in plain, plain
-assert "5." not in plain, plain
+assert "What you remember" not in plain and "NOT teacher material" not in plain, plain
 
 full = A.build_system_instruction("teacher stuff", m, b)
 assert "recollection notes" in full and "uploaded work" in full, full
@@ -90,7 +90,7 @@ assert full.index("What you remember") < full.index("NOT teacher material"), ful
 # that makes "mark my essay" answerable without reopening the grounding hole.
 gapful = A.build_system_instruction("", "", b)
 assert "do not supply subject facts" in gapful, gapful
-assert "nothing in this class matched" in gapful, gapful
+assert "nothing in this course matched" in gapful, gapful
 # ...and that licence only exists when there is work to review.
 assert "do not supply subject facts" not in A.build_system_instruction("", m, "")
 

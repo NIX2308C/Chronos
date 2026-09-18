@@ -98,6 +98,18 @@ def test_join_throttle_is_not_only_per_uid():
     A.JOIN_IP_RATE_LIMIT = 5
     ip = {"REMOTE_ADDR": "10.0.0.21"}
 
+    # An attempt that ISN'T throttled looks the code up in Firestore. Unstubbed
+    # that is a real network call, and google-auth retries the failure long
+    # enough to look like a hang rather than a failure — which is why this file
+    # could never be run despite claiming to touch nothing.
+    class _NoMatch:
+        def collection(self, _n): return self
+        def where(self, *_a, **_k): return self
+        def limit(self, _n): return self
+        def stream(self): return iter(())
+
+    A.db = _NoMatch()
+
     def attempt(uid):
         signed_in_as(uid=uid, role="student")
         return c.post("/classes/join", json={"join_code": "ZZZZZZ"}, environ_base=ip).status_code
@@ -136,6 +148,9 @@ def test_sources_are_not_sent_to_students():
             pass
 
     class _FakeQuery:
+        def where(self, *_a, **_k):
+            return self
+
         def limit(self, _n):
             return self
 
@@ -156,6 +171,12 @@ def test_sources_are_not_sent_to_students():
     A._user_chats = lambda uid: _FakeChats()
     A._user_files = lambda uid: _FakeChats()
     A.load_history = lambda *_a, **_k: []
+    A.load_course_settings = lambda *_a, **_k: A.course_settings()
+    # /chat reads these too. Left unstubbed they reach real Firestore, which is
+    # exactly what this file claims never to do — it hangs instead of failing.
+    A.load_custom_rules = lambda *_a, **_k: []
+    A.load_class_memory = lambda *_a, **_k: ""
+    A.refresh_conversation_summary = lambda *_a, **_k: ("", {})
     A.embed = lambda _t: [0.0] * A.EMBED_DIM
     A.summarize_exchange = lambda *_a, **_k: {}
     A.pinecone_index = type("_PC", (), {
@@ -171,7 +192,10 @@ def test_sources_are_not_sent_to_students():
 
     def ask(role):
         signed_in_as(uid="u-" + role, role=role)
-        r = c.post("/chat", json={"message": "hi", "class_id": "c1"})
+        # A real question, not "hi": greetings match _ACK_RE and short-circuit
+        # retrieval entirely, so there would be no material to withhold and the
+        # test would pass without proving anything.
+        r = c.post("/chat", json={"message": "what is osmosis", "class_id": "c1"})
         assert r.status_code == 200, r.get_json()
         return r.get_json()
 

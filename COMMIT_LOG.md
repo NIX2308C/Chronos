@@ -36,7 +36,3 @@ tool pass + less clutter
 - made page transitions and normal page entrances smoother without hiding content
 - found + fixed two unfinished auth error callbacks while doing the script check
 - static checked python and all changed browser scripts; still did not run python tests because no .env secrets
-
-tiny toolkit fix
-
-- made direct "quiz me" and flashcard requests trigger the enabled practice toolkit even if flash lite forgets the hidden tool marker

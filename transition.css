@@ -36,7 +36,7 @@ html.wiping .px { display: block; pointer-events: auto; }
   background: #E2001A;
   will-change: transform;
   transform: translateX(var(--off)) skewX(-14deg);
-  transition: transform .24s cubic-bezier(.65, 0, .35, 1);
+  transition: transform .2s cubic-bezier(.65, 0, .35, 1);
 }
 .px-b:nth-child(odd)  { --off: -140%; }
 .px-b:nth-child(even) { --off:  140%; }
@@ -58,7 +58,7 @@ html.wiping .px-b { transform: translateX(0) skewX(-14deg); transition: none; }
 .px.cover .px-b:nth-child(5) { transition-delay: 80ms; }
 
 /* arriving: sweep back out, bottom-to-top so it reads as one motion */
-.px.reveal .px-b { transform: translateX(var(--off)) skewX(-14deg); transition-duration: .3s; }
+.px.reveal .px-b { transform: translateX(var(--off)) skewX(-14deg); transition-duration: .24s; }
 .px.reveal .px-b:nth-child(5) { transition-delay: 0ms; }
 .px.reveal .px-b:nth-child(4) { transition-delay: 20ms; }
 .px.reveal .px-b:nth-child(3) { transition-delay: 40ms; }
@@ -90,17 +90,6 @@ html.wiping .px-mark { opacity: 1; transform: scale(1) rotate(-7deg); transition
   letter-spacing: -.015em;
   padding: .18em .34em .24em;
   border: 1px solid #F7F4EC;
-}
-
-@keyframes chronos-page-enter {
-  from { opacity: .01; transform: translateY(7px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-body.chronos-page-enter main,
-body.chronos-page-enter nav,
-body.chronos-page-enter #app,
-body.chronos-page-enter #formCard {
-  animation: chronos-page-enter .32s cubic-bezier(.2,.9,.3,1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

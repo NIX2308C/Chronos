@@ -4,7 +4,7 @@ An AI tutor that answers students only from material the teacher provides. Teach
 
 ## How it works
 
-Teachers sign in, create one or more courses, and add knowledge to each (PDFs, Word docs, or typed rules). Each course is an isolated knowledge base: its material is embedded and stored in its own Pinecone **namespace**, so courses never bleed into each other. A student joins a course with its code, and when they ask something, Chronos pulls the most relevant pieces of *that course's* knowledge and hands them to Gemini, which writes an answer grounded only in those pieces. Every exchange is saved per student, and teachers see per-course analytics.
+Teachers sign in, create one or more courses, and add course material to each (PDFs, Word docs, or text files). Each course is an isolated knowledge base: its material is embedded and stored in its own Pinecone **namespace**, so courses never bleed into each other. Custom teacher rules are stored as direct prompt policy instead of vectors. A student joins a course with its code, and when they ask something, Chronos pulls the most relevant pieces of *that course's* knowledge and hands them to Gemini, which writes an answer grounded only in those pieces. Every exchange is saved per student, and teachers see per-course analytics.
 
 ## Accounts and courses
 
@@ -57,13 +57,14 @@ The Pinecone index name is set in `app.py` (`INDEX_NAME`), so the API key is all
 
 ## AI context and data boundaries
 
-Audit note: before the current separation, Pinecone already contained only teacher-entered rules and teacher uploads. Student assignments/rubrics were kept in Firestore and injected whole, but they were scoped only to a course, so they followed the student into every conversation in that course. Long chats replayed the latest 20 messages and had no rolling summary; the older cross-chat “memory” held only opening topics and retrieval misses. The behavior below replaces those two weak spots without changing the Pinecone trust boundary.
+Audit note: before the current separation, Pinecone contained teacher-entered rules as well as teacher uploads. Student assignments/rubrics were kept in Firestore and injected whole, but they were scoped only to a course, so they followed the student into every conversation in that course. Long chats replayed the latest 20 messages and had no rolling summary; the older cross-chat “memory” held only opening topics and retrieval misses. The behavior below removes prompt policy from retrieval and replaces those weak spots.
 
-- **Teacher course knowledge** is the only content embedded into Pinecone. Typed rules and teacher-uploaded document chunks use the course's namespace; retrieval sends at most the configured top matches and character budget to Gemini.
+- **Teacher course knowledge** is the only content embedded into Pinecone: teacher-uploaded document chunks use the course's namespace; retrieval sends at most the configured top matches and character budget to Gemini. Existing legacy typed-rule vectors are moved to custom policy and deleted from the namespace the next time a teacher opens that course.
 - **Student files** never touch Pinecone. Assignment and rubric text is stored under that student's Firestore account, scoped to one course and one conversation, and supplied only as non-authoritative review context until the student removes it or deletes the conversation.
 - **Current conversation** replays only the latest `HISTORY_TURNS` messages. Before older turns fall out, Chronos maintains a bounded tutoring-state summary on the chat document. It tracks progress, confusion, learning gaps, open questions, and unfinished work, but is explicitly forbidden as a source of facts.
 - **Cross-conversation memory** is a bounded, course-scoped list of prior topics and explicit learning signals derived from chat metadata. It is never written to Pinecone.
-- **System and teacher policy** comes from the compact Base Rules/course settings plus optional teacher instructions. Optional practice and source-display tools are disabled by default.
+- **System and teacher policy** comes from compact Base Rules and custom teacher rules. Custom rules are always added to the tutor prompt, never retrieved as facts. Prompt secrecy and jailbreak resistance are permanent system protections, not teacher toggles. Optional practice, visual, study-material, and source-display tools are disabled by default.
+- **Interactive tools** use two stages: the tutor writes its visible lead-in and requests an enabled tool with a hidden marker; the client then shows a short “Creating…” card while a separate constrained Gemini call receives relevant teacher excerpts only and returns validated JSON for the quiz, flashcards, concept map, or review sheet.
 
 The prompt orders these layers deliberately: system/base rules, retrieved teacher material, tutoring memory, and student work. Student text is always labelled untrusted and cannot promote itself into teacher-approved knowledge.
 

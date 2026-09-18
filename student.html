@@ -137,7 +137,7 @@
     .kbtn { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
         font-size:14px; font-weight:600; padding:.85rem 1rem; border:1px solid var(--crimson); background:var(--crimson);
         color:#F7F4EC; cursor:pointer; transition:background-color .15s ease,border-color .15s ease }
-    .kbtn:hover:not(:disabled) { background:var(--c-ink); border-color:var(--c-ink) }
+    .kbtn:hover:not(:disabled) { background:#B90015; border-color:#B90015; color:#F7F4EC; transform:translateY(-1px) }
     .kbtn:disabled { opacity:.55; cursor:default }
     .kbtn-ghost { background:transparent; border-color:var(--c-rule); color:var(--c-ink) }
     .kbtn-ghost:hover:not(:disabled) { color:var(--c-ink); border-color:var(--c-ink); background:transparent }
@@ -184,11 +184,19 @@
     /* ---- teacher-only "Sources used" dropdown ---- */
     .src-drop summary { list-style: none; }
     .src-drop summary::-webkit-details-marker { display: none; }
-    .knowledge-check { width:100%;max-width:620px;border:1px solid var(--c-rule);padding:16px;margin-top:10px;background:var(--c-paper); }
+    .learning-tool { width:100%;max-width:620px;border:1px solid var(--c-rule);padding:16px;margin-top:10px;background:var(--c-paper);animation:pop .34s var(--snap) both; }
+    .tool-progress { width:100%;max-width:620px;border-left:3px solid var(--gold);padding:12px 14px;margin-top:12px;background:var(--c-hi);color:var(--c-ink);animation:pop .24s ease both; }
+    .tool-progress summary { cursor:pointer;color:var(--c-sub);font-size:12px;margin-top:6px; }
+    .tool-progress p { margin:0; }
+    .tool-heading { font-family:'Newsreader',serif;font-size:21px;line-height:1.15;margin:0 0 10px;color:var(--c-ink); }
     .quiz-option { width:100%;text-align:left;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);padding:10px 12px;margin-top:8px;transition:background-color .16s,color .16s,border-color .16s; }
     .quiz-option:hover:not(:disabled) { border-color:var(--crimson); }
     .quiz-option.correct { background:var(--gold);border-color:var(--gold);color:#111; }
     .quiz-option.wrong { background:var(--crimson);border-color:var(--crimson);color:#fff; }
+    .flashcard { width:100%;min-height:120px;background:var(--c-hi);border:1px solid var(--c-rule);padding:18px;text-align:left;color:var(--c-ink);cursor:pointer;transition:transform .18s var(--snap),border-color .18s; }
+    .flashcard:hover { transform:translateY(-2px);border-color:var(--crimson); }
+    .tool-list { margin:0;padding-left:1.25rem;color:var(--c-ink); }.tool-list li{margin:.38rem 0;}
+    .map-node { border-left:3px solid var(--gold);padding:8px 10px;margin-top:8px;background:var(--c-hi); }.map-link{font-size:12px;color:var(--c-sub);margin:5px 0 0 13px;}
     .src-drop[open] .chev { transform: rotate(180deg); }
     .src-drop { border:1px solid var(--gold); background:var(--c-paper); color:var(--c-ink) }
 
@@ -543,7 +551,7 @@
     // teachers get a collapsible dropdown beneath the answer.
     const sources=(m.sources&&m.sources.length)?m.sources:(IS_TEACHER?(m.rules||[]):[]);
     if(sources.length){w.appendChild(buildSourcesDropdown(sources));}
-    if(m.tool)w.appendChild(buildKnowledgeCheck(m.tool));
+    if(m.tool)w.appendChild(buildLearningTool(m.tool));
     return w;
   }
 
@@ -589,23 +597,37 @@
     return d;
   }
 
-  function buildKnowledgeCheck(tool){
-    const box=document.createElement("section");box.className="knowledge-check";
-    const label=document.createElement("p");label.className="slabel mb-2";label.textContent="Knowledge check";
-    const q=document.createElement("p");q.className="font-label-md text-on-surface mb-2";q.textContent=tool.question||"Check your understanding";
-    const feedback=document.createElement("p");feedback.className="mt-3 text-[13px] text-on-surface-variant";
-    box.appendChild(label);box.appendChild(q);
-    (tool.options||[]).forEach((option,index)=>{
-      const b=document.createElement("button");b.type="button";b.className="quiz-option";b.textContent=option;
-      b.onclick=()=>{
-        box.querySelectorAll(".quiz-option").forEach(x=>x.disabled=true);
-        b.classList.add(index===tool.answer?"correct":"wrong");
-        if(index!==tool.answer){const right=box.querySelectorAll(".quiz-option")[tool.answer];if(right)right.classList.add("correct");}
-        feedback.textContent=(index===tool.answer?"That’s right. ":"Not quite. ")+(tool.explanation||"");
-      };
-      box.appendChild(b);
-    });
-    box.appendChild(feedback);return box;
+  function toolTitle(box,kind,title){
+    const label=document.createElement("p");label.className="slabel mb-1";label.textContent=kind;
+    const h=document.createElement("h3");h.className="tool-heading";h.textContent=title||kind;
+    box.append(label,h);
+  }
+  function buildLearningTool(tool){
+    const box=document.createElement("section");box.className="learning-tool";
+    if(tool.type==="quiz"){
+      toolTitle(box,"Practice quiz",tool.title);const feedback=document.createElement("p");feedback.className="mt-3 text-[13px] text-on-surface-variant";
+      (tool.questions||[]).forEach((question,qi)=>{
+        const q=document.createElement("p");q.className="font-label-md text-on-surface mt-4 mb-2";q.textContent=(qi+1)+". "+question.prompt;box.appendChild(q);
+        (question.options||[]).forEach((option,index)=>{const b=document.createElement("button");b.type="button";b.className="quiz-option";b.textContent=option;b.onclick=()=>{
+          const group=b.parentElement.querySelectorAll('[data-question="'+qi+'"]');group.forEach(x=>x.disabled=true);
+          b.classList.add(index===question.answer?"correct":"wrong");if(index!==question.answer){const right=[...group][question.answer];if(right)right.classList.add("correct");}
+          feedback.textContent=(index===question.answer?"That’s right. ":"Not quite. ")+(question.explanation||"");
+        };b.dataset.question=qi;box.appendChild(b);});
+      });box.appendChild(feedback);
+    }else if(tool.type==="flashcards"){
+      toolTitle(box,"Flashcards",tool.title);(tool.cards||[]).forEach((card,i)=>{const b=document.createElement("button");b.type="button";b.className="flashcard";b.textContent=card.front;b.title="Show answer";let flipped=false;b.onclick=()=>{flipped=!flipped;b.textContent=flipped?card.back:card.front;b.title=flipped?"Show prompt":"Show answer";};box.appendChild(b);});
+    }else if(tool.type==="concept_map"){
+      toolTitle(box,"Concept map",tool.title);(tool.nodes||[]).forEach((node,i)=>{const n=document.createElement("div");n.className="map-node";n.innerHTML="<strong></strong><span></span>";n.querySelector("strong").textContent=node.label;n.querySelector("span").textContent=node.detail?" — "+node.detail:"";box.appendChild(n);(tool.links||[]).filter(l=>l.from===i).forEach(l=>{const p=document.createElement("p");p.className="map-link";p.textContent="↳ "+(l.label||"relates to")+": "+((tool.nodes||[])[l.to]||{}).label;box.appendChild(p);});});
+    }else if(tool.type==="review_sheet"){
+      toolTitle(box,"Review sheet",tool.title);(tool.sections||[]).forEach(section=>{const h=document.createElement("p");h.className="font-label-md text-on-surface mt-4 mb-1";h.textContent=section.heading;const list=document.createElement("ul");list.className="tool-list";(section.points||[]).forEach(point=>{const li=document.createElement("li");li.textContent=point;list.appendChild(li);});box.append(h,list);});
+    }else { toolTitle(box,"Learning activity",tool.title); }
+    return box;
+  }
+  function buildToolProgress(request){
+    const box=document.createElement("section");box.className="tool-progress";
+    const name={quiz:"quiz",flashcards:"flashcards",concept_map:"concept map",review_sheet:"review sheet"}[request.type]||"learning activity";
+    box.innerHTML='<p class="flex items-center gap-2"><span class="material-symbols-outlined spin text-[18px]">progress_activity</span><strong>Creating '+name+'…</strong></p><details><summary>What Chronos is doing</summary><p>Finding the relevant course material and shaping it into a '+name+'.</p></details>';
+    return box;
   }
 
   function scrollBottom(){els.messages.scrollTop=els.messages.scrollHeight;}
@@ -659,16 +681,23 @@
       // `grounded` comes from the server, which is the only side that can see
       // the sources: students are never sent rules_used, so an empty list here
       // no longer means "nothing backed this answer".
-      tm.content=data.response||"";tm.rules=data.rules_used||[];tm.sources=data.sources||[];tm.tool=data.tool||null;
+      tm.content=data.response||"";tm.rules=data.rules_used||[];tm.sources=data.sources||[];
       tm.reviewed=!!data.reviewed;tm.gap=!!data.material_gap&&!tm.reviewed;
-      if(tm.tool&&!reduceMotion){b.textContent="Creating practice…";await new Promise(resolve=>setTimeout(resolve,220));}
       b.textContent="";
-      typeOut(b,tm.content,()=>{
+      typeOut(b,tm.content,async()=>{
         if(tm.gap)el.appendChild(gapNote());
         if(tm.reviewed)el.appendChild(reviewedNote());
         const sources=tm.sources.length?tm.sources:(IS_TEACHER?tm.rules:[]);
         if(sources.length)el.appendChild(buildSourcesDropdown(sources));
-        if(tm.tool)el.appendChild(buildKnowledgeCheck(tm.tool));
+        if(data.tool_request){
+          const progress=buildToolProgress(data.tool_request);el.appendChild(progress);scrollBottom();
+          try{
+            const toolRes=await Chronos.apiFetch("/tools/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({class_id:c.classId||ACTIVE_CLASS,chat_id:c.id,tool_request:data.tool_request})});
+            const toolData=await toolRes.json();
+            if(!toolRes.ok||toolData.error){progress.querySelector("strong").textContent=toolData.error||"Couldn’t create that activity.";const icon=progress.querySelector(".spin");if(icon)icon.classList.remove("spin");}
+            else {c.messages.push({role:"teacher",content:"",tool:toolData.tool,sources:toolData.sources||[]});progress.replaceWith(buildLearningTool(toolData.tool));}
+          }catch(err){progress.querySelector("strong").textContent="Couldn’t create that activity.";const icon=progress.querySelector(".spin");if(icon)icon.classList.remove("spin");}
+        }
         scrollBottom();setSending(false);
       });
     }catch(err){

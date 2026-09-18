@@ -57,7 +57,7 @@
   .kbtn{display:inline-flex;align-items:center;gap:7px;background:var(--crimson);color:#F7F4EC;
     border:1px solid var(--crimson);padding:11px 17px;font-size:14px;font-weight:600;cursor:pointer;
     transition:background-color .15s,border-color .15s}
-  .kbtn:hover:not(:disabled){background:var(--ink);border-color:var(--ink)}
+  .kbtn:hover:not(:disabled){background:var(--crimson-d);border-color:var(--crimson-d);color:#F7F4EC;transform:translateY(-1px)}
   .kbtn:disabled{opacity:.5;cursor:default}
   .kbtn-ghost{background:transparent;border-color:var(--field-b);color:var(--ink);padding:10px 15px}
   .kbtn-ghost:hover:not(:disabled){background:transparent;border-color:var(--ink);color:var(--ink)}
@@ -99,6 +99,11 @@
   .doc-row .ibtn,.rule-row .ibtn{opacity:0;transition:opacity .15s,color .15s}
   .doc-row:hover .ibtn,.doc-row .ibtn:focus-visible,
   .rule-row:hover .ibtn,.rule-row .ibtn:focus-visible{opacity:1}
+  .teacher-tabs{display:flex;gap:6px;border-bottom:1px solid var(--rule2);margin:0 0 24px;padding-bottom:10px}
+  .teacher-tab{background:transparent;border:1px solid transparent;color:var(--sub);padding:8px 11px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:color .15s,background .15s}
+  .teacher-tab:hover,.teacher-tab.on{color:var(--ink);background:var(--hi);border-color:var(--field-b)}
+  [data-teacher-pane].hidden{display:none!important}
+  [data-panels].single-pane{grid-template-columns:minmax(0,1fr)!important}
 
   @media (max-width:980px){
     [data-shell]{grid-template-columns:minmax(0,1fr)!important}
@@ -181,46 +186,47 @@
         </div>
       </div>
 
-      <section class="card" style="padding:18px 20px;margin-bottom:28px">
+      <div class="teacher-tabs" role="tablist" aria-label="Course material sections">
+        <button class="teacher-tab on" type="button" data-teacher-tab="material">Course material</button>
+        <button class="teacher-tab" type="button" data-teacher-tab="rules">Tutor rules</button>
+        <button class="teacher-tab" type="button" data-teacher-tab="tools">Toolkits</button>
+      </div>
+
+      <section class="card hidden" data-teacher-pane="rules" style="padding:18px 20px;margin-bottom:28px">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:10px">
           <div><h2 class="lbl" style="margin:0 0 5px;font-family:inherit">Base Rules</h2>
-          <p style="margin:0;font-size:13.5px;line-height:1.5;color:var(--sub)">High-impact course policy. Detailed course-specific directions can stay in the Rules panel below.</p></div>
+          <p style="margin:0;font-size:13.5px;line-height:1.5;color:var(--sub)">A few high-impact policies. Safety and prompt protection are always on.</p></div>
           <button id="saveSettingsBtn" class="kbtn kbtn-dark" style="padding:9px 14px">Save</button>
         </div>
         <div data-settings>
           <div class="setting-row"><span><strong>Use only teacher-provided material</strong><small style="display:block;color:var(--sub);margin-top:3px">Prevents outside knowledge and requires an honest refusal when material is missing.</small></span><label class="switch"><input id="setGrounded" type="checkbox"><span></span></label></div>
           <div id="groundingWarning" class="hidden" style="margin:10px 0;padding:10px 12px;border-left:3px solid var(--crimson);background:var(--hi);font-size:13px;line-height:1.5">Warning: Chronos may use general knowledge and will label it as outside the course material. Grounding behavior changes for every student in this course.</div>
           <div class="setting-row"><span><strong>Tutor instead of completing work</strong><small style="display:block;color:var(--sub);margin-top:3px">Guides with questions and steps instead of producing submission-ready work.</small></span><label class="switch"><input id="setGuide" type="checkbox"><span></span></label></div>
-          <div class="setting-row"><span><strong>Protect rules and internal instructions</strong><small style="display:block;color:var(--sub);margin-top:3px">Resists jailbreaks and never reveals prompts, teacher rules, or tool syntax.</small></span><label class="switch"><input id="setProtect" type="checkbox"><span></span></label></div>
           <div class="setting-row"><span><strong>State uncertainty</strong><small style="display:block;color:var(--sub);margin-top:3px">Says what is missing instead of inventing details.</small></span><label class="switch"><input id="setUncertainty" type="checkbox"><span></span></label></div>
         </div>
-        <details style="margin-top:14px;border-top:1px solid var(--rule2);padding-top:14px">
-          <summary style="cursor:pointer;font-weight:600;font-size:14px">Toolkits and tutoring settings</summary>
-          <div style="margin-top:8px">
-            <div class="setting-row"><span><strong>Allow Practice Tools</strong><small style="display:block;color:var(--sub);margin-top:3px">Lets Chronos create grounded interactive knowledge checks.</small></span><label class="switch"><input id="setPractice" type="checkbox"><span></span></label></div>
-            <div class="setting-row"><span><strong>Allow Source Display</strong><small style="display:block;color:var(--sub);margin-top:3px">Students may open the exact retrieved course excerpts used in an answer.</small></span><label class="switch"><input id="setSources" type="checkbox"><span></span></label></div>
-            <div class="setting-row"><span><strong>Reveal final answers</strong><small style="display:block;color:var(--sub);margin-top:3px">Off by default so students must do the final step themselves.</small></span><label class="switch"><input id="setAnswers" type="checkbox"><span></span></label></div>
-            <div class="setting-row"><span><strong>Allow worked examples</strong></span><label class="switch"><input id="setExamples" type="checkbox"><span></span></label></div>
-            <label style="display:block;margin-top:14px;font-size:13px;font-weight:600">Hint strength
-              <select id="setHints" class="fld" style="display:block;width:100%;margin-top:6px;padding:9px 10px"><option value="light">Light</option><option value="progressive">Progressive</option><option value="strong">Strong</option></select>
-            </label>
-            <label style="display:block;margin-top:14px;font-size:13px;font-weight:600">Additional teacher instructions
-              <textarea id="setExtra" class="fld" rows="3" maxlength="1500" style="display:block;width:100%;margin-top:6px;padding:10px;resize:vertical" placeholder="Optional course-specific guidance"></textarea>
-            </label>
-          </div>
-        </details>
+      </section>
+
+      <section class="card hidden" data-teacher-pane="tools" style="padding:18px 20px;margin-bottom:28px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:10px"><div><h2 class="lbl" style="margin:0 0 5px;font-family:inherit">Toolkits and tutoring</h2><p style="margin:0;font-size:13.5px;line-height:1.5;color:var(--sub)">Optional student-facing activities. All are off until you choose otherwise.</p></div><button id="saveToolsBtn" class="kbtn kbtn-dark" style="padding:9px 14px">Save</button></div>
+        <div class="setting-row"><span><strong>Allow Practice Tools</strong><small style="display:block;color:var(--sub);margin-top:3px">Quizzes and flashcards built from course material.</small></span><label class="switch"><input id="setPractice" type="checkbox"><span></span></label></div>
+        <div class="setting-row"><span><strong>Allow Visual Tools</strong><small style="display:block;color:var(--sub);margin-top:3px">Simple grounded concept maps.</small></span><label class="switch"><input id="setVisual" type="checkbox"><span></span></label></div>
+        <div class="setting-row"><span><strong>Allow Study Materials</strong><small style="display:block;color:var(--sub);margin-top:3px">Compact review sheets in the chat.</small></span><label class="switch"><input id="setStudy" type="checkbox"><span></span></label></div>
+        <div class="setting-row"><span><strong>Allow Source Display</strong><small style="display:block;color:var(--sub);margin-top:3px">Students may open retrieved course excerpts.</small></span><label class="switch"><input id="setSources" type="checkbox"><span></span></label></div>
+        <div class="setting-row"><span><strong>Reveal final answers</strong></span><label class="switch"><input id="setAnswers" type="checkbox"><span></span></label></div>
+        <div class="setting-row"><span><strong>Allow worked examples</strong></span><label class="switch"><input id="setExamples" type="checkbox"><span></span></label></div>
+        <label style="display:block;margin-top:14px;font-size:13px;font-weight:600">Hint strength<select id="setHints" class="fld" style="display:block;width:100%;margin-top:6px;padding:9px 10px"><option value="light">Light</option><option value="progressive">Progressive</option><option value="strong">Strong</option></select></label>
       </section>
 
       <div data-panels style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;margin-bottom:44px;align-items:start">
 
-        <section class="card panel">
+        <section class="card panel hidden" data-teacher-pane="rules">
           <div class="panel-hd">
-            <h2 class="lbl" style="margin:0;font-family:inherit">Knowledge notes</h2>
+            <h2 class="lbl" style="margin:0;font-family:inherit">Custom teacher rules</h2>
             <span id="ruleCount" style="font-size:13.5px;color:var(--mid)"></span>
           </div>
           <div style="padding:16px 18px;border-bottom:1px solid var(--rule2)">
-            <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:var(--sub)">Short factual notes and course conventions that should be retrieved when relevant. Put always-on behavior in Base Rules or Additional teacher instructions above.</p>
-            <textarea id="ruleText" rows="4" aria-label="Knowledge note" class="fld" style="width:100%;padding:11px 12px;font-size:14.5px;line-height:1.6;resize:vertical" placeholder="In this course, acceleration due to gravity is rounded to 9.8 m/s²."></textarea>
+            <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:var(--sub)">Always sent to Chronos as course policy. Use this for conventions, assignment boundaries, or tone — never factual material. These rules are not stored in Pinecone.</p>
+            <textarea id="ruleText" rows="4" aria-label="Custom teacher rule" class="fld" style="width:100%;padding:11px 12px;font-size:14.5px;line-height:1.6;resize:vertical" placeholder="Ask students to show their reasoning before offering another hint."></textarea>
             <div style="display:flex;align-items:center;gap:10px;margin-top:11px;flex-wrap:wrap">
               <button id="addRuleBtn" class="kbtn kbtn-dark" style="padding:10px 16px"><span class="msym" style="font-size:18px">add</span>Add</button>
               <button id="bulkRuleBtn" class="kbtn kbtn-ghost" style="padding:9px 14px">Add bulk</button>
@@ -232,7 +238,7 @@
           <p id="rulesNote" class="hidden panel-note">Showing the first <span data-cap></span> knowledge notes only &mdash; this course has more than the list can fetch.</p>
         </section>
 
-        <section class="card panel">
+        <section class="card panel" data-teacher-pane="material">
           <div class="panel-hd">
             <h2 class="lbl" style="margin:0;font-family:inherit">Documents</h2>
             <span id="docCount" style="font-size:13.5px;color:var(--mid)"></span>
@@ -385,11 +391,10 @@
     paintHeader();
   }
 
-  const SETTING_IDS={grounded_only:"setGrounded",guide_not_complete:"setGuide",protect_instructions:"setProtect",state_uncertainty:"setUncertainty",practice_tools:"setPractice",source_display:"setSources",reveal_final_answers:"setAnswers",worked_examples:"setExamples"};
+  const SETTING_IDS={grounded_only:"setGrounded",guide_not_complete:"setGuide",state_uncertainty:"setUncertainty",practice_tools:"setPractice",visual_tools:"setVisual",study_materials:"setStudy",source_display:"setSources",reveal_final_answers:"setAnswers",worked_examples:"setExamples"};
   function paintSettings(){
     Object.entries(SETTING_IDS).forEach(([key,id])=>{$(id).checked=!!(SETTINGS&&SETTINGS[key]);});
     $("setHints").value=(SETTINGS&&SETTINGS.hint_strength)||"progressive";
-    $("setExtra").value=(SETTINGS&&SETTINGS.additional_instructions)||"";
     $("groundingWarning").classList.toggle("hidden",!!$("setGrounded").checked);
     document.querySelector("[data-settings]").style.opacity=ACTIVE_CLASS?"1":".55";
   }
@@ -400,13 +405,21 @@
   }
   async function saveSettings(){
     if(!ensureClass())return;
-    const settings={hint_strength:$("setHints").value,additional_instructions:$("setExtra").value.trim()};
+    const settings={hint_strength:$("setHints").value};
     Object.entries(SETTING_IDS).forEach(([key,id])=>settings[key]=$(id).checked);
-    $("saveSettingsBtn").disabled=true;
+    $("saveSettingsBtn").disabled=true;$("saveToolsBtn").disabled=true;
     try{
       const d=await api("/course-settings",withClass({settings}));SETTINGS=d.settings;paintSettings();showToast("Course settings saved",true);
-    }catch(e){showToast(e.message,false);}finally{$("saveSettingsBtn").disabled=false;}
+    }catch(e){showToast(e.message,false);}finally{$("saveSettingsBtn").disabled=false;$("saveToolsBtn").disabled=false;}
   }
+
+  let TEACHER_TAB=localStorage.getItem("chronos-teacher-tab")||"material";
+  function paintTeacherTab(){
+    document.querySelectorAll("[data-teacher-pane]").forEach(el=>el.classList.toggle("hidden",el.dataset.teacherPane!==TEACHER_TAB));
+    document.querySelectorAll("[data-teacher-tab]").forEach(el=>el.classList.toggle("on",el.dataset.teacherTab===TEACHER_TAB));
+    const panels=document.querySelector("[data-panels]");if(panels)panels.classList.add("single-pane");
+  }
+  document.querySelectorAll("[data-teacher-tab]").forEach(btn=>btn.onclick=()=>{TEACHER_TAB=btn.dataset.teacherTab;localStorage.setItem("chronos-teacher-tab",TEACHER_TAB);paintTeacherTab();});
 
   async function newClass(){
     const name=prompt("Name your course (e.g. 'Physics 101'):");
@@ -799,6 +812,7 @@
   $("newClassBtn").onclick=newClass;
   $("deleteClassBtn").onclick=removeClass;
   $("saveSettingsBtn").onclick=saveSettings;
+  $("saveToolsBtn").onclick=saveSettings;
   $("setGrounded").onchange=()=>$("groundingWarning").classList.toggle("hidden",$("setGrounded").checked);
   $("addRuleBtn").onclick=addRule;
   $("bulkRuleBtn").onclick=bulkAdd;
@@ -838,6 +852,7 @@
     $("gate").classList.add("hidden");
     $("app").classList.remove("hidden");
     $("app").style.display="grid";
+    paintTeacherTab();
     if(window.__tutFirstVisit)window.__tutFirstVisit();
     await loadClasses();
     if(!ACTIVE_CLASS)showToast("Make your first course and you can start adding material.",true);

@@ -23,3 +23,16 @@ the vibes v2
 - static checked python, every js block, html, and css. didnt run python tests like requested
 
 unit tests couldnt run locally bc of the missing .env secrets which im assuming is on cloud run NICCCC, so i just committed to main branch cuz i didnt vastly change anything and we could always revert
+
+tool pass + less clutter
+
+- split teacher material, tutor rules, and toolkits into simpler tabs
+- made custom teacher rules always-on prompt policy instead of pinecone knowledge notes
+- removed the fake "turn off jailbreak protection" setting; that protection is permanent now
+- rebuilt tools as a separate grounded generation step with a visible creating state
+- added actual quiz, flashcard, concept map, and review sheet ui (all optional and off by default)
+- taught the tutor to stop repeating itself and lowered answer randomness a little
+- fixed dark-mode primary-button hover text disappearing into a white hover state
+- made page transitions and normal page entrances smoother without hiding content
+- found + fixed two unfinished auth error callbacks while doing the script check
+- static checked python and all changed browser scripts; still did not run python tests because no .env secrets

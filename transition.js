@@ -8,7 +8,7 @@
    ============================================================ */
 (function () {
   var KEY = "chronos-wipe";
-  var COVER_MS = 285;
+  var COVER_MS = 340;
   var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   var px = null;
   var navigating = false;
@@ -104,6 +104,14 @@
   } else {
     unflag();
   }
+
+  // A short entrance motion makes ordinary (non-wipe) loads, including the
+  // first page after authentication, feel deliberate without ever hiding data.
+  function enterPage() {
+    requestAnimationFrame(function () { document.body && document.body.classList.add("chronos-page-enter"); });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", enterPage);
+  else enterPage();
 
   window.ChronosWipe = { go: go };
 })();

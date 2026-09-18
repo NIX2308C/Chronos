@@ -184,6 +184,11 @@
     /* ---- teacher-only "Sources used" dropdown ---- */
     .src-drop summary { list-style: none; }
     .src-drop summary::-webkit-details-marker { display: none; }
+    .knowledge-check { width:100%;max-width:620px;border:1px solid var(--c-rule);padding:16px;margin-top:10px;background:var(--c-paper); }
+    .quiz-option { width:100%;text-align:left;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);padding:10px 12px;margin-top:8px;transition:background-color .16s,color .16s,border-color .16s; }
+    .quiz-option:hover:not(:disabled) { border-color:var(--crimson); }
+    .quiz-option.correct { background:var(--gold);border-color:var(--gold);color:#111; }
+    .quiz-option.wrong { background:var(--crimson);border-color:var(--crimson);color:#fff; }
     .src-drop[open] .chev { transform: rotate(180deg); }
     .src-drop { border:1px solid var(--gold); background:var(--c-paper); color:var(--c-ink) }
 
@@ -219,17 +224,17 @@
 <span class="material-symbols-outlined text-on-surface-variant text-3xl spin">progress_activity</span>
 </div>
 
-<!-- Join-class gate: the tutor is unusable until the student joins a class -->
+<!-- Join-course gate: the tutor is unusable until the student joins a course -->
 <div class="hidden fixed inset-0 z-40 flex items-center justify-center bg-background p-margin-mobile" id="joinGate">
 <div class="w-full max-w-sm bg-surface-container-lowest hard cast-red p-stack-lg text-center" id="joinCard">
 <div class="w-14 h-14 bg-secondary text-on-secondary flex items-center justify-center mx-auto mb-stack-md">
 <span class="material-symbols-outlined text-[28px]">group_add</span>
 </div>
-<h1 class="font-headline-md text-headline-md text-on-background mb-2">Join a class</h1>
+<h1 class="font-headline-md text-headline-md text-on-background mb-2">Join a course</h1>
 <p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Pop in the code your teacher gave you and you&rsquo;re in.</p>
-<input class="fld w-full mono px-4 py-3 text-center tracking-[.25em] uppercase text-[15px]" id="joinCodeInput" maxlength="12" placeholder="CLASS CODE" type="text"/>
+<input class="fld w-full mono px-4 py-3 text-center tracking-[.25em] uppercase text-[15px]" id="joinCodeInput" maxlength="12" placeholder="COURSE CODE" type="text"/>
 <p class="hidden mt-stack-md font-label-sm text-label-sm text-on-error-container bg-error-container border border-error px-3 py-2" id="joinErr"></p>
-<button class="kbtn w-full mt-stack-md" id="joinBtn"><span>Join class</span></button>
+<button class="kbtn w-full mt-stack-md" id="joinBtn"><span>Join course</span></button>
 <button class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" id="joinLogoutBtn">Sign out</button>
 </div>
 </div>
@@ -242,13 +247,13 @@
 </a>
 <!-- Class switcher: which class's tutor you're talking to -->
 <div class="px-5 py-4" style="border-bottom:1px solid var(--c-rule)">
-<p class="slabel mb-2">Class</p>
+<p class="slabel mb-2">Course</p>
 <div class="flex gap-1.5">
 <div class="relative flex-1 min-w-0">
-<select class="fld appearance-none w-full min-w-0 font-label-md text-label-md pl-3 pr-8 py-2.5 outline-none cursor-pointer" id="classSwitcher" title="Active class"></select>
+<select class="fld appearance-none w-full min-w-0 font-label-md text-label-md pl-3 pr-8 py-2.5 outline-none cursor-pointer" id="classSwitcher" title="Active course"></select>
 <span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">unfold_more</span>
 </div>
-<button class="flex-shrink-0 w-10 flex items-center justify-center hard text-on-surface-variant hover:bg-primary hover:text-on-primary hover:border-primary transition-colors" id="joinAnotherBtn" title="Join another class">
+<button class="flex-shrink-0 w-10 flex items-center justify-center hard text-on-surface-variant hover:bg-primary hover:text-on-primary hover:border-primary transition-colors" id="joinAnotherBtn" title="Join another course">
 <span class="material-symbols-outlined text-[18px]">add</span>
 </button>
 </div>
@@ -318,10 +323,10 @@
 <!-- The student's own work: reviewed by the tutor, never added to the class material. -->
 <div class="flex items-center flex-wrap gap-2 mb-2" id="fileBar">
 <span class="flex items-center flex-wrap gap-2" id="fileChips"></span>
-<button class="attach-btn" data-kind="assignment" title="Your work, for the tutor to review">
+<button class="attach-btn" data-kind="assignment" title="Your work, for this conversation only">
 <span class="material-symbols-outlined text-[16px]">upload_file</span><span>Assignment</span>
 </button>
-<button class="attach-btn" data-kind="rubric" title="The criteria your work is marked against">
+<button class="attach-btn" data-kind="rubric" title="The criteria for this conversation">
 <span class="material-symbols-outlined text-[16px]">checklist</span><span>Rubric</span>
 </button>
 <span class="font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal" id="fileErr"></span>
@@ -333,7 +338,7 @@
 <span class="material-symbols-outlined fill text-[19px]">arrow_upward</span>
 </button>
 </div>
-<p class="text-center mt-2.5 font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal">Answers come from your teacher&rsquo;s material, plus any work you attach.</p>
+<p class="text-center mt-2.5 font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal">Answers come from your teacher&rsquo;s material. Attachments stay in this conversation and never become course knowledge.</p>
 </div>
 </div>
 </section>
@@ -417,6 +422,7 @@
     activeChatId=id;renderSidebar();renderMessages();
     const c=activeChat();
     if(c&&!c.loaded){await loadMessages(c);}
+    await loadFiles();
   }
 
   async function loadMessages(c){
@@ -425,7 +431,8 @@
       // gap follows the server's `grounded` flag, not the length of `rules` —
       // students aren't sent the sources at all (see /chats/<id>/messages).
       c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],
-        reviewed:!!m.reviewed,gap:m.role==="teacher"&&!m.grounded&&!m.reviewed}));
+        sources:m.sources||[],tool:m.tool||null,
+        reviewed:!!m.reviewed,gap:m.role==="teacher"&&!!m.material_gap&&!m.reviewed}));
       c.loaded=true;
       if(c.id===activeChatId)renderMessages();
     }catch(e){setStatus("offline");}
@@ -437,6 +444,13 @@
       if(!confirm("Delete this conversation?"))return;
       try{await Chronos.apiJson("/chats/"+encodeURIComponent(id),undefined,"DELETE");}
       catch(e){setStatus("offline");return;}
+    }else if(id===activeChatId&&FILES.length){
+      // A blank conversation can already have immediate-context attachments.
+      // Remove those too so abandoning the draft cannot leave private files orphaned.
+      try{
+        await Promise.all(FILES.map(f=>Chronos.apiJson("/student/files/"+encodeURIComponent(f.id),undefined,"DELETE")));
+        FILES=[];
+      }catch(e){fileErr("Could not remove this conversation’s files.");return;}
     }
     chats=chats.filter(x=>x.id!==id);
     if(activeChatId===id){ if(chats.length)selectChat(chats[0].id); else newChat(); }
@@ -466,7 +480,7 @@
 
   // Class-agnostic openers — the server has no notion of suggested questions, so
   // these work against any class's material rather than inventing topics.
-  const STARTERS=["What does this class cover so far?","Explain the main idea from the latest material.","What should I revise first?"];
+  const STARTERS=["What does this course cover so far?","Explain the main idea from the latest material.","What should I revise first?"];
 
   function className(){const c=CLASSES.find(x=>x.id===ACTIVE_CLASS);return c?c.name:"";}
 
@@ -486,7 +500,7 @@
       const h=document.createElement("h2");
       h.className="font-headline-lg text-headline-lg text-on-background mb-3";
       // textContent, not innerHTML: the class name is teacher-supplied.
-      h.textContent="Ask anything from "+(className()||"this class");
+      h.textContent="Ask anything from "+(className()||"this course");
       const p=document.createElement("p");
       p.className="font-body-lg text-body-lg text-on-surface-variant mb-7 max-w-[48ch]";
       p.textContent="Answers come from the documents your teacher uploaded. Where the material stops, so do the answers.";
@@ -527,14 +541,16 @@
     if(m.reviewed)w.appendChild(reviewedNote());
     // Sources are teacher-only: students never see the underlying material,
     // teachers get a collapsible dropdown beneath the answer.
-    if(IS_TEACHER&&m.rules&&m.rules.length){w.appendChild(buildSourcesDropdown(m.rules));}
+    const sources=(m.sources&&m.sources.length)?m.sources:(IS_TEACHER?(m.rules||[]):[]);
+    if(sources.length){w.appendChild(buildSourcesDropdown(sources));}
+    if(m.tool)w.appendChild(buildKnowledgeCheck(m.tool));
     return w;
   }
 
   function gapNote(){
     const p=document.createElement("p");
     p.className="mt-3.5 text-primary text-[13.5px] leading-relaxed";
-    p.textContent="Sent to your teacher as a gap in the class material.";
+    p.textContent="Sent to your teacher as a gap in the course material.";
     return p;
   }
 
@@ -544,7 +560,7 @@
   function reviewedNote(){
     const p=document.createElement("p");
     p.className="mt-3.5 text-on-surface-variant text-[13.5px] leading-relaxed";
-    p.textContent="Based on the work you attached — your class material doesn’t cover this.";
+    p.textContent="Based on the work you attached — your course material doesn’t cover this.";
     return p;
   }
 
@@ -566,11 +582,30 @@
       const ln=document.createElement("p");
       ln.className="font-body-md text-[13px] leading-snug pt-2";
       ln.style.color="var(--c-sub)";
-      ln.textContent=x;
+      ln.textContent=typeof x==="string"?x:((x.label||"Course material")+(x.section?" · section "+x.section:"")+" — "+(x.excerpt||""));
       body.appendChild(ln);
     });
     d.appendChild(body);
     return d;
+  }
+
+  function buildKnowledgeCheck(tool){
+    const box=document.createElement("section");box.className="knowledge-check";
+    const label=document.createElement("p");label.className="slabel mb-2";label.textContent="Knowledge check";
+    const q=document.createElement("p");q.className="font-label-md text-on-surface mb-2";q.textContent=tool.question||"Check your understanding";
+    const feedback=document.createElement("p");feedback.className="mt-3 text-[13px] text-on-surface-variant";
+    box.appendChild(label);box.appendChild(q);
+    (tool.options||[]).forEach((option,index)=>{
+      const b=document.createElement("button");b.type="button";b.className="quiz-option";b.textContent=option;
+      b.onclick=()=>{
+        box.querySelectorAll(".quiz-option").forEach(x=>x.disabled=true);
+        b.classList.add(index===tool.answer?"correct":"wrong");
+        if(index!==tool.answer){const right=box.querySelectorAll(".quiz-option")[tool.answer];if(right)right.classList.add("correct");}
+        feedback.textContent=(index===tool.answer?"That’s right. ":"Not quite. ")+(tool.explanation||"");
+      };
+      box.appendChild(b);
+    });
+    box.appendChild(feedback);return box;
   }
 
   function scrollBottom(){els.messages.scrollTop=els.messages.scrollHeight;}
@@ -608,14 +643,13 @@
     els.input.value="";els.input.style.height="auto";
     renderMessages();
     setSending(true);
-    const tm={role:"teacher",content:"",rules:[]};c.messages.push(tm);
+    const tm={role:"teacher",content:"",rules:[],sources:[],tool:null};c.messages.push(tm);
     const el=buildMsgEl(tm);els.messagesInner.appendChild(el);
     const b=el.querySelector(".ai-prose");b.innerHTML='<span class="cursor"></span>';scrollBottom();
     try{
       // The tutor answers from this chat's class. Omit chat_id for a not-yet-saved
       // conversation; the server creates one.
-      const body={message:text,class_id:c.classId||ACTIVE_CLASS};
-      if(!c.isNew)body.chat_id=c.id;
+      const body={message:text,class_id:c.classId||ACTIVE_CLASS,chat_id:c.id};
       const res=await Chronos.apiFetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       setStatus("online");
       const data=await res.json();
@@ -625,13 +659,16 @@
       // `grounded` comes from the server, which is the only side that can see
       // the sources: students are never sent rules_used, so an empty list here
       // no longer means "nothing backed this answer".
-      tm.content=data.response||"";tm.rules=data.rules_used||[];
-      tm.reviewed=!!data.reviewed;tm.gap=!data.grounded&&!tm.reviewed;
+      tm.content=data.response||"";tm.rules=data.rules_used||[];tm.sources=data.sources||[];tm.tool=data.tool||null;
+      tm.reviewed=!!data.reviewed;tm.gap=!!data.material_gap&&!tm.reviewed;
+      if(tm.tool&&!reduceMotion){b.textContent="Creating practice…";await new Promise(resolve=>setTimeout(resolve,220));}
       b.textContent="";
       typeOut(b,tm.content,()=>{
         if(tm.gap)el.appendChild(gapNote());
         if(tm.reviewed)el.appendChild(reviewedNote());
-        if(IS_TEACHER&&tm.rules.length){el.appendChild(buildSourcesDropdown(tm.rules));}
+        const sources=tm.sources.length?tm.sources:(IS_TEACHER?tm.rules:[]);
+        if(sources.length)el.appendChild(buildSourcesDropdown(sources));
+        if(tm.tool)el.appendChild(buildKnowledgeCheck(tm.tool));
         scrollBottom();setSending(false);
       });
     }catch(err){
@@ -749,9 +786,9 @@
 
   async function loadFiles(){
     FILES=[];renderFiles();
-    if(!ACTIVE_CLASS)return;
+    if(!ACTIVE_CLASS||!activeChat())return;
     try{
-      const d=await Chronos.apiJson("/student/files?class_id="+encodeURIComponent(ACTIVE_CLASS),undefined,"GET");
+      const d=await Chronos.apiJson("/student/files?class_id="+encodeURIComponent(ACTIVE_CLASS)+"&chat_id="+encodeURIComponent(activeChat().id),undefined,"GET");
       FILES=d.files||[];if(d.max)FILE_MAX=d.max;
     }catch(e){FILES=[];}
     renderFiles();
@@ -760,7 +797,7 @@
   async function uploadFile(kind,file){
     if(!ACTIVE_CLASS)return;
     const fd=new FormData();
-    fd.append("class_id",ACTIVE_CLASS);fd.append("kind",kind);fd.append("file",file);
+    fd.append("class_id",ACTIVE_CLASS);fd.append("chat_id",activeChat().id);fd.append("kind",kind);fd.append("file",file);
     document.querySelectorAll(".attach-btn").forEach(b=>{b.disabled=true;});
     fileErr("Reading "+file.name+"…");
     try{
@@ -804,8 +841,8 @@
     $s("joinCard").innerHTML=
       '<div class="w-14 h-14 bg-secondary text-on-secondary flex items-center justify-center mx-auto mb-stack-md">'+
         '<span class="material-symbols-outlined text-[28px]">school</span></div>'+
-      '<h1 class="font-headline-md text-headline-md text-on-background mb-2">Make a class first</h1>'+
-      '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You haven’t got any classes yet. Set one up in the Knowledge Base and you can try the tutor on your own material.</p>'+
+      '<h1 class="font-headline-md text-headline-md text-on-background mb-2">Make a course first</h1>'+
+      '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You haven’t got any courses yet. Set one up in Course Material and you can try the tutor on your own material.</p>'+
       '<a class="kbtn w-full" href="teacherknowledge.html"><span>'+
         '<span class="material-symbols-outlined text-[18px] align-middle">add</span> Go to Knowledge Base</span></a>'+
       '<button class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" id="teacherGateLogout">Sign out</button>';
@@ -816,7 +853,7 @@
 
   async function submitJoin(){
     const code=$s("joinCodeInput").value.trim().toUpperCase();
-    if(!code){$s("joinErr").textContent="Enter a class code.";$s("joinErr").classList.remove("hidden");return;}
+    if(!code){$s("joinErr").textContent="Enter a course code.";$s("joinErr").classList.remove("hidden");return;}
     $s("joinBtn").disabled=true;
     try{
       const cls=await Chronos.joinClass(code);
@@ -875,7 +912,7 @@
     const TITLE="Quick tour";
     const KEY="chronos_tut_student_v2";
     const STEPS=[
-      {icon:"school",title:"Pick your class",text:"Use the class menu on the left. Each class only knows what that teacher put into it, so make sure you're on the right one."},
+      {icon:"school",title:"Pick your course",text:"Use the course menu on the left. Each course only knows what that teacher put into it, so make sure you're on the right one."},
       {icon:"forum",title:"Just ask",text:"Type your question and hit Enter. Answers come straight out of your teacher's notes and files, so it isn't making things up."},
       {icon:"flag",title:"If it's not there, it'll say so",text:"Asked something your teacher hasn't covered yet? You'll get told, not fobbed off with a guess. Worth mentioning to them so they can add it."},
     ];

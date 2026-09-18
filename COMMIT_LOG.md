@@ -40,3 +40,37 @@ tool pass + less clutter
 tiny toolkit fix
 
 - made direct "quiz me" and flashcard requests trigger the enabled practice toolkit even if flash lite forgets the hidden tool marker
+
+restored v2.51 and fixed the toolkit for real
+
+the whole v2/v2.5/v2.51 stack is back (three reverts of the three reverts). then
+the reason it got reverted in the first place:
+
+- quizzes said "not enough course material" because /tools/run only searched
+  uploaded documents, and typed rules get moved out of pinecone into firestore on
+  purpose. a course taught from typed rules had nothing to find. it also never
+  checked the grounding toggle, so turning that off changed nothing
+- every ```json reply failed to parse: the fence-stripping regex had a doubled
+  backslash, so it matched a literal "\s" and never stripped anything. that was
+  the 502
+- dropped the hidden <chronos-tool> marker and the "quiz me" regex. the model now
+  calls a declared create_practice_activity function instead, which it can't
+  forget to format
+- added practice chips under the newest answer so a student can just tap for a
+  quiz. server re-checks the type, so the chips can't reach a disabled toolkit
+- quizzes stopped losing your answers and re-playing the pop animation every time
+  anything else on the page re-rendered
+- quiz feedback is per question now instead of one shared line at the bottom
+- fixed three ways the toolkit could freeze the composer for good
+- switching chat mid-answer now cancels properly instead of losing the finished quiz
+
+and the tests actually run now, offline, in about a second:
+
+- app.py couldn't be imported without live pinecone (pc.Index does a network
+  lookup), which is the real reason they were never run
+- two assertions were wrong once they did run, both from v2 changes nobody
+  re-checked. fixed
+- custom rule writes go through a transaction now; two teacher tabs could drop
+  each other's edits
+- added the additional_instructions box, which the backend has always used but
+  no page ever showed

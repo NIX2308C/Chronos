@@ -530,6 +530,9 @@ def gen_join_code():
 def class_to_dict(doc, include_code=False):
     d = doc.to_dict() or {}
     out = {"id": doc.id, "name": d.get("name") or "Untitled course"}
+    # The student page needs this before the first answer comes back, or a
+    # returning student sees no way to ask for practice until they type something.
+    out["toolkits"] = enabled_tool_types(course_settings(d.get("settings")))
     if include_code:
         out["join_code"] = d.get("join_code")
     return out

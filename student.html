@@ -189,6 +189,13 @@
     .tool-progress summary { cursor:pointer;color:var(--c-sub);font-size:12px;margin-top:6px; }
     .tool-progress p { margin:0; }
     .tool-heading { font-family:'Newsreader',serif;font-size:21px;line-height:1.15;margin:0 0 10px;color:var(--c-ink); }
+    /* Practice chips: the student's own way in. The tutor may also offer an
+       activity on its own, but tapping one of these never depends on it doing so. */
+    .practice-row { display:flex;flex-wrap:wrap;gap:8px;margin-top:12px; }
+    .practice-chip { display:inline-flex;align-items:center;gap:6px;border:1px solid var(--c-rule);background:var(--c-paper);color:var(--c-sub);padding:7px 13px;font-size:13px;cursor:pointer;transition:border-color .16s,color .16s; }
+    .practice-chip:hover:not(:disabled) { border-color:var(--crimson);color:var(--c-ink); }
+    .practice-chip:disabled { opacity:.5;cursor:default; }
+    .quiz-feedback { margin-top:8px;font-size:13px;color:var(--c-sub);line-height:1.5; }
     .quiz-option { width:100%;text-align:left;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);padding:10px 12px;margin-top:8px;transition:background-color .16s,color .16s,border-color .16s; }
     .quiz-option:hover:not(:disabled) { border-color:var(--crimson); }
     .quiz-option.correct { background:var(--gold);border-color:var(--gold);color:#111; }
@@ -411,6 +418,9 @@
   //   isNew   — a blank conversation not yet persisted on the server
   let chats=[],activeChatId=null,USER=null,IS_TEACHER=false;
   let ALL_CHATS=[],CLASSES=[],ACTIVE_CLASS=null;     // class state
+  // Activity types this course has switched on, as reported by /chat. Empty
+  // until the first answer, so no practice chips are offered before then.
+  let TOOLKITS=[];
   const CLASS_KEY="chronos_student_class";
   const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),statusDot:document.getElementById("statusDot"),statusText:document.getElementById("statusText"),messages:document.getElementById("messages")};
 
@@ -427,6 +437,9 @@
   }
 
   async function selectChat(id){
+    // Anything still typing or generating belongs to the conversation we are
+    // leaving; let it finish into a detached node rather than this one.
+    invalidateView();
     activeChatId=id;renderSidebar();renderMessages();
     const c=activeChat();
     if(c&&!c.loaded){await loadMessages(c);}
@@ -526,8 +539,25 @@
       els.messagesInner.appendChild(e);
       return;
     }
-    c.messages.forEach(m=>els.messagesInner.appendChild(buildMsgEl(m)));
+    let last=null;
+    c.messages.forEach(m=>{last=buildMsgEl(m);els.messagesInner.appendChild(last);});
+    // Offer practice under the newest answer, so the chips follow the
+    // conversation instead of piling up once per exchange. Re-added here rather
+    // than cached on the message because the thread is rebuilt wholesale.
+    const tail=c.messages[c.messages.length-1];
+    if(last&&tail&&tail.role==="teacher"&&(tail.content||tail.tool)&&TOOLKITS.length){
+      last.appendChild(buildPracticeRow(c,practiceTopic(c)));
+    }
     scrollBottom();
+  }
+
+  // What a practice chip should be about: the student's most recent question.
+  function practiceTopic(chat){
+    for(let i=chat.messages.length-1;i>=0;i--){
+      const m=chat.messages[i];
+      if(m.role==="student"&&m.content)return m.content.slice(0,300);
+    }
+    return chat.title||"this course";
   }
 
   function buildMsgEl(m){
@@ -551,7 +581,15 @@
     // teachers get a collapsible dropdown beneath the answer.
     const sources=(m.sources&&m.sources.length)?m.sources:(IS_TEACHER?(m.rules||[]):[]);
     if(sources.length){w.appendChild(buildSourcesDropdown(sources));}
-    if(m.tool)w.appendChild(buildLearningTool(m.tool));
+    // Built once and reused. renderMessages rebuilds the thread on any unrelated
+    // change (a new chat in the sidebar, a title update), and rebuilding the
+    // activity there wiped every answer the student had already given and
+    // replayed the .learning-tool pop animation each time.
+    if(m.tool){
+      if(!m._toolEl){m._toolEl=buildLearningTool(m.tool);}
+      else{m._toolEl.style.animation="none";}
+      w.appendChild(m._toolEl);
+    }
     return w;
   }
 
@@ -605,15 +643,22 @@
   function buildLearningTool(tool){
     const box=document.createElement("section");box.className="learning-tool";
     if(tool.type==="quiz"){
-      toolTitle(box,"Practice quiz",tool.title);const feedback=document.createElement("p");feedback.className="mt-3 text-[13px] text-on-surface-variant";
+      toolTitle(box,"Practice quiz",tool.title);
       (tool.questions||[]).forEach((question,qi)=>{
         const q=document.createElement("p");q.className="font-label-md text-on-surface mt-4 mb-2";q.textContent=(qi+1)+". "+question.prompt;box.appendChild(q);
-        (question.options||[]).forEach((option,index)=>{const b=document.createElement("button");b.type="button";b.className="quiz-option";b.textContent=option;b.onclick=()=>{
-          const group=b.parentElement.querySelectorAll('[data-question="'+qi+'"]');group.forEach(x=>x.disabled=true);
-          b.classList.add(index===question.answer?"correct":"wrong");if(index!==question.answer){const right=[...group][question.answer];if(right)right.classList.add("correct");}
+        // One feedback line per question, directly beneath its own options. A
+        // single shared line meant answering question 3 erased the explanation
+        // for question 1, and put the text nowhere near what it explained.
+        const feedback=document.createElement("p");feedback.className="quiz-feedback";feedback.hidden=true;
+        const opts=[];
+        (question.options||[]).forEach((option,index)=>{const b=document.createElement("button");b.type="button";b.className="quiz-option";b.textContent=option;opts.push(b);b.onclick=()=>{
+          opts.forEach(x=>x.disabled=true);
+          b.classList.add(index===question.answer?"correct":"wrong");if(index!==question.answer){const right=opts[question.answer];if(right)right.classList.add("correct");}
           feedback.textContent=(index===question.answer?"That’s right. ":"Not quite. ")+(question.explanation||"");
-        };b.dataset.question=qi;box.appendChild(b);});
-      });box.appendChild(feedback);
+          feedback.hidden=false;
+        };box.appendChild(b);});
+        box.appendChild(feedback);
+      });
     }else if(tool.type==="flashcards"){
       toolTitle(box,"Flashcards",tool.title);(tool.cards||[]).forEach((card,i)=>{const b=document.createElement("button");b.type="button";b.className="flashcard";b.textContent=card.front;b.title="Show answer";let flipped=false;b.onclick=()=>{flipped=!flipped;b.textContent=flipped?card.back:card.front;b.title=flipped?"Show prompt":"Show answer";};box.appendChild(b);});
     }else if(tool.type==="concept_map"){
@@ -640,11 +685,15 @@
   // rewrote the element's whole textContent every tick (quadratic work). Now the
   // characters-per-frame scales with length, so long answers land just as fast as
   // short ones, and each frame only pokes a single text node.
+  // Tracked so switching conversation mid-answer stops the loop instead of
+  // leaving it typing into a node that renderMessages has already discarded.
+  let typingRaf=null;
+  function stopTyping(){ if(typingRaf!==null){cancelAnimationFrame(typingRaf);typingRaf=null;} }
   function typeOut(b,text,done){
     const cur=document.createElement("span");cur.className="cursor";
     const node=document.createTextNode("");
     b.textContent="";b.appendChild(node);b.appendChild(cur);
-    const finish=()=>{cur.remove();b.innerHTML=renderMarkdown(text);scrollBottom();if(done)done();};
+    const finish=()=>{typingRaf=null;cur.remove();b.innerHTML=renderMarkdown(text);scrollBottom();if(done)done();};
     if(!text||reduceMotion){finish();return;}
     const dur=Math.min(1600,Math.max(350,text.length*4));
     const t0=performance.now();
@@ -652,8 +701,69 @@
       const p=Math.min((now-t0)/dur,1);
       node.nodeValue=text.slice(0,Math.ceil(p*text.length));
       scrollBottom();
-      if(p<1)requestAnimationFrame(step); else finish();
+      if(p<1)typingRaf=requestAnimationFrame(step); else finish();
     })(t0);
+  }
+
+  // Bumped whenever the view moves to a different conversation. Anything still
+  // in flight compares the token it captured against this before touching the
+  // DOM: without it a finished quiz would call replaceWith() on a node that
+  // renderMessages had already thrown away, and vanish silently.
+  let VIEW_GEN=0,toolAbort=null;
+  function invalidateView(){ VIEW_GEN++; stopTyping(); if(toolAbort){toolAbort.abort();toolAbort=null;} }
+
+  // Shared by the tutor's own suggestion and by a student tapping a practice
+  // chip. Renders the creating state, then swaps in the activity or the reason
+  // it could not be built.
+  async function runTool(request,chat,anchor){
+    const gen=VIEW_GEN;
+    const progress=buildToolProgress(request);
+    anchor.appendChild(progress);scrollBottom();
+    const fail=(msg)=>{
+      const strong=progress.querySelector("strong");
+      if(strong)strong.textContent=msg;
+      const icon=progress.querySelector(".spin");
+      if(icon)icon.classList.remove("spin");
+    };
+    toolAbort=new AbortController();
+    try{
+      const res=await Chronos.apiFetch("/tools/run",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({class_id:chat.classId||ACTIVE_CLASS,chat_id:chat.id,tool_request:request}),
+        signal:toolAbort.signal});
+      let data={};
+      // A 500 or a proxy error page is not JSON; parsing it unguarded threw and
+      // buried the real status behind a generic failure message.
+      try{ data=await res.json(); }catch(e){ data={}; }
+      if(gen!==VIEW_GEN)return;
+      if(!res.ok||data.error){fail(data.error||"Couldn’t create that activity.");return;}
+      const msg={role:"teacher",content:"",tool:data.tool,sources:data.sources||[]};
+      chat.messages.push(msg);
+      msg._toolEl=buildLearningTool(data.tool);
+      progress.replaceWith(msg._toolEl);
+    }catch(err){
+      if(gen!==VIEW_GEN||(err&&err.name==="AbortError"))return;
+      fail("Couldn’t create that activity.");
+    }finally{
+      scrollBottom();
+    }
+  }
+
+  // Practice chips let the student ask for an activity directly. The tutor may
+  // also call for one itself, but that is a suggestion — this is the path that
+  // always works, and the only comfortable one on a phone.
+  const TOOL_LABELS={quiz:"Quiz me",flashcards:"Flashcards",concept_map:"Concept map",review_sheet:"Review sheet"};
+  function buildPracticeRow(chat,topic){
+    const row=document.createElement("div");row.className="practice-row";
+    TOOLKITS.forEach(kind=>{
+      const b=document.createElement("button");b.type="button";b.className="practice-chip";
+      b.textContent=TOOL_LABELS[kind]||kind.replace(/_/g," ");
+      b.onclick=()=>{
+        row.querySelectorAll(".practice-chip").forEach(x=>x.disabled=true);
+        runTool({type:kind,topic:topic},chat,row.parentElement||row);
+      };
+      row.appendChild(b);
+    });
+    return row;
   }
 
   async function send(){
@@ -683,22 +793,28 @@
       // no longer means "nothing backed this answer".
       tm.content=data.response||"";tm.rules=data.rules_used||[];tm.sources=data.sources||[];
       tm.reviewed=!!data.reviewed;tm.gap=!!data.material_gap&&!tm.reviewed;
+      if(Array.isArray(data.toolkits))TOOLKITS=data.toolkits;
       b.textContent="";
-      typeOut(b,tm.content,async()=>{
-        if(tm.gap)el.appendChild(gapNote());
-        if(tm.reviewed)el.appendChild(reviewedNote());
-        const sources=tm.sources.length?tm.sources:(IS_TEACHER?tm.rules:[]);
-        if(sources.length)el.appendChild(buildSourcesDropdown(sources));
-        if(data.tool_request){
-          const progress=buildToolProgress(data.tool_request);el.appendChild(progress);scrollBottom();
+      const gen=VIEW_GEN;
+      typeOut(b,tm.content,()=>{
+        // try/finally, and not an async callback: typeOut calls done() without
+        // awaiting, so a throw in here used to become an unhandled rejection
+        // that skipped setSending(false) and left the composer disabled for good.
+        (async()=>{
           try{
-            const toolRes=await Chronos.apiFetch("/tools/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({class_id:c.classId||ACTIVE_CLASS,chat_id:c.id,tool_request:data.tool_request})});
-            const toolData=await toolRes.json();
-            if(!toolRes.ok||toolData.error){progress.querySelector("strong").textContent=toolData.error||"Couldn’t create that activity.";const icon=progress.querySelector(".spin");if(icon)icon.classList.remove("spin");}
-            else {c.messages.push({role:"teacher",content:"",tool:toolData.tool,sources:toolData.sources||[]});progress.replaceWith(buildLearningTool(toolData.tool));}
-          }catch(err){progress.querySelector("strong").textContent="Couldn’t create that activity.";const icon=progress.querySelector(".spin");if(icon)icon.classList.remove("spin");}
-        }
-        scrollBottom();setSending(false);
+            if(gen!==VIEW_GEN)return;
+            if(tm.gap)el.appendChild(gapNote());
+            if(tm.reviewed)el.appendChild(reviewedNote());
+            const sources=tm.sources.length?tm.sources:(IS_TEACHER?tm.rules:[]);
+            if(sources.length)el.appendChild(buildSourcesDropdown(sources));
+            if(data.tool_request)await runTool(data.tool_request,c,el);
+            else if(TOOLKITS.length)el.appendChild(buildPracticeRow(c,text));
+          }catch(err){
+            /* a missing extra beneath the answer must never cost the answer */
+          }finally{
+            if(gen===VIEW_GEN){scrollBottom();setSending(false);}
+          }
+        })();
       });
     }catch(err){
       setStatus("offline");
@@ -754,13 +870,25 @@
     if(!CLASSES.find(c=>c.id===pick))pick=CLASSES.length?CLASSES[0].id:null;
     ACTIVE_CLASS=pick;
     if(ACTIVE_CLASS)localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);
+    syncToolkits();
     paintClassSwitcher();
     return CLASSES.length>0;
   }
 
+  // Whatever the active course allows. /chat refreshes this on every answer;
+  // this seeds it so practice is offered on a page the student just opened.
+  function syncToolkits(){
+    const c=CLASSES.find(x=>x.id===ACTIVE_CLASS);
+    TOOLKITS=(c&&Array.isArray(c.toolkits))?c.toolkits:[];
+  }
+
   function switchClass(id){
     if(!id||id===ACTIVE_CLASS)return;
+    invalidateView();
     ACTIVE_CLASS=id;localStorage.setItem(CLASS_KEY,id);
+    // Toolkits are per course, so what the last course allowed says nothing
+    // about this one.
+    syncToolkits();
     paintClassSwitcher();
     applyClassFilter();
   }

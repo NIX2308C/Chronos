@@ -93,12 +93,12 @@
   </div>
 
   <div data-scroll style="padding:16px 12px 8px;overflow-y:auto;min-height:0">
-    <div style="font-size:12.5px;font-weight:600;color:var(--mid);padding:0 8px 8px">Your classes</div>
+    <div style="font-size:12.5px;font-weight:600;color:var(--mid);padding:0 8px 8px">Your courses</div>
     <div id="classList"></div>
   </div>
 
   <nav style="margin-top:8px;padding:12px;border-top:1px solid var(--rule);display:flex;flex-direction:column">
-    <a class="side-link" href="teacherknowledge.html"><span class="msym">folder_open</span>Class material</a>
+    <a class="side-link" href="teacherknowledge.html"><span class="msym">folder_open</span>Course material</a>
     <span class="side-link on"><span class="msym" style="font-variation-settings:'FILL' 1">insights</span>Analytics</span>
     <a class="side-link" href="student.html"><span class="msym">chat</span>Preview as student</a>
   </nav>
@@ -133,7 +133,8 @@
     </div>
   </header>
 
-  <div style="padding:32px 36px 60px;max-width:1120px">
+  <div id="statsLoading" style="padding:56px 36px;color:var(--mid);display:flex;align-items:center;gap:10px"><span class="msym spin">progress_activity</span><span>Loading course analytics…</span></div>
+  <div id="statsContent" class="hidden" style="padding:32px 36px 60px;max-width:1120px">
 
     <div data-kpis style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:36px;padding-bottom:30px;border-bottom:1px solid var(--rule2);margin-bottom:38px">
       <div>
@@ -160,10 +161,25 @@
 
     <section style="margin-bottom:44px">
       <h2 class="lbl" style="margin:0 0 6px">Start here &mdash; what your material didn&rsquo;t cover</h2>
-      <p style="margin:0 0 16px;font-size:14.5px;line-height:1.6;color:var(--sub);max-width:64ch">Questions the tutor declined, most-asked first. Each one is something a student wanted and the class material could not give them.</p>
+      <p style="margin:0 0 16px;font-size:14.5px;line-height:1.6;color:var(--sub);max-width:64ch">Questions the tutor declined, most-asked first. Each one is something a student wanted and the course material could not give them.</p>
       <div style="border-top:1px solid var(--rule2)" id="gapsList"></div>
       <p id="gapsEmpty" class="hidden" style="margin:22px 0 0;font-size:15px;line-height:1.6;color:var(--mid);max-width:52ch">No gaps in this window. Everything they asked, your material could answer.</p>
     </section>
+
+    <div data-cols style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;margin-bottom:44px">
+      <section>
+        <h2 class="lbl" style="margin:0 0 6px">Learning signals</h2>
+        <p style="margin:0 0 16px;font-size:14.5px;line-height:1.6;color:var(--sub)">Explicit evidence that students are confused, stuck, or unsure. These are separate from missing course material.</p>
+        <div id="learningList" style="border-top:1px solid var(--rule2)"></div>
+        <p id="learningEmpty" class="hidden" style="color:var(--mid);font-size:14.5px">No clear learning-gap signals in this window.</p>
+      </section>
+      <section>
+        <h2 class="lbl" style="margin:0 0 6px">Behavioral or safety concerns</h2>
+        <p style="margin:0 0 16px;font-size:14.5px;line-height:1.6;color:var(--sub)">Language or conduct signals are shown here and never counted as academic gaps.</p>
+        <div id="concernsList" style="border-top:1px solid var(--rule2)"></div>
+        <p id="concernsEmpty" class="hidden" style="color:var(--mid);font-size:14.5px">No behavioral concerns in this window.</p>
+      </section>
+    </div>
 
     <div data-cols style="display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:48px">
       <section>
@@ -175,10 +191,10 @@
 
       <section>
         <h2 class="lbl" style="margin:0 0 6px">Most-asked questions</h2>
-        <p style="margin:0 0 18px;font-size:14.5px;line-height:1.6;color:var(--sub)">Answered from your material, but asked often enough to be worth revisiting in class.</p>
+        <p style="margin:0 0 18px;font-size:14.5px;line-height:1.6;color:var(--sub)">Answered from your material, but asked often enough to be worth revisiting in the course.</p>
         <div id="repeats" style="border-top:1px solid var(--rule2)"></div>
         <p id="repeatsEmpty" class="hidden" style="margin:0;font-size:14.5px;line-height:1.6;color:var(--mid)">Nothing asked twice yet.</p>
-        <p style="margin:22px 0 0;font-size:13.5px;line-height:1.6;color:var(--faint)">Questions are shown per class and never attributed to an individual student.</p>
+        <p style="margin:22px 0 0;font-size:13.5px;line-height:1.6;color:var(--faint)">Questions are shown per course and never attributed to an individual student.</p>
       </section>
     </div>
 
@@ -237,7 +253,7 @@
     if(!CLASSES.length){
       const p=document.createElement("p");
       p.style.cssText="margin:0;padding:4px 12px 8px;font-size:13px;color:var(--faint)";
-      p.textContent="No classes yet.";
+      p.textContent="No courses yet.";
       list.appendChild(p);
       return;
     }
@@ -263,13 +279,13 @@
 
   function paintHeader(){
     const c=activeClassObj();
-    $("className").textContent=c?c.name:"No class yet";
+    $("className").textContent=c?c.name:"No course yet";
     const words=RANGE_WORDS[DAYS];
     $("rangeLower").textContent=words;
     const label=words.charAt(0).toUpperCase()+words.slice(1);
     const students=LAST?plural(LAST.students_total||0,"student"):"";
     $("classMeta").textContent=c?((students?students+" · ":"")+label)
-                               :"Create a class on the Class material page first.";
+                               :"Create a course on the Course material page first.";
   }
 
   async function loadClasses(){
@@ -371,8 +387,20 @@
     });
   }
 
+  function renderSignals(rows,listId,emptyId){
+    const box=$(listId);box.innerHTML="";$(emptyId).classList.toggle("hidden",rows.length>0);
+    rows.forEach(r=>{
+      const row=document.createElement("div");row.style.cssText="border-bottom:1px solid var(--rule2);padding:13px 4px";
+      const q=document.createElement("div");q.style.cssText="font-size:14.5px;line-height:1.5";q.textContent=r.question;
+      const meta=document.createElement("div");meta.style.cssText="font-size:12.5px;color:var(--faint);margin-top:4px";meta.textContent=plural(r.students,"student")+" · "+plural(r.count,"signal");
+      row.appendChild(q);row.appendChild(meta);box.appendChild(row);
+    });
+  }
+
   async function load(){
     if(!ACTIVE_CLASS)return;
+    $("statsLoading").classList.remove("hidden");$("statsLoading").innerHTML='<span class="msym spin">progress_activity</span><span>Loading course analytics…</span>';
+    $("statsContent").classList.add("hidden");
     $("refreshBtn").disabled=true;
     $("refreshIcon").classList.add("spin");
     try{
@@ -382,7 +410,7 @@
       animateCount($("kActive"),d.students_active);
       animateCount($("kGaps"),d.unanswered_count);
       $("kQuestionsSub").textContent=DAYS?("conversations in the last "+plural(DAYS,"day")):"conversations logged so far";
-      $("kActiveSub").textContent="of "+plural(d.students_total||0,"student")+" in the class";
+      $("kActiveSub").textContent="of "+plural(d.students_total||0,"student")+" in the course";
       // Percentage of conversations that never had to refuse. Blank rather than
       // "100%" when nothing was asked — an empty window has no rate to report.
       $("kGrounded").textContent = d.total_questions
@@ -391,7 +419,13 @@
       renderTopics(d.categories||[]);
       renderGaps(d.unanswered||[]);
       renderRepeats(d.repeats||[]);
+      renderSignals(d.learning_gaps||[],"learningList","learningEmpty");
+      renderSignals(d.behavior_concerns||[],"concernsList","concernsEmpty");
       paintHeader();
+      $("statsLoading").classList.add("hidden");$("statsContent").classList.remove("hidden");
+    }catch(e){
+      $("statsLoading").innerHTML='<span class="msym">error</span><span>Could not load analytics. Use refresh to try again.</span>';
+      throw e;
     }finally{
       $("refreshBtn").disabled=false;
       $("refreshIcon").classList.remove("spin");
@@ -428,7 +462,7 @@
     $("app").style.display="grid";
     if(window.__tutFirstVisit)window.__tutFirstVisit();
     await loadClasses();
-    if(!ACTIVE_CLASS){showToast("Create a class on the Class material page first.",true);return;}
+    if(!ACTIVE_CLASS){$("statsLoading").innerHTML='<span class="msym">school</span><span>Create a course on the Course material page first.</span>';showToast("Create a course on the Course material page first.",true);return;}
     try{await load();}catch(e){showToast(e.message,false);}
   }).catch(e=>{
     // textContent, not innerHTML: this string comes off the wire.
@@ -457,10 +491,10 @@
     const TITLE="What you're looking at";
     const KEY="chronos_tut_stats_v2";
     const STEPS=[
-      {icon:"school",title:"One class at a time",text:"Pick a class in the sidebar. Every number on this page is just for the class you've picked, over the date range up top."},
+      {icon:"school",title:"One course at a time",text:"Pick a course in the sidebar. Every number on this page is just for the course you've picked, over the date range up top."},
       {icon:"help",title:"Gaps come first",text:"Knowledge gaps are the questions your material couldn't answer, most-asked first. It's a ready-made list of what to upload next."},
       {icon:"forum",title:"Where questions land",text:"Questions get grouped by topic, so you can see at a glance what your students keep circling back to."},
-      {icon:"history",title:"Asked again and again",text:"Anything asked repeatedly is worth a minute of class time, even when the tutor answered it fine."},
+      {icon:"history",title:"Asked again and again",text:"Anything asked repeatedly is worth a minute of course time, even when the tutor answered it fine."},
     ];
     let idx=0;
     const body=document.getElementById("tutBody");

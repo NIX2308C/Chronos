@@ -8,10 +8,9 @@
    ============================================================ */
 (function () {
   var KEY = "chronos-wipe";
-  var COVER_MS = 285;
+  var COVER_MS = 420;   // bars fully across (last bar starts at 160ms + 300ms travel)
   var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   var px = null;
-  var navigating = false;
 
   function el() {
     if (!px) px = document.querySelector(".px");
@@ -23,8 +22,6 @@
 
   // Leaving: cover, then navigate.
   function go(href, replace) {
-    if (navigating) return;
-    navigating = true;
     var node = el();
     if (reduce || !node) {
       replace ? location.replace(href) : (location.href = href);
@@ -52,7 +49,7 @@
       requestAnimationFrame(function () {
         node.classList.remove("cover");
         node.classList.add("reveal");
-        setTimeout(function () { node.classList.remove("act", "reveal"); }, 430);
+        setTimeout(function () { node.classList.remove("act", "reveal"); }, 620);
       });
     });
   }
@@ -74,20 +71,6 @@
     go(a.getAttribute("href"));
   });
 
-  // Warm up internal destinations while the pointer is heading for them. This
-  // is intentionally a document prefetch, not eager page loading on startup.
-  function prefetch(e) {
-    var a = e.target.closest ? e.target.closest("a[href]") : null;
-    if (!isInternalPage(a) || a.dataset.chronosPrefetched) return;
-    a.dataset.chronosPrefetched = "1";
-    var link = document.createElement("link");
-    link.rel = "prefetch";
-    link.href = a.href;
-    document.head.appendChild(link);
-  }
-  document.addEventListener("pointerover", prefetch, { passive: true });
-  document.addEventListener("touchstart", prefetch, { passive: true });
-
   // Back/forward out of the bfcache would otherwise restore a covered page.
   addEventListener("pageshow", function (e) {
     if (!e.persisted) return;
@@ -95,7 +78,6 @@
     if (node) node.classList.remove("act", "cover", "reveal");
     document.documentElement.classList.remove("wiping");
     unflag();
-    navigating = false;
   });
 
   if (document.documentElement.classList.contains("wiping")) {

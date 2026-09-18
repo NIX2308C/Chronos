@@ -828,7 +828,7 @@ def page_login():
 
 @app.route('/auth.js')
 def auth_js():
-    return send_from_directory(BASE_DIR, 'auth.js', max_age=3600)
+    return send_from_directory(BASE_DIR, 'auth.js')
 
 
 @app.route('/teacherknowledge.html')
@@ -843,22 +843,22 @@ def page_stats():
 
 @app.route('/theme.css')
 def theme_css():
-    return send_from_directory(BASE_DIR, 'theme.css', max_age=3600)
+    return send_from_directory(BASE_DIR, 'theme.css')
 
 
 @app.route('/theme.js')
 def theme_js():
-    return send_from_directory(BASE_DIR, 'theme.js', max_age=3600)
+    return send_from_directory(BASE_DIR, 'theme.js')
 
 
 @app.route('/transition.css')
 def transition_css():
-    return send_from_directory(BASE_DIR, 'transition.css', max_age=3600)
+    return send_from_directory(BASE_DIR, 'transition.css')
 
 
 @app.route('/transition.js')
 def transition_js():
-    return send_from_directory(BASE_DIR, 'transition.js', max_age=3600)
+    return send_from_directory(BASE_DIR, 'transition.js')
 
 
 # ---------- auth ----------
@@ -867,14 +867,11 @@ def transition_js():
 def auth_config():
     """Public Firebase Web SDK config the browser needs to sign users in.
     apiKey is not a secret (it ships in every Firebase web app)."""
-    response = jsonify({
+    return jsonify({
         "apiKey": FIREBASE_WEB_API_KEY,
         "authDomain": FIREBASE_AUTH_DOMAIN,
         "projectId": FIREBASE_PROJECT_ID,
     })
-    response.cache_control.public = True
-    response.cache_control.max_age = 3600
-    return response
 
 
 def discard_unregistered_user(uid):

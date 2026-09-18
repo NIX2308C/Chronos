@@ -21,44 +21,15 @@
   let _auth = null;
   let _role = null;          // cached role for the current user
   let _roleUid = null;       // uid the cached role belongs to
-  const CONFIG_KEY = "chronos-auth-config";
-  const ROLE_KEY = "chronos-role";
-  const CONFIG_TTL = 24 * 60 * 60 * 1000;
-  const ROLE_TTL = 60 * 1000;
-
-  function readCache(storage, key, maxAge) {
-    try {
-      const item = JSON.parse(storage.getItem(key) || "null");
-      return item && Date.now() - item.saved < maxAge ? item.value : null;
-    } catch (_) { return null; }
-  }
-
-  function writeCache(storage, key, value) {
-    try { storage.setItem(key, JSON.stringify({ saved: Date.now(), value })); } catch (_) {}
-  }
-
-  function clearRole() {
-    _role = null; _roleUid = null;
-    try { sessionStorage.removeItem(ROLE_KEY); } catch (_) {}
-  }
-
-  function rememberRole(uid, role) {
-    _role = role; _roleUid = uid;
-    writeCache(sessionStorage, ROLE_KEY, { uid, role });
-  }
 
   // Resolve once Firebase is configured and initialized.
   const ready = (async () => {
-    let cfg = readCache(localStorage, CONFIG_KEY, CONFIG_TTL);
-    if (!cfg) {
-      try {
-        const res = await fetch(BASE + "/auth/config");
-        if (!res.ok) throw new Error("config request failed");
-        cfg = await res.json();
-        writeCache(localStorage, CONFIG_KEY, cfg);
-      } catch (e) {
-        throw new Error("Cannot reach server for auth config — is app.py running on port 5000?");
-      }
+    let cfg;
+    try {
+      const res = await fetch(BASE + "/auth/config", { cache: "no-store" });
+      cfg = await res.json();
+    } catch (e) {
+      throw new Error("Cannot reach server for auth config — is app.py running on port 5000?");
     }
     if (!cfg.apiKey) {
       throw new Error("Firebase is not configured: set FIREBASE_WEB_API_KEY on the server.");
@@ -133,7 +104,7 @@
     } catch (e) {
       throw new Error(friendlyAuthError(e));
     }
-    clearRole();
+    _role = null; _roleUid = null;
     return me();
   }
 
@@ -146,7 +117,7 @@
   async function register(cred, role, teacherCode, rollback) {
     try {
       const data = await apiJson("/auth/register", { role, teacher_code: teacherCode });
-      rememberRole(cred.user.uid, data.role);
+      _role = data.role; _roleUid = cred.user.uid;
       return data;
     } catch (e) {
       if (rollback) { try { await cred.user.delete(); } catch (_) {} }
@@ -198,7 +169,7 @@
 
   async function logout() {
     await ready;
-    clearRole();
+    _role = null; _roleUid = null;
     await _auth.signOut();
   }
 
@@ -207,17 +178,11 @@
     await ready;
     const u = _auth.currentUser;
     if (!u) return null;
-    if (!_role) {
-      const cached = readCache(sessionStorage, ROLE_KEY, ROLE_TTL);
-      if (cached && cached.uid === u.uid && cached.role) {
-        _role = cached.role; _roleUid = cached.uid;
-      }
-    }
     if (_role && _roleUid === u.uid) {
       return { uid: u.uid, email: u.email, role: _role };
     }
     const data = await apiJson("/auth/me", undefined, "GET");
-    rememberRole(u.uid, data.role);
+    _role = data.role; _roleUid = u.uid;
     return data;
   }
 

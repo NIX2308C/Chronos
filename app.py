@@ -905,6 +905,26 @@ def extract_tool_request(text, settings):
     return clean, {"type": kind, "topic": topic}
 
 
+def explicit_tool_request(message, settings):
+    """Turn an unambiguous student request into an enabled activity.
+
+    Tool markers remain useful for optional suggestions, but a student explicitly
+    asking "quiz me" should not depend on a lightweight chat model remembering a
+    hidden JSON suffix. This is deliberately narrow: it never turns an ordinary
+    explanatory question into an activity.
+    """
+    text = " ".join(str(message or "").split())[:300]
+    lower = text.lower()
+    if settings.get("practice_tools"):
+        if re.search(r"\b(?:quiz me|give me (?:a )?quiz|test me|knowledge check)\b", lower):
+            topic = re.sub(r"\b(?:can you |could you |please |quiz me(?: on)?|give me (?:a )?quiz(?: on)?|test me(?: on)?|knowledge check(?: on)?)\b", "", text, flags=re.IGNORECASE).strip(" ?!.,")
+            return {"type": "quiz", "topic": topic or text}
+        if re.search(r"\b(?:flash ?cards?|make cards?)\b", lower):
+            topic = re.sub(r"\b(?:can you |could you |please |make |create |give me |flash ?cards?(?: on| for)?)\b", "", text, flags=re.IGNORECASE).strip(" ?!.,")
+            return {"type": "flashcards", "topic": topic or text}
+    return None
+
+
 def build_system_instruction(context_block, memory_block="", docs_block="", settings=None,
                              conversation_summary="", custom_rules=None):
     """Assemble the tutor's system prompt.
@@ -982,7 +1002,8 @@ def build_system_instruction(context_block, memory_block="", docs_block="", sett
         rules.append(
             "If a tool would materially help, finish your normal visible reply then append exactly one "
             "hidden marker: <chronos-tool>{\"type\":\"one enabled type\",\"topic\":\"specific course topic\"}" 
-            "</chronos-tool>. Enabled types: " + ", ".join(tool_types) + ". Do not expose the marker."
+            "</chronos-tool>. When a student explicitly asks to be quizzed or asks for flashcards, "
+            "always use the matching enabled tool. Enabled types: " + ", ".join(tool_types) + ". Do not expose the marker."
         )
     if settings["additional_instructions"]:
         rules.append(
@@ -1571,6 +1592,10 @@ def chat():
             final_answer = ai_response.text
 
         final_answer, tool_request = extract_tool_request(final_answer, settings)
+        # Explicit activity requests should work reliably even when the chat model
+        # elects to answer with a plain warm-up question instead of our marker.
+        if not tool_request:
+            tool_request = explicit_tool_request(user_message, settings)
 
         # An answer carried entirely by the student's own upload. It is still a
         # knowledge gap in the teacher's material (that's what `grounded` reports,

@@ -217,6 +217,11 @@ def test_sources_are_not_sent_to_students():
     teacher = ask("teacher")
     assert teacher["rules_used"] == ["SECRET TEACHER MATERIAL"], "teacher lost their sources"
 
+    # Both answers above were produced with the profile store deliberately left
+    # unstubbed, so reading and writing it each raised. That is the point: the
+    # profile is a nicety layered on top of tutoring, and a broken one must cost
+    # a student nothing more than a plainer explanation. The 200s assert it.
+
 
 def test_profanity_is_blocked_before_the_model():
     """A swear must not reach the model, and must not reach the teacher's
@@ -258,6 +263,14 @@ def test_profanity_is_blocked_before_the_model():
     A.load_class_memory = lambda *_a, **_k: ""
     A.refresh_conversation_summary = lambda *_a, **_k: ("", {})
     A.summarize_exchange = _REAL_SUMMARIZE_EXCHANGE   # it's half of what this tests
+
+    # Abuse must not shape what the tutor thinks of this student either: a
+    # blocked message reaching the profile would quietly teach it that they
+    # "write very short messages" and pitch every future answer down.
+    A.load_class_profile = lambda *_a, **_k: (_ for _ in ()).throw(
+        AssertionError("the profile was read on a blocked message"))
+    A._user_profile = lambda *_a, **_k: (_ for _ in ()).throw(
+        AssertionError("the profile was written on a blocked message"))
 
     def _boom(*_a, **_k):
         raise AssertionError("the model was called on a blocked message")
@@ -311,6 +324,50 @@ def test_profanity_is_blocked_before_the_model():
         "a blocked exchange came back to the model on the next turn"
 
 
+def test_student_profile_needs_ownership_and_membership():
+    """A student's profile says how they write and where they keep getting stuck.
+    Two gates guard it, and ownership alone is not one of them: without the
+    membership check a teacher could name any uid in the system and read a
+    profile built in somebody else's classroom."""
+    A._rate_hits.clear()
+    signed_in_as(uid="t-owner", role="teacher")
+
+    A.class_owned_by = lambda cid, uid: cid == "c-mine" and uid == "t-owner"
+    A.user_in_class = lambda uid, cid, role: uid == "stu-mine" and cid == "c-mine"
+    A.load_class_profile = lambda uid, cid: {
+        "msgs": 9, "words": 40, "sents": 9, "chars": 200, "word_chars": 150,
+        "questions": 8, "lower_starts": 9, "txtspeak": 7, "long_words": 0,
+        "class_id": cid, "gap_counts": {"what is osmosis": 4},
+    }
+
+    def ask(class_id, student_uid):
+        return c.post("/student-profile",
+                      json={"class_id": class_id, "student_uid": student_uid})
+
+    # Someone else's class, whoever the student is.
+    assert ask("c-theirs", "stu-mine").status_code == 403, "read another teacher's class"
+    # Own class, but a uid that was never in it — the interesting one.
+    assert ask("c-mine", "stu-elsewhere").status_code == 403, \
+        "ownership alone let a teacher read a stranger's profile"
+    assert ask("c-mine", "../../etc").status_code == 403, "a path-shaped uid got through"
+
+    r = ask("c-mine", "stu-mine")
+    assert r.status_code == 200, r.get_json()
+    body = r.get_json()
+    assert "osmosis" in body["summary"], body
+    assert body["sticking_points"][0]["topic"] == "what is osmosis", body
+    # Guidance, not a metric: nothing here should invite ranking one child
+    # against another.
+    for leak in ("score", "level", "rank", "word_chars", "percentile"):
+        assert leak not in A.json.dumps(body), leak
+
+    # A student cannot read anyone's profile, their own included.
+    signed_in_as(uid="stu-mine", role="student")
+    assert ask("c-mine", "stu-mine").status_code == 403, "a student read a profile"
+    assert c.post("/roster", json={"class_id": "c-mine"}).status_code == 403, \
+        "a student listed the class roster"
+
+
 if __name__ == "__main__":
     test_gate()
     test_teacher_code()
@@ -318,5 +375,7 @@ if __name__ == "__main__":
     test_join_throttle_is_not_only_per_uid()
     test_sources_are_not_sent_to_students()
     test_profanity_is_blocked_before_the_model()
+    test_student_profile_needs_ownership_and_membership()
     print("ok — auth gate, teacher code, register + join throttles, docx expansion "
-          "cap, teacher-only sources, and the profanity block all hold")
+          "cap, teacher-only sources, the profanity block, and per-student profile "
+          "access all hold")

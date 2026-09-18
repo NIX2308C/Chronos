@@ -19,7 +19,8 @@ Teachers sign in, create one or more courses, and add course material to each (P
 - Flask backend (`app.py`), served with Waitress
 - Gemini for answers and embeddings (see `OLLAMA.md` for the plan to move
   answers onto a local model; embeddings stay where they are)
-- `profanity.py` for moderation — deterministic, no second model call
+- `profanity.py` for moderation and `student_profile.py` for per-student
+  recollection — both deterministic, neither costs a second model call
 - Pinecone for vector search (one namespace per course)
 - Firebase Authentication (email/password) plus Firestore (users, courses in the legacy `Classes` collection, chat logs)
 - Static HTML pages styled with Tailwind (via CDN), with shared auth in `auth.js`
@@ -65,6 +66,18 @@ Audit note: before the current separation, Pinecone contained teacher-entered ru
 - **Student files** never touch Pinecone. Assignment and rubric text is stored under that student's Firestore account, scoped to one course and one conversation, and supplied only as non-authoritative review context until the student removes it or deletes the conversation.
 - **Current conversation** replays only the latest `HISTORY_TURNS` messages. Before older turns fall out, Chronos maintains a bounded tutoring-state summary on the chat document. It tracks progress, confusion, learning gaps, open questions, and unfinished work, but is explicitly forbidden as a source of facts.
 - **Cross-conversation memory** is a bounded, course-scoped list of prior topics and explicit learning signals derived from chat metadata. It is never written to Pinecone.
+- **The student profile** is the other half of that memory: how a student writes
+  and what they keep coming back to, so the tutor pitches its answers at them
+  rather than at an average. It is arithmetic, not a model call —
+  `student_profile.py` turns each message into a few counters and renders the
+  accumulated totals into two plain sentences. It lives at
+  `Users/{uid}/Profiles/{class_id}`, where **the class id is the document id**:
+  that is what makes course isolation structural rather than a filter someone has
+  to remember, and `load_class_profile` re-asserts it on read anyway. Nothing is
+  said at all until `PROFILE_MIN_MSGS` messages have been seen, blocked messages
+  and bare acknowledgements are never counted, and the wording only ever
+  describes how to explain something — never what the student is. Set
+  `PROFILE_ENABLED=0` to turn the whole thing off.
 - **System and teacher policy** comes from compact Base Rules and custom teacher rules. Custom rules are always added to the tutor prompt, never retrieved as facts. Prompt secrecy and jailbreak resistance are permanent system protections, not teacher toggles. Optional practice, visual, study-material, and source-display tools are disabled by default.
 - **Interactive tools** use two stages. A student can ask for one directly — practice chips sit under the newest answer, showing only the activities the course has enabled — or the tutor can request one itself by calling the `create_practice_activity` function declared on the chat request. Either way the client then shows a short “Creating…” card while a separate constrained Gemini call receives the relevant course material only and returns validated JSON for the quiz, flashcards, concept map, or review sheet. The server re-checks the requested type against the course settings on the way in, so the chips cannot reach a disabled toolkit.
 - **Profanity** is caught before any of the above happens. `profanity.py`
@@ -116,10 +129,11 @@ and open http://localhost:5000.
 
 ```bash
 python test_profanity.py && python test_security.py && \
-python test_stats_grouping.py && python test_student_context.py
+python test_stats_grouping.py && python test_student_context.py && \
+python test_student_profile.py
 ```
 
-Four plain-`assert` scripts, no test runner. They stub every collaborator that
+Five plain-`assert` scripts, no test runner. They stub every collaborator that
 would reach Firestore, Pinecone or Gemini, so they run offline in about a second
 and need no real keys — but `app.py` still refuses to import without a valid
 `TEACHER_SIGNUP_CODE`, so a `.env` with a throwaway one (and dummy values for the
@@ -128,8 +142,13 @@ throttles in front of it, the `.docx` decompression cap, that course material is
 never sent to a student, the analytics grouping, the shape of the tutor's
 assembled prompt, and profanity detection — including the half of that which
 matters most, that ordinary classroom English (`class`, `assess`, `cockpit`,
-`Scunthorpe`) is never flagged. `test_profanity.py` imports `profanity` alone and
-needs no environment at all. Run them before committing; they are fast enough that there is
+`Scunthorpe`) is never flagged. They also cover the student profile: that its
+counters are additive (they are stored as Firestore increments, so a drift here
+would be silent and permanent), that it says nothing before it has evidence, that
+it never leaks a raw count or a score into something a teacher reads, and — the
+one the whole feature turns on — that a profile built in one course is
+unreachable from another. `test_profanity.py` and `test_student_profile.py` import
+their module alone and need no environment at all. Run them before committing; they are fast enough that there is
 no excuse not to.
 
 ## Planning documents

@@ -19,6 +19,7 @@ from google.genai import types
 import firebase_admin
 from firebase_admin import credentials, firestore, auth as fb_auth
 import profanity
+import student_profile
 from pinecone import Pinecone
 try:
     import pypdf
@@ -160,6 +161,12 @@ MEMORY_MAX_GAPS = 5
 # needs a composite index), so a student with more chats in one class than this
 # gets the newest of an arbitrary slice. Add the index + order_by if it bites.
 MEMORY_QUERY_MAX = 60
+# Alongside *what* a student asked, the tutor keeps a running read of *how* they
+# write and where they keep getting stuck (student_profile.py). It is one document
+# per student per class, keyed by class id, so it is scoped the same way the chat
+# query above is — by construction rather than by a filter someone has to remember.
+PROFILE_ENABLED = os.getenv("PROFILE_ENABLED", "1") != "0"
+ROSTER_MAX = 500          # students listed on the teacher's per-student panel
 # A student uploads work to be reviewed, not searched, so their document goes into
 # the prompt whole rather than through Pinecone. That makes these context-window
 # budgets, not storage ones — far tighter than MAX_EXTRACT_CHARS, and safely under
@@ -796,8 +803,13 @@ def build_memory_block(chats, exclude_chat_id=None, limit=MEMORY_CHATS):
     return "\n".join(lines)
 
 
-def load_class_memory(uid, class_id, exclude_chat_id=None):
-    """Fetch this student's chats *for one class* and render the memory block."""
+def load_class_memory(uid, class_id, exclude_chat_id=None, profile=None):
+    """Fetch this student's chats *for one class* and render the memory block.
+
+    `profile` is that student's running profile for the same class (see
+    load_class_profile). It is passed in rather than fetched here so /chat reads
+    it once and can also use it when updating the counters.
+    """
     if not class_id:
         return ""
     try:
@@ -812,7 +824,58 @@ def load_class_memory(uid, class_id, exclude_chat_id=None):
     chats = [dict(d.to_dict() or {}, id=d.id) for d in docs]
     for c in chats:
         c["last_active"] = _ts_seconds(c.get("last_active"))
-    return build_memory_block(chats, exclude_chat_id=exclude_chat_id)
+    block = build_memory_block(chats, exclude_chat_id=exclude_chat_id)
+    note = student_profile.describe(profile)
+    return "\n\n".join(p for p in (block, note) if p)
+
+
+def load_class_profile(uid, class_id):
+    """This student's running profile for one class, or {} if there isn't one."""
+    if not PROFILE_ENABLED or not class_id:
+        return {}
+    try:
+        snap = _user_profile(uid, class_id).get()
+    except Exception:
+        # Same posture as the memory query above: knowing how a student writes is
+        # a nicety, and it never costs them an answer.
+        logger.exception("Could not load student profile; answering without it.")
+        return {}
+    prof = (snap.to_dict() or {}) if getattr(snap, "exists", False) else {}
+    stored = prof.get("class_id")
+    if prof and stored and stored != class_id:
+        # Unreachable by construction — the class id *is* the document id. It is
+        # asserted anyway because this is the one bug in this feature that would
+        # be silent: a profile from another class would read as perfectly normal
+        # prose in the prompt.
+        logger.error("Profile %s/%s carries class_id %r; refusing to use it.",
+                     uid, class_id, stored)
+        return {}
+    return prof
+
+
+def profile_update(class_id, question, summary, prev_profile):
+    """Firestore increments describing what this one message adds to the profile.
+
+    Increments rather than a read-modify-write, so two messages sent in quick
+    succession can't lose each other's counts.
+    """
+    delta = student_profile.measure(question)
+    if not delta:
+        return {}
+    update = {k: firestore.Increment(v) for k, v in delta.items()}
+    # Written every time so the tripwire in load_class_profile has something to
+    # check, and so a profile carries its own provenance.
+    update["class_id"] = class_id
+    update["updated_at"] = firestore.SERVER_TIMESTAMP
+
+    # Only the newest entry belongs to this exchange; the rest were counted when
+    # they were asked.
+    for gap in (summary.get("learning_gaps") or [])[-1:]:
+        key = student_profile.gap_key(gap)
+        counts = prev_profile.get("gap_counts") or {}
+        if key and (key in counts or len(counts) < student_profile.PROFILE_MAX_GAPS):
+            update["gap_counts." + key] = firestore.Increment(1)
+    return update
 
 
 def build_docs_block(docs):
@@ -1106,8 +1169,10 @@ def build_system_instruction(context_block, memory_block="", docs_block="", sett
     if memory_block:
         rules.append(
             "The recollection notes below are context about this student only — what "
-            "they have asked before and where they got stuck. Use them to pitch your "
-            "answer; never treat them as facts and never recite them back."
+            "they have asked before, where they got stuck, and how they write. Use "
+            "them to pitch your answer at the right level and in a register they will "
+            "follow; never treat them as facts, never recite them back, and never "
+            "comment on the student's writing or ability unless they ask."
         )
     if docs_block:
         rules.append(
@@ -1488,6 +1553,17 @@ def _user_chats(uid):
     return db.collection("Users").document(uid).collection("Chats")
 
 
+def _user_profile(uid, class_id):
+    """The running read of one student in one class.
+
+    The class id is the *document id*, not a field to filter on. That is the whole
+    isolation argument: there is no query here to get wrong and no `where` clause
+    for a later refactor to drop, and a different class is simply a different
+    document that this call never touches.
+    """
+    return db.collection("Users").document(uid).collection("Profiles").document(class_id)
+
+
 @app.route('/chats', methods=['GET'])
 @require_auth
 def list_chats():
@@ -1705,7 +1781,14 @@ def chat():
         # which is what makes switching class start the tutor blank — a student's
         # biology history has no business colouring a history lesson. The current
         # conversation is excluded because `history` above already replays it.
-        memory_block = "" if skip_retrieval else load_class_memory(request.uid, class_id, exclude_chat_id=chat_id)
+        # Read once: the same profile renders into the prompt below and tells the
+        # counter update which sticking points are already being tracked.
+        # `skip_retrieval` covers both a blocked message and a bare "thanks" —
+        # neither is the student's substantive writing, so neither shapes the
+        # picture the tutor forms of them.
+        student_prof = {} if skip_retrieval else load_class_profile(request.uid, class_id)
+        memory_block = "" if skip_retrieval else load_class_memory(
+            request.uid, class_id, exclude_chat_id=chat_id, profile=student_prof)
         docs_block = "" if skip_retrieval else build_docs_block(load_student_docs(request.uid, class_id, chat_id))
         settings = load_course_settings(class_id)
 
@@ -1789,6 +1872,16 @@ def chat():
         chat_meta.update(summarize_exchange(prev, is_new, user_message, final_answer, teacher_rules))
 
         chat_doc.set(chat_meta, merge=True)
+
+        # Roll this message into the student's per-class profile. Wrapped, because
+        # a broken counter must never cost a student the answer they already have.
+        if PROFILE_ENABLED and not skip_retrieval:
+            try:
+                update = profile_update(class_id, user_message, chat_meta, student_prof)
+                if update:
+                    _user_profile(request.uid, class_id).set(update, merge=True)
+            except Exception:
+                logger.exception("Could not update student profile; continuing.")
 
         # `blocked` is stamped on both halves of the exchange. The student's own
         # message carries it so the pair can be dropped as a unit below — the
@@ -2386,6 +2479,64 @@ def categorize_conversations(convos):
     except Exception:
         pass
     return ["Uncategorized"] * len(convos)
+
+
+# --- teacher: how an individual student is getting on ---
+# /stats answers "how is the class doing"; this answers "how is this one student
+# doing", from the same profile the tutor uses to pitch its replies. What comes
+# back is deliberately prose and counts, never a score: a teacher should read
+# guidance on how to help a child, not a number to rank them by.
+
+@app.route('/roster', methods=['POST'])
+@require_teacher
+def roster():
+    """The members of one class the teacher owns. Body: { class_id }"""
+    data = request.get_json(silent=True) or {}
+    class_id = (data.get("class_id") or "").strip()
+    if not class_owned_by(class_id, request.uid):
+        return jsonify({"error": "Unknown course, or you don't own it."}), 403
+    try:
+        members = [
+            {"uid": m.id, "email": str((m.to_dict() or {}).get("email") or "")[:200]}
+            for m in db.collection("Classes").document(class_id)
+            .collection("Members").limit(ROSTER_MAX).stream()
+        ]
+    except Exception:
+        logger.exception("Could not read the class roster.")
+        return jsonify({"error": "Could not load the class list."}), 500
+    members.sort(key=lambda m: m["email"].lower())
+    return jsonify({"members": members})
+
+
+@app.route('/student-profile', methods=['POST'])
+@require_teacher
+def student_profile_view():
+    """One student's profile for one class. Body: { class_id, student_uid }
+
+    Two gates, both required: the teacher must own the class, and the student must
+    be a member of it. Ownership alone is not enough — without the membership
+    check a teacher could name any uid in the system and read a profile built in
+    somebody else's classroom.
+    """
+    data = request.get_json(silent=True) or {}
+    class_id = (data.get("class_id") or "").strip()
+    student_uid = (data.get("student_uid") or "").strip()
+    if not class_owned_by(class_id, request.uid):
+        return jsonify({"error": "Unknown course, or you don't own it."}), 403
+    if not valid_doc_id(student_uid) or not user_in_class(student_uid, class_id, "student"):
+        return jsonify({"error": "That student isn't in this course."}), 403
+
+    prof = load_class_profile(student_uid, class_id)
+    return jsonify({
+        "messages": int(prof.get("msgs") or 0),
+        # "" until there is enough evidence to say anything honest; the UI shows
+        # its own "not enough yet" line rather than inventing a characterisation.
+        "summary": student_profile.describe(prof),
+        "sticking_points": [
+            {"topic": g, "times": n} for g, n in student_profile.sticking_points(prof)
+        ],
+        "min_messages": student_profile.PROFILE_MIN_MSGS,
+    })
 
 
 @app.route('/stats', methods=['POST'])

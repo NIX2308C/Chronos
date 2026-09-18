@@ -105,3 +105,36 @@ OLLAMA.md is a plan, not a build. embeddings have to stay on gemini (pinecone is
 full of 768-dim vectors from it; swapping the model would mean re-uploading every
 course), and the model needs somewhere with a gpu to live, which cloud run's app
 container isn't. that hosting choice blocks everything else.
+
+## the tutor gets a sense of who it's talking to
+
+memory already remembered *what* a student asked. it had no idea *how* they write
+or how they're coping, so a kid typing four lowercase words got the same register
+as one writing paragraphs.
+
+the brief also said: don't let it bleed into other classes. worth writing down
+that it never did — load_class_memory and load_student_docs both filter on
+class_id and pinecone is namespaced per class. the risk was the opposite one: the
+obvious place to hang a "student profile" is Users/{uid}, which is exactly where
+isolation would have broken.
+
+- student_profile.py: each message contributes counters (length, sentence length,
+  vocabulary reach, txtspeak, question marks), the totals render into two plain
+  sentences. no second model call — same reasoning as profanity.py, and a
+  judgement about a child is the last place you want a hallucination
+- stored at Users/{uid}/Profiles/{class_id}. the class id is the *document id*,
+  not a field to filter on, so there's no query to get wrong and no where-clause
+  for a later refactor to drop. load_class_profile asserts it anyway, because a
+  profile from another class would read as perfectly normal prose in the prompt
+- firestore increments, not read-modify-write, so two messages in flight can't
+  lose each other's counts. measure() is additive for the same reason and the
+  test pins it — a drift there would be silent and permanent
+- says nothing until 5 messages. a confident wrong characterisation is worse than
+  none. blocked messages and bare "thanks" are never counted
+- the wording only ever describes how to explain something, never what the
+  student is. "keep it plain" is fair to read over a kid's shoulder; "weak" isn't
+- /roster and /student-profile for teachers, behind two gates: own the class AND
+  the student is a member of it. ownership alone would let a teacher name any uid
+  in the system and read a profile built in someone else's classroom
+- reading or writing the profile can fail without costing anyone an answer; the
+  security suite proves it by leaving the store unstubbed on a working /chat

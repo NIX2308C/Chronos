@@ -198,6 +198,18 @@
       </section>
     </div>
 
+    <section style="margin-top:44px">
+      <h2 class="lbl" style="margin:0 0 6px">Individual students</h2>
+      <p style="margin:0 0 18px;font-size:14.5px;line-height:1.6;color:var(--sub);max-width:64ch">How the tutor reads each student in <em>this course only</em> — the level it pitches at and anything they keep coming back to. Nothing a student does in another course appears here.</p>
+      <div data-cols style="display:grid;grid-template-columns:minmax(0,.7fr) minmax(0,1fr);gap:32px">
+        <div id="rosterList" style="border-top:1px solid var(--rule2);max-height:340px;overflow:auto"></div>
+        <div id="profilePane" style="font-size:15px;line-height:1.65;color:var(--sub)">
+          <p style="margin:0;color:var(--mid)">Choose a student to see how the tutor is pitching its answers to them.</p>
+        </div>
+      </div>
+      <p id="rosterEmpty" class="hidden" style="margin:16px 0 0;font-size:14.5px;color:var(--mid)">Nobody has joined this course yet.</p>
+    </section>
+
   </div>
 </main>
 
@@ -397,6 +409,88 @@
     });
   }
 
+  // --- individual students -------------------------------------------------
+  // The roster and each profile are separate calls to separate endpoints, both
+  // scoped to the open course. Nothing here is built from /stats, which is
+  // deliberately un-attributed; a name only ever appears next to a profile the
+  // teacher explicitly asked for.
+  function resetProfilePane(msg){
+    const pane=$("profilePane");
+    pane.textContent="";
+    const p=document.createElement("p");
+    p.style.cssText="margin:0;color:var(--mid)";
+    p.textContent=msg;
+    pane.appendChild(p);
+  }
+
+  async function loadRoster(){
+    const list=$("rosterList"); list.textContent="";
+    resetProfilePane("Choose a student to see how the tutor is pitching its answers to them.");
+    let members=[];
+    try{ members=(await api("/roster",{class_id:ACTIVE_CLASS})).members||[]; }
+    catch(e){ resetProfilePane("Could not load the class list."); return; }
+    $("rosterEmpty").classList.toggle("hidden",members.length>0);
+    members.forEach(function(m){
+      const b=document.createElement("button");
+      b.type="button";
+      b.style.cssText="display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--rule2);padding:12px 4px;font:inherit;font-size:14.5px;color:var(--ink);cursor:pointer";
+      b.textContent=m.email||m.uid;
+      b.title=m.email||m.uid;
+      b.addEventListener("click",function(){
+        Array.prototype.forEach.call(list.children,function(o){o.style.fontWeight="400";});
+        b.style.fontWeight="600";
+        showProfile(m);
+      });
+      list.appendChild(b);
+    });
+  }
+
+  async function showProfile(m){
+    resetProfilePane("Loading…");
+    let d;
+    try{ d=await api("/student-profile",{class_id:ACTIVE_CLASS,student_uid:m.uid}); }
+    catch(e){ resetProfilePane("Could not load this student's profile."); return; }
+
+    const pane=$("profilePane"); pane.textContent="";
+    const who=document.createElement("h3");
+    who.style.cssText="margin:0 0 4px;font-size:16px;color:var(--ink)";
+    who.textContent=m.email||m.uid;
+    pane.appendChild(who);
+
+    const meta=document.createElement("p");
+    meta.style.cssText="margin:0 0 14px;font-size:13.5px;color:var(--faint)";
+    meta.textContent=plural(d.messages||0,"message")+" in this course";
+    pane.appendChild(meta);
+
+    if(!d.summary){
+      // Said plainly rather than filled in with a guess: the tutor itself is
+      // told nothing until there is enough to go on, and the teacher sees the
+      // same silence rather than a characterisation nobody can stand behind.
+      const p=document.createElement("p");
+      p.style.cssText="margin:0;color:var(--mid)";
+      p.textContent="Not enough messages yet to say anything useful — the tutor waits for "
+        +plural(d.min_messages||5,"message")+" before it adapts how it explains things.";
+      pane.appendChild(p);
+      return;
+    }
+
+    // The summary is the same text the tutor is given, so what a teacher reads
+    // here is exactly what is shaping their student's answers.
+    d.summary.split("\n").forEach(function(line){
+      line=line.replace(/^- /,"");
+      if(!line)return;
+      const p=document.createElement("p");
+      p.style.cssText="margin:0 0 10px";
+      p.textContent=line;
+      pane.appendChild(p);
+    });
+
+    const note=document.createElement("p");
+    note.style.cssText="margin:16px 0 0;font-size:13.5px;line-height:1.6;color:var(--faint)";
+    note.textContent="This describes how the tutor explains things to them in this course. It is not an assessment of the student.";
+    pane.appendChild(note);
+  }
+
   async function load(){
     if(!ACTIVE_CLASS)return;
     $("statsLoading").classList.remove("hidden");$("statsLoading").innerHTML='<span class="msym spin">progress_activity</span><span>Loading course analytics…</span>';
@@ -421,6 +515,7 @@
       renderRepeats(d.repeats||[]);
       renderSignals(d.learning_gaps||[],"learningList","learningEmpty");
       renderSignals(d.behavior_concerns||[],"concernsList","concernsEmpty");
+      loadRoster();
       paintHeader();
       $("statsLoading").classList.add("hidden");$("statsContent").classList.remove("hidden");
     }catch(e){

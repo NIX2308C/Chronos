@@ -18,6 +18,7 @@ from google import genai
 from google.genai import types
 import firebase_admin
 from firebase_admin import credentials, firestore, auth as fb_auth
+import profanity
 from pinecone import Pinecone
 try:
     import pypdf
@@ -736,6 +737,11 @@ def load_history(chat_ref, limit=HISTORY_TURNS):
         text = m.get("content")
         if not text:
             continue
+        # A blocked exchange stays in the student's history but never returns to
+        # the model. Otherwise refusing to read the abuse once only delays it by
+        # a turn: the next question replays the whole conversation, swear included.
+        if m.get("blocked"):
+            continue
         role = "user" if m.get("role") == "student" else "model"
         if not contents and role == "model":
             continue  # skip any leading model turn
@@ -896,7 +902,9 @@ def refresh_conversation_summary(msgs_ref, prev):
         transcript = "\n".join(
             ("Student" if (d.to_dict() or {}).get("role") == "student" else "Tutor")
             + ": " + str((d.to_dict() or {}).get("content") or "")[:1200]
-            for d in older
+            # Same reason as load_history: a blocked turn is not part of what the
+            # tutor is meant to remember about this conversation.
+            for d in older if not (d.to_dict() or {}).get("blocked")
         )
         if not transcript.strip():
             return prev.get("conversation_summary") or "", {}
@@ -937,6 +945,18 @@ def _source_context(matches):
 
 
 _ACK_RE = re.compile(r"^(?:hi|hello|hey|thanks|thank you|ok|okay|got it|cool|bye)[.! ]*$", re.IGNORECASE)
+
+# Answer to a message that never reaches the model. Said plainly and once: this
+# is a school, the student is told what happened and what to do instead, and the
+# turn is over. It is deliberately not a lecture.
+BLOCKED_REPLY = (
+    "I'm not going to answer that. Keep it civil and ask me about the course — "
+    "your teacher can see the messages in here."
+)
+# Stands in for the opening question when a conversation is started with abuse,
+# so the chat still has a name in the student's sidebar without that name being
+# the abuse itself.
+BLOCKED_TITLE = "Flagged message"
 
 # Which course setting switches each activity type on.
 TOOL_SETTING_FOR_TYPE = {
@@ -1529,6 +1549,9 @@ def chat_messages(chat_id):
             "sources": (m.get("sources") or []) if (is_teacher or settings["source_display"]) else [],
             "tool": m.get("tool") if isinstance(m.get("tool"), dict) else None,
             "material_gap": bool(m.get("material_gap")),
+            # A refusal, not an answer — the UI marks it so a student rereading
+            # the thread can see the tutor declined rather than failed.
+            "blocked": bool(m.get("blocked")),
             "issue_kind": m.get("issue_kind") if m.get("issue_kind") in ("academic", "behavioral") else None,
         })
     return jsonify({"messages": messages})
@@ -1593,9 +1616,18 @@ def chat():
     if len(user_message) > MAX_MESSAGE_CHARS:
         return jsonify({"error": "Message is too long."}), 413
 
+    # Profanity never reaches retrieval or the model. Answering it costs tokens
+    # to produce something nobody wants, and leaving the reply to the model makes
+    # it a matter of the model's mood; this way the response is the same every
+    # time and a teacher can rely on it.
+    blocked = profanity.scan(user_message)
+
     try:
         is_ack = bool(_ACK_RE.fullmatch(user_message))
-        if is_ack:
+        # Both of these answer without the knowledge base, so neither pays for an
+        # embedding or a query.
+        skip_retrieval = is_ack or bool(blocked)
+        if skip_retrieval:
             pinecone_resp = {"matches": []}
         else:
             question_embedding = embed(user_message)
@@ -1666,19 +1698,21 @@ def chat():
         conversation_summary, summary_update = refresh_conversation_summary(msgs_ref, prev)
 
         # Replay the recent conversation so the AI remembers earlier turns.
-        history = [] if is_ack else load_history(msgs_ref)
+        history = [] if skip_retrieval else load_history(msgs_ref)
 
         # Recollection: what this student asked in *this class* before, plus the
         # assignment/rubric they uploaded to it. Both queries filter on class_id,
         # which is what makes switching class start the tutor blank — a student's
         # biology history has no business colouring a history lesson. The current
         # conversation is excluded because `history` above already replays it.
-        memory_block = "" if is_ack else load_class_memory(request.uid, class_id, exclude_chat_id=chat_id)
-        docs_block = "" if is_ack else build_docs_block(load_student_docs(request.uid, class_id, chat_id))
+        memory_block = "" if skip_retrieval else load_class_memory(request.uid, class_id, exclude_chat_id=chat_id)
+        docs_block = "" if skip_retrieval else build_docs_block(load_student_docs(request.uid, class_id, chat_id))
         settings = load_course_settings(class_id)
 
         tool_request = None
-        if is_ack:
+        if blocked:
+            final_answer = BLOCKED_REPLY
+        elif is_ack:
             final_answer = "You’re welcome. Send the next question whenever you’re ready."
         elif not teacher_rules and not docs_block and settings["grounded_only"]:
             # Nothing in this class's knowledge base cleared the relevance bar.
@@ -1742,7 +1776,8 @@ def chat():
         chat_meta.update(summary_update)
         title = None
         if is_new:
-            title = user_message[:40] + ("…" if len(user_message) > 40 else "")
+            title = BLOCKED_TITLE if blocked else (
+                user_message[:40] + ("…" if len(user_message) > 40 else ""))
             chat_meta["title"] = title
             chat_meta["created_at"] = firestore.SERVER_TIMESTAMP
 
@@ -1755,14 +1790,23 @@ def chat():
 
         chat_doc.set(chat_meta, merge=True)
 
-        msgs_ref.add({"role": "student", "content": user_message, "timestamp": firestore.SERVER_TIMESTAMP})
+        # `blocked` is stamped on both halves of the exchange. The student's own
+        # message carries it so the pair can be dropped as a unit below — the
+        # student sees it in their history, the model never does again.
+        msgs_ref.add({"role": "student", "content": user_message, "blocked": bool(blocked),
+                      "timestamp": firestore.SERVER_TIMESTAMP})
         msgs_ref.add({"role": "teacher", "content": final_answer, "rules": teacher_rules,
                       "sources": teacher_sources, "reviewed": reviewed,
                       "tool_request": tool_request, "material_gap": material_gap,
+                      "blocked": bool(blocked),
                       "issue_kind": issue_kind, "timestamp": firestore.SERVER_TIMESTAMP})
 
         return jsonify({
             "response": final_answer,
+            # Lets the UI mark this as a refusal rather than an answer. It is not
+            # an error: the student asked, the tutor replied, and the exchange is
+            # in their history like any other.
+            "blocked": bool(blocked),
             # Teacher-only, same as /chats/<id>/messages: a student's own token
             # would otherwise read back the class material verbatim, one question
             # at a time, straight from the API the UI is careful not to show it in.
@@ -2185,13 +2229,6 @@ def _group_questions(rows):
 # Junk that retrieval fails on for reasons a teacher can't fix: a stray keypress,
 # a greeting, abuse. Without this filter every one of them lands in Knowledge
 # Gaps looking like uncovered course material.
-_PROFANITY = {
-    "fuck", "fucks", "fucking", "fucked", "fuk", "fck", "wtf", "stfu",
-    "shit", "shits", "shitty", "bullshit", "crap", "bitch", "bitches",
-    "cunt", "dick", "cock", "pussy", "asshole", "arsehole", "ass", "arse",
-    "bastard", "whore", "slut", "nigga", "nigger", "faggot", "fag",
-    "retard", "retarded", "twat", "wanker", "prick", "bollocks", "shit", "aupvibes"
-}
 _WORD_RE = re.compile(r"[^\W_]+", re.UNICODE)
 _MIN_QUESTION_LETTERS = 8
 
@@ -2206,7 +2243,7 @@ def _is_real_question(text):
     words = _WORD_RE.findall(str(text or "").lower())
     if len(words) < 2 or sum(len(w) for w in words) < _MIN_QUESTION_LETTERS:
         return False
-    return not any(w in _PROFANITY for w in words)
+    return not profanity.is_profane(text)
 
 
 _LEARNING_SIGNAL_RE = re.compile(
@@ -2228,8 +2265,7 @@ def _issue_kind(text):
     misunderstands something. Learning signals require explicit uncertainty or
     confusion. Profanity/abuse is routed to concerns and never academic gaps.
     """
-    words = _WORD_RE.findall(str(text or "").lower())
-    if any(w in _PROFANITY for w in words) or _SAFETY_CONCERN_RE.search(str(text or "")):
+    if profanity.is_profane(text) or _SAFETY_CONCERN_RE.search(str(text or "")):
         return "behavioral"
     if _is_real_question(text) and _LEARNING_SIGNAL_RE.search(str(text or "")):
         return "academic"
@@ -2278,19 +2314,26 @@ def summarize_exchange(prev, is_new, question, answer, rules):
     reads and no extra writes — it rides along on the chat doc update.
     """
     summary = {"stat_v": STAT_SUMMARY_VERSION}
+    issue = _issue_kind(question)
 
-    if is_new:
-        summary["opening"] = question[:_SUMMARY_OPENING_CHARS]
-    elif not prev.get("opening"):
-        # A conversation that predates summaries: its real opening question is
-        # gone from this request, but `title` was cut from it, so prefer that
-        # over mislabelling the newest question as the one that started the chat.
-        summary["opening"] = (prev.get("title") or question)[:_SUMMARY_OPENING_CHARS]
+    # Abuse is recorded under `concerns` below and nowhere else. `opening` and
+    # `context` are what /stats turns into Recent questions, Most repeated and
+    # the Gemini-generated topic list, and what the tutor recalls in later
+    # prompts — none of which should ever echo a slur back at anyone.
+    if issue != "behavioral":
+        if is_new:
+            summary["opening"] = question[:_SUMMARY_OPENING_CHARS]
+        elif not prev.get("opening"):
+            # A conversation that predates summaries: its real opening question
+            # is gone from this request, but `title` was cut from it, so prefer
+            # that over mislabelling the newest question as the one that started
+            # the chat.
+            summary["opening"] = (prev.get("title") or question)[:_SUMMARY_OPENING_CHARS]
 
     # Categorization reads the start of a conversation, so stop growing the blob
     # once we have enough of it.
     context = "" if is_new else (prev.get("context") or "")
-    if len(context) < _SUMMARY_CONTEXT_CHARS:
+    if issue != "behavioral" and len(context) < _SUMMARY_CONTEXT_CHARS:
         summary["context"] = (context + " " + question).strip()[:_SUMMARY_CONTEXT_CHARS]
 
     if _is_unanswered({"rules": rules, "content": answer}) and _is_material_gap_question(question):
@@ -2298,7 +2341,6 @@ def summarize_exchange(prev, is_new, question, answer, rules):
         gaps.append(question[:_SUMMARY_OPENING_CHARS])
         summary["material_gaps"] = gaps[-_SUMMARY_MAX_GAPS:]
 
-    issue = _issue_kind(question)
     if issue == "academic":
         gaps = [] if is_new else list(prev.get("learning_gaps") or [])
         gaps.append(question[:_SUMMARY_OPENING_CHARS])
@@ -2405,14 +2447,23 @@ def stats():
                     last_ts = _ts_seconds(d.get("last_active"))
                     if cutoff is not None and last_ts < cutoff:
                         continue
-                    opening = (d.get("opening") or d.get("title") or "").strip()
-                    if not opening:
-                        continue
                     # Re-filtered on read: chats summarized before _is_real_question
                     # existed still carry keysmashes and abuse in their gap list.
                     chat_gaps = [q for q in (d.get("material_gaps") or []) if _is_material_gap_question(q)]
                     chat_learning = [q for q in (d.get("learning_gaps") or []) if _issue_kind(q) == "academic"]
                     chat_concerns = [q for q in (d.get("concerns") or []) if _issue_kind(q) == "behavioral"]
+                    # Concerns are collected before the opening is judged, so a
+                    # conversation that is *only* abuse still reaches the teacher
+                    # — under Behavioral concerns, which is the panel for it.
+                    concerns.extend((last_ts, q, uid) for q in chat_concerns)
+
+                    opening = (d.get("opening") or d.get("title") or "").strip()
+                    # Chats written before the block existed still have a swear
+                    # stored as their opening. Dropping them here is what keeps
+                    # the existing data out of Recent questions, Most repeated
+                    # and the topic list without a migration.
+                    if not opening or profanity.is_profane(opening):
+                        continue
                     convos.append({
                         "opening": opening,
                         "context": (d.get("context") or opening),
@@ -2424,7 +2475,6 @@ def stats():
                     # is close enough for "most recent first" ordering.
                     gaps.extend((last_ts, q, uid) for q in chat_gaps)
                     learning.extend((last_ts, q, uid) for q in chat_learning)
-                    concerns.extend((last_ts, q, uid) for q in chat_concerns)
                     continue
 
                 # Legacy path, for conversations written before summaries existed:
@@ -2458,16 +2508,22 @@ def stats():
                     last_ts = max(_ts_seconds(t) for t, _ in msgs)
                     if cutoff is not None and last_ts < cutoff:
                         continue
+                    gaps.extend((ts, q, uid) for ts, q in chat_gaps)
+                    learning.extend((ts, q, uid) for ts, q in chat_learning)
+                    concerns.extend((ts, q, uid) for ts, q in chat_concerns)
+                    # Same rule as the fast path: flagged messages are already
+                    # counted above, and must not also appear as questions. The
+                    # conversation drops out entirely when abuse is all it was.
+                    clean = [(t, c) for t, c in msgs if not profanity.is_profane(c)]
+                    if not clean:
+                        continue
                     convos.append({
-                        "opening": msgs[0][1],                          # the question that started it
-                        "context": " ".join(c for _, c in msgs[:4])[:_SUMMARY_CONTEXT_CHARS],
+                        "opening": clean[0][1],                         # the question that started it
+                        "context": " ".join(c for _, c in clean[:4])[:_SUMMARY_CONTEXT_CHARS],
                         "last_ts": last_ts,
                         "uid": uid,
                         "gapped": bool(chat_gaps),
                     })
-                    gaps.extend((ts, q, uid) for ts, q in chat_gaps)
-                    learning.extend((ts, q, uid) for ts, q in chat_learning)
-                    concerns.extend((ts, q, uid) for ts, q in chat_concerns)
 
         if legacy_chats:
             logger.info(

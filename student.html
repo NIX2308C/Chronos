@@ -125,6 +125,10 @@
        chrome around it. Only the question gets a bubble. */
     .bub-ai { color:var(--c-ink); font-family:'Newsreader',serif; font-size:19px; line-height:1.62;
         overflow-wrap:anywhere }
+    /* A refusal, not an answer: same bubble, visibly set apart by the rule down
+       its edge so the thread reads differently at a glance. Existing tokens only. */
+    .bub-ai.bub-blocked { color:var(--c-sub); border-left:3px solid var(--crimson);
+        padding-left:14px }
     @keyframes pop { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
 
     /* ---- sidebar conversation rows ---- */
@@ -453,7 +457,8 @@
       // students aren't sent the sources at all (see /chats/<id>/messages).
       c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],
         sources:m.sources||[],tool:m.tool||null,
-        reviewed:!!m.reviewed,gap:m.role==="teacher"&&!!m.material_gap&&!m.reviewed}));
+        reviewed:!!m.reviewed,blocked:!!m.blocked,
+        gap:m.role==="teacher"&&!!m.material_gap&&!m.reviewed&&!m.blocked}));
       c.loaded=true;
       if(c.id===activeChatId)renderMessages();
     }catch(e){setStatus("offline");}
@@ -570,12 +575,13 @@
     }
     const w=document.createElement("div");w.className="flex flex-col items-start mb-stack-lg";
     const b=document.createElement("div");
-    b.className="ai-prose bub-ai";
+    b.className="ai-prose bub-ai"+(m.blocked?" bub-blocked":"");
     if(m.content){b.innerHTML=renderMarkdown(m.content);}
     w.appendChild(b);
     // An answer with no sources behind it is the "not in this class's material"
     // refusal — the same empty-rules signal the server counts as a knowledge gap.
-    if(m.gap)w.appendChild(gapNote());
+    if(m.blocked)w.appendChild(blockedNote());
+    else if(m.gap)w.appendChild(gapNote());
     if(m.reviewed)w.appendChild(reviewedNote());
     // Sources are teacher-only: students never see the underlying material,
     // teachers get a collapsible dropdown beneath the answer.
@@ -591,6 +597,16 @@
       w.appendChild(m._toolEl);
     }
     return w;
+  }
+
+  // The tutor refused: the message had profanity in it and never reached the
+  // model. Said once, under the reply, so the student knows this was a decision
+  // rather than the app breaking.
+  function blockedNote(){
+    const p=document.createElement("p");
+    p.className="mt-3.5 text-on-surface-variant text-[13.5px] leading-relaxed";
+    p.textContent="This message was flagged and wasn\u2019t answered.";
+    return p;
   }
 
   function gapNote(){
@@ -792,7 +808,8 @@
       // the sources: students are never sent rules_used, so an empty list here
       // no longer means "nothing backed this answer".
       tm.content=data.response||"";tm.rules=data.rules_used||[];tm.sources=data.sources||[];
-      tm.reviewed=!!data.reviewed;tm.gap=!!data.material_gap&&!tm.reviewed;
+      tm.reviewed=!!data.reviewed;tm.blocked=!!data.blocked;
+      tm.gap=!!data.material_gap&&!tm.reviewed&&!tm.blocked;
       if(Array.isArray(data.toolkits))TOOLKITS=data.toolkits;
       b.textContent="";
       const gen=VIEW_GEN;

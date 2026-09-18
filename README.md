@@ -100,17 +100,21 @@ and open http://localhost:5000.
 ## Tests
 
 ```bash
-python test_security.py && python test_stats_grouping.py && python test_student_context.py
+python test_profanity.py && python test_security.py && \
+python test_stats_grouping.py && python test_student_context.py
 ```
 
-Three plain-`assert` scripts, no test runner. They stub every collaborator that
+Four plain-`assert` scripts, no test runner. They stub every collaborator that
 would reach Firestore, Pinecone or Gemini, so they run offline in about a second
 and need no real keys — but `app.py` still refuses to import without a valid
 `TEACHER_SIGNUP_CODE`, so a `.env` with a throwaway one (and dummy values for the
 rest) has to exist. They cover the auth gate, the teacher signup code and the
 throttles in front of it, the `.docx` decompression cap, that course material is
-never sent to a student, the analytics grouping, and the shape of the tutor's
-assembled prompt. Run them before committing; they are fast enough that there is
+never sent to a student, the analytics grouping, the shape of the tutor's
+assembled prompt, and profanity detection — including the half of that which
+matters most, that ordinary classroom English (`class`, `assess`, `cockpit`,
+`Scunthorpe`) is never flagged. `test_profanity.py` imports `profanity` alone and
+needs no environment at all. Run them before committing; they are fast enough that there is
 no excuse not to.
 
 ## Deploying

@@ -74,3 +74,34 @@ and the tests actually run now, offline, in about a second:
   each other's edits
 - added the additional_instructions box, which the backend has always used but
   no page ever showed
+
+## profanity, and a plan for a local model
+
+the swear filter was a list of 40 words matched exactly, so it caught `fuck` and
+nothing else — not `f*ck`, `sh1t`, `fuuuck`, `f u c k`, `fucc` or
+`motherfucker`. a missed word meant retrieval found nothing, which the stats code
+reads as "the teacher hasn't covered this", so abuse was landing in knowledge
+gaps as if it were a missing topic.
+
+- new profanity.py: normalize first (accents, leetspeak, padding, spaced-out
+  letters), match stems second. no model call, no dependencies
+- deliberately does NOT flag dick, prick or hell. moby dick is on reading lists
+  and you prick a finger in biology — blocking is outright, so a false positive
+  refuses a real question
+- /chat blocks a profane message before the embedding, the pinecone query and
+  the model. canned reply, marked in the ui, still saved to the student's history
+- a blocked exchange is dropped from history replay and from the rolling
+  conversation summary. without that, refusing to read it once only delays it a
+  turn — the next question replays the whole conversation, swear included
+- flagged messages no longer become a chat's opening, so they stop showing up in
+  recent questions, most repeated and the gemini topic list. /stats re-filters on
+  read too, which fixes the chats already written that way without a migration
+- concerns are collected before the opening is judged now, so a conversation
+  that is only abuse still reaches the teacher — under behavioral concerns
+- test_profanity.py: an evasion corpus and, just as important, a corpus of
+  innocent classroom english that must never be flagged
+
+OLLAMA.md is a plan, not a build. embeddings have to stay on gemini (pinecone is
+full of 768-dim vectors from it; swapping the model would mean re-uploading every
+course), and the model needs somewhere with a gpu to live, which cloud run's app
+container isn't. that hosting choice blocks everything else.

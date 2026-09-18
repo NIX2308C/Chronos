@@ -9,6 +9,14 @@ import app as A
 
 c = A.app.test_client()
 
+# Grabbed before any test stubs it out. test_sources_are_not_sent_to_students
+# replaces it with a no-op, and the profanity test needs the real one — it is
+# what decides whether a flagged message becomes a "question" in the teacher's
+# feed. load_history is grabbed for the same reason: the profanity test stubs
+# both out for its own request, then checks the real ones directly.
+_REAL_SUMMARIZE_EXCHANGE = A.summarize_exchange
+_REAL_LOAD_HISTORY = A.load_history
+
 # Two throwaway routes so the decorator is tested directly rather than through a
 # real endpoint's Firestore work.
 @A.app.route("/_t/gated")
@@ -210,11 +218,105 @@ def test_sources_are_not_sent_to_students():
     assert teacher["rules_used"] == ["SECRET TEACHER MATERIAL"], "teacher lost their sources"
 
 
+def test_profanity_is_blocked_before_the_model():
+    """A swear must not reach the model, and must not reach the teacher's
+    question feeds. Both halves failed before: detection missed anything that
+    wasn't a literal dictionary word, and a flagged message still became the
+    conversation's `opening`, which /stats prints as a Recent question."""
+    A._rate_hits.clear()
+    written = {}
+
+    class _FakeMsgs:
+        def add(self, doc):
+            written.setdefault("msgs", []).append(doc)
+
+    class _FakeChatDoc:
+        id = "chat1"
+        def collection(self, _name): return _FakeMsgs()
+        def get(self):
+            class _S:
+                exists = False
+                def to_dict(self): return {}
+            return _S()
+        def set(self, doc, **_k): written["chat"] = doc
+
+    class _FakeQuery:
+        def where(self, *_a, **_k): return self
+        def limit(self, _n): return self
+        def stream(self): return iter(())
+
+    class _FakeChats:
+        def document(self, _id=None): return _FakeChatDoc()
+        def where(self, *_a, **_k): return _FakeQuery()
+
+    A.user_in_class = lambda uid, cid, role: True
+    A._user_chats = lambda uid: _FakeChats()
+    A._user_files = lambda uid: _FakeChats()
+    A.load_history = lambda *_a, **_k: []
+    A.load_course_settings = lambda *_a, **_k: A.course_settings()
+    A.load_custom_rules = lambda *_a, **_k: []
+    A.load_class_memory = lambda *_a, **_k: ""
+    A.refresh_conversation_summary = lambda *_a, **_k: ("", {})
+    A.summarize_exchange = _REAL_SUMMARIZE_EXCHANGE   # it's half of what this tests
+
+    def _boom(*_a, **_k):
+        raise AssertionError("the model was called on a blocked message")
+
+    A.embed = _boom
+    A.pinecone_index = type("_PC", (), {"query": _boom})()
+    A.client = type("_G", (), {"models": type("_M", (), {"generate_content": _boom})()})()
+
+    signed_in_as(uid="u-rude", role="student")
+    # Censored, padded and leetspoken: every one of these was a miss under the
+    # old exact-match word set, so each would have been answered normally.
+    r = c.post("/chat", json={"message": "f*ck this sh1t", "class_id": "c1"})
+    assert r.status_code == 200, r.get_json()
+    body = r.get_json()
+    assert body["blocked"] is True, "a profane message was answered"
+    assert "f*ck" not in A.json.dumps(body), "the message was echoed back"
+
+    chat = written["chat"]
+    # It reaches the teacher as a concern...
+    assert chat.get("concerns"), "the teacher was never told"
+    # ...and as nothing else. `opening` and `context` are what /stats turns into
+    # Recent questions, Most repeated and the topic list; `material_gaps` is the
+    # Knowledge Gaps panel, where this used to land as uncovered course material.
+    assert "opening" not in chat and "context" not in chat, chat
+    assert not chat.get("material_gaps"), "abuse was filed as a knowledge gap"
+    assert chat.get("title") == A.BLOCKED_TITLE, "the swear became the chat's name"
+
+    # Both halves of the exchange are stamped, which is what lets load_history
+    # drop the pair. Without it, refusing to read the abuse once only delays it:
+    # the student's next question replays the conversation, swear included.
+    stored = {m["role"]: m for m in written["msgs"]}
+    assert stored["student"]["blocked"] and stored["teacher"]["blocked"], stored
+
+    class _Doc:
+        def __init__(self, d): self._d = d
+        def to_dict(self): return self._d
+
+    class _Msgs:
+        def order_by(self, *_a, **_k): return self
+        def limit(self, _n): return self
+        def stream(self):
+            return iter([
+                _Doc({"role": "teacher", "content": A.BLOCKED_REPLY, "blocked": True}),
+                _Doc({"role": "student", "content": "f*ck this sh1t", "blocked": True}),
+                _Doc({"role": "student", "content": "what is osmosis"}),
+            ])
+
+    replayed = A.json.dumps(_REAL_LOAD_HISTORY(_Msgs()))
+    assert "osmosis" in replayed, "ordinary history stopped being replayed"
+    assert "ck" not in replayed and A.BLOCKED_REPLY not in replayed, \
+        "a blocked exchange came back to the model on the next turn"
+
+
 if __name__ == "__main__":
     test_gate()
     test_teacher_code()
     test_docx_expansion_cap()
     test_join_throttle_is_not_only_per_uid()
     test_sources_are_not_sent_to_students()
+    test_profanity_is_blocked_before_the_model()
     print("ok — auth gate, teacher code, register + join throttles, docx expansion "
-          "cap, and teacher-only sources all hold")
+          "cap, teacher-only sources, and the profanity block all hold")

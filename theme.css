@@ -96,12 +96,6 @@ html.dark .bg-outline                    { background-color: var(--d-edge) !impo
 html.dark .bg-outline-variant            { background-color: var(--d-edge) !important; }
 html.dark .chat-scroll::-webkit-scrollbar-thumb { background-color: var(--d-edge) !important; }
 
-/* Keep filled actions readable when utility hover classes swap their surface. */
-html.dark .bg-primary,
-html.dark .hover\:bg-primary:hover { color: #FFF9F1 !important; }
-html.dark .hover\:text-on-primary:hover { color: #FFF9F1 !important; }
-html.dark button:disabled { filter: saturate(.7); }
-
 /* gold "grounded" chip: darken the fill, lift the text off it */
 html.dark .bg-secondary        { background-color: #D9B84A !important; }
 html.dark .text-on-secondary   { color: #0B0B0C !important; }

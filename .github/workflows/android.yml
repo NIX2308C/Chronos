@@ -138,13 +138,12 @@ jobs:
           # Also emit the reason as a workflow error. Annotations are readable
           # through the public API without admin rights, unlike the run log and
           # the job summary, so this is the only channel that makes a red build
-          # diagnosable from outside the repo.
-          REASON=$(grep -E "^e: |FAILED|expected:|actual:|AssertionError|Unresolved reference|Caused by" "$RUNNER_TEMP/test.log" | head -25)
-          [ -n "$REASON" ] || REASON=$(tail -25 "$RUNNER_TEMP/test.log")
-          REASON="${REASON//'%'/'%25'}"
-          REASON="${REASON//$'
-'/'%0A'}"
-          REASON="${REASON//$''/''}"
+          # diagnosable from outside the repo. sed/awk do the percent-encoding
+          # the workflow-command protocol wants; bash ${var//...} needs a
+          # literal newline in the pattern, which YAML will not carry.
+          PICK=$(grep -E "^e: |FAILED|expected:|actual:|AssertionError|Unresolved reference|Caused by" "$RUNNER_TEMP/test.log" | head -25)
+          [ -n "$PICK" ] || PICK=$(tail -25 "$RUNNER_TEMP/test.log")
+          REASON=$(echo "$PICK" | sed "s/%/%25/g" | awk '{printf "%s%%0A", $0}')
           echo "::error title=Build or test failure::$REASON"
 
       - name: Build APK

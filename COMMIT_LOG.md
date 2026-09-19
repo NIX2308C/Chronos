@@ -379,3 +379,25 @@ quiz answers werent random + material is teacher-only now
   BOTH the manifest intent filter and the launch url in resources.arsc — which
   is the bit that proves re-pointing it at the real host will actually work
 - 573 KB, at releases/tag/android-v2
+
+## android: the app wouldnt open — my bug
+
+- res/drawable/splash.xml did <bitmap android:src="@mipmap/ic_launcher">. on
+  api 26+ that name resolves to the <adaptive-icon> in mipmap-anydpi-v26/, NOT
+  to the pngs, and BitmapDrawable cant inflate an adaptive icon. androidbrowser
+  helper loads SPLASH_IMAGE_DRAWABLE inside LauncherActivity.onCreate, so it
+  threw before the app ever drew a window. classic "doesnt even open"
+- the splash has its own raster now, drawable-<density>/splash_icon.png at five
+  densities. nothing references a mipmap from a <bitmap> any more
+- chronos is live at chronos.tevproject.com so thats the default host now in
+  gradle.properties, app/build.gradle and the workflow input. the .invalid
+  placeholder is gone
+- build 3 verified: 5 splash rasters present, chronos.tevproject.com in both the
+  manifest intent filter and the launch url in resources.arsc, no placeholder
+  left anywhere, still signed
+- NOTE for whoever reads this next: main is still at e80114f, which predates
+  phase A and B. cloud run deploys the default branch, so the live site is
+  serving the pre-mobile version — no mobile.css/mobile.js drawer, no
+  manifest.json, no icons, and /.well-known/assetlinks.json 404s. the app will
+  open now but the site inside it is the old one, and the url bar cant go away
+  until assetlinks is actually served. android-app needs merging to main

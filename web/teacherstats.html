@@ -52,8 +52,9 @@
   .side-link.on{background:var(--hi);font-weight:600}
 
   .rangebtn{background:var(--field);color:var(--ink);border:none;padding:9px 15px;font:inherit;font-size:13.5px;
-    font-weight:600;cursor:pointer;transition:background-color .15s,color .15s}
+    font-weight:600;cursor:pointer;transition:background-color .15s,color .15s,transform .15s}
   .rangebtn:hover:not(.on){background:var(--hi)}
+  .rangebtn:active{transform:scale(.97)}
   .rangebtn.on{background:var(--ink);color:var(--page)}
   .ibtn{width:32px;height:32px;display:grid;place-items:center;background:transparent;border:none;
     color:var(--dim);cursor:pointer;transition:color .15s}
@@ -146,8 +147,9 @@
     </div>
   </header>
 
+  <div id="statsView">
   <div id="statsLoading" style="padding:56px 36px;color:var(--mid);display:flex;align-items:center;gap:10px"><span class="msym spin">progress_activity</span><span>Loading course analytics…</span></div>
-  <div id="statsContent" class="hidden" style="padding:32px 36px 60px;max-width:1120px">
+  <div id="statsContent" class="hidden" data-transition-content style="padding:32px 36px 60px;max-width:1120px">
 
     <div data-kpis style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:36px;padding-bottom:30px;border-bottom:1px solid var(--rule2);margin-bottom:38px">
       <div>
@@ -224,6 +226,7 @@
     </section>
 
   </div>
+  </div>
 </main>
 
 </div>
@@ -240,6 +243,7 @@
   const $=id=>document.getElementById(id);
   const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
   let CLASSES=[],ACTIVE_CLASS=null,DAYS=0,LAST=null;
+  const statsTransition=ChronosWipe.createViewTransition($("statsView"));
   const CLASS_KEY="chronos_teacher_class";
   const RANGE_KEY="chronos_stats_range";
   const RANGE_WORDS={7:"the last seven days",30:"the last thirty days",0:"this term"};
@@ -292,13 +296,7 @@
       const m=document.createElement("span"); m.className="cr-meta"; m.textContent=c.join_code?("Join code "+c.join_code):"";
       inner.appendChild(n); inner.appendChild(m);
       b.appendChild(inner);
-      b.onclick=()=>{
-        if(c.id===ACTIVE_CLASS)return;
-        ACTIVE_CLASS=c.id;
-        localStorage.setItem(CLASS_KEY,c.id);
-        renderClasses(); paintHeader();
-        load().catch(e=>showToast(e.message,false));
-      };
+      b.onclick=()=>{if(c.id!==ACTIVE_CLASS||$("statsView").hasAttribute("aria-busy"))load({classId:c.id});};
       list.appendChild(b);
     });
   }
@@ -437,12 +435,11 @@
     pane.appendChild(p);
   }
 
-  async function loadRoster(){
+  let profileSequence=0;
+  function renderRoster(members){
+    profileSequence++;
     const list=$("rosterList"); list.textContent="";
     resetProfilePane("Choose a student to see how the tutor is pitching its answers to them.");
-    let members=[];
-    try{ members=(await api("/roster",{class_id:ACTIVE_CLASS})).members||[]; }
-    catch(e){ resetProfilePane("Could not load the class list."); return; }
     $("rosterEmpty").classList.toggle("hidden",members.length>0);
     members.forEach(function(m){
       const b=document.createElement("button");
@@ -461,9 +458,11 @@
 
   async function showProfile(m){
     resetProfilePane("Loading…");
+    const classId=ACTIVE_CLASS,sequence=++profileSequence;
     let d;
-    try{ d=await api("/student-profile",{class_id:ACTIVE_CLASS,student_uid:m.uid}); }
-    catch(e){ resetProfilePane("Could not load this student's profile."); return; }
+    try{ d=await api("/student-profile",{class_id:classId,student_uid:m.uid}); }
+    catch(e){ if(classId===ACTIVE_CLASS&&sequence===profileSequence)resetProfilePane("Could not load this student's profile."); return; }
+    if(classId!==ACTIVE_CLASS||sequence!==profileSequence)return;
 
     const pane=$("profilePane"); pane.textContent="";
     const who=document.createElement("h3");
@@ -505,14 +504,22 @@
     pane.appendChild(note);
   }
 
-  async function load(){
-    if(!ACTIVE_CLASS)return;
-    $("statsLoading").classList.remove("hidden");$("statsLoading").innerHTML='<span class="msym spin">progress_activity</span><span>Loading course analytics…</span>';
-    $("statsContent").classList.add("hidden");
+  async function load(options={}){
+    const classId=options.classId||ACTIVE_CLASS,days=options.days===undefined?DAYS:options.days;
+    if(!classId)return;
     $("refreshBtn").disabled=true;
     $("refreshIcon").classList.add("spin");
-    try{
-      const d=await api("/stats",{class_id:ACTIVE_CLASS,limit:200,days:DAYS});
+    const shown=await statsTransition.show(
+      ()=>Promise.all([
+        api("/stats",{class_id:classId,limit:200,days}),
+        api("/roster",{class_id:classId})
+      ]),
+      ([d,roster])=>{
+      ACTIVE_CLASS=classId;DAYS=days;
+      localStorage.setItem(CLASS_KEY,classId);
+      localStorage.setItem(RANGE_KEY,String(days));
+      renderClasses();
+      [...$("ranges").children].forEach(b=>b.classList.toggle("on",Number(b.dataset.days)===DAYS));
       LAST=d;
       animateCount($("kQuestions"),d.total_questions);
       animateCount($("kActive"),d.students_active);
@@ -529,13 +536,15 @@
       renderRepeats(d.repeats||[]);
       renderSignals(d.learning_gaps||[],"learningList","learningEmpty");
       renderSignals(d.behavior_concerns||[],"concernsList","concernsEmpty");
-      loadRoster();
+      renderRoster(roster.members||[]);
       paintHeader();
       $("statsLoading").classList.add("hidden");$("statsContent").classList.remove("hidden");
-    }catch(e){
-      $("statsLoading").innerHTML='<span class="msym">error</span><span>Could not load analytics. Use refresh to try again.</span>';
-      throw e;
-    }finally{
+      },
+      {label:"Loading course analytics…",onError:e=>{
+        if(!LAST)$("statsLoading").innerHTML='<span class="msym">error</span><span>Could not load analytics. Use refresh to try again.</span>';
+        showToast(e.message,false);
+      }});
+    if(shown||!$("statsView").hasAttribute("aria-busy")){
       $("refreshBtn").disabled=false;
       $("refreshIcon").classList.remove("spin");
     }
@@ -543,15 +552,11 @@
 
   // ---------- wiring ----------
   $("lockBtn").onclick=lock;
-  $("refreshBtn").onclick=()=>load().catch(e=>showToast(e.message,false));
+  $("refreshBtn").onclick=()=>load();
   $("ranges").addEventListener("click",e=>{
     const btn=e.target.closest(".rangebtn");
     if(!btn)return;
-    DAYS=Number(btn.dataset.days);
-    localStorage.setItem(RANGE_KEY,String(DAYS));
-    [...$("ranges").children].forEach(b=>b.classList.toggle("on",b===btn));
-    paintHeader();
-    load().catch(err=>showToast(err.message,false));
+    if(Number(btn.dataset.days)!==DAYS||$("statsView").hasAttribute("aria-busy"))load({days:Number(btn.dataset.days)});
   });
 
   const savedRange=Number(localStorage.getItem(RANGE_KEY));

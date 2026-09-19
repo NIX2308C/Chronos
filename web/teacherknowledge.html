@@ -56,8 +56,9 @@
   /* buttons */
   .kbtn{display:inline-flex;align-items:center;gap:7px;background:var(--crimson);color:#F7F4EC;
     border:1px solid var(--crimson);padding:11px 17px;font-size:14px;font-weight:600;cursor:pointer;
-    transition:background-color .15s,border-color .15s}
+    transition:background-color .15s,border-color .15s,transform .15s}
   .kbtn:hover:not(:disabled){background:var(--crimson-d);border-color:var(--crimson-d);color:#F7F4EC;transform:translateY(-1px)}
+  .kbtn:active:not(:disabled){transform:translateY(0) scale(.98)}
   .kbtn:disabled{opacity:.5;cursor:default}
   .kbtn-ghost{background:transparent;border-color:var(--field-b);color:var(--ink);padding:10px 15px}
   .kbtn-ghost:hover:not(:disabled){background:transparent;border-color:var(--ink);color:var(--ink)}
@@ -187,7 +188,7 @@
       </div>
     </header>
 
-    <div style="padding:32px 36px 56px;max-width:1080px">
+    <div data-transition-content style="padding:32px 36px 56px;max-width:1080px">
 
       <div id="uploadCard" class="card hidden" style="padding:18px 20px;margin-bottom:28px;animation:pop .3s ease both">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px">
@@ -302,12 +303,14 @@
 <script src="transition.js"></script>
 <script>
   let RULES=[],CLASSES=[],ACTIVE_CLASS=null,SETTINGS=null,uploading=false;
+  let knowledgeGen=0;
   let EDITING=null;   // id of the rule currently open in the inline editor, if any
   // /rules caps how much it fetches per kind and says so; the panels admit it
   // rather than quietly showing a short list.
   let TRUNC={rules:false,docs:false};
   const CLASS_KEY="chronos_teacher_class";
   const $=id=>document.getElementById(id);
+  const classTransition=ChronosWipe.createViewTransition($("mainPane"));
   const flat=s=>String(s||"").replace(/\s+/g," ").trim();
 
   function showToast(msg,ok){
@@ -389,25 +392,30 @@
     $("classMeta").textContent=n+" document"+(n===1?"":"s")+(c.join_code?(" · join code "+c.join_code):"");
   }
 
-  function pickClass(id){
-    if(id===ACTIVE_CLASS)return;
-    ACTIVE_CLASS=id;
-    localStorage.setItem(CLASS_KEY,id);
-    EDITING=null;
-    // Clear the composer too: text typed for one class would otherwise sit there
-    // and land in whichever class you switched to.
-    $("ruleText").value="";
-    $("probeResult").classList.add("hidden");
-    renderClasses();
-    paintHeader();
-    Promise.all([loadRules(),loadSettings()]).catch(e=>showToast(e.message,false));
+  async function pickClass(id){
+    if(id===ACTIVE_CLASS&&!$("mainPane").hasAttribute("aria-busy"))return;
+    await classTransition.show(
+      ()=>Promise.all([
+        api("/rules",{class_id:id}),
+        Chronos.apiJson("/course-settings?class_id="+encodeURIComponent(id),undefined,"GET")
+      ]),
+      ([material,settings])=>{
+        knowledgeGen++;
+        ACTIVE_CLASS=id;localStorage.setItem(CLASS_KEY,id);
+        EDITING=null;$("ruleText").value="";$("probeResult").classList.add("hidden");
+        RULES=material.rules||[];
+        TRUNC={rules:!!material.rules_truncated,docs:!!material.docs_truncated};
+        SETTINGS=settings.settings||{};
+        renderClasses();renderRules();renderDocs();paintSettings();paintHeader();
+      },
+      {label:"Loading course material…",onError:e=>showToast(e.message,false)});
   }
 
   async function loadClasses(preferId){
     CLASSES=await Chronos.listClasses();
     let pick=preferId||localStorage.getItem(CLASS_KEY);
     if(!CLASSES.find(c=>c.id===pick))pick=CLASSES.length?CLASSES[0].id:null;
-    ACTIVE_CLASS=pick;
+    knowledgeGen++;ACTIVE_CLASS=pick;
     if(ACTIVE_CLASS)localStorage.setItem(CLASS_KEY,ACTIVE_CLASS);
     renderClasses();
     paintHeader();
@@ -425,7 +433,9 @@
   }
   async function loadSettings(){
     if(!ACTIVE_CLASS){SETTINGS=null;paintSettings();return;}
-    const d=await Chronos.apiJson("/course-settings?class_id="+encodeURIComponent(ACTIVE_CLASS),undefined,"GET");
+    const generation=knowledgeGen,classId=ACTIVE_CLASS;
+    const d=await Chronos.apiJson("/course-settings?class_id="+encodeURIComponent(classId),undefined,"GET");
+    if(generation!==knowledgeGen||classId!==ACTIVE_CLASS)return;
     SETTINGS=d.settings||{};paintSettings();
   }
   async function saveSettings(){
@@ -491,15 +501,18 @@
       RULES=[];EDITING=null;TRUNC={rules:false,docs:false};
       renderRules();renderDocs();paintHeader();return;
     }
+    const generation=knowledgeGen,classId=ACTIVE_CLASS;
     $("ruleCount").textContent="Loading…";$("docCount").textContent="Loading…";
     $("rulesEmpty").classList.add("hidden");$("docsEmpty").classList.add("hidden");
     $("rulesList").innerHTML='<p style="color:var(--mid);font-size:13px;padding:16px 0">Loading rules…</p>';
     $("docsList").innerHTML='<p style="color:var(--mid);font-size:13px;padding:16px 0">Loading documents…</p>';
     try{
-      const d=await api("/rules",withClass({}));
+      const d=await api("/rules",{class_id:classId});
+      if(generation!==knowledgeGen||classId!==ACTIVE_CLASS)return;
       RULES=d.rules||[];
       TRUNC={rules:!!d.rules_truncated,docs:!!d.docs_truncated};
     }catch(e){
+      if(generation!==knowledgeGen||classId!==ACTIVE_CLASS)return;
       $("ruleCount").textContent="Unavailable";$("docCount").textContent="Unavailable";
       $("rulesList").innerHTML='<p style="color:var(--crimson-d);font-size:13px;padding:16px 0">Could not load rules.</p>';
       $("docsList").innerHTML='<p style="color:var(--crimson-d);font-size:13px;padding:16px 0">Could not load documents.</p>';

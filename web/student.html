@@ -108,10 +108,6 @@
     .spin { animation: spin .7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* typing cursor */
-    .cursor { display:inline-block; width:8px; height:1rem; background:var(--crimson); margin-left:2px; vertical-align:text-bottom; animation:blink 1s steps(2) infinite; }
-    @keyframes blink { 0%,50%{opacity:1} 50.01%,100%{opacity:0} }
-
     /* ---- shared shapes ---- */
     .hard { border:1px solid var(--c-rule); }
     .cast { }
@@ -136,12 +132,15 @@
         transition:background-color .18s ease,border-color .2s var(--snap),color .18s ease }
     .chat-row:hover { background:var(--c-hi); color:var(--c-ink) }
     .chat-row.on { background:var(--c-hi); border-left-color:var(--crimson); color:var(--c-ink) }
+    .chat-row:focus-within .chat-delete { opacity:1 }
+    @media (hover:none){ .chat-delete { opacity:1!important } }
 
     /* ---- buttons ---- */
     .kbtn { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
         font-size:14px; font-weight:600; padding:.85rem 1rem; border:1px solid var(--crimson); background:var(--crimson);
-        color:#F7F4EC; cursor:pointer; transition:background-color .15s ease,border-color .15s ease }
+        color:#F7F4EC; cursor:pointer; transition:background-color .15s ease,border-color .15s ease,transform .15s ease }
     .kbtn:hover:not(:disabled) { background:#B90015; border-color:#B90015; color:#F7F4EC; transform:translateY(-1px) }
+    .kbtn:active:not(:disabled) { transform:translateY(0) }
     .kbtn:disabled { opacity:.55; cursor:default }
     .kbtn-ghost { background:transparent; border-color:var(--c-rule); color:var(--c-ink) }
     .kbtn-ghost:hover:not(:disabled) { color:var(--c-ink); border-color:var(--c-ink); background:transparent }
@@ -153,8 +152,9 @@
 
     .slabel { font-size:12.5px; font-weight:600; color:var(--c-sub) }
     .sendbtn { width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center;
-        background:var(--c-ink); color:var(--c-page); border:none; cursor:pointer; transition:background-color .15s ease }
+        background:var(--c-ink); color:var(--c-page); border:none; cursor:pointer; transition:background-color .15s ease,color .15s ease,transform .15s ease }
     .sendbtn:hover:not(:disabled) { background:var(--crimson); color:#F7F4EC }
+    .sendbtn:active:not(:disabled) { transform:scale(.94) }
     .sendbtn:disabled { opacity:.4; cursor:default }
 
     /* empty-state starter questions */
@@ -170,8 +170,10 @@
 
     /* ---- compact composer actions ---- */
     .composer-action { width:36px;height:36px;flex:none;display:grid;place-items:center;
-        border:1px solid var(--c-rule);background:transparent;color:var(--c-sub);cursor:pointer; }
+        border:1px solid var(--c-rule);background:transparent;color:var(--c-sub);cursor:pointer;
+        transition:color .16s ease,border-color .16s ease,background-color .16s ease,transform .16s ease; }
     .composer-action:hover:not(:disabled),.composer-action:focus-visible,.composer-action[aria-expanded="true"] { color:var(--crimson);border-color:var(--crimson); }
+    .composer-action:active:not(:disabled) { transform:scale(.94); }
     .composer-action:disabled { opacity:.45;cursor:default; }
     .composer-menu { position:absolute;bottom:calc(100% + 10px);left:0;z-index:10;
         width:min(250px,calc(100vw - 48px));padding:6px;background:var(--c-paper);
@@ -196,22 +198,61 @@
     /* ---- teacher-only "Sources used" dropdown ---- */
     .src-drop summary { list-style: none; }
     .src-drop summary::-webkit-details-marker { display: none; }
-    .learning-tool { width:100%;max-width:620px;border:1px solid var(--c-rule);padding:16px;margin-top:10px;background:var(--c-paper);animation:pop .34s var(--snap) both; }
-    .tool-progress { width:100%;max-width:620px;border-left:3px solid var(--gold);padding:12px 14px;margin-top:12px;background:var(--c-hi);color:var(--c-ink);animation:pop .24s ease both; }
-    .tool-progress summary { cursor:pointer;color:var(--c-sub);font-size:12px;margin-top:6px; }
-    .tool-progress p { margin:0; }
-    .tool-heading { font-family:'Newsreader',serif;font-size:21px;line-height:1.15;margin:0 0 10px;color:var(--c-ink); }
-    .quiz-feedback { margin-top:8px;font-size:13px;color:var(--c-sub);line-height:1.5; }
-    .quiz-option { width:100%;text-align:left;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);padding:10px 12px;margin-top:8px;transition:background-color .16s,color .16s,border-color .16s; }
-    .quiz-option:hover:not(:disabled) { border-color:var(--crimson); }
-    .quiz-option.correct { background:var(--gold);border-color:var(--gold);color:#111; }
-    .quiz-option.wrong { background:var(--crimson);border-color:var(--crimson);color:#fff; }
-    .flashcard { width:100%;min-height:120px;background:var(--c-hi);border:1px solid var(--c-rule);padding:18px;text-align:left;color:var(--c-ink);cursor:pointer;transition:transform .18s var(--snap),border-color .18s; }
-    .flashcard:hover { transform:translateY(-2px);border-color:var(--crimson); }
-    .tool-list { margin:0;padding-left:1.25rem;color:var(--c-ink); }.tool-list li{margin:.38rem 0;}
-    .map-node { border-left:3px solid var(--gold);padding:8px 10px;margin-top:8px;background:var(--c-hi); }.map-link{font-size:12px;color:var(--c-sub);margin:5px 0 0 13px;}
+    .learning-tool { width:100%;max-width:620px;border:1px solid var(--c-rule);padding:18px;margin-top:12px;background:var(--c-paper);box-shadow:0 10px 28px rgba(11,11,12,.06);animation:pop .34s var(--snap) both; }
+    .tool-status { position:relative;overflow:hidden;display:flex;align-items:center;gap:8px;width:fit-content;max-width:100%;margin-top:12px;padding:6px 0;color:var(--c-sub);font-size:12.5px;line-height:1.4; }
+    .tool-status .material-symbols-outlined { font-size:16px; }
+    .tool-status.using::after { content:"";position:absolute;inset:auto 0 0 0;height:2px;background:linear-gradient(90deg,transparent,var(--crimson),transparent);transform:translateX(-110%);animation:tool-glow 1.8s ease-in-out infinite; }
+    .tool-status.done { color:#1E7A4E;animation:tool-finish .35s ease-out both; }
+    .tool-status.failed { color:var(--crimson); }
+    html.dark .tool-status.done { color:#6FD5A0; }
+    html.dark .tool-status.failed { color:#FF6572; }
+    .tool-status button { border:0;background:transparent;color:inherit;text-decoration:underline;text-underline-offset:2px;font:inherit;cursor:pointer; }
+    @keyframes tool-glow { to { transform:translateX(110%); } }
+    @keyframes tool-finish { from { opacity:.55;transform:translateY(3px); } to { opacity:1;transform:translateY(0); } }
+    .stream-tail { overflow-wrap:anywhere;min-height:1lh; }
+    .stream-pending { color:var(--c-sub);font-size:13px; }
+    .tool-heading { font-family:'Newsreader',serif;font-size:22px;line-height:1.15;margin:0;color:var(--c-ink); }
+    .tool-topline { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px; }
+    .tool-count { color:var(--c-sub);font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap; }
+    .tool-stage { min-height:235px;display:flex;flex-direction:column; }
+    .tool-prompt { margin:2px 0 16px;font-family:'Newsreader',serif;font-size:21px;line-height:1.25;color:var(--c-ink); }
+    .quiz-options { display:grid;gap:8px; }
+    .quiz-option { width:100%;display:flex;align-items:flex-start;gap:10px;text-align:left;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);padding:11px 12px;font:inherit;font-size:14px;line-height:1.4;transition:background-color .16s,color .16s,border-color .16s,transform .16s; }
+    .quiz-option:hover:not(:disabled),.quiz-option:focus-visible { border-color:var(--crimson);transform:translateY(-1px); }
+    .quiz-option .quiz-letter { flex:none;display:grid;place-items:center;width:21px;height:21px;border:1px solid currentColor;border-radius:50%;font-size:11px;font-weight:700; }
+    .quiz-option.correct { background:#1E7A4E;border-color:#1E7A4E;color:#fff; }
+    .quiz-option.wrong { background:var(--c-hi);border-color:var(--crimson);color:var(--c-ink); }
+    .quiz-option:disabled { cursor:default; }
+    .quiz-feedback { min-height:42px;margin:14px 0 0;padding:10px 12px;border-left:3px solid var(--c-rule);background:var(--c-hi);font-size:13px;color:var(--c-sub);line-height:1.45; }
+    .quiz-feedback.good { border-color:#1E7A4E;color:var(--c-ink); }
+    .quiz-feedback.missed { border-color:var(--crimson); }
+    .tool-nav { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--c-rule); }
+    .tool-nav button,.tool-review { min-height:36px;padding:8px 11px;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer; }
+    .tool-nav button:hover:not(:disabled),.tool-nav button:focus-visible,.tool-review:hover,.tool-review:focus-visible { border-color:var(--crimson);color:var(--crimson); }
+    .tool-nav button:disabled { opacity:.42;cursor:default; }
+    .tool-progress-dots { display:flex;gap:5px;align-items:center; }
+    .tool-progress-dots span { width:6px;height:6px;border-radius:50%;background:var(--c-rule); }
+    .tool-progress-dots span.on { width:18px;border-radius:5px;background:var(--crimson); }
+    .tool-complete { padding:8px 0 2px; }
+    .tool-score { margin:8px 0 16px;font-family:'Newsreader',serif;font-size:30px;line-height:1;color:var(--c-ink); }
+    .tool-complete p { color:var(--c-sub);font-size:14px;line-height:1.5;margin:0 0 16px; }
+    .flashcard-shell { perspective:1000px;min-height:220px;cursor:pointer; }
+    .flashcard { position:relative;width:100%;min-height:220px;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);transform-style:preserve-3d;transition:transform .48s cubic-bezier(.2,.8,.2,1); }
+    .flashcard.is-flipped { transform:rotateY(180deg); }
+    .flash-face { position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:20px;backface-visibility:hidden;background:var(--c-hi);text-align:left; }
+    .flash-face.back { transform:rotateY(180deg);background:var(--c-paper);border-left:3px solid var(--crimson); }
+    .flash-label { color:var(--c-sub);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase; }
+    .flash-text { font-family:'Newsreader',serif;font-size:25px;line-height:1.22;color:var(--c-ink); }
+    .flash-hint { color:var(--c-sub);font-size:12px; }
+    .tool-list { margin:0;padding-left:1.25rem;color:var(--c-ink); }.tool-list li{margin:.5rem 0;}
+    .map-node { border-left:3px solid var(--gold);padding:10px 12px;margin-top:9px;background:var(--c-hi); }.map-link{font-size:12px;color:var(--c-sub);margin:6px 0 0 13px;}
     .src-drop[open] .chev { transform: rotate(180deg); }
     .src-drop { border:1px solid var(--gold); background:var(--c-paper); color:var(--c-ink) }
+    html.dark .learning-tool { box-shadow:0 12px 28px rgba(0,0,0,.26); }
+    html.dark .quiz-option.correct { background:#238457;border-color:#36A46E;color:#fff; }
+    html.dark .quiz-option.wrong { background:rgba(226,0,26,.16); }
+    html.dark .flash-face.back { background:var(--c-hi); }
+    @media (prefers-reduced-motion:reduce){ .flashcard,.quiz-option,.composer-action,.sendbtn { transition:none; } .tool-status.using::after,.tool-status.done { animation:none; } }
 
     /* ---- markdown inside AI bubbles ---- */
     .ai-prose p { margin:0 0 .75rem; }
@@ -548,7 +589,7 @@
       it.textContent=c.title;
       it.onclick=()=>selectChat(c.id);
       const del=document.createElement("button");
-      del.className="px-2 opacity-0 group-hover:opacity-100 transition-opacity hover:text-error flex-shrink-0";
+      del.className="chat-delete px-2 opacity-0 group-hover:opacity-100 transition-opacity hover:text-error flex-shrink-0";
       del.dataset.drawerKeep="1";   // deleting a conversation shouldn't shut the drawer
       del.title="Delete conversation";
       del.innerHTML='<span class="material-symbols-outlined text-[18px]">delete</span>';
@@ -617,6 +658,7 @@
   }
 
   function buildMsgEl(m){
+    if(m.role==="tool_status")return buildToolStatus(m);
     if(m.role==="student"){
       const w=document.createElement("div");w.className="flex flex-col items-end mb-stack-lg pr-1.5";
       const b=document.createElement("div");
@@ -712,24 +754,9 @@
   function buildLearningTool(tool){
     const box=document.createElement("section");box.className="learning-tool";
     if(tool.type==="quiz"){
-      toolTitle(box,"Practice quiz",tool.title);
-      (tool.questions||[]).forEach((question,qi)=>{
-        const q=document.createElement("p");q.className="font-label-md text-on-surface mt-4 mb-2";q.textContent=(qi+1)+". "+question.prompt;box.appendChild(q);
-        // One feedback line per question, directly beneath its own options. A
-        // single shared line meant answering question 3 erased the explanation
-        // for question 1, and put the text nowhere near what it explained.
-        const feedback=document.createElement("p");feedback.className="quiz-feedback";feedback.hidden=true;
-        const opts=[];
-        (question.options||[]).forEach((option,index)=>{const b=document.createElement("button");b.type="button";b.className="quiz-option";b.textContent=option;opts.push(b);b.onclick=()=>{
-          opts.forEach(x=>x.disabled=true);
-          b.classList.add(index===question.answer?"correct":"wrong");if(index!==question.answer){const right=opts[question.answer];if(right)right.classList.add("correct");}
-          feedback.textContent=(index===question.answer?"That’s right. ":"Not quite. ")+(question.explanation||"");
-          feedback.hidden=false;
-        };box.appendChild(b);});
-        box.appendChild(feedback);
-      });
+      buildQuizTool(box,tool);
     }else if(tool.type==="flashcards"){
-      toolTitle(box,"Flashcards",tool.title);(tool.cards||[]).forEach((card,i)=>{const b=document.createElement("button");b.type="button";b.className="flashcard";b.textContent=card.front;b.title="Show answer";let flipped=false;b.onclick=()=>{flipped=!flipped;b.textContent=flipped?card.back:card.front;b.title=flipped?"Show prompt":"Show answer";};box.appendChild(b);});
+      buildFlashcardTool(box,tool);
     }else if(tool.type==="concept_map"){
       toolTitle(box,"Concept map",tool.title);(tool.nodes||[]).forEach((node,i)=>{const n=document.createElement("div");n.className="map-node";n.innerHTML="<strong></strong><span></span>";n.querySelector("strong").textContent=node.label;n.querySelector("span").textContent=node.detail?" — "+node.detail:"";box.appendChild(n);(tool.links||[]).filter(l=>l.from===i).forEach(l=>{const p=document.createElement("p");p.className="map-link";p.textContent="↳ "+(l.label||"relates to")+": "+((tool.nodes||[])[l.to]||{}).label;box.appendChild(p);});});
     }else if(tool.type==="review_sheet"){
@@ -737,41 +764,227 @@
     }else { toolTitle(box,"Learning activity",tool.title); }
     return box;
   }
+
+  function toolHeader(box,kind,title,count){
+    const top=document.createElement("div");top.className="tool-topline";
+    const copy=document.createElement("div");toolTitle(copy,kind,title);top.appendChild(copy);
+    const badge=document.createElement("span");badge.className="tool-count";badge.textContent=count;top.appendChild(badge);box.appendChild(top);
+    return badge;
+  }
+
+  function toolDots(total,current){
+    const dots=document.createElement("div");dots.className="tool-progress-dots";dots.setAttribute("aria-hidden","true");
+    for(let i=0;i<total;i++){const dot=document.createElement("span");if(i===current)dot.className="on";dots.appendChild(dot);}return dots;
+  }
+
+  function buildQuizTool(box,tool){
+    const questions=(tool.questions||[]).filter(q=>q&&q.prompt&&Array.isArray(q.options)&&q.options.length>1);
+    if(!questions.length){toolTitle(box,"Practice quiz",tool.title);return;}
+    let index=0,advanceTimer=null,readingUntil=0;
+    const answers=Array(questions.length).fill(null);
+    const badge=toolHeader(box,"Practice quiz",tool.title,"Question 1 of "+questions.length);
+    const stage=document.createElement("div");stage.className="tool-stage";box.appendChild(stage);
+    const nav=document.createElement("div");nav.className="tool-nav";box.appendChild(nav);
+    const previous=document.createElement("button");previous.type="button";previous.textContent="Previous";
+    const next=document.createElement("button");next.type="button";
+    const markReading=()=>{readingUntil=Date.now()+5000;};
+    ["pointerenter","focusin","touchstart","keydown"].forEach(type=>stage.addEventListener(type,markReading,{passive:type!=="focusin"&&type!=="keydown"}));
+    const clearAdvance=()=>{if(advanceTimer){clearTimeout(advanceTimer);advanceTimer=null;}};
+    const scheduleAdvance=()=>{
+      clearAdvance();
+      if(answers[index]===null)return;
+      const advance=()=>{
+        if(document.hidden||Date.now()<readingUntil){advanceTimer=setTimeout(advance,900);return;}
+        if(index<questions.length-1){index++;render();}else renderComplete();
+      };
+      advanceTimer=setTimeout(advance,5000);
+    };
+    const render=()=>{
+      clearAdvance();stage.replaceChildren();nav.replaceChildren();
+      const question=questions[index],answer=answers[index];badge.textContent="Question "+(index+1)+" of "+questions.length;
+      const prompt=document.createElement("p");prompt.className="tool-prompt";prompt.textContent=question.prompt;stage.appendChild(prompt);
+      const options=document.createElement("div");options.className="quiz-options";stage.appendChild(options);
+      question.options.forEach((option,optionIndex)=>{
+        const choice=document.createElement("button");choice.type="button";choice.className="quiz-option";
+        const letter=document.createElement("span");letter.className="quiz-letter";letter.textContent=String.fromCharCode(65+optionIndex);
+        const text=document.createElement("span");text.textContent=option;choice.append(letter,text);
+        if(answer!==null){choice.disabled=true;if(optionIndex===answer)choice.classList.add(answer===question.answer?"correct":"wrong");if(tool.reveal_final_answers===true&&answer!==question.answer&&optionIndex===question.answer)choice.classList.add("correct");}
+        choice.onclick=()=>{answers[index]=optionIndex;render();scheduleAdvance();};options.appendChild(choice);
+      });
+      if(answer!==null){
+        const feedback=document.createElement("p");feedback.className="quiz-feedback "+(answer===question.answer?"good":"missed");
+        if(answer===question.answer)feedback.textContent="Correct. "+(question.explanation||"Nice work—keep going.");
+        else if(tool.reveal_final_answers===true)feedback.textContent="Not quite. "+(question.explanation||"Review this idea, then try a similar question.");
+        else feedback.textContent="Not quite. Keep the key idea in mind; you can review the missed concept with AI at the end.";
+        stage.appendChild(feedback);
+      }
+      previous.disabled=index===0;previous.onclick=()=>{index--;render();};
+      next.textContent=index===questions.length-1?"Finish":"Next";next.disabled=answers[index]===null;next.onclick=()=>{if(index<questions.length-1){index++;render();}else renderComplete();};
+      nav.append(previous,toolDots(questions.length,index),next);
+    };
+    const renderComplete=()=>{
+      clearAdvance();stage.replaceChildren();nav.replaceChildren();badge.textContent="Complete";
+      const score=answers.reduce((total,answer,i)=>total+(answer===questions[i].answer?1:0),0);
+      const complete=document.createElement("div");complete.className="tool-complete";
+      const label=document.createElement("p");label.className="slabel";label.textContent="Quiz complete";
+      const scoreLine=document.createElement("div");scoreLine.className="tool-score";scoreLine.textContent=score+" / "+questions.length;
+      const copy=document.createElement("p");copy.textContent=score===questions.length?"Strong recall. Keep the ideas connected by explaining one in your own words.":"Your result is ready for a focused follow-up in this chat.";
+      const review=document.createElement("button");review.type="button";review.className="tool-review";review.textContent="Review with AI";
+      review.onclick=()=>sendQuizReview(tool,questions,answers,score,review);
+      complete.append(label,scoreLine,copy,review);stage.appendChild(complete);
+      const restart=document.createElement("button");restart.type="button";restart.textContent="Try again";restart.onclick=()=>{answers.fill(null);index=0;render();};nav.append(restart,toolDots(questions.length,questions.length-1));
+    };
+    render();
+  }
+
+  function sendQuizReview(tool,questions,answers,score,button){
+    if(navigationBusy||sending||toolRunning)return;
+    const detail=questions.map((question,index)=>{
+      const selected=answers[index]===null?"No answer":question.options[answers[index]];
+      return "- Q"+(index+1)+": "+question.prompt+" | My answer: "+selected+" | Result: "+(answers[index]===question.answer?"correct":"needs review");
+    }).join("\n");
+    const summary="Quiz result summary\nActivity: "+(tool.title||"Practice quiz")+"\nScore: "+score+"/"+questions.length+"\n"+detail+"\nPlease identify the concepts I need to review, explain only what I missed, then give me one short targeted practice question.";
+    button.disabled=true;button.textContent="Sending to AI…";els.input.value=summary;
+    send().then(sent=>{button.disabled=!!sent;button.textContent=sent?"Sent to AI":"Review with AI";})
+      .catch(()=>{button.disabled=false;button.textContent="Review with AI";});
+  }
+
+  function buildFlashcardTool(box,tool){
+    const cards=(tool.cards||[]).filter(card=>card&&card.front&&card.back);
+    if(!cards.length){toolTitle(box,"Flashcards",tool.title);return;}
+    let index=0,flipped=false,advanceTimer=null,readingUntil=0;
+    const badge=toolHeader(box,"Flashcards",tool.title,"Card 1 of "+cards.length);
+    const stage=document.createElement("div");stage.className="tool-stage";box.appendChild(stage);
+    const nav=document.createElement("div");nav.className="tool-nav";box.appendChild(nav);
+    const clearAdvance=()=>{if(advanceTimer){clearTimeout(advanceTimer);advanceTimer=null;}};
+    const scheduleAdvance=()=>{
+      clearAdvance();if(!flipped||index===cards.length-1)return;
+      const advance=()=>{if(document.hidden||Date.now()<readingUntil){advanceTimer=setTimeout(advance,900);return;}index++;flipped=false;render();};
+      advanceTimer=setTimeout(advance,5000);
+    };
+    const render=()=>{
+      clearAdvance();stage.replaceChildren();nav.replaceChildren();badge.textContent="Card "+(index+1)+" of "+cards.length;
+      const shell=document.createElement("div");shell.className="flashcard-shell";
+      const card=document.createElement("button");card.type="button";card.className="flashcard"+(flipped?" is-flipped":"");card.setAttribute("aria-pressed",String(flipped));card.setAttribute("aria-label",flipped?"Showing answer. Activate to show prompt.":"Showing prompt. Activate to reveal answer.");
+      const front=document.createElement("span");front.className="flash-face front";const frontLabel=document.createElement("span");frontLabel.className="flash-label";frontLabel.textContent="Prompt";const frontText=document.createElement("strong");frontText.className="flash-text";frontText.textContent=cards[index].front;const frontHint=document.createElement("span");frontHint.className="flash-hint";frontHint.textContent="Select to reveal";front.append(frontLabel,frontText,frontHint);
+      const back=document.createElement("span");back.className="flash-face back";const backLabel=document.createElement("span");backLabel.className="flash-label";backLabel.textContent="Answer";const backText=document.createElement("strong");backText.className="flash-text";backText.textContent=cards[index].back;const backHint=document.createElement("span");backHint.className="flash-hint";backHint.textContent=index<cards.length-1?"Next card in 5 seconds when you are ready":"Select to revisit the prompt";back.append(backLabel,backText,backHint);
+      card.append(front,back);card.onclick=()=>{flipped=!flipped;readingUntil=Date.now()+5000;render();if(flipped)scheduleAdvance();};
+      ["pointerenter","focusin","touchstart","keydown"].forEach(type=>shell.addEventListener(type,()=>{readingUntil=Date.now()+5000;},{passive:type!=="focusin"&&type!=="keydown"}));
+      shell.appendChild(card);stage.appendChild(shell);
+      const previous=document.createElement("button");previous.type="button";previous.textContent="Previous";previous.disabled=index===0;previous.onclick=()=>{index--;flipped=false;render();};
+      const next=document.createElement("button");next.type="button";next.textContent=index===cards.length-1?"Start over":"Next";next.onclick=()=>{if(index===cards.length-1){index=0;}else index++;flipped=false;render();};
+      nav.append(previous,toolDots(cards.length,index),next);
+    };
+    render();
+  }
   function buildToolProgress(request){
-    const box=document.createElement("section");box.className="tool-progress";
-    const name={quiz:"quiz",flashcards:"flashcards",concept_map:"concept map",review_sheet:"review sheet"}[request.type]||"learning activity";
-    box.innerHTML='<p class="flex items-center gap-2"><span class="material-symbols-outlined spin text-[18px]">progress_activity</span><strong>Creating '+name+'…</strong></p><details><summary>What Chronos is doing</summary><p>Finding the relevant course material and shaping it into a '+name+'.</p></details>';
+    return {role:"tool_status",state:"using",text:"Creating "+(TOOL_LABELS[request.type]||"activity").toLowerCase()+"…"};
+  }
+  function buildToolStatus(status){
+    const box=document.createElement("div");box.className="tool-status "+status.state;
+    box.setAttribute("role","status");box.setAttribute("aria-live","polite");
+    const icon=document.createElement("span");icon.className="material-symbols-outlined";
+    icon.textContent=status.state==="done"?"check_circle":status.state==="failed"?"error_outline":status.state==="canceled"?"pause_circle":"auto_awesome";
+    const label=document.createElement("span");label.textContent=status.text;box.append(icon,label);
+    if(status.state==="using"&&status.cancel){
+      const stop=document.createElement("button");stop.type="button";stop.textContent="Stop";stop.onclick=status.cancel;box.appendChild(stop);
+    }
     return box;
   }
 
   function scrollBottom(){els.messages.scrollTop=els.messages.scrollHeight;}
 
   const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const sounds={using:"audio/toolkit_using.mp3",done:"audio/toolkit_done.mp3",failed:"audio/toolkit_fail.mp3"};
+  let currentSound=null,audioEnabled=false;
+  document.addEventListener("pointerdown",()=>{audioEnabled=true;},{passive:true});
+  document.addEventListener("keydown",()=>{audioEnabled=true;});
+  function stopSound(){if(currentSound){try{currentSound.pause();currentSound.currentTime=0;}catch{}currentSound=null;}}
+  function playSound(kind){
+    stopSound();if(!audioEnabled||!sounds[kind])return;
+    const player=new Audio(sounds[kind]);player.volume=kind==="using"?.18:.24;currentSound=player;
+    try{Promise.resolve(player.play()).then(()=>{if(currentSound!==player)player.pause();})
+      .catch(()=>{if(currentSound===player)currentSound=null;});}
+    catch{if(currentSound===player)currentSound=null;}
+    player.onended=()=>{if(currentSound===player)currentSound=null;};
+  }
 
-  // Type the answer out over a bounded total duration instead of a fixed delay
-  // per character. The old version advanced ONE character per tick at up to 8ms
-  // each, so a 2,000-character answer sat there typing for ~16 seconds — and it
-  // rewrote the element's whole textContent every tick (quadratic work). Now the
-  // characters-per-frame scales with length, so long answers land just as fast as
-  // short ones, and each frame only pokes a single text node.
-  // Tracked so switching conversation mid-answer stops the loop instead of
-  // leaving it typing into a node that renderMessages has already discarded.
-  let typingRaf=null;
-  function stopTyping(){ if(typingRaf!==null){cancelAnimationFrame(typingRaf);typingRaf=null;} }
-  function typeOut(b,text,done){
-    const cur=document.createElement("span");cur.className="cursor";
-    const node=document.createTextNode("");
-    b.textContent="";b.appendChild(node);b.appendChild(cur);
-    const finish=()=>{typingRaf=null;cur.remove();b.innerHTML=renderMarkdown(text);scrollBottom();if(done)done();};
-    if(!text||reduceMotion){finish();return;}
-    const dur=Math.min(1600,Math.max(350,text.length*4));
-    const t0=performance.now();
-    (function step(now){
-      const p=Math.min((now-t0)/dur,1);
-      node.nodeValue=text.slice(0,Math.ceil(p*text.length));
-      scrollBottom();
-      if(p<1)typingRaf=requestAnimationFrame(step); else finish();
-    })(t0);
+  // Only the unfinished block is reparsed. Finished blocks stay mounted, so
+  // later chunks cannot change their wrapping or discard their text nodes.
+  function createReplyStream(node){
+    node.replaceChildren();
+    const pending=document.createElement("span");pending.className="stream-pending";pending.textContent="Thinking…";
+    const tail=document.createElement("div");tail.className="stream-tail";
+    tail.hidden=true;node.append(pending,tail);
+    let source="",committed=0;
+    function preview(src){
+      const fences=src.match(/```/g)||[];
+      if(fences.length%2===0)return renderMarkdown(src);
+      const open=src.lastIndexOf("```");
+      const before=src.slice(0,open);
+      const rest=src.slice(open+3).replace(/^(?:[A-Za-z0-9_-]+)?\n/,"");
+      return renderMarkdown(before)+"<pre><code>"+escapeHtml(rest)+"</code></pre>";
+    }
+    function flush(final){
+      if(tail.parentNode!==node)node.appendChild(tail);
+      let end=committed;
+      if(final)end=source.length;
+      else{
+        const breaks=/\n\s*\n/g;breaks.lastIndex=committed;let match;
+        while((match=breaks.exec(source))){
+          const prefix=source.slice(committed,match.index);
+          if(((prefix.match(/```/g)||[]).length%2)===0)end=match.index+match[0].length;
+        }
+      }
+      if(end>committed){tail.insertAdjacentHTML("beforebegin",renderMarkdown(source.slice(committed,end)));committed=end;}
+      if(final){pending.remove();tail.remove();}
+      else{
+        const remaining=source.slice(committed);
+        if(!remaining)tail.remove();
+        else{tail.hidden=false;tail.innerHTML=preview(remaining);}
+      }
+      if(node.isConnected)scrollBottom();
+    }
+    return {
+      push(chunk){if(chunk){pending.remove();source+=chunk;flush(false);}},
+      finish(text){if(text!==source){source=text;node.replaceChildren(tail);committed=0;}flush(true);},
+      get text(){return source;}
+    };
+  }
+
+  async function readChatResponse(res,onDelta){
+    if(!res.ok){let error={};try{error=await res.json();}catch{}throw new Error(error.details||error.error||"Could not answer right now.");}
+    if(!(res.headers.get("content-type")||"").includes("text/event-stream"))return res.json();
+    const reader=res.body&&res.body.getReader();
+    let buffer="",result=null;
+    const consume=frame=>{
+      for(const line of frame.split("\n")){
+        if(!line.startsWith("data:"))continue;
+        const item=JSON.parse(line.slice(5).trimStart());
+        if(item.type==="delta")onDelta(item.text||"");
+        if(item.type==="done")result=item.data;
+        if(item.type==="error")throw new Error(item.message||"Reply interrupted.");
+      }
+    };
+    if(!reader){
+      (await res.text()).replace(/\r\n/g,"\n").split("\n\n").forEach(consume);
+      if(!result)throw new Error("Reply interrupted. Please try again.");
+      return result;
+    }
+    const decoder=new TextDecoder();
+    while(true){
+      const {done,value}=await reader.read();
+      buffer+=decoder.decode(value||new Uint8Array(),{stream:!done});
+      buffer=buffer.replace(/\r\n/g,"\n");
+      let split;
+      while((split=buffer.indexOf("\n\n"))!==-1){
+        const frame=buffer.slice(0,split);buffer=buffer.slice(split+2);
+        consume(frame);
+      }
+      if(done)break;
+    }
+    if(!result)throw new Error("Reply interrupted. Please try again.");
+    return result;
   }
 
   // Bumped whenever the view moves to a different conversation. Anything still
@@ -779,44 +992,52 @@
   // DOM: without it a finished quiz would call replaceWith() on a node that
   // renderMessages had already thrown away, and vanish silently.
   let VIEW_GEN=0,toolAbort=null;
-  function invalidateView(){ VIEW_GEN++; stopTyping(); if(toolAbort){toolAbort.abort();toolAbort=null;} }
+  function invalidateView(){ VIEW_GEN++;stopSound();if(toolAbort){toolAbort.abort();toolAbort=null;} }
 
-  // Shared by the tutor's own suggestion and by a student tapping a practice
-  // chip. Renders the creating state, then swaps in the activity or the reason
-  // it could not be built.
+  // One status record follows the request through success, failure, or stop.
   async function runTool(request,chat,anchor){
     if(toolRunning)return;
     toolRunning=true;updateComposer();
     const gen=VIEW_GEN;
-    const progress=buildToolProgress(request);
-    anchor.appendChild(progress);scrollBottom();
-    const fail=(msg)=>{
-      const strong=progress.querySelector("strong");
-      if(strong)strong.textContent=msg;
-      const icon=progress.querySelector(".spin");
-      if(icon)icon.classList.remove("spin");
+    const status=buildToolProgress(request);
+    chat.messages.push(status);
+    let progress,stopped=false;
+    const controller=new AbortController();toolAbort=controller;
+    status.cancel=()=>{
+      stopped=true;controller.abort();stopSound();
+      status.state="canceled";status.text="Stopped on this device.";
+      if(progress.isConnected)progress.replaceWith(progress=buildToolStatus(status));
     };
-    toolAbort=new AbortController();
+    progress=buildToolStatus(status);anchor.appendChild(progress);scrollBottom();playSound("using");
     try{
       const res=await Chronos.apiFetch("/tools/run",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({class_id:chat.classId||ACTIVE_CLASS,chat_id:chat.id,tool_request:request}),
-        signal:toolAbort.signal});
+        signal:controller.signal});
       let data={};
-      // A 500 or a proxy error page is not JSON; parsing it unguarded threw and
-      // buried the real status behind a generic failure message.
       try{ data=await res.json(); }catch(e){ data={}; }
-      if(gen!==VIEW_GEN)return;
-      if(!res.ok||data.error){fail(data.error||"Couldn’t create that activity.");return;}
-      // data.sources is already [] for a student; keeping the field means a
-      // teacher viewing their own generated activity still gets the dropdown.
+      if(stopped||gen!==VIEW_GEN){
+        status.state="canceled";status.text="Stopped on this device.";
+        return;
+      }
+      if(!res.ok||data.error||!data.tool)throw new Error(data.error||"Couldn’t create that activity.");
       const msg={role:"teacher",content:"",tool:data.tool,sources:data.sources||[]};
-      chat.messages.push(msg);
       msg._toolEl=buildLearningTool(data.tool);
-      progress.replaceWith(msg._toolEl);
+      chat.messages=chat.messages.filter(item=>item!==status);
+      chat.messages.push(msg);
+      status.state="done";status.text=(TOOL_LABELS[request.type]||"Activity")+" ready";
+      progress.replaceWith(progress=buildToolStatus(status));playSound("done");
+      await new Promise(resolve=>setTimeout(resolve,reduceMotion?0:380));
+      if(gen===VIEW_GEN&&progress.isConnected)progress.replaceWith(msg._toolEl);
     }catch(err){
-      if(gen!==VIEW_GEN||(err&&err.name==="AbortError"))return;
-      fail("Couldn’t create that activity.");
+      if(stopped||gen!==VIEW_GEN||(err&&err.name==="AbortError")){
+        if(status.state==="using"){status.state="canceled";status.text="Stopped on this device.";}
+        stopSound();return;
+      }
+      status.state="failed";status.text=(err&&err.message)||"Couldn’t create that activity.";
+      if(progress.isConnected)progress.replaceWith(progress=buildToolStatus(status));
+      playSound("failed");
     }finally{
+      if(toolAbort===controller)toolAbort=null;
       toolRunning=false;updateComposer();
       if(gen===VIEW_GEN)scrollBottom();
     }
@@ -900,49 +1121,50 @@
     setSending(true);
     const tm={role:"teacher",content:"",rules:[],sources:[],tool:null};c.messages.push(tm);
     const el=buildMsgEl(tm);els.messagesInner.appendChild(el);
-    const b=el.querySelector(".ai-prose");b.innerHTML='<span class="cursor"></span>';scrollBottom();
+    const b=el.querySelector(".ai-prose"),stream=createReplyStream(b);scrollBottom();
+    let reachedServer=false;
     try{
       // The tutor answers from this chat's class. Omit chat_id for a not-yet-saved
       // conversation; the server creates one.
-      const body={message:text,class_id:c.classId||ACTIVE_CLASS,chat_id:c.id};
+      const body={message:text,class_id:c.classId||ACTIVE_CLASS,chat_id:c.id,stream:true};
       const res=await Chronos.apiFetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-      setStatus("online");
-      const data=await res.json();
-      if(!res.ok||data.error){b.textContent=(data.details||data.error||"Something went wrong. Please try again.");tm.content=b.textContent;setSending(false);return;}
+      reachedServer=true;setStatus("online");
+      const data=await readChatResponse(res,chunk=>{tm.content+=chunk;stream.push(chunk);});
+      if(data.error)throw new Error(data.details||data.error);
       // Adopt the server's chat id/title for a freshly-created conversation.
-      if(data.chat_id&&c.isNew){c.id=data.chat_id;c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId&&activeChatId.startsWith("new_"))activeChatId=c.id;renderSidebar();}
+      if(data.chat_id&&c.isNew){const oldId=c.id;c.id=data.chat_id;c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId===oldId)activeChatId=c.id;renderSidebar();}
       // `grounded` comes from the server, which is the only side that can see
       // the sources: students are never sent rules_used, so an empty list here
       // no longer means "nothing backed this answer".
-      tm.content=data.response||"";tm.rules=data.rules_used||[];tm.sources=data.sources||[];
+      const streamedText=stream.text;
+      tm.content=data.response||streamedText;tm.rules=data.rules_used||[];tm.sources=data.sources||[];
       tm.reviewed=!!data.reviewed;tm.blocked=!!data.blocked;
       tm.gap=!!data.material_gap&&!tm.reviewed&&!tm.blocked;
-      if(c.id!==activeChatId){setSending(false);return;}
+      if(c.id!==activeChatId){setSending(false);return true;}
       if(Array.isArray(data.toolkits)){TOOLKITS=data.toolkits;renderToolMenu();}
-      b.textContent="";
       const gen=VIEW_GEN;
-      typeOut(b,tm.content,()=>{
-        // try/finally, and not an async callback: typeOut calls done() without
-        // awaiting, so a throw in here used to become an unhandled rejection
-        // that skipped setSending(false) and left the composer disabled for good.
-        (async()=>{
-          try{
-            if(gen!==VIEW_GEN)return;
-            if(tm.gap)el.appendChild(gapNote());
-            if(tm.reviewed)el.appendChild(reviewedNote());
-            const sources=IS_TEACHER?(tm.sources.length?tm.sources:tm.rules):[];
-            if(sources.length)el.appendChild(buildSourcesDropdown(sources));
-            if(data.tool_request||(options.requestedTool&&!data.blocked))await runTool(data.tool_request||options.requestedTool,c,el);
-          }catch(err){
-            /* a missing extra beneath the answer must never cost the answer */
-          }finally{
-            if(gen===VIEW_GEN){scrollBottom();setSending(false);}
-          }
-        })();
-      });
+      stream.finish(streamedText.trim()===tm.content?streamedText:tm.content);
+      if(tm.gap)el.appendChild(gapNote());
+      if(tm.reviewed)el.appendChild(reviewedNote());
+      const sources=IS_TEACHER?(tm.sources.length?tm.sources:tm.rules):[];
+      if(sources.length)el.appendChild(buildSourcesDropdown(sources));
+      if(gen===VIEW_GEN&&(data.tool_request||(options.requestedTool&&!data.blocked)))
+        await runTool(data.tool_request||options.requestedTool,c,el);
+      if(gen===VIEW_GEN)scrollBottom();
+      setSending(false);
+      return true;
     }catch(err){
-      setStatus("offline");
-      b.textContent=(err&&err.message)||"Can't reach the server. Please try again.";tm.content=b.textContent;setSending(false);
+      if(!reachedServer)setStatus("offline");
+      const message=(err&&err.message)||"Can't reach the server. Please try again.";
+      const partial=stream.text;
+      tm.content=partial?partial+"\n\n"+message:message;
+      stream.finish(partial||message);
+      if(partial){
+        const note=document.createElement("p");note.className="mt-3.5 text-primary text-[13.5px] leading-relaxed";
+        note.textContent=message;el.appendChild(note);
+      }
+      setSending(false);
+      return false;
     }
   }
 

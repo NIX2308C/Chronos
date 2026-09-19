@@ -12,7 +12,7 @@ from functools import wraps
 from collections import deque
 from threading import Lock
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify, send_from_directory, redirect
+from flask import Flask, Response, request, jsonify, send_from_directory, redirect, stream_with_context
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 from google import genai
@@ -1050,7 +1050,7 @@ def _source_context(matches):
     return "\n\n".join(blocks), sources
 
 
-_ACK_RE = re.compile(r"^(?:hi|hello|hey|thanks|thank you|ok|okay|got it|cool|bye)[.! ]*$", re.IGNORECASE)
+_SMALL_TALK_RE = re.compile(r"^(?:hi|hello|hey|thanks|thank you|ok|okay|got it|cool|bye)[.! ]*$", re.IGNORECASE)
 
 # Answer to a message that never reaches the model. Said plainly and once: this
 # is a school, the student is told what happened and what to do instead, and the
@@ -1096,6 +1096,29 @@ def validate_tool_request(raw, settings):
     if not topic:
         return None
     return {"type": kind, "topic": topic}
+
+
+def explicit_tool_request(message, settings, history=None):
+    """Keep direct practice requests reliable if the model omits its tool call."""
+    patterns = (
+        ("quiz", r"^(?:please\s+)?(?:quiz|test)\s+me(?:\s+(?:on|about)\s+(.+?))?[.!? ]*$|^(?:please\s+)?(?:make|create)\s+(?:me\s+)?a\s+quiz(?:\s+(?:on|about)\s+(.+?))?[.!? ]*$"),
+        ("flashcards", r"^(?:please\s+)?(?:make|create)\s+(?:me\s+)?flashcards?(?:\s+(?:on|about|for)\s+(.+?))?[.!? ]*$"),
+    )
+    for kind, pattern in patterns:
+        if kind not in enabled_tool_types(settings):
+            continue
+        match = re.fullmatch(pattern, message.strip(), re.IGNORECASE)
+        if not match:
+            continue
+        topic = next((group for group in match.groups() if group), None)
+        if not topic:
+            for turn in reversed(history or []):
+                if turn.get("role") == "user":
+                    topic = (turn.get("parts") or [{}])[0].get("text")
+                    if topic:
+                        break
+        return validate_tool_request({"type": kind, "topic": topic or "this course"}, settings)
+    return None
 
 
 def practice_activity_tool(settings):
@@ -1378,6 +1401,13 @@ def page_icon(name):
     # send_from_directory refuses to escape the directory it is given, so the
     # <path:> converter can't be walked back up into the app root.
     return send_from_directory(os.path.join(WEB_DIR, 'icons'), name, max_age=86400)
+
+
+@app.route('/audio/<name>')
+def page_audio(name):
+    if name not in {'toolkit_using.mp3', 'toolkit_done.mp3', 'toolkit_fail.mp3'}:
+        return jsonify({'error': 'Audio not found.'}), 404
+    return send_from_directory(os.path.join(WEB_DIR, 'audio'), name, max_age=86400)
 
 
 @app.route('/favicon.ico')
@@ -1791,10 +1821,9 @@ def chat():
     blocked = profanity.scan(user_message)
 
     try:
-        is_ack = bool(_ACK_RE.fullmatch(user_message))
-        # Both of these answer without the knowledge base, so neither pays for an
-        # embedding or a query.
-        skip_retrieval = is_ack or bool(blocked)
+        is_small_talk = bool(_SMALL_TALK_RE.fullmatch(user_message))
+        # Small talk needs no course lookup, but the tutor still answers it.
+        skip_retrieval = is_small_talk or bool(blocked)
         if skip_retrieval:
             pinecone_resp = {"matches": []}
         else:
@@ -1866,7 +1895,7 @@ def chat():
         conversation_summary, summary_update = refresh_conversation_summary(msgs_ref, prev)
 
         # Replay the recent conversation so the AI remembers earlier turns.
-        history = [] if skip_retrieval else load_history(msgs_ref)
+        history = [] if blocked else load_history(msgs_ref)
 
         # Recollection: what this student asked in *this class* before, plus the
         # assignment/rubric they uploaded to it. Both queries filter on class_id,
@@ -1884,12 +1913,63 @@ def chat():
         docs_block = "" if skip_retrieval else build_docs_block(load_student_docs(request.uid, class_id, chat_id))
         settings = load_course_settings(class_id)
 
+        def finish_exchange(final_answer, tool_request):
+            reviewed = bool(docs_block) and not teacher_rules
+            issue_kind = _issue_kind(user_message)
+            material_gap = not teacher_rules and _is_material_gap_question(user_message)
+            chat_meta = {
+                "last_active": firestore.SERVER_TIMESTAMP,
+                "class_id": class_id,
+                "message_count": int(prev.get("message_count") or 0) + 2,
+            }
+            chat_meta.update(migration_summary_update)
+            chat_meta.update(summary_update)
+            title = None
+            if is_new:
+                title = BLOCKED_TITLE if blocked else (
+                    user_message[:40] + ("…" if len(user_message) > 40 else ""))
+                chat_meta["title"] = title
+                chat_meta["created_at"] = firestore.SERVER_TIMESTAMP
+            chat_meta.update(summarize_exchange(prev, is_new, user_message, final_answer, teacher_rules))
+            chat_doc.set(chat_meta, merge=True)
+            if PROFILE_ENABLED and not skip_retrieval:
+                try:
+                    update = profile_update(class_id, user_message, chat_meta, student_prof)
+                    if update:
+                        _user_profile(request.uid, class_id).set(update, merge=True)
+                except Exception:
+                    logger.exception("Could not update student profile; continuing.")
+            msgs_ref.add({"role": "student", "content": user_message, "blocked": bool(blocked),
+                          "timestamp": firestore.SERVER_TIMESTAMP})
+            msgs_ref.add({"role": "teacher", "content": final_answer, "rules": teacher_rules,
+                          "sources": teacher_sources, "reviewed": reviewed,
+                          "tool_request": tool_request, "material_gap": material_gap,
+                          "blocked": bool(blocked),
+                          "issue_kind": issue_kind, "timestamp": firestore.SERVER_TIMESTAMP})
+            return {
+                "response": final_answer,
+                "blocked": bool(blocked),
+                "rules_used": teacher_rules if role == "teacher" else [],
+                "sources": teacher_sources if role == "teacher" else [],
+                "grounded": bool(teacher_rules),
+                "reviewed": reviewed,
+                "tool_request": tool_request,
+                "toolkits": enabled_tool_types(settings),
+                "material_gap": material_gap,
+                "issue_kind": issue_kind,
+                "chat_id": chat_id,
+                "title": title,
+            }
+
+        def event(kind, payload):
+            return "data: " + json.dumps({"type": kind, **payload}, ensure_ascii=False) + "\n\n"
+
+        stream_requested = data.get("stream") is True
+
         tool_request = None
         if blocked:
             final_answer = BLOCKED_REPLY
-        elif is_ack:
-            final_answer = "You’re welcome. Send the next question whenever you’re ready."
-        elif not teacher_rules and not docs_block and settings["grounded_only"]:
+        elif not is_small_talk and not teacher_rules and not docs_block and settings["grounded_only"]:
             # Nothing in this class's knowledge base cleared the relevance bar.
             # Refuse outright instead of letting the model answer from its own
             # general knowledge — the tutor is only allowed to know the teacher's
@@ -1915,6 +1995,38 @@ def chat():
                 temperature=0.35,
                 tools=[activity_tool] if activity_tool else None,
             )
+            if stream_requested:
+                @stream_with_context
+                def stream_answer():
+                    try:
+                        parts = []
+                        streamed_tool = None
+                        for chunk in client.models.generate_content_stream(
+                                model=CHAT_MODEL, contents=contents, config=config):
+                            delta = "".join(
+                                part.text for candidate in (getattr(chunk, "candidates", None) or [])
+                                for part in (getattr(getattr(candidate, "content", None), "parts", None) or [])
+                                if getattr(part, "text", None)
+                            )
+                            if delta:
+                                parts.append(delta)
+                                yield event("delta", {"text": delta})
+                            streamed_tool = tool_call_from_response(chunk, settings) or streamed_tool
+                        streamed_tool = streamed_tool or explicit_tool_request(user_message, settings, history)
+                        final_answer = "".join(parts).strip()
+                        if streamed_tool and not final_answer:
+                            final_answer = "Here's a %s on %s." % (
+                                streamed_tool["type"].replace("_", " "), streamed_tool["topic"])
+                            yield event("delta", {"text": final_answer})
+                        if not final_answer:
+                            raise ValueError("Tutor returned an empty reply")
+                        yield event("done", {"data": finish_exchange(final_answer, streamed_tool)})
+                    except Exception:
+                        logger.exception("Could not stream chat response.")
+                        yield event("error", {"message": "Could not finish the reply. Please try again."})
+
+                return Response(stream_answer(), mimetype="text/event-stream",
+                                headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
             ai_response = client.models.generate_content(
                 model=CHAT_MODEL,
                 contents=contents,
@@ -1922,93 +2034,23 @@ def chat():
             )
             final_answer = response_text(ai_response)
             tool_request = tool_call_from_response(ai_response, settings)
+            tool_request = tool_request or explicit_tool_request(user_message, settings, history)
             if tool_request and not final_answer:
                 # The model can answer with the function call alone. The activity
                 # renders under a tutor message, so that message needs words.
                 final_answer = "Here's a %s on %s." % (
                     tool_request["type"].replace("_", " "), tool_request["topic"])
+            if not final_answer:
+                raise ValueError("Tutor returned an empty reply")
 
-        # An answer carried entirely by the student's own upload. It is still a
-        # knowledge gap in the teacher's material (that's what `grounded` reports,
-        # and summarize_exchange below sees only teacher_rules), but telling the
-        # student "not in my knowledge base" under a full essay review would be a
-        # plain lie, so the UI gets its own flag to say what actually happened.
-        reviewed = bool(docs_block) and not teacher_rules
-        issue_kind = _issue_kind(user_message)
-        material_gap = not teacher_rules and _is_material_gap_question(user_message)
-
-        # Title a brand-new conversation from its opening question.
-        chat_meta = {
-            "last_active": firestore.SERVER_TIMESTAMP,
-            "class_id": class_id,
-            "message_count": int(prev.get("message_count") or 0) + 2,
-        }
-        # Migration first, so a fresh batch summary wins over the backfill rather
-        # than the other way round. They can't both be set today, but reversed
-        # this writes summary_through backwards the moment either batch size is
-        # retuned.
-        chat_meta.update(migration_summary_update)
-        chat_meta.update(summary_update)
-        title = None
-        if is_new:
-            title = BLOCKED_TITLE if blocked else (
-                user_message[:40] + ("…" if len(user_message) > 40 else ""))
-            chat_meta["title"] = title
-            chat_meta["created_at"] = firestore.SERVER_TIMESTAMP
-
-        # Roll this exchange into the chat's stats summary. /stats used to derive
-        # all of this by re-reading every message of every chat of every member —
-        # thousands of Firestore reads to render one page. Keeping the summary
-        # current here costs nothing (we're already writing this doc) and lets
-        # /stats work off chat documents alone.
-        chat_meta.update(summarize_exchange(prev, is_new, user_message, final_answer, teacher_rules))
-
-        chat_doc.set(chat_meta, merge=True)
-
-        # Roll this message into the student's per-class profile. Wrapped, because
-        # a broken counter must never cost a student the answer they already have.
-        if PROFILE_ENABLED and not skip_retrieval:
-            try:
-                update = profile_update(class_id, user_message, chat_meta, student_prof)
-                if update:
-                    _user_profile(request.uid, class_id).set(update, merge=True)
-            except Exception:
-                logger.exception("Could not update student profile; continuing.")
-
-        # `blocked` is stamped on both halves of the exchange. The student's own
-        # message carries it so the pair can be dropped as a unit below — the
-        # student sees it in their history, the model never does again.
-        msgs_ref.add({"role": "student", "content": user_message, "blocked": bool(blocked),
-                      "timestamp": firestore.SERVER_TIMESTAMP})
-        msgs_ref.add({"role": "teacher", "content": final_answer, "rules": teacher_rules,
-                      "sources": teacher_sources, "reviewed": reviewed,
-                      "tool_request": tool_request, "material_gap": material_gap,
-                      "blocked": bool(blocked),
-                      "issue_kind": issue_kind, "timestamp": firestore.SERVER_TIMESTAMP})
-
-        return jsonify({
-            "response": final_answer,
-            # Lets the UI mark this as a refusal rather than an answer. It is not
-            # an error: the student asked, the tutor replied, and the exchange is
-            # in their history like any other.
-            "blocked": bool(blocked),
-            # Teacher-only, same as /chats/<id>/messages: a student's own token
-            # would otherwise read back the class material verbatim, one question
-            # at a time, straight from the API the UI is careful not to show it in.
-            "rules_used": teacher_rules if role == "teacher" else [],
-            "sources": teacher_sources if role == "teacher" else [],
-            "grounded": bool(teacher_rules),
-            "reviewed": reviewed,
-            "tool_request": tool_request,
-            # What the student may ask for directly. Without this the browser has
-            # no way to know which practice chips to offer, and the toolkit is
-            # only ever reachable when the model decides to call the function.
-            "toolkits": enabled_tool_types(settings),
-            "material_gap": material_gap,
-            "issue_kind": issue_kind,
-            "chat_id": chat_id,
-            "title": title,
-        })
+        payload = finish_exchange(final_answer, tool_request)
+        if stream_requested:
+            def completed_answer():
+                yield event("delta", {"text": final_answer})
+                yield event("done", {"data": payload})
+            return Response(completed_answer(), mimetype="text/event-stream",
+                            headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
+        return jsonify(payload)
 
     except Exception as e:
         return server_error("Server issue while answering.", e)
@@ -2240,6 +2282,8 @@ def run_tool():
         result = _parse_tool_result(response.text, tool["type"])
         if not result:
             return jsonify({"error": "I couldn't make that learning activity. Please try again."}), 502
+        if tool["type"] == "quiz":
+            result["reveal_final_answers"] = bool(settings["reveal_final_answers"])
         kind_label = tool["type"].replace("_", " ")
         if sources:
             summary = "Used %d relevant course excerpt%s to create this %s on %s." % (

@@ -1364,6 +1364,26 @@ def mobile_js():
     return send_from_directory(BASE_DIR, 'mobile.js', max_age=3600)
 
 
+@app.route('/manifest.json')
+def page_manifest():
+    return send_from_directory(BASE_DIR, 'manifest.json', max_age=3600)
+
+
+@app.route('/icons/<path:name>')
+def page_icon(name):
+    # send_from_directory refuses to escape the directory it is given, so the
+    # <path:> converter can't be walked back up into the app root.
+    return send_from_directory(os.path.join(BASE_DIR, 'icons'), name, max_age=86400)
+
+
+@app.route('/favicon.ico')
+def favicon():
+    """Browsers ask for this whether or not a page links it, so answer rather
+    than log a 404 on every cold load."""
+    return send_from_directory(os.path.join(BASE_DIR, 'icons'), 'favicon.ico',
+                               max_age=86400)
+
+
 # ---------- auth ----------
 
 @app.route('/auth/config', methods=['GET'])

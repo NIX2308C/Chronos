@@ -269,7 +269,21 @@ themes, every control listed above is reachable, there is no horizontal scroll,
 and the composer stays visible with the keyboard open. Then at 1280 wide,
 confirm all four pages are visually unchanged.
 
-## Phase B — PWA layer
+## Phase B — PWA layer — DONE
+
+**Built.** What shipped, and the two things worth knowing before Phase C:
+
+- **The TWA status bar will be light in dark mode.** A manifest carries one
+  `theme_color`, and a TWA reads the manifest rather than the page's
+  `<meta name="theme-color">`. The two media-scoped metas are there and work in
+  a browser, but the installed app gets `#F7F4EC` either way. Fixable in Phase C
+  by setting the Bubblewrap theme colours, not here.
+- **Lighthouse was never run** — it needs a headless Chrome run this sandbox
+  can't do reliably. The installability criteria were checked directly instead
+  (manifest parses and is linked from all four pages, `start_url`, `scope`,
+  `display: standalone`, 192 and 512 `any` icons present and really those sizes,
+  a `maskable` icon declared). What is *not* checked is the HTTPS requirement,
+  which only the deployed host can satisfy.
 
 `manifest.json` at the repo root, with values taken from the real tokens at
 `student.html:73-77` rather than invented:
@@ -332,7 +346,10 @@ leak. Use a versioned cache name, network-first for documents, skip
 `skipWaiting()` so a bad version cannot take over mid-session, and keep an
 unregister kill switch. A buggy service worker here is strictly worse than none.
 
-**Done when:** Lighthouse reports the site installable.
+**Done when:** Lighthouse reports the site installable. (Substituted: the
+criteria above were asserted directly, including a pixel check that nothing but
+the flat ground sits outside the maskable icon's 80% safe circle, so no launcher
+crops the mark.)
 
 ## Phase C — the wrapper
 

@@ -111,6 +111,15 @@
   }
 </style>
 <link href="mobile.css" rel="stylesheet"/>
+<link href="manifest.json" rel="manifest"/>
+<!-- The manifest carries one theme_color; these two let a browser follow the
+     page's own light/dark tokens (--c-paper, and its html.dark value). A TWA
+     reads the manifest, so its status bar stays the light one. -->
+<meta content="#F7F4EC" media="(prefers-color-scheme: light)" name="theme-color"/>
+<meta content="#16161B" media="(prefers-color-scheme: dark)" name="theme-color"/>
+<link href="icons/favicon.ico" rel="icon" sizes="16x16 32x32 48x48"/>
+<link href="icons/icon-192.png" rel="icon" type="image/png" sizes="192x192"/>
+<link href="icons/apple-touch-icon-180.png" rel="apple-touch-icon"/>
 </head>
 <body>
 

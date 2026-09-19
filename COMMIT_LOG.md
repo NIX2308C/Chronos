@@ -280,3 +280,41 @@ quiz answers werent random + material is teacher-only now
   one em before measuring width, which is what a real glyph occupies. so the
   overflow numbers are sound but nobody has looked at this on a real device yet
 - all six test scripts still pass, node --check clean on every inline script
+
+## android phase B: manifest + icons
+
+- the repo had no icons at all, not even a favicon. theres a set now: 192, 512,
+  a 512 maskable, a 180 apple-touch-icon and a favicon.ico (16/32/48)
+- the mark is the wordmark's "C." lockup in newsreader — paper letter, crimson
+  period, on ink. that exact pairing already existed in login.html's footer, so
+  its not a new invention
+- pillow stays out of requirements.txt on purpose: that file ships to cloud run
+  and this ran once. generated in a throwaway venv, only the pngs are committed.
+  the generator is in the commit message trail, not the repo
+- newsreader isnt installed on the box and google fonts is blocked, so the ttf
+  came from @fontsource/newsreader on npm (woff2) converted with fonttools. so
+  its the real typeface, not a substitute
+- the maskable one is a separate render, not a copy — android crops adaptive
+  icons to whatever shape the launcher wants, so the mark sits at 40% width
+  inside the 80% safe circle with the ground bled to all four edges. theres a
+  pixel check asserting nothing but flat ground exists outside that circle
+- manifest: start_url /login.html not / (which is a 302, so / would cost a
+  redirect on every launch), scope /, standalone, orientation any because the
+  analytics page wants landscape. colours are --c-paper and its html.dark value,
+  not invented hexes. explicit "id":"/" so changing start_url later doesnt make
+  android think its a different app
+- routes for /manifest.json, /icons/<path:name> and /favicon.ico. the last one
+  is there because browsers ask for it whether or not a page links it — it was
+  404ing on every cold load
+- still no service worker, and the reasoning in ANDROID.md stands: this app is
+  auth-gated and almost entirely dynamic, and a cached student.html handed to
+  the next person on a shared device is a data leak
+- verified against the real flask app, not a static server: every route serves
+  with the right content type and cache-control, path traversal out of /icons/
+  is refused (404 for both ../ and %2e%2e/), the manifest parses, every icon is
+  really the size it claims, and all four pages link it
+- two things phase B does NOT deliver, both written into ANDROID.md: lighthouse
+  was never actually run (the criteria were asserted directly instead), and the
+  installed TWA will show a light status bar even in dark mode, because a
+  manifest carries one theme_color and a TWA reads the manifest rather than the
+  media-scoped metas. thats a phase C bubblewrap setting

@@ -5,6 +5,11 @@ what a teacher is told to fix next. Getting the keying wrong either splits one
 question into several weak rows or merges two different ones. Pure function —
 Firestore is never touched.
 """
+# The app lives one directory up, so make it importable when this is run
+# from anywhere (tests/, the repo root, or a runner's checkout).
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import app as A
 
 g = A._group_questions

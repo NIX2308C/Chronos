@@ -248,6 +248,10 @@ DELETE_IDS_MAX = 500        # Pinecone accepts up to 1000 ids per delete call
 
 # Directory this file lives in — used to serve the front-end HTML pages.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Everything the app serves as a static file lives under web/. The URL paths
+# below are unchanged by that — only where they are read from on disk — so
+# the relative links inside the pages keep working untouched.
+WEB_DIR = os.path.join(BASE_DIR, 'web')
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
@@ -1311,76 +1315,76 @@ def page_home():
 
 @app.route('/student.html')
 def page_student():
-    return send_from_directory(BASE_DIR, 'student.html')
+    return send_from_directory(WEB_DIR, 'student.html')
 
 
 @app.route('/login.html')
 def page_login():
-    return send_from_directory(BASE_DIR, 'login.html')
+    return send_from_directory(WEB_DIR, 'login.html')
 
 
 @app.route('/auth.js')
 def auth_js():
-    return send_from_directory(BASE_DIR, 'auth.js', max_age=3600)
+    return send_from_directory(WEB_DIR, 'auth.js', max_age=3600)
 
 
 @app.route('/teacherknowledge.html')
 def page_knowledge():
-    return send_from_directory(BASE_DIR, 'teacherknowledge.html')
+    return send_from_directory(WEB_DIR, 'teacherknowledge.html')
 
 
 @app.route('/teacherstats.html')
 def page_stats():
-    return send_from_directory(BASE_DIR, 'teacherstats.html')
+    return send_from_directory(WEB_DIR, 'teacherstats.html')
 
 
 @app.route('/theme.css')
 def theme_css():
-    return send_from_directory(BASE_DIR, 'theme.css', max_age=3600)
+    return send_from_directory(WEB_DIR, 'theme.css', max_age=3600)
 
 
 @app.route('/theme.js')
 def theme_js():
-    return send_from_directory(BASE_DIR, 'theme.js', max_age=3600)
+    return send_from_directory(WEB_DIR, 'theme.js', max_age=3600)
 
 
 @app.route('/transition.css')
 def transition_css():
-    return send_from_directory(BASE_DIR, 'transition.css', max_age=3600)
+    return send_from_directory(WEB_DIR, 'transition.css', max_age=3600)
 
 
 @app.route('/transition.js')
 def transition_js():
-    return send_from_directory(BASE_DIR, 'transition.js', max_age=3600)
+    return send_from_directory(WEB_DIR, 'transition.js', max_age=3600)
 
 
 @app.route('/mobile.css')
 def mobile_css():
-    return send_from_directory(BASE_DIR, 'mobile.css', max_age=3600)
+    return send_from_directory(WEB_DIR, 'mobile.css', max_age=3600)
 
 
 @app.route('/mobile.js')
 def mobile_js():
-    return send_from_directory(BASE_DIR, 'mobile.js', max_age=3600)
+    return send_from_directory(WEB_DIR, 'mobile.js', max_age=3600)
 
 
 @app.route('/manifest.json')
 def page_manifest():
-    return send_from_directory(BASE_DIR, 'manifest.json', max_age=3600)
+    return send_from_directory(WEB_DIR, 'manifest.json', max_age=3600)
 
 
 @app.route('/icons/<path:name>')
 def page_icon(name):
     # send_from_directory refuses to escape the directory it is given, so the
     # <path:> converter can't be walked back up into the app root.
-    return send_from_directory(os.path.join(BASE_DIR, 'icons'), name, max_age=86400)
+    return send_from_directory(os.path.join(WEB_DIR, 'icons'), name, max_age=86400)
 
 
 @app.route('/favicon.ico')
 def favicon():
     """Browsers ask for this whether or not a page links it, so answer rather
     than log a 404 on every cold load."""
-    return send_from_directory(os.path.join(BASE_DIR, 'icons'), 'favicon.ico',
+    return send_from_directory(os.path.join(WEB_DIR, 'icons'), 'favicon.ico',
                                max_age=86400)
 
 
@@ -1393,7 +1397,7 @@ def assetlinks():
     bar. Served with no caching to speak of, because a stale copy after a
     signing-key change is very hard to diagnose.
     """
-    return send_from_directory(os.path.join(BASE_DIR, '.well-known'),
+    return send_from_directory(os.path.join(WEB_DIR, '.well-known'),
                                'assetlinks.json',
                                mimetype='application/json', max_age=300)
 

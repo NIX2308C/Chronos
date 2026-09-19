@@ -8,6 +8,11 @@ crosses a class boundary, and that an uploaded assignment stays demoted to
 "the student's own work" instead of becoming course material. Pure functions —
 Firestore is never touched.
 """
+# The app lives one directory up, so make it importable when this is run
+# from anywhere (tests/, the repo root, or a runner's checkout).
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import app as A
 
 # ---------- recollection ----------

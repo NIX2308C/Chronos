@@ -11,6 +11,11 @@ the evidence threshold, and the fact that the wording never leaks a raw number.
 
 Pure — no Firestore, no model, no app import.
 """
+# The app lives one directory up, so make it importable when this is run
+# from anywhere (tests/, the repo root, or a runner's checkout).
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import student_profile as P
 
 # ---------- measure is additive ----------

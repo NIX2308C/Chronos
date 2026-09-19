@@ -17,7 +17,7 @@ Teachers sign in, create one or more courses, and add course material to each (P
 ## Stack
 
 - Flask backend (`app.py`), served with Waitress
-- Gemini for answers and embeddings (see `OLLAMA.md` for the plan to move
+- Gemini for answers and embeddings (see `docs/OLLAMA.md` for the plan to move
   answers onto a local model; embeddings stay where they are)
 - `profanity.py` for moderation and `student_profile.py` for per-student
   recollection — both deterministic, neither costs a second model call
@@ -26,6 +26,27 @@ Teachers sign in, create one or more courses, and add course material to each (P
 - Static HTML pages styled with Tailwind (via CDN), with shared auth in `auth.js`
 
 The front-end is a small set of static pages that share one dark design: indigo accents, Space Grotesk and Outfit type, and the same Chronos mark across every screen.
+
+## Repository layout
+
+Everything the Flask app serves as a static file lives in `web/`. The URL paths
+are unchanged by that (`/student.html`, `/mobile.css`, `/icons/…`), so the
+relative links inside the pages need no knowledge of it — only `WEB_DIR` in
+`app.py` does.
+
+```
+app.py                  the whole backend
+profanity.py            conduct screening
+student_profile.py      per-student memory
+web/                    everything served to a browser
+  *.html                the four pages
+  auth.js theme.* transition.* mobile.*
+  manifest.json icons/ .well-known/
+tests/                  six plain-assert scripts
+docs/                   ANDROID.md, OLLAMA.md, OLLAMA_TASK.md, COMMIT_LOG.md
+android/                the Trusted Web Activity project
+.github/workflows/      builds and releases the APK
+```
 
 ## Pages
 
@@ -128,9 +149,9 @@ and open http://localhost:5000.
 ## Tests
 
 ```bash
-python test_profanity.py && python test_security.py && \
-python test_stats_grouping.py && python test_student_context.py && \
-python test_student_profile.py && python test_quiz_answers.py
+python tests/test_profanity.py && python tests/test_security.py && \
+python tests/test_stats_grouping.py && python tests/test_student_context.py && \
+python tests/test_student_profile.py && python tests/test_quiz_answers.py
 ```
 
 Six plain-`assert` scripts, no test runner. They stub every collaborator that
@@ -159,15 +180,15 @@ no excuse not to.
 
 Three things are written down but not built. Each says what it is waiting on:
 
-- `ANDROID.md` — shipping the app on Android as a Trusted Web Activity. Phase A
+- `docs/ANDROID.md` — shipping the app on Android as a Trusted Web Activity. Phase A
   (making the pages usable on a phone) is the blocker and is pure web work.
-- `OLLAMA.md` — moving answer generation to a local model. The decision record:
+- `docs/OLLAMA.md` — moving answer generation to a local model. The decision record:
   what can move, what cannot, and the hosting choice that blocks the rest.
-- `OLLAMA_TASK.md` — the implementation brief for whoever (or whatever) does
+- `docs/OLLAMA_TASK.md` — the implementation brief for whoever (or whatever) does
   that work: exact call sites, the traps, and what "done" means. Written for an
-  AI coding agent picking it up cold. Read `OLLAMA.md` first.
+  AI coding agent picking it up cold. Read `docs/OLLAMA.md` first.
 
-`COMMIT_LOG.md` is the informal running history of what changed and why.
+`docs/COMMIT_LOG.md` is the informal running history of what changed and why.
 
 ## Deploying
 

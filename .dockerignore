@@ -23,4 +23,8 @@ CLAUDE.md
 .vscode/
 .idea/
 
+# Not part of the running service: the Android project, the docs and the test
+# scripts all stay out of the image.
 android/
+docs/
+tests/

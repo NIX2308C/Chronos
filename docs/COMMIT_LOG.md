@@ -413,3 +413,27 @@ quiz answers werent random + material is teacher-only now
 - still open: the url bar. assetlinks.json is served now but its fingerprint is
   a placeholder, and the CI debug key is regenerated every run so it cant be
   pinned. needs a release keystore in github secrets
+
+## tidy: root went from 33 files to 9
+
+- nothing was deleted. everything tracked was either live code or a doc the
+  readme links to, so this is a move, not a cull. the OLLAMA plans stay — theyre
+  a decision record for unbuilt work and referenced in three places
+- web/ holds everything the app serves to a browser: the four pages, auth.js,
+  theme.*, transition.*, mobile.*, manifest.json, icons/ and .well-known/
+- the trick that makes this safe: the URL paths dont change. /student.html,
+  /mobile.css, /icons/... all stay exactly where they were, because only
+  WEB_DIR in app.py moved. so not a single <link>, <script> or href inside the
+  html needed touching
+- tests/ holds the six scripts. they do `import app`, so each got a two-line
+  sys.path shim — they now run from the repo root OR from inside tests/
+- docs/ holds ANDROID.md, OLLAMA.md, OLLAMA_TASK.md and this file. readme links
+  updated, plus a repository-layout section so the next person doesnt have to
+  guess
+- .dockerignore drops docs/, tests/ and android/ — none of them belong in the
+  cloud run image
+- verified before pushing: all six tests pass both ways, every one of the 19
+  served URLs still returns 200 with the same content type it did before, all
+  four browser suites and the pwa checks pass, and a check that the docker
+  build context still contains every file the service needs and none of the
+  three it shouldnt

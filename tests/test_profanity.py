@@ -7,6 +7,11 @@ blocked for asking something legitimate learns not to trust the tutor at all.
 
 Pure: imports `profanity` alone, so it runs without app.py's environment.
 """
+# The app lives one directory up, so make it importable when this is run
+# from anywhere (tests/, the repo root, or a runner's checkout).
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import profanity as p
 
 # Every entry here was a miss under the old exact-word set. They are the shapes

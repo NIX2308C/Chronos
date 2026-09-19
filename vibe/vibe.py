@@ -36,7 +36,7 @@ from pathlib import Path
 # Constants
 # --------------------------------------------------------------------------
 
-VERSION = "1.2.2"
+VERSION = "1.3.0"
 AGENT = "vibe/" + VERSION
 
 REPO_WEB_URL = "https://lol.tevproject.com/NIX/Chronos"
@@ -2018,72 +2018,146 @@ def ensure_synced_with_gitea(repo: Repo, branch: str, quiet=False):
     raise VibeError("local %s and Gitea have diverged. Run `vb pull` first." % branch)
 
 
+def github_pull_plan(repo: Repo, branch, github_sha, gitea_sha, local_sha):
+    """Decide what one branch needs. Returns (action, base_sha, reason).
+
+    action is one of: create, forward, import, same, older, skip.
+    """
+    if gitea_sha is None and local_sha:
+        return "skip", None, "exists only in your copy - vb push first"
+
+    if gitea_sha and local_sha and local_sha != gitea_sha:
+        if is_ancestor(repo, gitea_sha, local_sha):
+            return "skip", gitea_sha, "you have commits Gitea does not - vb push first"
+        if not is_ancestor(repo, local_sha, gitea_sha):
+            return "skip", gitea_sha, "your copy and Gitea diverged - vb pull first"
+
+    if gitea_sha is None:
+        return "create", None, ""
+    if github_sha == gitea_sha:
+        return "same", gitea_sha, ""
+    if is_ancestor(repo, github_sha, gitea_sha):
+        return "older", gitea_sha, "GitHub is behind Gitea"
+    if is_ancestor(repo, gitea_sha, github_sha):
+        return "forward", gitea_sha, ""
+    return "import", gitea_sha, ""
+
+
 def cmd_github_pull(args):
-    """One-shot import of a GitHub branch into the fixed Gitea repository."""
+    """One-shot import of every GitHub branch into the fixed Gitea repository."""
     repo = Repo.find()
     require_no_merge(repo, "import from GitHub")
     require_clean(repo, "import from GitHub")
-    branch = args.branch or repo.current_branch() or DEFAULT_BRANCH
     current = repo.current_branch()
-    if not current:
-        raise VibeError("HEAD is detached - check out a branch first")
-    if current != branch:
-        raise VibeError("you are on %s; checkout %s before importing it" % (current, branch))
 
     cfg_path = repo.dir / "config.json"
     cfg = load_json(cfg_path, {})
     if args.url:
         github_url = normalize_github_url(args.url)
         cfg["github.url"] = github_url[:-4] if github_url.endswith(".git") else github_url
-        save_json(cfg_path, cfg)
+        if not args.dry_run:
+            save_json(cfg_path, cfg)
     else:
         github_url = normalize_github_url(cfg.get("github.url", ""))
 
     print("Checking Gitea before import")
-    gitea_old = ensure_synced_with_gitea(repo, branch, quiet=args.quiet)
-    local = repo.head_commit()
+    gitea_heads = fetch(repo, quiet=args.quiet)
 
-    print("Fetching GitHub %s (%s)" % (github_url[:-4], branch))
-    heads = fetch_github(repo, github_url, quiet=args.quiet)
-    github_sha = heads.get("refs/heads/" + branch)
-    if not github_sha:
-        available = sorted(n[len("refs/heads/"):] for n in heads)
-        raise VibeError(
-            "GitHub has no branch '%s'. Available: %s" % (branch, ", ".join(available) or "none")
-        )
+    print("Reading GitHub %s" % github_url[:-4])
+    github_heads = fetch_github(repo, github_url, quiet=args.quiet)
+    if not github_heads:
+        raise VibeError("GitHub has no branches to import")
 
-    if github_sha == local:
-        print("Gitea already matches the latest GitHub %s." % branch)
-        return
-    if local and is_ancestor(repo, github_sha, local):
-        print("GitHub %s is older than Gitea; nothing changed." % branch)
-        return
-
-    require_clean(repo, "apply the GitHub import")
-    if not local or is_ancestor(repo, local, github_sha):
-        new_sha = github_sha
-        repo.write_ref("refs/heads/" + branch, new_sha)
-        checkout_entries(repo, commit_entries(repo, new_sha))
-        action = "Fast-forwarded to GitHub"
+    if args.branch:
+        if ("refs/heads/" + args.branch) not in github_heads:
+            available = sorted(n[len("refs/heads/"):] for n in github_heads)
+            raise VibeError("GitHub has no branch '%s'. It has: %s"
+                            % (args.branch, ", ".join(available)))
+        wanted = [args.branch]
     else:
-        # Preserve both histories, but make the resulting files EXACTLY match GitHub.
-        obj_type, github_commit_data = repo.read_object(github_sha)
-        if obj_type != "commit":
-            raise VibeError("GitHub branch tip is not a commit")
-        github_tree = parse_commit(github_commit_data)["tree"]
-        name, email = repo.identity()
-        message = args.message or "Import latest GitHub %s into Gitea" % branch
-        new_sha = repo.write_object(
-            "commit",
-            build_commit(github_tree, [local, github_sha], name, email, message),
-        )
-        repo.write_ref("refs/heads/" + branch, new_sha)
-        checkout_entries(repo, commit_entries(repo, new_sha))
-        action = "Imported GitHub snapshot"
+        wanted = sorted(n[len("refs/heads/"):] for n in github_heads)
 
-    count = push_refs(repo, branch, gitea_old, new_sha, quiet=args.quiet)
-    repo.write_ref("refs/remotes/origin/" + branch, new_sha)
-    print(green(action) + " %s -> Gitea origin/%s (%d objects)" % (short(new_sha), branch, count))
+    updates = []            # (branch, gitea_old, new_sha) - one packfile for all
+    done = []               # (action, branch, new_sha) for the report
+    skipped = []
+    checkout_to = None
+
+    for branch in wanted:
+        github_sha = github_heads["refs/heads/" + branch]
+        gitea_sha = gitea_heads.get("refs/heads/" + branch)
+        local_sha = repo.read_ref("refs/heads/" + branch)
+
+        action, base, reason = github_pull_plan(
+            repo, branch, github_sha, gitea_sha, local_sha)
+        if action == "skip":
+            skipped.append((branch, reason))
+            continue
+
+        if action in ("same", "older"):
+            new_sha = base
+        elif action in ("create", "forward"):
+            new_sha = github_sha
+        else:
+            if args.dry_run:
+                done.append((action, branch, None))
+                continue
+            # Both histories stay reachable, but the files come out as GitHub's.
+            obj_type, data = repo.read_object(github_sha)
+            if obj_type != "commit":
+                raise VibeError("GitHub %s does not point at a commit" % branch)
+            name, email = repo.identity()
+            message = args.message or "Import latest GitHub %s into Gitea" % branch
+            new_sha = repo.write_object("commit", build_commit(
+                parse_commit(data)["tree"], [base, github_sha], name, email, message))
+
+        done.append((action, branch, new_sha))
+        if args.dry_run:
+            continue
+        if new_sha != base:
+            updates.append((branch, base or ZERO, new_sha))
+        if local_sha != new_sha:
+            repo.write_ref("refs/heads/" + branch, new_sha)
+            if branch == current:
+                checkout_to = new_sha
+
+    labels = {
+        "create": ("create ", "new branch from GitHub"),
+        "forward": ("update ", "fast-forward to GitHub"),
+        "import": ("import ", "both histories kept, files from GitHub"),
+        "same": ("same   ", "already matches GitHub"),
+        "older": ("same   ", "Gitea is ahead of GitHub - left alone"),
+    }
+    prefix = "would " if args.dry_run else ""
+    for action, branch, _sha in done:
+        label, note = labels[action]
+        line = "  %s%s%s (%s)" % (prefix, label, branch, note)
+        print(green(line) if action in ("create", "forward", "import") else line)
+    for branch, reason in skipped:
+        print(yellow("  skip    ") + "%s (%s)" % (branch, reason))
+    if not args.branch:
+        for name in sorted(gitea_heads):
+            branch = name[len("refs/heads/"):]
+            if ("refs/heads/" + branch) not in github_heads:
+                print("  gitea   %s is not on GitHub - left alone" % branch)
+
+    if args.dry_run:
+        print("\nDry run - nothing was changed. Drop --dry-run to apply.")
+        if skipped:
+            sys.exit(1)
+        return
+
+    if checkout_to:
+        checkout_entries(repo, commit_entries(repo, checkout_to))
+
+    if not updates:
+        print("\nGitea already matches GitHub.")
+    else:
+        count = push_many(repo, updates, quiet=args.quiet)
+        print("\n" + green("Imported") + " %d branch%s into Gitea (%d object%s)"
+              % (len(updates), "" if len(updates) == 1 else "es",
+                 count, "" if count == 1 else "s"))
+    if skipped:
+        sys.exit(1)
 
 
 def cmd_versions(args):
@@ -2328,7 +2402,7 @@ examples:
   vb pull                        fetch + fast-forward or merge
   vb merge origin/main           three-way merge another branch
   vb mirror                      sync every branch, both directions
-  vb github-pull OWNER/REPO      import latest GitHub branch into Gitea once
+  vb github-pull OWNER/REPO      import every GitHub branch into Gitea once
   vb versions                    list recoverable past versions
   vb recover <id>                restore an old version as a new Gitea commit
   vb mirror --dry-run            ...but show what it would do first
@@ -2375,10 +2449,11 @@ def build_parser():
     p.add_argument("-n", "--dry-run", action="store_true", help="show what would happen")
     p.set_defaults(func=cmd_mirror)
 
-    p = subs.add_parser("github-pull", help="one-shot import of latest GitHub branch into Gitea")
+    p = subs.add_parser("github-pull", help="one-shot import of every GitHub branch into Gitea")
     p.add_argument("url", nargs="?", help="https://github.com/OWNER/REPO (remembered after first use)")
-    p.add_argument("--branch", help="branch to import (defaults to current branch)")
-    p.add_argument("-m", "--message", help="message if a preserving import commit is needed")
+    p.add_argument("--branch", help="import only this branch (default: every GitHub branch)")
+    p.add_argument("-m", "--message", help="message for any preserving import commit")
+    p.add_argument("-n", "--dry-run", action="store_true", help="show what would happen")
     p.set_defaults(func=cmd_github_pull)
 
     p = subs.add_parser("versions", help="list recoverable past versions")

@@ -187,7 +187,7 @@ say "  vb login                                   # Gitea username + access toke
 say "  vb config --global user.name  \"Your Name\""
 say "  vb config --global user.email \"you@example.com\""
 say "  vb clone                                   # makes ./Chronos"
-say "  vb github-pull https://github.com/OWNER/REPO # one-shot GitHub -> Gitea import"
+say "  vb github-pull https://github.com/OWNER/REPO # import every GitHub branch, once"
 say "  vb versions                                # list recoverable versions"
 say "  vb recover <id>                            # recover + push to Gitea"
 say ""

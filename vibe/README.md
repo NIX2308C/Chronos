@@ -54,7 +54,7 @@ vb checkout -b feature
 vb merge --abort                 # bail out of a conflicted merge
 vb remote                        # show the fixed Gitea remote + who you're logged in as
 vb mirror                        # sync every Gitea branch, both directions
-vb github-pull OWNER/REPO        # ONE-SHOT: import latest GitHub branch into Gitea
+vb github-pull OWNER/REPO        # ONE-SHOT: import every GitHub branch into Gitea
 vb versions                      # list recoverable past versions
 vb recover <id>                  # restore that version and push recovery to Gitea
 ```
@@ -107,13 +107,34 @@ vb github-pull https://github.com/OWNER/REPO
 The GitHub URL is remembered inside `.vibe/config.json`, so later you can just run:
 
 ```bash
-vb github-pull
+vb github-pull              # every branch
+vb github-pull --dry-run    # report only, change nothing
+vb github-pull --branch main  # just one, whether or not you're standing on it
 ```
 
-It reads the current branch from GitHub, makes the working tree match that GitHub
-version, then writes the result only to the fixed Gitea repository at
-`https://lol.tevproject.com/NIX/Chronos`. If the histories diverged, it preserves
-both histories in an import commit instead of deleting Gitea history.
+It reads **every** branch GitHub has and writes the result only to the fixed Gitea
+repository at `https://lol.tevproject.com/NIX/Chronos`. Nothing is ever sent to
+GitHub. Per branch, it does one of:
+
+| Situation | Action |
+| --- | --- |
+| on GitHub, not on Gitea | create the branch on Gitea |
+| Gitea behind GitHub | fast-forward it to GitHub |
+| both moved | import commit: both histories kept, files come out as GitHub's |
+| already equal, or Gitea ahead | leave it alone |
+| you have commits Gitea lacks | skip that branch, `vb push` first |
+| on Gitea, not on GitHub | leave it alone, never deleted |
+
+Every branch it changes ships in **one packfile and one HTTP request**, the same
+way `mirror` does. Your working tree is only touched for the branch you're
+currently on. If any branch was skipped the command exits 1, so a script notices.
+
+**The import commit takes GitHub's files wholesale.** History is preserved - both
+tips become parents, nothing is force-pushed - but the resulting tree is GitHub's,
+so a file that exists only on Gitea is gone from that branch afterwards. It stays
+recoverable (`vb versions`, `vb recover`), but this is a copy, not a merge: GitHub
+wins every file. If you want the two sets of changes combined instead, that's
+`vb pull`.
 
 For a private GitHub repository, set `VIBE_GITHUB_TOKEN` in the environment before
 running the command. The saved Gitea token is never sent to GitHub.
@@ -207,6 +228,12 @@ git checkout without either one confusing the other:
 | `NO_COLOR=1` | plain output |
 
 ## Versions
+
+**1.3.0** — `vb github-pull` now imports **every** GitHub branch, not just the one
+you're standing on, sending them all in a single packfile like `mirror` does. Adds
+`--dry-run`; `--branch` now works for a branch you have not checked out. Branches
+carrying commits Gitea lacks are skipped rather than quietly swept up, and
+Gitea-only branches are never deleted.
 
 **1.2.2** — a fetch no longer trusts a half-populated store. vibe checks that it
 really holds every object its refs reach before claiming `have` for them, so an

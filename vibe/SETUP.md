@@ -29,7 +29,7 @@ about the new command yet) and check it worked:
 vb --version
 ```
 
-You should see `vibe 1.2.2` (or newer).
+You should see `vibe 1.3.0` (or newer).
 
 ### Log in
 
@@ -147,21 +147,33 @@ itself with Python's standard library. From inside your Chronos folder:
 vb github-pull https://github.com/OWNER/REPO
 ```
 
-That remembers the GitHub source, so future one-shot imports can be:
+That remembers the GitHub source, so future imports can be:
 
 ```bash
-vb github-pull
+vb github-pull                # every branch GitHub has
+vb github-pull --dry-run      # show what it would do, change nothing
+vb github-pull --branch main  # only that branch
 ```
 
-The command first checks that your local copy agrees with Gitea, reads the latest
-version of the current branch from GitHub, and pushes the imported result to only:
+It checks Gitea first, reads **every** branch from GitHub, and pushes the result to
+only:
 
 ```text
 https://lol.tevproject.com/NIX/Chronos
 ```
 
-If GitHub and Gitea have different history, it preserves both histories while making
-the resulting files match GitHub. It does not turn on continuous mirroring.
+Nothing is sent to GitHub, and it does not turn on continuous mirroring — it's one
+copy, each time you run it.
+
+Branches it creates or fast-forwards are straightforward. Where GitHub and Gitea
+have both moved, it keeps both histories but **the files come out as GitHub's**, so
+anything that only existed on Gitea is gone from that branch (still recoverable with
+`vb versions` / `vb recover`). It is a copy, not a merge.
+
+Two things it deliberately won't touch: a branch where you have commits Gitea hasn't
+got — push those first — and a branch that exists on Gitea but not GitHub, which is
+left alone rather than deleted. Skipped branches make the command exit 1, and the
+output names each one.
 
 ### Recover a past version
 

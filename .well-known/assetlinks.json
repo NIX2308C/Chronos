@@ -1,0 +1,32 @@
+[
+  {
+    "_comment": [
+      "PLACEHOLDER — this does not verify anything yet.",
+      "Digital Asset Links is what removes the browser URL bar from the",
+      "installed Android app. Replace the sha256_cert_fingerprints entry below",
+      "with the fingerprint of the key that actually signed the APK:",
+      "",
+      "  Play builds: Play Console > your app > Setup > App integrity >",
+      "  App signing key certificate > SHA-256. Use THAT, not the upload key.",
+      "  Using the upload key is the classic reason the URL bar appears only",
+      "  on the build that came from Play.",
+      "",
+      "  A local debug build: keytool -list -v -keystore ~/.android/debug.keystore",
+      "  -alias androiddebugkey -storepass android -keypass android",
+      "  (note the GitHub Actions runner generates a fresh debug key per run,",
+      "  so a CI debug build's fingerprint is not stable and cannot be pinned",
+      "  here — that is why debug builds show the URL bar.)",
+      "",
+      "This file is served at /.well-known/assetlinks.json by app.py.",
+      "Remove this _comment key once the fingerprint is real."
+    ],
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.chronos.tutor",
+      "sha256_cert_fingerprints": [
+        "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"
+      ]
+    }
+  }
+]

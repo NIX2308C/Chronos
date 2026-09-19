@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Platform themes on purpose: this project does not depend on AppCompat, so
+     it has no Theme.AppCompat ancestor to inherit from. -->
+<resources>
+    <style name="Theme.Chronos" parent="android:Theme.Light.NoTitleBar" />
+
+    <!-- The launcher is translucent so the splash Chrome draws is what the user
+         sees, rather than a flash of an empty Activity behind it. -->
+    <style name="Theme.LauncherActivity" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowBackground">@color/backgroundColor</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+    </style>
+</resources>

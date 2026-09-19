@@ -1,0 +1,55 @@
+plugins {
+    id 'com.android.application'
+}
+
+// One source of truth for the host, so the manifest's intent filter, the
+// asset-statement and the launch URL can never drift apart.
+def twaHost = project.findProperty('twaHost') ?: 'chronos-not-deployed-yet.invalid'
+def twaUrl  = "https://${twaHost}/login.html"   // matches manifest.json's start_url
+
+android {
+    namespace 'com.chronos.tutor'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.chronos.tutor"
+        // 21 is the floor for androidbrowserhelper; a TWA additionally needs
+        // Chrome 72+ at runtime, which is a Chrome check rather than an API one.
+        minSdk 21
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+
+        resValue "string", "twa_host", twaHost
+        resValue "string", "twa_url", twaUrl
+        // The digital asset-links statement the TWA verifies against. Escaped
+        // because it is a single string resource holding JSON.
+        resValue "string", "asset_statements",
+                 "[{ \\\"relation\\\": [\\\"delegate_permission/common.handle_all_urls\\\"], " +
+                 "\\\"target\\\": { \\\"namespace\\\": \\\"web\\\", \\\"site\\\": \\\"https://${twaHost}\\\" } }]"
+
+        manifestPlaceholders = [twaHost: twaHost]
+    }
+
+    buildTypes {
+        debug {
+            // Debug signing only. It sideloads fine and cannot go to Play, which
+            // needs a release key and Play App Signing.
+            applicationIdSuffix ""
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    // Supplies LauncherActivity, so this project has no Java source of its own.
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}

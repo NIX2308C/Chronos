@@ -351,47 +351,62 @@ criteria above were asserted directly, including a pixel check that nothing but
 the flat ground sits outside the maskable icon's 80% safe circle, so no launcher
 crops the mark.)
 
-## Phase C — the wrapper
+## Phase C — the wrapper — BUILT, in CI
 
-This phase needs a JDK, the Android SDK, a Play account and a deployed host to
-point the manifest at. None of that is available in a Claude Code container, so
-Phase C is for a real machine.
+**The project exists and is built by GitHub Actions.** What changed from the
+plan above, and why:
+
+**Not Bubblewrap.** `bubblewrap init` fetches a *live* `manifest.json` over HTTP
+and downloads its own JDK and Android SDK from `dl.google.com`. In the
+development environment that host answers 403 by org policy, and there is no
+deployed manifest to point it at. So `android/` is written by hand. That is
+smaller than it sounds: a TWA has no Java source at all — `LauncherActivity`
+comes from `com.google.androidbrowserhelper` — so it is ten config and resource
+files, all reviewable, and the build is deterministic and offline-authorable.
+
+**The build runs on GitHub, not locally.** `dl.google.com` is the only source
+for the Android SDK (`android.jar`, `aapt2`, `d8`) *and* for Google's Maven,
+where `androidx.browser` and `androidbrowserhelper` live. Neither is on Maven
+Central. GitHub's runners ship the SDK, so `.github/workflows/android.yml` does
+the work and publishes the APK as a **Release asset** — a binary per build does
+not belong in git history.
+
+What is in `android/`:
+
+| Piece | Choice |
+|---|---|
+| AGP / Gradle | **8.7.3 on Gradle 8.9**. `compileSdk 35` needs AGP ≥ 8.6, and AGP 8.7 needs Gradle ≥ 8.9, so the 8.5 this file used to suggest is too low. |
+| Ids | `com.chronos.tutor`, `minSdk 21`, `targetSdk`/`compileSdk 35`. |
+| The host | One Gradle property, `-PtwaHost=`. `app/build.gradle` feeds it to the launch URL, the intent filter and the asset statement together, so they cannot drift. Default is `chronos-not-deployed-yet.invalid` — `.invalid` is reserved by RFC 2606 and can never resolve, so a build that forgot to set the host fails visibly. |
+| Icons | Legacy mipmaps at five densities plus a real adaptive icon (separate foreground and background layers), generated from the Phase B mark. The foreground is checked to sit inside the middle 72dp of 108dp so no launcher mask clips it. |
+| Wrapper | Committed, pinned to 8.9, so the project builds on any normal machine too. |
+
+To build against the real deployment: **Actions → Android APK → Run workflow**,
+and set the `host` input. Nothing needs committing to change where the app points.
+
+### What is still owed
+
+- **The app is debug-signed.** It sideloads and it cannot go to Play, which needs
+  a release key and Play App Signing. Adding that means a keystore in GitHub
+  Secrets and a `signingConfigs` block — deliberately not done while there is no
+  host to verify against.
+- **It shows a browser URL bar.** Asset-links verification needs a live host
+  serving `/.well-known/assetlinks.json` with the SHA-256 of the signing key.
+  The route and a placeholder file are in place (`app.py`,
+  `.well-known/assetlinks.json`), so this becomes a one-file edit. Use the
+  **Play App Signing** fingerprint from the Play Console, not the local upload
+  key — that mismatch is the classic reason the URL bar appears only on the
+  build that came from Play. Note a CI debug key is regenerated per run and so
+  cannot be pinned here at all.
+- **Nobody has run it on a device.** Verify with:
 
 ```
-npx @bubblewrap/cli init --manifest=https://<cloud-run-host>/manifest.json
-```
-
-Application id `com.chronos.tutor`, `targetSdk` 35+, release keystore kept out of
-the repo, Play App Signing enabled. Bubblewrap emits a normal Gradle project
-with no Java to write. Keep it in `android/`.
-
-Two ignore files need edits:
-
-- `.dockerignore` — add `android/`, so the Gradle project never enters the Cloud
-  Run build context.
-- `.gitignore` — add `*.keystore`, `*.jks`, `android/build/`,
-  `android/app/build/` and `android/.gradle/`. The secrets block already covers
-  `*.p12` and `*.key` but neither keystore extension.
-
-Digital Asset Links is mandatory — without it the TWA shows a URL bar and looks
-like a browser. Serve it from Flask:
-
-```python
-@app.route('/.well-known/assetlinks.json')
-def assetlinks():
-    return send_from_directory(os.path.join(BASE_DIR, '.well-known'),
-                               'assetlinks.json', mimetype='application/json')
-```
-
-Use the **Play App Signing** SHA-256 fingerprint from the Play Console, not the
-local upload key. Using the upload key is the classic reason the URL bar appears
-only on the build that came from Play. Verify with:
-
-```
+adb install chronos-<host>-debug.apk
 adb shell am start -a android.intent.action.VIEW -d https://<host>/login.html
 ```
 
-**Done when:** `adb install` gives an app that opens with no URL bar.
+**Done when:** a release-signed build from Play's internal track opens with no
+URL bar.
 
 ## Phase D — hardening
 

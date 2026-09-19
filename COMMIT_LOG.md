@@ -318,3 +318,51 @@ quiz answers werent random + material is teacher-only now
   installed TWA will show a light status bar even in dark mode, because a
   manifest carries one theme_color and a TWA reads the manifest rather than the
   media-scoped metas. thats a phase C bubblewrap setting
+
+## android phase C: the actual apk
+
+- you asked for the apk in the branch. i cant build one here and its not a
+  matter of trying harder: dl.google.com answers 403 by org policy, and thats
+  the only source for the android sdk (android.jar, aapt2, d8) AND for googles
+  maven, where androidx.browser and androidbrowserhelper live. neither is on
+  maven central, i checked — 404. jdk 21 and gradle are installed but have
+  nothing to compile against
+- so the build runs on github actions, whose runners ship the sdk. thats also
+  the honest reading of "put it in the github": the apk comes out as a release
+  asset rather than a commit, because a ~2mb binary per build sits in git
+  history forever and cant be pruned without a rewrite
+- not bubblewrap, even though ANDROID.md said to use it. `bubblewrap init`
+  fetches a LIVE manifest.json over http and downloads its own jdk+sdk from the
+  blocked hosts, and theres no deployed manifest to point it at. wrote android/
+  by hand instead — a TWA has no java source at all, launcheractivity comes from
+  the androidbrowserhelper library, so its ten config/resource files
+- AGP 8.7.3 on gradle 8.9, not the 8.5 the old plan suggested: compileSdk 35
+  needs AGP >= 8.6 and AGP 8.7 needs gradle >= 8.9
+- the host lives in exactly one place, a -PtwaHost gradle property, feeding the
+  launch url, the intent filter and the asset statement together so they cant
+  drift. default is chronos-not-deployed-yet.invalid — .invalid is rfc 2606
+  reserved and can never resolve, so a build that forgot to set it fails loudly
+  instead of shipping something that looks plausible. pointing it at the real
+  site is a workflow input, no commit needed
+- icons: legacy mipmaps at five densities plus a real adaptive icon with
+  separate foreground/background layers, from the phase B mark. theres a check
+  that the foreground sits inside the middle 72dp of 108dp so no launcher mask
+  clips it. pillow in the throwaway venv again, only pngs committed
+- gradle wrapper is committed and pinned to 8.9 so the project builds on a
+  normal machine too. had to generate it in an empty scratch dir — running
+  `gradle wrapper` in android/ evaluates build.gradle, which needs AGP from the
+  blocked host
+- /.well-known/assetlinks.json route + a placeholder file, so removing the url
+  bar later is a one-file edit. the file spells out that the fingerprint must be
+  the PLAY APP SIGNING sha-256, not the upload key — thats the classic reason
+  the url bar shows up only on the build that came from play
+- .gitignore now covers android/build, android/.gradle, *.apk, *.keystore,
+  *.jks. .dockerignore gets android/ so the gradle project never enters the
+  cloud run build context
+- verified here: every android xml well-formed, the workflow yaml parses with
+  the permissions/triggers i intended, all 15 mipmaps are the right size for
+  their density bucket, app.py parses and serves assetlinks as application/json,
+  and all the phase A/B browser suites plus the six test scripts still pass
+- what i did NOT verify here, because i cant: that the project compiles.
+  resolving AGP alone needs google maven. thats what the CI run is for, and i
+  wont call the apk delivered until a green run has one attached

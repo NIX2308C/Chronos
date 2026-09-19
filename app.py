@@ -1384,6 +1384,20 @@ def favicon():
                                max_age=86400)
 
 
+@app.route('/.well-known/assetlinks.json')
+def assetlinks():
+    """Digital Asset Links, for the Android app in android/.
+
+    This is what tells Android the APK and this site are the same party; until
+    the fingerprint in the file is real, the installed app shows a browser URL
+    bar. Served with no caching to speak of, because a stale copy after a
+    signing-key change is very hard to diagnose.
+    """
+    return send_from_directory(os.path.join(BASE_DIR, '.well-known'),
+                               'assetlinks.json',
+                               mimetype='application/json', max_age=300)
+
+
 # ---------- auth ----------
 
 @app.route('/auth/config', methods=['GET'])

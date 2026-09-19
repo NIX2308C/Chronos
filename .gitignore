@@ -28,3 +28,14 @@ skills-lock.json
 # --- Local Claude Code project notes / settings (not for the public repo) ---
 CLAUDE.md
 .claude/
+
+# --- Android (phase C). The project sources are committed; build output,
+# Gradle's caches and anything that can sign a release are not. ---
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.apk
+*.aab
+*.keystore
+*.jks

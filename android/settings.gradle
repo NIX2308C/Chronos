@@ -1,0 +1,19 @@
+pluginManagement {
+    repositories {
+        // androidx.browser and androidbrowserhelper are published to Google's
+        // Maven only — they are not on Maven Central. google() must come first.
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "Chronos"
+include ':app'

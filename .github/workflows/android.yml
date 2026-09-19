@@ -10,10 +10,10 @@ on:
     inputs:
       host:
         description: >-
-          Host the app should open, with no scheme (e.g. chronos-xyz.a.run.app).
-          Leave as the default until Chronos is deployed.
+          Host the app should open, with no scheme. Defaults to the live site;
+          override only to build against staging.
         required: true
-        default: chronos-not-deployed-yet.invalid
+        default: chronos.tevproject.com
   push:
     branches: [android-app]
     paths:
@@ -32,15 +32,9 @@ jobs:
       - name: Resolve the target host
         id: cfg
         run: |
-          HOST="${{ github.event.inputs.host || 'chronos-not-deployed-yet.invalid' }}"
+          HOST="${{ github.event.inputs.host || 'chronos.tevproject.com' }}"
           echo "host=$HOST" >> "$GITHUB_OUTPUT"
-          # A release built against the placeholder must say so in its name,
-          # so a stale APK can't be mistaken for one pointing at the real site.
-          if [ "$HOST" = "chronos-not-deployed-yet.invalid" ]; then
-            echo "slug=placeholder" >> "$GITHUB_OUTPUT"
-          else
-            echo "slug=$(echo "$HOST" | tr '.' '-')" >> "$GITHUB_OUTPUT"
-          fi
+          echo "slug=$(echo "$HOST" | tr '.' '-')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v4
         with:

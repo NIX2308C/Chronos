@@ -4,7 +4,7 @@ plugins {
 
 // One source of truth for the host, so the manifest's intent filter, the
 // asset-statement and the launch URL can never drift apart.
-def twaHost = project.findProperty('twaHost') ?: 'chronos-not-deployed-yet.invalid'
+def twaHost = project.findProperty('twaHost') ?: 'chronos.tevproject.com'
 def twaUrl  = "https://${twaHost}/login.html"   // matches manifest.json's start_url
 
 android {

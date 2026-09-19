@@ -195,22 +195,36 @@
         transition:border-color .15s }
     .fld:focus { outline:none; border-color:var(--crimson) }
 
-    /* ---- teacher-only "Sources used" dropdown ---- */
+    /* ---- compact source disclosure ---- */
     .src-drop summary { list-style: none; }
     .src-drop summary::-webkit-details-marker { display: none; }
-    .learning-tool { width:100%;max-width:620px;border:1px solid var(--c-rule);padding:18px;margin-top:12px;background:var(--c-paper);box-shadow:0 10px 28px rgba(11,11,12,.06);animation:pop .34s var(--snap) both; }
-    .tool-status { position:relative;overflow:hidden;display:flex;align-items:center;gap:8px;width:fit-content;max-width:100%;margin-top:12px;padding:6px 0;color:var(--c-sub);font-size:12.5px;line-height:1.4; }
-    .tool-status .material-symbols-outlined { font-size:16px; }
-    .tool-status.using::after { content:"";position:absolute;inset:auto 0 0 0;height:2px;background:linear-gradient(90deg,transparent,var(--crimson),transparent);transform:translateX(-110%);animation:tool-glow 1.8s ease-in-out infinite; }
-    .tool-status.done { color:#1E7A4E;animation:tool-finish .35s ease-out both; }
+    .src-drop { width:fit-content;max-width:85%;margin-top:12px;color:var(--c-sub); }
+    .src-drop summary { display:flex;align-items:center;gap:5px;padding:4px 0;font-size:11px;font-weight:600;letter-spacing:.055em;text-transform:uppercase;cursor:pointer;opacity:.82;transition:color .16s ease,opacity .16s ease; }
+    .src-drop summary:hover,.src-drop[open] summary { color:var(--c-ink);opacity:1; }
+    .src-drop .source-copy { max-width:100%;margin:5px 0 0;padding:8px 0 0;border-top:1px solid var(--c-rule); }
+    .learning-tool { width:100%;max-width:620px;border:1px solid var(--c-rule);padding:18px;margin-top:14px;background:var(--c-paper);box-shadow:0 10px 28px rgba(11,11,12,.06); }
+    .learning-tool.toolkit-enter { animation:toolkit-arrive .62s var(--snap) both; }
+    .tool-status { position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;gap:8px;width:fit-content;max-width:100%;margin-top:14px;padding:9px 12px;border:1px solid var(--c-rule);background:var(--c-paper);color:var(--c-sub);font-size:12.5px;line-height:1.4; }
+    .tool-status .material-symbols-outlined { font-size:17px; }
+    .tool-status.using { border-color:var(--crimson);color:var(--c-ink);animation:tool-wait-in .34s var(--snap) both; }
+    .tool-status.using::before { content:"";position:absolute;z-index:-1;inset:0;background:linear-gradient(105deg,transparent 18%,rgba(226,0,26,.13) 43%,transparent 68%);transform:translateX(-110%);animation:tool-sheen 1.45s ease-in-out infinite; }
+    .tool-status.using .material-symbols-outlined { color:var(--crimson);animation:tool-spark 1.15s ease-in-out infinite; }
+    .tool-status.done { color:#1E7A4E;border-color:#1E7A4E;animation:tool-finish .42s var(--snap) both; }
     .tool-status.failed { color:var(--crimson); }
     html.dark .tool-status.done { color:#6FD5A0; }
     html.dark .tool-status.failed { color:#FF6572; }
     .tool-status button { border:0;background:transparent;color:inherit;text-decoration:underline;text-underline-offset:2px;font:inherit;cursor:pointer; }
-    @keyframes tool-glow { to { transform:translateX(110%); } }
-    @keyframes tool-finish { from { opacity:.55;transform:translateY(3px); } to { opacity:1;transform:translateY(0); } }
+    @keyframes tool-wait-in { from { opacity:0;transform:translateY(10px) scale(.97); } to { opacity:1;transform:none; } }
+    @keyframes tool-sheen { to { transform:translateX(110%); } }
+    @keyframes tool-spark { 50% { transform:scale(1.22) rotate(12deg); } }
+    @keyframes tool-finish { 0% { opacity:.4;transform:translateY(5px) scale(.98); } 55% { transform:translateY(-2px) scale(1.02); } 100% { opacity:1;transform:none; } }
+    @keyframes toolkit-arrive { 0% { opacity:0;transform:translateX(-28px) scale(.97); } 62% { opacity:1;transform:translateX(3px) scale(1.005); } 100% { opacity:1;transform:none; } }
     .stream-tail { overflow-wrap:anywhere;min-height:1lh; }
-    .stream-pending { color:var(--c-sub);font-size:13px; }
+    .typing-indicator { display:inline-flex;align-items:center;gap:4px;height:25px;padding:0 8px;background:var(--crimson);color:#F7F4EC;vertical-align:middle;animation:typing-in .26s var(--snap) both; }
+    .typing-indicator i { width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.45;animation:typing-dot 1s ease-in-out infinite; }
+    .typing-indicator i:nth-child(2) { animation-delay:.14s; }.typing-indicator i:nth-child(3) { animation-delay:.28s; }
+    @keyframes typing-in { from { opacity:0;transform:translateY(4px) scale(.9); } to { opacity:1;transform:none; } }
+    @keyframes typing-dot { 0%,60%,100% { transform:translateY(0);opacity:.38; } 30% { transform:translateY(-3px);opacity:1; } }
     .tool-heading { font-family:'Newsreader',serif;font-size:22px;line-height:1.15;margin:0;color:var(--c-ink); }
     .tool-topline { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px; }
     .tool-count { color:var(--c-sub);font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap; }
@@ -236,8 +250,10 @@
     .tool-complete { padding:8px 0 2px; }
     .tool-score { margin:8px 0 16px;font-family:'Newsreader',serif;font-size:30px;line-height:1;color:var(--c-ink); }
     .tool-complete p { color:var(--c-sub);font-size:14px;line-height:1.5;margin:0 0 16px; }
-    .flashcard-shell { perspective:1000px;min-height:220px;cursor:pointer; }
-    .flashcard { position:relative;width:100%;min-height:220px;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);transform-style:preserve-3d;transition:transform .48s cubic-bezier(.2,.8,.2,1); }
+    .tool-stage > * { animation:tool-stage-in .34s cubic-bezier(.2,.9,.3,1) both; }
+    @keyframes tool-stage-in { from { opacity:0;transform:translateY(9px); } to { opacity:1;transform:none; } }
+    .flashcard-shell { perspective:1100px;min-height:220px;cursor:pointer; }
+    .flashcard { position:relative;width:100%;min-height:220px;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);transform-style:preserve-3d;will-change:transform;transition:transform .62s cubic-bezier(.18,.9,.22,1); }
     .flashcard.is-flipped { transform:rotateY(180deg); }
     .flash-face { position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:20px;backface-visibility:hidden;background:var(--c-hi);text-align:left; }
     .flash-face.back { transform:rotateY(180deg);background:var(--c-paper);border-left:3px solid var(--crimson); }
@@ -247,12 +263,11 @@
     .tool-list { margin:0;padding-left:1.25rem;color:var(--c-ink); }.tool-list li{margin:.5rem 0;}
     .map-node { border-left:3px solid var(--gold);padding:10px 12px;margin-top:9px;background:var(--c-hi); }.map-link{font-size:12px;color:var(--c-sub);margin:6px 0 0 13px;}
     .src-drop[open] .chev { transform: rotate(180deg); }
-    .src-drop { border:1px solid var(--gold); background:var(--c-paper); color:var(--c-ink) }
     html.dark .learning-tool { box-shadow:0 12px 28px rgba(0,0,0,.26); }
     html.dark .quiz-option.correct { background:#238457;border-color:#36A46E;color:#fff; }
     html.dark .quiz-option.wrong { background:rgba(226,0,26,.16); }
     html.dark .flash-face.back { background:var(--c-hi); }
-    @media (prefers-reduced-motion:reduce){ .flashcard,.quiz-option,.composer-action,.sendbtn { transition:none; } .tool-status.using::after,.tool-status.done { animation:none; } }
+    @media (prefers-reduced-motion:reduce){ .flashcard,.quiz-option,.composer-action,.sendbtn { transition:none; } .tool-status,.tool-status::before,.tool-status .material-symbols-outlined,.learning-tool,.tool-stage > *,.typing-indicator,.typing-indicator i { animation:none; } }
 
     /* ---- markdown inside AI bubbles ---- */
     .ai-prose p { margin:0 0 .75rem; }
@@ -725,16 +740,15 @@
   // that expands to the exact passages the tutor drew on. Hidden from students.
   function buildSourcesDropdown(rules){
     const d=document.createElement("details");
-    d.className="src-drop mt-3 max-w-[85%]";
+    d.className="src-drop";
     const s=document.createElement("summary");
-    s.className="cursor-pointer select-none px-3 py-2 tagline flex items-center gap-1.5";
+    s.className="cursor-pointer select-none";
     s.innerHTML='<span class="material-symbols-outlined text-[16px]">menu_book</span>'+
       '<span>Sources used ('+rules.length+')</span>'+
       '<span class="material-symbols-outlined text-[18px] ml-auto chev transition-transform">expand_more</span>';
     d.appendChild(s);
     const body=document.createElement("div");
-    body.className="px-3 pb-3 space-y-1.5";
-    body.style.borderTop="2px solid var(--gold)";
+    body.className="source-copy space-y-1.5";
     rules.forEach(x=>{
       const ln=document.createElement("p");
       ln.className="font-body-md text-[13px] leading-snug pt-2";
@@ -752,7 +766,7 @@
     box.append(label,h);
   }
   function buildLearningTool(tool){
-    const box=document.createElement("section");box.className="learning-tool";
+    const box=document.createElement("section");box.className="learning-tool toolkit-enter";
     if(tool.type==="quiz"){
       buildQuizTool(box,tool);
     }else if(tool.type==="flashcards"){
@@ -868,7 +882,17 @@
       const card=document.createElement("button");card.type="button";card.className="flashcard"+(flipped?" is-flipped":"");card.setAttribute("aria-pressed",String(flipped));card.setAttribute("aria-label",flipped?"Showing answer. Activate to show prompt.":"Showing prompt. Activate to reveal answer.");
       const front=document.createElement("span");front.className="flash-face front";const frontLabel=document.createElement("span");frontLabel.className="flash-label";frontLabel.textContent="Prompt";const frontText=document.createElement("strong");frontText.className="flash-text";frontText.textContent=cards[index].front;const frontHint=document.createElement("span");frontHint.className="flash-hint";frontHint.textContent="Select to reveal";front.append(frontLabel,frontText,frontHint);
       const back=document.createElement("span");back.className="flash-face back";const backLabel=document.createElement("span");backLabel.className="flash-label";backLabel.textContent="Answer";const backText=document.createElement("strong");backText.className="flash-text";backText.textContent=cards[index].back;const backHint=document.createElement("span");backHint.className="flash-hint";backHint.textContent=index<cards.length-1?"Next card in 5 seconds when you are ready":"Select to revisit the prompt";back.append(backLabel,backText,backHint);
-      card.append(front,back);card.onclick=()=>{flipped=!flipped;readingUntil=Date.now()+5000;render();if(flipped)scheduleAdvance();};
+      card.append(front,back);card.onclick=()=>{
+        // Keep this card mounted: rebuilding it made the flipped state the
+        // initial state, so its transform transition could never be seen.
+        flipped=!flipped;readingUntil=Date.now()+5000;
+        card.classList.toggle("is-flipped",flipped);
+        card.setAttribute("aria-pressed",String(flipped));
+        card.setAttribute("aria-label",flipped?"Showing answer. Activate to show prompt.":"Showing prompt. Activate to reveal answer.");
+        frontHint.textContent=flipped?"Select to revisit the prompt":"Select to reveal";
+        backHint.textContent=flipped?(index<cards.length-1?"Next card in 5 seconds when you are ready":"Select to revisit the prompt"):"";
+        if(flipped)scheduleAdvance();else clearAdvance();
+      };
       ["pointerenter","focusin","touchstart","keydown"].forEach(type=>shell.addEventListener(type,()=>{readingUntil=Date.now()+5000;},{passive:type!=="focusin"&&type!=="keydown"}));
       shell.appendChild(card);stage.appendChild(shell);
       const previous=document.createElement("button");previous.type="button";previous.textContent="Previous";previous.disabled=index===0;previous.onclick=()=>{index--;flipped=false;render();};
@@ -913,10 +937,11 @@
   // later chunks cannot change their wrapping or discard their text nodes.
   function createReplyStream(node){
     node.replaceChildren();
-    const pending=document.createElement("span");pending.className="stream-pending";pending.textContent="Thinking…";
+    const pending=document.createElement("span");pending.className="typing-indicator";pending.setAttribute("role","status");pending.setAttribute("aria-label","Chronos is typing");
+    pending.innerHTML="<i></i><i></i><i></i>";
     const tail=document.createElement("div");tail.className="stream-tail";
     tail.hidden=true;node.append(pending,tail);
-    let source="",committed=0;
+    let source="",typed="",committed=0,typingTimer=null,finishResolve=null,finishRequested=false;
     function preview(src){
       const fences=src.match(/```/g)||[];
       if(fences.length%2===0)return renderMarkdown(src);
@@ -926,28 +951,50 @@
       return renderMarkdown(before)+"<pre><code>"+escapeHtml(rest)+"</code></pre>";
     }
     function flush(final){
+      const visible=final?source:typed;
       if(tail.parentNode!==node)node.appendChild(tail);
       let end=committed;
-      if(final)end=source.length;
+      if(final)end=visible.length;
       else{
         const breaks=/\n\s*\n/g;breaks.lastIndex=committed;let match;
-        while((match=breaks.exec(source))){
-          const prefix=source.slice(committed,match.index);
+        while((match=breaks.exec(visible))){
+          const prefix=visible.slice(committed,match.index);
           if(((prefix.match(/```/g)||[]).length%2)===0)end=match.index+match[0].length;
         }
       }
-      if(end>committed){tail.insertAdjacentHTML("beforebegin",renderMarkdown(source.slice(committed,end)));committed=end;}
+      if(end>committed){tail.insertAdjacentHTML("beforebegin",renderMarkdown(visible.slice(committed,end)));committed=end;}
       if(final){pending.remove();tail.remove();}
       else{
-        const remaining=source.slice(committed);
+        const remaining=visible.slice(committed);
         if(!remaining)tail.remove();
         else{tail.hidden=false;tail.innerHTML=preview(remaining);}
       }
       if(node.isConnected)scrollBottom();
     }
+    function typeNext(){
+      typingTimer=null;
+      if(source.length>typed.length){
+        // A few characters per frame feels alive without making a long answer
+        // take longer than the request itself.
+        const count=reduceMotion?source.length-typed.length:Math.min(5,source.length-typed.length);
+        pending.remove();
+        typed+=source.slice(typed.length,typed.length+count);
+        flush(false);
+      }
+      if(source.length>typed.length){typingTimer=setTimeout(typeNext,reduceMotion?0:16);return;}
+      if(finishRequested){flush(true);if(finishResolve){finishResolve();finishResolve=null;}}
+    }
+    function scheduleTyping(){if(!typingTimer)typeNext();}
     return {
-      push(chunk){if(chunk){pending.remove();source+=chunk;flush(false);}},
-      finish(text){if(text!==source){source=text;node.replaceChildren(tail);committed=0;}flush(true);},
+      push(chunk){if(chunk){source+=chunk;scheduleTyping();}},
+      finish(text){
+        if(text!==source){
+          source=text;
+          if(!source.startsWith(typed)){typed="";committed=0;node.replaceChildren(pending,tail);}
+        }
+        finishRequested=true;
+        return new Promise(resolve=>{finishResolve=resolve;scheduleTyping();});
+      },
       get text(){return source;}
     };
   }
@@ -1143,7 +1190,7 @@
       if(c.id!==activeChatId){setSending(false);return true;}
       if(Array.isArray(data.toolkits)){TOOLKITS=data.toolkits;renderToolMenu();}
       const gen=VIEW_GEN;
-      stream.finish(streamedText.trim()===tm.content?streamedText:tm.content);
+      await stream.finish(streamedText.trim()===tm.content?streamedText:tm.content);
       if(tm.gap)el.appendChild(gapNote());
       if(tm.reviewed)el.appendChild(reviewedNote());
       const sources=IS_TEACHER?(tm.sources.length?tm.sources:tm.rules):[];
@@ -1158,7 +1205,7 @@
       const message=(err&&err.message)||"Can't reach the server. Please try again.";
       const partial=stream.text;
       tm.content=partial?partial+"\n\n"+message:message;
-      stream.finish(partial||message);
+      await stream.finish(partial||message);
       if(partial){
         const note=document.createElement("p");note.className="mt-3.5 text-primary text-[13.5px] leading-relaxed";
         note.textContent=message;el.appendChild(note);

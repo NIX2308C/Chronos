@@ -179,7 +179,12 @@ def test_sources_are_not_sent_to_students():
     A._user_chats = lambda uid: _FakeChats()
     A._user_files = lambda uid: _FakeChats()
     A.load_history = lambda *_a, **_k: []
-    A.load_course_settings = lambda *_a, **_k: A.course_settings()
+    # Deliberately hostile settings: the old code had a per-course
+    # "source_display" toggle that let a teacher flip the class material through
+    # to students, and this test only ever passed because it used the defaults
+    # with that toggle off. Material is teacher-only now regardless of what a
+    # course document happens to have stored, so force the flag on.
+    A.load_course_settings = lambda *_a, **_k: dict(A.course_settings(), source_display=True)
     # /chat reads these too. Left unstubbed they reach real Firestore, which is
     # exactly what this file claims never to do — it hangs instead of failing.
     A.load_custom_rules = lambda *_a, **_k: []
@@ -209,6 +214,7 @@ def test_sources_are_not_sent_to_students():
 
     student = ask("student")
     assert student["rules_used"] == [], "student was sent the class material"
+    assert student["sources"] == [], "student was sent the source excerpts"
     assert "SECRET TEACHER MATERIAL" not in A.json.dumps(student), "material leaked in the response"
     # ...but the student still learns whether anything backed the answer, which is
     # what the "knowledge gap" note in the UI hangs off now that rules are empty.
@@ -216,6 +222,7 @@ def test_sources_are_not_sent_to_students():
 
     teacher = ask("teacher")
     assert teacher["rules_used"] == ["SECRET TEACHER MATERIAL"], "teacher lost their sources"
+    assert teacher["sources"], "teacher lost the source excerpts"
 
     # Both answers above were produced with the profile store deliberately left
     # unstubbed, so reading and writing it each raised. That is the point: the

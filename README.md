@@ -63,7 +63,7 @@ The Pinecone index name is set in `app.py` (`INDEX_NAME`), so the API key is all
 Audit note: before the current separation, Pinecone contained teacher-entered rules as well as teacher uploads. Student assignments/rubrics were kept in Firestore and injected whole, but they were scoped only to a course, so they followed the student into every conversation in that course. Long chats replayed the latest 20 messages and had no rolling summary; the older cross-chat “memory” held only opening topics and retrieval misses. The behavior below removes prompt policy from retrieval and replaces those weak spots.
 
 - **Teacher course knowledge** is the only content embedded into Pinecone: teacher-uploaded document chunks use the course's namespace; retrieval sends at most the configured top matches and character budget to Gemini. Existing legacy typed-rule vectors are moved to custom policy and deleted from the namespace the next time a teacher opens that course.
-- **Student files** never touch Pinecone. Assignment and rubric text is stored under that student's Firestore account, scoped to one course and one conversation, and supplied only as non-authoritative review context until the student removes it or deletes the conversation.
+- **Student files** never touch Pinecone. Assignment and rubric text is stored under that student's Firestore account, scoped to one course and one conversation, and supplied only as non-authoritative review context until the student removes it or deletes the conversation. The kind a student picks is checked against the file: one cheap classification call on the first `STUDENT_DOC_CHECK_CHARS` (default 2,500) characters refuses anything that reads as teaching material rather than their own work or its marking criteria, so a textbook chapter cannot enter the course as an "assignment". It runs last, after the rate limit and the per-conversation cap, and a refusal stores nothing; if the call itself fails the upload is accepted, because a model outage must not stop a student attaching the essay they are being marked on.
 - **Current conversation** replays only the latest `HISTORY_TURNS` messages. Before older turns fall out, Chronos maintains a bounded tutoring-state summary on the chat document. It tracks progress, confusion, learning gaps, open questions, and unfinished work, but is explicitly forbidden as a source of facts.
 - **Cross-conversation memory** is a bounded, course-scoped list of prior topics and explicit learning signals derived from chat metadata. It is never written to Pinecone.
 - **The student profile** is the other half of that memory: how a student writes
@@ -78,7 +78,7 @@ Audit note: before the current separation, Pinecone contained teacher-entered ru
   and bare acknowledgements are never counted, and the wording only ever
   describes how to explain something — never what the student is. Set
   `PROFILE_ENABLED=0` to turn the whole thing off.
-- **System and teacher policy** comes from compact Base Rules and custom teacher rules. Custom rules are always added to the tutor prompt, never retrieved as facts. Prompt secrecy and jailbreak resistance are permanent system protections, not teacher toggles. Optional practice, visual, study-material, and source-display tools are disabled by default.
+- **System and teacher policy** comes from compact Base Rules and custom teacher rules. Custom rules are always added to the tutor prompt, never retrieved as facts. Prompt secrecy and jailbreak resistance are permanent system protections, not teacher toggles. Optional practice, visual and study-material tools are disabled by default. Course material itself is never optional: retrieved excerpts go to teachers only, with no course setting that can loosen it, so a student gets the answer and the "grounded" signal but never the material behind them.
 - **Interactive tools** use two stages. A student can ask for one directly — practice chips sit under the newest answer, showing only the activities the course has enabled — or the tutor can request one itself by calling the `create_practice_activity` function declared on the chat request. Either way the client then shows a short “Creating…” card while a separate constrained Gemini call receives the relevant course material only and returns validated JSON for the quiz, flashcards, concept map, or review sheet. The server re-checks the requested type against the course settings on the way in, so the chips cannot reach a disabled toolkit.
 - **Profanity** is caught before any of the above happens. `profanity.py`
   normalizes a message (accents, leetspeak, padding, letters spaced out) and
@@ -130,10 +130,10 @@ and open http://localhost:5000.
 ```bash
 python test_profanity.py && python test_security.py && \
 python test_stats_grouping.py && python test_student_context.py && \
-python test_student_profile.py
+python test_student_profile.py && python test_quiz_answers.py
 ```
 
-Five plain-`assert` scripts, no test runner. They stub every collaborator that
+Six plain-`assert` scripts, no test runner. They stub every collaborator that
 would reach Firestore, Pinecone or Gemini, so they run offline in about a second
 and need no real keys — but `app.py` still refuses to import without a valid
 `TEACHER_SIGNUP_CODE`, so a `.env` with a throwaway one (and dummy values for the
@@ -147,7 +147,11 @@ counters are additive (they are stored as Firestore increments, so a drift here
 would be silent and permanent), that it says nothing before it has evidence, that
 it never leaks a raw count or a score into something a teacher reads, and — the
 one the whole feature turns on — that a profile built in one course is
-unreachable from another. `test_profanity.py` and `test_student_profile.py` import
+unreachable from another. `test_quiz_answers.py` covers the quiz answer key: that
+every shape a model actually emits for it (a letter, a quoted digit, a renamed
+field, the answer's own text) resolves to the right option, that one it cannot
+resolve drops the question instead of guessing, and that the correct answer is no
+longer always option A. `test_profanity.py` and `test_student_profile.py` import
 their module alone and need no environment at all. Run them before committing; they are fast enough that there is
 no excuse not to.
 

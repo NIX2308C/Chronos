@@ -138,3 +138,58 @@ isolation would have broken.
   in the system and read a profile built in someone else's classroom
 - reading or writing the profile can fail without costing anyone an answer; the
   security suite proves it by leaving the store unstubbed on a working /chat
+
+quiz answers werent random + material is teacher-only now
+
+- every quiz had the right answer on option A. two separate reasons, both fixed:
+  the validator had one line that took anything it didnt recognise as an answer
+  key and turned it into index 0. a letter ("B"), a quoted digit ("2"), a float,
+  the answer's own text, a renamed field (correct_index, answer_index) — all of
+  them normal model output for a multiple-choice key — silently became the first
+  option. _resolve_answer_index handles every one of those shapes now
+- and if it genuinely cant work out the key, the question is dropped instead of
+  guessed. a wrong answer key is worse than one fewer question: the student gets
+  told A is right when it isnt and learns the wrong thing. all five dropping
+  means the existing "couldnt make that activity, try again" retry
+- options get shuffled server-side after the key is resolved, so the position is
+  even no matter what the model does. that's the part that actually fixes the
+  symptom — the prompt asking nicely for variety wouldn't have been enough at
+  temperature 0.2
+- the prompt was teaching the bias too: its only schema example literally said
+  "answer":0. says "<0-based index into options>" now, plus dont always put the
+  correct one first
+- also fixed a real off-by-the-end bug in the same lines: the bound check used
+  the untruncated options list while only four options got stored, so five
+  options with answer 4 stored an index past the end and *every* click came back
+  "Not quite" with nothing marked correct
+- test_quiz_answers.py — first coverage _parse_tool_result has ever had
+
+- course material is teacher-only now, full stop. the "Allow Source Display"
+  course toggle is gone: /chat, /chats/<id>/messages and /tools/run all check the
+  role and nothing else. excerpts stay stored on the message so a teacher can
+  still review the conversation later, theyre just withheld on the way out
+- the student UI was the worse half. the comment above it said "sources are
+  teacher-only" but the condition was "did the server send any sources", which is
+  exactly what happened to a student once that toggle was on. role check wraps
+  the whole thing now
+- dropping source_display from COURSE_SETTINGS_DEFAULTS is enough for existing
+  courses — course_settings() whitelists keys off the defaults dict, so a value
+  already sitting on a course document is ignored. no migration
+- test_security.py's sources test only ever passed because its stub used the
+  defaults with the toggle off. it forces source_display=True now, so it actually
+  proves the hole is shut
+- /chats/<id>/messages lost two firestore reads on the way (the chat doc and the
+  course settings, both of which only fed that one toggle)
+
+- student uploads: the kind was self-declared, so "assignment" was a way to put
+  a textbook chapter in front of the tutor. one cheap classification call on the
+  first 2500 chars now refuses anything that reads as teaching material, or that
+  was attached under the wrong one of the two buttons
+- it runs last, after the rate limit and the 3-per-conversation cap, so a request
+  thats getting refused anyway never costs a model call, and a refusal writes
+  nothing to firestore. if the call itself errors the upload goes through —
+  same call as the tutoring-state summary: a gemini outage must not stop a kid
+  attaching the essay theyre being marked on
+
+- ran all six test scripts (added the sixth), node --check on every inline script
+  block in the two pages i touched

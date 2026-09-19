@@ -342,10 +342,10 @@
 <!-- The student's own work: reviewed by the tutor, never added to the class material. -->
 <div class="flex items-center flex-wrap gap-2 mb-2" id="fileBar">
 <span class="flex items-center flex-wrap gap-2" id="fileChips"></span>
-<button class="attach-btn" data-kind="assignment" title="Your work, for this conversation only">
+<button class="attach-btn" data-kind="assignment" title="Your own work, for this conversation only. Course material is your teacher's to add — uploads that look like notes, slides or a textbook are refused.">
 <span class="material-symbols-outlined text-[16px]">upload_file</span><span>Assignment</span>
 </button>
-<button class="attach-btn" data-kind="rubric" title="The criteria for this conversation">
+<button class="attach-btn" data-kind="rubric" title="The marking criteria or task brief for this conversation">
 <span class="material-symbols-outlined text-[16px]">checklist</span><span>Rubric</span>
 </button>
 <span class="font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal" id="fileErr"></span>
@@ -584,8 +584,10 @@
     else if(m.gap)w.appendChild(gapNote());
     if(m.reviewed)w.appendChild(reviewedNote());
     // Sources are teacher-only: students never see the underlying material,
-    // teachers get a collapsible dropdown beneath the answer.
-    const sources=(m.sources&&m.sources.length)?m.sources:(IS_TEACHER?(m.rules||[]):[]);
+    // teachers get a collapsible dropdown beneath the answer. The role check
+    // wraps the whole expression — keying it off "the server sent sources" is
+    // what used to put the dropdown in front of students.
+    const sources=IS_TEACHER?((m.sources&&m.sources.length)?m.sources:(m.rules||[])):[];
     if(sources.length){w.appendChild(buildSourcesDropdown(sources));}
     // Built once and reused. renderMessages rebuilds the thread on any unrelated
     // change (a new chat in the sidebar, a title update), and rebuilding the
@@ -752,6 +754,8 @@
       try{ data=await res.json(); }catch(e){ data={}; }
       if(gen!==VIEW_GEN)return;
       if(!res.ok||data.error){fail(data.error||"Couldn’t create that activity.");return;}
+      // data.sources is already [] for a student; keeping the field means a
+      // teacher viewing their own generated activity still gets the dropdown.
       const msg={role:"teacher",content:"",tool:data.tool,sources:data.sources||[]};
       chat.messages.push(msg);
       msg._toolEl=buildLearningTool(data.tool);
@@ -822,7 +826,7 @@
             if(gen!==VIEW_GEN)return;
             if(tm.gap)el.appendChild(gapNote());
             if(tm.reviewed)el.appendChild(reviewedNote());
-            const sources=tm.sources.length?tm.sources:(IS_TEACHER?tm.rules:[]);
+            const sources=IS_TEACHER?(tm.sources.length?tm.sources:tm.rules):[];
             if(sources.length)el.appendChild(buildSourcesDropdown(sources));
             if(data.tool_request)await runTool(data.tool_request,c,el);
             else if(TOOLKITS.length)el.appendChild(buildPracticeRow(c,text));

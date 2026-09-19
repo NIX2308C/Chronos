@@ -216,7 +216,6 @@
         <div class="setting-row"><span><strong>Allow Practice Tools</strong><small style="display:block;color:var(--sub);margin-top:3px">Quizzes and flashcards built from course material.</small></span><label class="switch"><input id="setPractice" type="checkbox"><span></span></label></div>
         <div class="setting-row"><span><strong>Allow Visual Tools</strong><small style="display:block;color:var(--sub);margin-top:3px">Simple grounded concept maps.</small></span><label class="switch"><input id="setVisual" type="checkbox"><span></span></label></div>
         <div class="setting-row"><span><strong>Allow Study Materials</strong><small style="display:block;color:var(--sub);margin-top:3px">Compact review sheets in the chat.</small></span><label class="switch"><input id="setStudy" type="checkbox"><span></span></label></div>
-        <div class="setting-row"><span><strong>Allow Source Display</strong><small style="display:block;color:var(--sub);margin-top:3px">Students may open retrieved course excerpts.</small></span><label class="switch"><input id="setSources" type="checkbox"><span></span></label></div>
         <div class="setting-row"><span><strong>Reveal final answers</strong></span><label class="switch"><input id="setAnswers" type="checkbox"><span></span></label></div>
         <div class="setting-row"><span><strong>Allow worked examples</strong></span><label class="switch"><input id="setExamples" type="checkbox"><span></span></label></div>
         <label style="display:block;margin-top:14px;font-size:13px;font-weight:600">Hint strength<select id="setHints" class="fld" style="display:block;width:100%;margin-top:6px;padding:9px 10px"><option value="light">Light</option><option value="progressive">Progressive</option><option value="strong">Strong</option></select></label>
@@ -397,7 +396,7 @@
     paintHeader();
   }
 
-  const SETTING_IDS={grounded_only:"setGrounded",guide_not_complete:"setGuide",state_uncertainty:"setUncertainty",practice_tools:"setPractice",visual_tools:"setVisual",study_materials:"setStudy",source_display:"setSources",reveal_final_answers:"setAnswers",worked_examples:"setExamples"};
+  const SETTING_IDS={grounded_only:"setGrounded",guide_not_complete:"setGuide",state_uncertainty:"setUncertainty",practice_tools:"setPractice",visual_tools:"setVisual",study_materials:"setStudy",reveal_final_answers:"setAnswers",worked_examples:"setExamples"};
   function paintSettings(){
     Object.entries(SETTING_IDS).forEach(([key,id])=>{$(id).checked=!!(SETTINGS&&SETTINGS[key]);});
     $("setHints").value=(SETTINGS&&SETTINGS.hint_strength)||"progressive";

@@ -4,6 +4,7 @@ import re
 import json
 import time
 import hmac
+import random
 import secrets
 import logging
 import zipfile
@@ -175,6 +176,9 @@ STUDENT_DOC_CHARS = int(os.getenv("STUDENT_DOC_CHARS", "20000"))   # ~8 pages
 STUDENT_DOCS_MAX = int(os.getenv("STUDENT_DOCS_MAX", "3"))         # per class
 STUDENT_CONTEXT_CHARS = STUDENT_DOC_CHARS * STUDENT_DOCS_MAX       # whole prompt block
 STUDENT_DOC_KINDS = ("assignment", "rubric")
+# How much of an upload the kind check reads. Enough to tell an essay from a
+# textbook chapter, small enough that the call costs almost nothing.
+STUDENT_DOC_CHECK_CHARS = int(os.getenv("STUDENT_DOC_CHECK_CHARS", "2500"))
 STUDENT_UPLOAD_RATE_LIMIT = int(os.getenv("STUDENT_UPLOAD_RATE_LIMIT", "10"))
 STUDENT_UPLOAD_RATE_WINDOW = int(os.getenv("STUDENT_UPLOAD_RATE_WINDOW", "300"))
 
@@ -221,7 +225,6 @@ COURSE_SETTINGS_DEFAULTS = {
     "practice_tools": False,
     "visual_tools": False,
     "study_materials": False,
-    "source_display": False,
     "reveal_final_answers": False,
     "worked_examples": False,
     "hint_strength": "progressive",
@@ -229,7 +232,7 @@ COURSE_SETTINGS_DEFAULTS = {
 }
 COURSE_BOOL_SETTINGS = {
     "grounded_only", "guide_not_complete", "state_uncertainty",
-    "practice_tools", "visual_tools", "study_materials", "source_display",
+    "practice_tools", "visual_tools", "study_materials",
     "reveal_final_answers", "worked_examples",
 }
 
@@ -943,6 +946,42 @@ def summarize_tutoring_state(existing, transcript):
     return (resp.text or "").strip()[:CONVERSATION_SUMMARY_CHARS]
 
 
+def classify_student_upload(text):
+    """Say whether an upload reads as one student's work, a rubric, or material.
+
+    The kind a student picks in the UI is a label, not a fact: the tutor is not a
+    research assistant over whatever anyone uploads, and a student attaching a
+    textbook chapter as an "assignment" is adding course material by the back
+    door. Returns "assignment", "rubric", "material", or None when the check
+    could not run.
+    """
+    sample = str(text or "").strip()[:STUDENT_DOC_CHECK_CHARS]
+    if not sample:
+        return None
+    prompt = (
+        "Classify this uploaded document with exactly one word and nothing else:\n"
+        "assignment - one student's own work: an essay, answers, a draft, a lab "
+        "report, a problem set they have attempted.\n"
+        "rubric - marking criteria, a grade descriptor table, an assignment brief "
+        "or task sheet describing what is required.\n"
+        "material - teaching material: a textbook chapter, lecture notes or "
+        "slides, a study guide, reference or encyclopedia text, or anything else "
+        "whose purpose is to teach the subject.\n\n"
+        f"Document:\n{sample}"
+    )
+    try:
+        resp = client.models.generate_content(
+            model=CHAT_MODEL, contents=prompt,
+            config=types.GenerateContentConfig(temperature=0))
+        word = re.sub(r"[^a-z]", "", (resp.text or "").strip().lower())
+        return word if word in ("assignment", "rubric", "material") else None
+    except Exception:
+        # Optional like the tutoring-state summary: a model outage must not stop a
+        # student attaching the essay they are being marked on.
+        logger.exception("Could not classify a student upload; accepting it.")
+        return None
+
+
 def refresh_conversation_summary(msgs_ref, prev):
     """Summarize the next batch of turns that is about to leave model history.
 
@@ -1604,8 +1643,10 @@ def chat_messages(chat_id):
         chat_ref.collection("Messages").order_by("timestamp").limit(MAX_MESSAGES_RETURNED).stream()
     )
     is_teacher = get_role(request.uid) == "teacher"
-    chat_data = chat_ref.get().to_dict() or {}
-    settings = load_course_settings(chat_data.get("class_id"))
+    # Neither the chat document nor the course settings are read here any more:
+    # between them they only decided whether to ship source excerpts, and that is
+    # a role check now. Two fewer Firestore reads every time a conversation is
+    # opened.
     messages = []
     for d in docs:
         m = d.to_dict() or {}
@@ -1622,7 +1663,10 @@ def chat_messages(chat_id):
             "grounded": bool(rules),
             # Answered off the student's own upload rather than class material.
             "reviewed": bool(m.get("reviewed")),
-            "sources": (m.get("sources") or []) if (is_teacher or settings["source_display"]) else [],
+            # Course material is teacher-only, with no course toggle to loosen it:
+            # excerpts stay stored on the message so a teacher can review the
+            # conversation later, and are withheld here for everyone else.
+            "sources": (m.get("sources") or []) if is_teacher else [],
             "tool": m.get("tool") if isinstance(m.get("tool"), dict) else None,
             "material_gap": bool(m.get("material_gap")),
             # A refusal, not an answer — the UI marks it so a student rereading
@@ -1904,7 +1948,7 @@ def chat():
             # would otherwise read back the class material verbatim, one question
             # at a time, straight from the API the UI is careful not to show it in.
             "rules_used": teacher_rules if role == "teacher" else [],
-            "sources": teacher_sources if (role == "teacher" or settings["source_display"]) else [],
+            "sources": teacher_sources if role == "teacher" else [],
             "grounded": bool(teacher_rules),
             "reviewed": reviewed,
             "tool_request": tool_request,
@@ -1927,8 +1971,12 @@ def _tool_prompt(tool, context_block, custom_rules):
     specs = {
         "quiz": (
             '{"type":"quiz","title":"...","questions":[{"prompt":"...","options":["..."],'
-            '"answer":0,"explanation":"..."}]}',
-            "Create 3 to 5 multiple-choice questions. Give four options per question."
+            '"answer":<0-based index into options>,"explanation":"..."}]}',
+            "Create 3 to 5 multiple-choice questions. Give four options per question. "
+            "`answer` is the 0-based index of the correct option in that question's "
+            "options array — a plain number, not a letter and not the answer text. "
+            "Do not put the correct option first every time; vary which position it "
+            "takes from question to question."
         ),
         "flashcards": (
             '{"type":"flashcards","title":"...","cards":[{"front":"...","back":"..."}]}',
@@ -1966,6 +2014,72 @@ def _tool_prompt(tool, context_block, custom_rules):
     )
 
 
+# Keys models use for the correct option instead of "answer", in the order we
+# trust them.
+_ANSWER_KEYS = ("answer", "correct_index", "answer_index", "correct_answer", "correct")
+
+
+def _resolve_answer_index(question, options):
+    """Work out which option a model meant, or None if it cannot be trusted.
+
+    This used to be one expression that fell back to 0, which is why every quiz
+    looked like the answer was always A: a letter, a quoted digit, or the answer
+    text — all of them ordinary model output for a multiple-choice key — failed
+    the isinstance check and silently became the first option. A question whose
+    key cannot be resolved is dropped now, because a confidently wrong answer
+    key teaches the student the wrong thing.
+    """
+    raw = None
+    for key in _ANSWER_KEYS:
+        if question.get(key) is not None:
+            raw = question[key]
+            break
+    if raw is None:
+        return None
+    # bool before int: isinstance(True, int) is True, so `"answer": true` used to
+    # resolve to option B.
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, int):
+        return raw if 0 <= raw < len(options) else None
+    if isinstance(raw, float):
+        return int(raw) if raw.is_integer() and 0 <= raw < len(options) else None
+    if not isinstance(raw, str):
+        return None
+    text = raw.strip().strip("()[].:# ").strip()
+    if not text:
+        return None
+    if text.isdigit():
+        index = int(text)
+        return index if 0 <= index < len(options) else None
+    if len(text) == 1 and text.isalpha():
+        index = ord(text.lower()) - ord("a")
+        return index if 0 <= index < len(options) else None
+    # The answer's text rather than its position.
+    wanted = " ".join(text.lower().split())
+    for index, option in enumerate(options):
+        if " ".join(str(option).lower().split()) == wanted:
+            return index
+    return None
+
+
+def _shuffled_question(prompt, options, answer, explanation):
+    """Randomize option order so the key is not positional.
+
+    Even with the prompt asking for variety, a model at low temperature leans on
+    whatever position its example showed. Shuffling here makes the distribution
+    even regardless of what the model does.
+    """
+    pairs = list(enumerate(options))
+    random.shuffle(pairs)
+    return {
+        "prompt": prompt,
+        "options": [option for _, option in pairs],
+        "answer": next(i for i, (original, _) in enumerate(pairs) if original == answer),
+        "explanation": explanation,
+    }
+
+
 def _parse_tool_result(text, requested_type):
     """Validate a deliberately small JSON contract before the browser renders it."""
     clean = str(text or "").strip()
@@ -1987,11 +2101,18 @@ def _parse_tool_result(text, requested_type):
             options = q.get("options") if isinstance(q, dict) else None
             if not isinstance(options, list) or len(options) < 2:
                 continue
-            answer = q.get("answer", 0)
-            answer = answer if isinstance(answer, int) and 0 <= answer < len(options) else 0
-            questions.append({"prompt": str(q.get("prompt") or "")[:400],
-                              "options": [str(v)[:220] for v in options[:4]], "answer": answer,
-                              "explanation": str(q.get("explanation") or "")[:500]})
+            # Truncate to four first, then resolve against what will actually be
+            # stored: the old bound check used the untruncated list, so a fifth
+            # option with answer 4 left an index past the end of the stored four
+            # and the student's every click came back "Not quite."
+            opts = [str(v)[:220] for v in options[:4]]
+            answer = _resolve_answer_index(q, opts)
+            if answer is None:
+                logger.warning("Dropping quiz question with unusable answer key %r",
+                               {k: q.get(k) for k in _ANSWER_KEYS if k in q})
+                continue
+            questions.append(_shuffled_question(str(q.get("prompt") or "")[:400], opts, answer,
+                                                str(q.get("explanation") or "")[:500]))
         if not questions:
             return None
         result["questions"] = questions
@@ -2084,7 +2205,7 @@ def run_tool():
         chat_ref.collection("Messages").add({"role": "teacher", "content": "", "tool": result,
             "tool_summary": summary, "sources": sources, "timestamp": firestore.SERVER_TIMESTAMP})
         return jsonify({"tool": result, "tool_summary": summary,
-                        "sources": sources if (role == "teacher" or settings["source_display"]) else []})
+                        "sources": sources if role == "teacher" else []})
     except Exception as e:
         return server_error("Could not create that learning activity.", e)
 
@@ -2937,6 +3058,18 @@ def add_student_file():
         text, truncated = extract_file_text(file, STUDENT_DOC_CHARS)
     except ExtractError as e:
         return jsonify({"error": str(e)}), e.status
+
+    # Last, and only once everything cheap has passed: a request that would be
+    # refused anyway never pays for a model call, and a refusal here writes
+    # nothing to Firestore.
+    detected = classify_student_upload(text)
+    if detected == "material":
+        return jsonify({"error": "This looks like course material. Only your own work, or the "
+                                 "rubric it is marked against, belongs here — course material "
+                                 "is your teacher's to add."}), 400
+    if detected and detected != kind:
+        return jsonify({"error": f"This reads like a {detected}, not {'an' if kind[0] in 'aeiou' else 'a'} "
+                                 f"{kind}. Attach it with the {detected} button instead."}), 400
 
     name = file.filename[:200]
     doc = _user_files(request.uid).document()

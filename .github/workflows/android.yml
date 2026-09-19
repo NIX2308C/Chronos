@@ -47,7 +47,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      # Not android-actions/setup-android: it runs `sdkmanager tools`, and the
+      # `tools` package was removed from the SDK, so it fails outright. The
+      # runner image already ships the SDK — this just accepts the licences and
+      # installs the pieces this build needs, with no third-party action.
+      - name: Android SDK
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER=$(find "$SDK/cmdline-tools" -name sdkmanager -type f | sort | tail -1)
+          echo "using $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          echo "ANDROID_HOME=$SDK"      >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK"  >> "$GITHUB_ENV"
 
       - uses: gradle/actions/setup-gradle@v4
 

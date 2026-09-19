@@ -82,8 +82,22 @@ jobs:
         run: |
           set -euo pipefail
           KS="$RUNNER_TEMP/chronos.jks"
-          printf '%s' "$KEYSTORE_B64" | base64 -d > "$KS"
-          test -s "$KS" || { echo "::error::keystore decoded to an empty file — is the secret valid base64?"; exit 1; }
+          # Strip whitespace first: pasting a few thousand base64 characters into
+          # a browser field is exactly where stray newlines come from, and they
+          # would otherwise fail the decode for a reason nobody can see.
+          printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 -d > "$KS" || {
+            echo "::error::Could not base64-decode ANDROID_KEYSTORE_BASE64. Re-copy it with Set-Clipboard -Value, not through an editor."
+            exit 1
+          }
+          test -s "$KS" || { echo "::error::keystore decoded to an empty file — is the secret set?"; exit 1; }
+          # A JKS starts with the magic bytes FE ED FE ED; a PKCS12 is a DER
+          # sequence starting 30 82. Anything else means a truncated or wrong
+          # paste, and failing here beats a confusing Gradle error later.
+          MAGIC=$(head -c 2 "$KS" | od -An -tx1 | tr -d ' \n')
+          case "$MAGIC" in
+            feed|3082) echo "Keystore looks valid ($(stat -c%s "$KS") bytes)." ;;
+            *) echo "::error::Decoded file is not a keystore (starts $MAGIC). The secret is probably truncated."; exit 1 ;;
+          esac
           echo "CHRONOS_KEYSTORE_PATH=$KS" >> "$GITHUB_ENV"
 
       - name: Build APK

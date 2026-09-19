@@ -113,5 +113,59 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", enterPage);
   else enterPage();
 
-  window.ChronosWipe = { go: go };
+  // Keep the current view mounted while its replacement is prepared. A later
+  // request supersedes an earlier one, including a request that finishes late.
+  function createViewTransition(container) {
+    var sequence = 0;
+    var timer = null;
+    var revealTimer = null;
+    var indicator = document.createElement("div");
+    indicator.className = "chronos-view-loading";
+    indicator.setAttribute("role", "status");
+    indicator.setAttribute("aria-live", "polite");
+    indicator.hidden = true;
+    indicator.innerHTML = '<span class="chronos-view-spinner" aria-hidden="true"></span><span></span>';
+    container.classList.add("chronos-view-host");
+    container.appendChild(indicator);
+
+    function clear() {
+      clearTimeout(timer);
+      indicator.hidden = true;
+      container.removeAttribute("aria-busy");
+    }
+
+    function cancel() { sequence++; clear(); container.classList.remove("chronos-view-reveal"); }
+
+    async function show(prepare, commit, options) {
+      var current = ++sequence;
+      clear();
+      clearTimeout(revealTimer);
+      container.classList.remove("chronos-view-reveal");
+      options = options || {};
+      indicator.lastElementChild.textContent = options.label || "Loading…";
+      container.setAttribute("aria-busy", "true");
+      timer = setTimeout(function () {
+        if (current === sequence) indicator.hidden = false;
+      }, 120);
+      try {
+        var data = await prepare();
+        if (current !== sequence) return false;
+        clear();
+        commit(data);
+        container.classList.add("chronos-view-reveal");
+        revealTimer = setTimeout(function () { container.classList.remove("chronos-view-reveal"); }, 240);
+        return true;
+      } catch (error) {
+        if (current === sequence) {
+          clear();
+          if (options.onError) options.onError(error);
+        }
+        return false;
+      }
+    }
+
+    return { show: show, cancel: cancel };
+  }
+
+  window.ChronosWipe = { go: go, createViewTransition: createViewTransition };
 })();

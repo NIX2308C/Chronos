@@ -243,7 +243,7 @@
             <span id="ruleCount" style="font-size:13.5px;color:var(--mid)"></span>
           </div>
           <div style="padding:16px 18px;border-bottom:1px solid var(--rule2)">
-            <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:var(--sub)">Always sent to Chronos as course policy. Use this for conventions, assignment boundaries, or tone — never factual material. These rules are not stored in Pinecone.</p>
+            <p style="margin:0 0 12px;font-size:14px;line-height:1.55;color:var(--sub)">Applied to every answer in this course. Use these for conventions, assignment boundaries, or tone; add factual material under Course material.</p>
             <textarea id="ruleText" rows="4" aria-label="Custom teacher rule" class="fld" style="width:100%;padding:11px 12px;font-size:14.5px;line-height:1.6;resize:vertical" placeholder="Ask students to show their reasoning before offering another hint."></textarea>
             <div style="display:flex;align-items:center;gap:10px;margin-top:11px;flex-wrap:wrap">
               <button id="addRuleBtn" class="kbtn kbtn-dark" style="padding:10px 16px"><span class="msym" style="font-size:18px">add</span>Add</button>
@@ -772,7 +772,7 @@
       bar.style.animation="none";
       uploadStage("Ready");
       if(data.warning)showToast(data.warning,false);
-      else showToast(`"${file.name}" added. Total rules: ${data.total_vectors}`,true);
+      else showToast(`"${file.name}" added to course material`,true);
       setTimeout(()=>$("uploadCard").classList.add("hidden"),700);
       await loadRules();
     }catch(e){

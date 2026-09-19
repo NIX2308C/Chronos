@@ -106,3 +106,35 @@ body.chronos-page-enter #formCard {
 @media (prefers-reduced-motion: reduce) {
   .px, .px.act, html.wiping .px { display: none !important; }
 }
+
+.chronos-view-host { position: relative; }
+.chronos-view-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: color-mix(in srgb, var(--c-paper, #F7F4EC) 84%, transparent);
+  color: var(--c-sub, #56534F);
+  font: 500 14px 'Schibsted Grotesk', sans-serif;
+  pointer-events: auto;
+}
+.chronos-view-loading[hidden] { display: none; }
+.chronos-view-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-right-color: var(--crimson, #E2001A);
+  border-radius: 50%;
+  animation: chronos-view-spin .75s linear infinite;
+}
+@keyframes chronos-view-spin { to { transform: rotate(360deg); } }
+.chronos-view-reveal [data-transition-content] {
+  animation: chronos-view-reveal .2s ease-out both;
+}
+@keyframes chronos-view-reveal { from { opacity: .35; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .chronos-view-spinner, .chronos-view-reveal [data-transition-content] { animation: none; }
+}

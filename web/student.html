@@ -359,7 +359,7 @@
 
 <!-- Chat column -->
 <section data-chat-col class="flex-1 flex flex-col min-h-0 pt-16 md:pt-0 w-full">
-<div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-6 md:px-8 pt-8 pb-6" id="messages">
+<div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-6 md:px-8 pt-8 pb-6" id="messages" data-transition-content>
 <div class="max-w-[720px] mx-auto" id="messagesInner"></div>
 </div>
 <!-- Input -->
@@ -454,6 +454,8 @@
   let TOOLKITS=[];
   const CLASS_KEY="chronos_student_class";
   const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),messages:document.getElementById("messages")};
+  const chatTransition=ChronosWipe.createViewTransition(document.querySelector("[data-chat-col]"));
+  let navigationBusy=false,sending=false;
 
   function tempId(){return"new_"+Math.random().toString(36).slice(2,10);}
   function activeChat(){return chats.find(c=>c.id===activeChatId);}
@@ -463,32 +465,49 @@
     // Don't stack blank chats — reuse an existing empty one if present.
     const blank=chats.find(c=>c.isNew&&c.messages.length===0);
     const c=blank||{id:tempId(),title:"New chat",classId:ACTIVE_CLASS,messages:[],loaded:true,isNew:true};
-    if(!blank)chats.unshift(c);
-    selectChat(c.id);els.input.focus();
+    if(!blank){chats.unshift(c);ALL_CHATS.unshift(c);}
+    return selectChat(c.id);
   }
 
-  async function selectChat(id){
-    // Anything still typing or generating belongs to the conversation we are
-    // leaving; let it finish into a detached node rather than this one.
-    invalidateView();
-    activeChatId=id;renderSidebar();renderMessages();
-    const c=activeChat();
-    if(c&&!c.loaded){await loadMessages(c);}
-    await loadFiles();
+  async function selectChat(id,classId=ACTIVE_CLASS){
+    const c=ALL_CHATS.find(x=>x.id===id&&x.classId===classId);
+    if(!c)return false;
+    if(id===activeChatId&&classId===ACTIVE_CLASS&&!navigationBusy)return true;
+    navigationBusy=true;updateComposer();
+    const switched=await chatTransition.show(async()=>{
+      const [messages,files]=await Promise.all([loadMessages(c),fetchFiles(c)]);
+      return {messages,files};
+    },data=>{
+      // Commit all visible state together, after the next conversation is ready.
+      const previous=activeChat();
+      if(previous){previous.draft=els.input.value;previous.scrollTop=els.messages.scrollTop;}
+      invalidateView();
+      c.messages=data.messages;c.loaded=true;c.files=data.files.files;c.filesLoaded=true;
+      if(data.files.max)FILE_MAX=data.files.max;
+      ACTIVE_CLASS=classId;localStorage.setItem(CLASS_KEY,classId);
+      chats=ALL_CHATS.filter(x=>x.classId===classId);
+      activeChatId=id;FILES=c.files;
+      syncToolkits();paintClassSwitcher();renderSidebar();renderFiles();renderMessages();
+      els.input.value=c.draft||"";
+      els.input.style.height="auto";
+      els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";
+      if(Number.isFinite(c.scrollTop))els.messages.scrollTop=c.scrollTop;
+      setSending(false);
+    },{label:"Opening conversation…",onError:()=>fileErr("Could not open that conversation. Please try again.")});
+    if(switched||!document.querySelector("[data-chat-col]").hasAttribute("aria-busy")){
+      navigationBusy=false;updateComposer();
+    }
+    return switched;
   }
 
   async function loadMessages(c){
-    try{
-      const d=await Chronos.apiJson("/chats/"+encodeURIComponent(c.id)+"/messages",undefined,"GET");
-      // gap follows the server's `grounded` flag, not the length of `rules` —
-      // students aren't sent the sources at all (see /chats/<id>/messages).
-      c.messages=(d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],
-        sources:m.sources||[],tool:m.tool||null,
-        reviewed:!!m.reviewed,blocked:!!m.blocked,
-        gap:m.role==="teacher"&&!!m.material_gap&&!m.reviewed&&!m.blocked}));
-      c.loaded=true;
-      if(c.id===activeChatId)renderMessages();
-    }catch(e){setStatus("offline");}
+    if(c.loaded)return c.messages;
+    const d=await Chronos.apiJson("/chats/"+encodeURIComponent(c.id)+"/messages",undefined,"GET");
+    // Students receive the answer status, not the underlying teacher sources.
+    return (d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],
+      sources:m.sources||[],tool:m.tool||null,
+      reviewed:!!m.reviewed,blocked:!!m.blocked,
+      gap:m.role==="teacher"&&!!m.material_gap&&!m.reviewed&&!m.blocked}));
   }
 
   async function deleteChat(id){
@@ -506,6 +525,7 @@
       }catch(e){fileErr("Could not remove this conversation’s files.");return;}
     }
     chats=chats.filter(x=>x.id!==id);
+    ALL_CHATS=ALL_CHATS.filter(x=>x.id!==id);
     if(activeChatId===id){ if(chats.length)selectChat(chats[0].id); else newChat(); }
     else renderSidebar();
   }
@@ -820,12 +840,14 @@
   }
 
   async function send(){
+    if(navigationBusy||sending)return;
     const text=els.input.value.trim();if(!text)return;
-    if(!activeChat())newChat();
+    if(!activeChat())await newChat();
     const c=activeChat();
+    if(!c)return;
     c.messages.push({role:"student",content:text});
     if(c.messages.length===1){c.title=text.length>30?text.slice(0,30)+"…":text;renderSidebar();}
-    els.input.value="";els.input.style.height="auto";
+    els.input.value="";c.draft="";els.input.style.height="auto";
     renderMessages();
     setSending(true);
     const tm={role:"teacher",content:"",rules:[],sources:[],tool:null};c.messages.push(tm);
@@ -840,7 +862,7 @@
       const data=await res.json();
       if(!res.ok||data.error){b.textContent=(data.details||data.error||"Something went wrong. Please try again.");tm.content=b.textContent;setSending(false);return;}
       // Adopt the server's chat id/title for a freshly-created conversation.
-      if(data.chat_id&&c.isNew){c.id=data.chat_id;c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId&&activeChatId.startsWith("new_"))activeChatId=c.id;ALL_CHATS.unshift(c);renderSidebar();}
+      if(data.chat_id&&c.isNew){c.id=data.chat_id;c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId&&activeChatId.startsWith("new_"))activeChatId=c.id;renderSidebar();}
       // `grounded` comes from the server, which is the only side that can see
       // the sources: students are never sent rules_used, so an empty list here
       // no longer means "nothing backed this answer".
@@ -848,6 +870,7 @@
       tm.reviewed=!!data.reviewed;tm.blocked=!!data.blocked;
       tm.gap=!!data.material_gap&&!tm.reviewed&&!tm.blocked;
       if(Array.isArray(data.toolkits))TOOLKITS=data.toolkits;
+      if(c.id!==activeChatId){setSending(false);return;}
       b.textContent="";
       const gen=VIEW_GEN;
       typeOut(b,tm.content,()=>{
@@ -872,11 +895,16 @@
       });
     }catch(err){
       setStatus("offline");
-      b.textContent=(err&&err.message)||"Can't reach the server. Is app.py running on port 5000?";tm.content=b.textContent;setSending(false);
+      b.textContent=(err&&err.message)||"Can't reach the server. Please try again.";tm.content=b.textContent;setSending(false);
     }
   }
 
-  function setSending(on){els.sendBtn.disabled=on;els.input.disabled=on;if(!on)els.input.focus();}
+  function updateComposer(){
+    els.sendBtn.disabled=sending||navigationBusy;
+    els.input.disabled=sending||navigationBusy;
+    document.querySelectorAll(".attach-btn").forEach(b=>{b.disabled=navigationBusy||FILES.length>=FILE_MAX;});
+  }
+  function setSending(on){sending=on;updateComposer();if(!on&&!navigationBusy)els.input.focus();}
 
   const STATUS={online:["bg-secondary","Online"],waking:["bg-secondary","Waking server…"],offline:["bg-error","Offline"]};
 
@@ -909,10 +937,10 @@
 
   // wiring
   els.sendBtn.onclick=send;
-  els.newChatBtn.onclick=newChat;
-  els.newChatBtnMobile.onclick=newChat;
+  els.newChatBtn.onclick=async()=>{if(await newChat())els.input.focus();};
+  els.newChatBtnMobile.onclick=async()=>{if(await newChat())els.input.focus();};
   els.input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}});
-  els.input.addEventListener("input",()=>{els.input.style.height="auto";els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";});
+  els.input.addEventListener("input",()=>{if(activeChat())activeChat().draft=els.input.value;els.input.style.height="auto";els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";});
 
   // The on-screen keyboard doesn't resize the layout viewport, so the composer
   // ends up behind it and the last message with it. visualViewport is the only
@@ -964,33 +992,42 @@
     TOOLKITS=(c&&Array.isArray(c.toolkits))?c.toolkits:[];
   }
 
-  function switchClass(id){
+  async function switchClass(id){
     if(!id||id===ACTIVE_CLASS)return;
-    invalidateView();
-    ACTIVE_CLASS=id;localStorage.setItem(CLASS_KEY,id);
-    // Toolkits are per course, so what the last course allowed says nothing
-    // about this one.
-    syncToolkits();
-    paintClassSwitcher();
-    applyClassFilter();
+    let target=ALL_CHATS.find(c=>c.classId===id);
+    if(!target){
+      target={id:tempId(),title:"New chat",classId:id,messages:[],loaded:true,isNew:true};
+      ALL_CHATS.unshift(target);
+    }
+    const switched=await selectChat(target.id,id);
+    if(!switched)paintClassSwitcher();
   }
 
   // Show only the active class's conversations.
-  function applyClassFilter(){
-    chats=ALL_CHATS.filter(c=>c.classId===ACTIVE_CLASS);
-    activeChatId=null;
-    loadFiles();   // attachments are per class too — they don't follow you across
-    if(chats.length){renderSidebar();selectChat(chats[0].id);}
-    else newChat();
+  async function applyClassFilter(){
+    const available=ALL_CHATS.filter(c=>c.classId===ACTIVE_CLASS);
+    if(available.length)return selectChat(available[0].id);
+    const blank={id:tempId(),title:"New chat",classId:ACTIVE_CLASS,messages:[],loaded:true,isNew:true};
+    ALL_CHATS.unshift(blank);
+    return selectChat(blank.id);
   }
 
   // Load this student's saved conversations (all classes) from the server.
   async function loadChats(){
     try{
       const d=await Chronos.apiJson("/chats",undefined,"GET");
-      ALL_CHATS=(d.chats||[]).map(c=>({id:c.id,title:c.title,classId:c.class_id,messages:[],loaded:false,isNew:false}));
-    }catch(e){ALL_CHATS=[];}
-    applyClassFilter();
+      const retained=new Map(ALL_CHATS.map(c=>[c.id,c]));
+      const saved=(d.chats||[]).map(c=>{
+        const local=retained.get(c.id);
+        return local?Object.assign(local,{title:c.title,classId:c.class_id}):
+          {id:c.id,title:c.title,classId:c.class_id,messages:[],loaded:false,isNew:false};
+      });
+      ALL_CHATS=saved.concat(ALL_CHATS.filter(c=>c.isNew&&!saved.includes(c)));
+    }catch(e){
+      if(!ALL_CHATS.length)throw new Error("Could not load conversations. Please refresh and try again.");
+      fileErr("Could not refresh conversations. Please try again.");
+    }
+    if(!(await applyClassFilter()))throw new Error("Could not open a conversation. Please try again.");
   }
 
   // ---- the student's own work (assignment + rubric) ----
@@ -1020,17 +1057,13 @@
       chip.appendChild(icon);chip.appendChild(nm);chip.appendChild(x);
       box.appendChild(chip);
     });
-    document.querySelectorAll(".attach-btn").forEach(b=>{b.disabled=FILES.length>=FILE_MAX;});
+    document.querySelectorAll(".attach-btn").forEach(b=>{b.disabled=navigationBusy||FILES.length>=FILE_MAX;});
   }
 
-  async function loadFiles(){
-    FILES=[];renderFiles();
-    if(!ACTIVE_CLASS||!activeChat())return;
-    try{
-      const d=await Chronos.apiJson("/student/files?class_id="+encodeURIComponent(ACTIVE_CLASS)+"&chat_id="+encodeURIComponent(activeChat().id),undefined,"GET");
-      FILES=d.files||[];if(d.max)FILE_MAX=d.max;
-    }catch(e){FILES=[];}
-    renderFiles();
+  async function fetchFiles(c){
+    if(c.filesLoaded)return {files:c.files,max:FILE_MAX};
+    const d=await Chronos.apiJson("/student/files?class_id="+encodeURIComponent(c.classId)+"&chat_id="+encodeURIComponent(c.id),undefined,"GET");
+    return {files:d.files||[],max:d.max};
   }
 
   async function uploadFile(kind,file){
@@ -1045,6 +1078,7 @@
       let d={};try{d=await res.json();}catch(e){}
       if(!res.ok||d.error){fileErr(d.error||"Could not attach that file.");renderFiles();return;}
       FILES.push({id:d.id,name:d.name,kind:d.kind});
+      activeChat().files=FILES;
       fileErr(d.warning||"");
     }catch(e){fileErr("Can’t reach the server.");}
     renderFiles();
@@ -1053,7 +1087,7 @@
   async function removeFile(id){
     try{await Chronos.apiJson("/student/files/"+encodeURIComponent(id),undefined,"DELETE");}
     catch(e){fileErr((e&&e.message)||"Could not remove that file.");return;}
-    FILES=FILES.filter(f=>f.id!==id);renderFiles();
+    FILES=FILES.filter(f=>f.id!==id);activeChat().files=FILES;renderFiles();
   }
 
   document.querySelectorAll(".attach-btn").forEach(b=>{
@@ -1099,8 +1133,8 @@
       ACTIVE_CLASS=cls.id;localStorage.setItem(CLASS_KEY,cls.id);
       await loadClasses();
       ACTIVE_CLASS=cls.id;localStorage.setItem(CLASS_KEY,cls.id);paintClassSwitcher();
-      hideJoinGate();
       await loadChats();
+      hideJoinGate();
     }catch(e){
       $s("joinErr").textContent=(e&&e.message)||"Could not join.";$s("joinErr").classList.remove("hidden");
     }
@@ -1119,10 +1153,10 @@
     $s("modeLabel").textContent=role;$s("roleLabel").textContent=role;
     // Show a way back to the teacher panels when a teacher is using the tutor.
     if(IS_TEACHER){$s("teacherBackLink").classList.remove("hidden");$s("teacherBackLink").classList.add("flex");}
-    $s("authGate").remove();
     const hasClass=await loadClasses();
     if(!hasClass){ info.role==="teacher" ? showTeacherNoClassGate() : showJoinGate(); }
     else { await loadChats(); if(window.__tutFirstVisit)window.__tutFirstVisit(); }
+    $s("authGate").remove();
     checkServer();setInterval(checkServer,15000);
   }).catch(e=>{
     // textContent, not innerHTML: this string comes off the wire.

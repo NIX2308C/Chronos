@@ -16,6 +16,7 @@ import com.chronos.tutor.ui.RootViewModel
 import com.chronos.tutor.ui.account.AccountScreen
 import com.chronos.tutor.ui.login.FinishSignupScreen
 import com.chronos.tutor.ui.login.LoginScreen
+import com.chronos.tutor.ui.login.LoginUiState
 import com.chronos.tutor.ui.login.LoginViewModel
 
 /**
@@ -43,6 +44,7 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
             is AuthState.Ready -> Routes.HOME
             AuthState.NeedsRole -> Routes.FINISH_SIGNUP
             AuthState.SignedOut -> Routes.LOGIN
+            is AuthState.Unconfigured -> Routes.LOGIN
             AuthState.Loading -> null
         } ?: return@LaunchedEffect
 
@@ -57,12 +59,37 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
     NavHost(navController = navController, startDestination = start) {
 
         composable(Routes.LOGIN) {
+            val unconfigured = state as? AuthState.Unconfigured
+            val repo = container.authRepository
+
+            if (unconfigured != null || repo == null) {
+                // Firebase is unavailable, so there is no repository to drive a
+                // ViewModel with. The real login screen still renders — it just
+                // carries the reason and cannot be submitted. Showing the actual
+                // UI matters: a build that cannot sign in must still prove what
+                // it is, rather than dying on launch the way the first one did.
+                LoginScreen(
+                    state = LoginUiState(
+                        error = unconfigured?.message
+                            ?: "Sign-in is not configured in this build.",
+                    ),
+                    onMode = {},
+                    onEmail = {},
+                    onPassword = {},
+                    onToggleReveal = {},
+                    onRole = {},
+                    onTeacherCode = {},
+                    onSubmit = {},
+                )
+                return@composable
+            }
+
             // viewModel(), not remember(): a ViewModel created by remember is
             // never cleared, so its viewModelScope outlives the screen.
             val vm: LoginViewModel = viewModel(factory = object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    LoginViewModel(container.authRepository) as T
+                    LoginViewModel(repo) as T
             })
             val ui by vm.state.collectAsStateWithLifecycle()
             LoginScreen(
@@ -78,8 +105,9 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
         }
 
         composable(Routes.FINISH_SIGNUP) {
+            val repo = container.authRepository ?: return@composable
             FinishSignupScreen(
-                auth = container.authRepository,
+                auth = repo,
                 onDone = root::onAuthenticated,
                 onSignOut = root::signOut,
             )

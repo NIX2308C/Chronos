@@ -17,14 +17,18 @@ import java.util.concurrent.TimeUnit
  * processor, an annotated Application, and an annotation on every ViewModel, to
  * replace the twenty lines below.
  */
-class AppContainer(context: Context) {
+class AppContainer(context: Context, firebaseReady: Boolean) {
 
     /** Emits when the session is gone for good, so the root can bounce to login. */
     val signedOutEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     val prefs = Prefs(context.applicationContext)
 
-    private val firebaseAuth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    // Null when Firebase could not be configured. Everything auth-shaped is
+    // nullable from here down, so a misconfigured build still starts and shows
+    // its real UI instead of dying in Application.onCreate.
+    private val firebaseAuth: FirebaseAuth? =
+        if (firebaseReady) runCatching { FirebaseAuth.getInstance() }.getOrNull() else null
 
     private val httpClient: OkHttpClient = OkHttpClient.Builder()
         // Defaults stay short on purpose. /chat and /tools/run raise their own
@@ -35,7 +39,7 @@ class AppContainer(context: Context) {
         .writeTimeout(30, TimeUnit.SECONDS)
         .addInterceptor(
             AuthInterceptor(
-                auth = { firebaseAuth },
+                auth = { firebaseAuth },   // no token attached when null
                 onSignedOut = { signedOutEvents.tryEmit(Unit) },
             )
         )
@@ -43,5 +47,7 @@ class AppContainer(context: Context) {
 
     val api = Api(client = httpClient)
 
-    val authRepository = AuthRepository(api, firebaseAuth)
+    /** Null when Firebase is unconfigured; the UI shows an unconfigured state. */
+    val authRepository: AuthRepository? =
+        firebaseAuth?.let { AuthRepository(api, it) }
 }

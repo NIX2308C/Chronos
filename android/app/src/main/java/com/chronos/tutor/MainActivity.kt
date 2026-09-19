@@ -20,11 +20,15 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
 
     private val root: RootViewModel by viewModels {
-        val container = (application as ChronosApp).container
+        val app = application as ChronosApp
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                RootViewModel(container.authRepository, container.signedOutEvents) as T
+                RootViewModel(
+                    auth = app.container.authRepository,
+                    signedOutEvents = app.container.signedOutEvents,
+                    configError = app.configError,
+                ) as T
         }
     }
 

@@ -17,8 +17,9 @@ import kotlinx.coroutines.launch
  * so the user never sees a login screen flash before being sent to the tutor.
  */
 class RootViewModel(
-    private val auth: AuthRepository,
+    private val auth: AuthRepository?,
     signedOutEvents: SharedFlow<Unit>,
+    private val configError: String? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<AuthState>(AuthState.Loading)
@@ -27,13 +28,21 @@ class RootViewModel(
     init {
         refresh()
         viewModelScope.launch {
-            signedOutEvents.collect { _state.value = AuthState.SignedOut }
+            signedOutEvents.collect {
+                if (auth != null) _state.value = AuthState.SignedOut
+            }
         }
     }
 
     fun refresh() {
+        val repo = auth ?: run {
+            _state.value = AuthState.Unconfigured(
+                configError ?: "Sign-in is not configured in this build."
+            )
+            return
+        }
         viewModelScope.launch {
-            _state.value = runCatching { auth.resolve() }
+            _state.value = runCatching { repo.resolve() }
                 .getOrElse { AuthState.SignedOut }
         }
     }
@@ -41,8 +50,9 @@ class RootViewModel(
     fun onAuthenticated() = refresh()
 
     fun signOut() {
+        val repo = auth ?: return
         viewModelScope.launch {
-            auth.signOut()
+            repo.signOut()
             _state.value = AuthState.SignedOut
         }
     }

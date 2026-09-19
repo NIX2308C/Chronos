@@ -23,6 +23,12 @@ sealed interface AuthState {
     /** Signed into Firebase but no role on the backend — recoverable, not a dead end. */
     data object NeedsRole : AuthState
     data class Ready(val me: Me) : AuthState
+    /**
+     * Firebase could not be configured, so authentication is impossible in this
+     * build. The app still starts and still shows its real UI — this state only
+     * disables the sign-in form and explains why.
+     */
+    data class Unconfigured(val message: String) : AuthState
 }
 
 /**

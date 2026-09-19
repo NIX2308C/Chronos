@@ -21,7 +21,7 @@ import okhttp3.Response
  * the user to the login screen instead of showing a broken screen.
  */
 class AuthInterceptor(
-    private val auth: () -> FirebaseAuth = { FirebaseAuth.getInstance() },
+    private val auth: () -> FirebaseAuth? = { FirebaseAuth.getInstance() },
     private val onSignedOut: () -> Unit = {},
 ) : Interceptor {
 
@@ -44,7 +44,7 @@ class AuthInterceptor(
 
     private fun token(forceRefresh: Boolean): String? = runBlocking {
         runCatching {
-            auth().currentUser?.getIdToken(forceRefresh)?.await()?.token
+            auth()?.currentUser?.getIdToken(forceRefresh)?.await()?.token
         }.getOrNull()
     }
 

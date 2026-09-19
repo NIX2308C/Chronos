@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark counterpart. Only the window background matters before Compose takes
+     over; everything after setContent is driven by ui/theme/Color.kt. -->
+<resources>
+    <style name="Theme.Chronos" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/backgroundColor</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>

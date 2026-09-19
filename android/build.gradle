@@ -1,5 +1,0 @@
-// Android Gradle Plugin 8.7.x: compileSdk 35 needs AGP >= 8.6, and AGP 8.7
-// itself needs Gradle >= 8.9 (see gradle/wrapper/gradle-wrapper.properties).
-plugins {
-    id 'com.android.application' version '8.7.3' apply false
-}

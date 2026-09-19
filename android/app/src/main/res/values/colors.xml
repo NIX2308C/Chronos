@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The same tokens manifest.json uses: the paper surface for the chrome, the
-     ink ground for the icon. A TWA reads one colour per slot, so these are the
-     light values; the page's own dark mode still applies inside the web view. -->
+<!-- Only what the pre-Compose window and the launcher icon need. The real
+     palette lives in ui/theme/Color.kt — do not add app colours here. -->
 <resources>
     <color name="backgroundColor">#F7F4EC</color>
-    <color name="statusBarColor">#F7F4EC</color>
-    <color name="navigationBarColor">#F7F4EC</color>
     <color name="ic_launcher_background">#141311</color>
 </resources>

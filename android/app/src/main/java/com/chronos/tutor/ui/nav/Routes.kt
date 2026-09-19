@@ -1,0 +1,25 @@
+package com.chronos.tutor.ui.nav
+
+/**
+ * Every destination in the app.
+ *
+ * Drawers are not routes: they are ModalNavigationDrawer inside the screens
+ * that own them, matching the web, where the drawer carries the course list
+ * that every teacher screen needs.
+ *
+ * Routes not yet built are not listed and not reachable. Nothing in the app
+ * links to a screen that does not exist yet — no greyed buttons, no "coming
+ * soon" cards. Each build is a smaller complete app, never a partial big one.
+ */
+object Routes {
+    const val LOGIN = "login"
+
+    /** Roleless-account recovery. See FinishSignupScreen for why it exists. */
+    const val FINISH_SIGNUP = "finish_signup"
+
+    /**
+     * Where a signed-in user lands. P0 shows the account screen here; P1
+     * replaces it with the tutor chat, which is why the name is neutral.
+     */
+    const val HOME = "home"
+}

@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Platform themes on purpose: this project does not depend on AppCompat, so
-     it has no Theme.AppCompat ancestor to inherit from. -->
+<!-- Platform Material themes, not AppCompat: this is a Compose app, so the XML
+     theme only has to survive until setContent runs. Colour lives in
+     ui/theme/Color.kt, which is the single source of truth for the palette. -->
 <resources>
-    <style name="Theme.Chronos" parent="android:Theme.Light.NoTitleBar" />
-
-    <!-- The launcher is translucent so the splash Chrome draws is what the user
-         sees, rather than a flash of an empty Activity behind it. -->
-    <style name="Theme.LauncherActivity" parent="android:Theme.Translucent.NoTitleBar">
+    <style name="Theme.Chronos" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/backgroundColor</item>
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:windowFullscreen">false</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- androidx.core:core-splashscreen. The animated icon MUST be a real raster
+         (@drawable/splash_icon), never @mipmap/ic_launcher: on API 26+ that name
+         resolves to the <adaptive-icon> in mipmap-anydpi-v26/, which a
+         BitmapDrawable cannot inflate. That exact mistake crashed the TWA inside
+         onCreate, before it ever showed a window — see docs/COMMIT_LOG.md. -->
+    <style name="Theme.Chronos.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/backgroundColor</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.Chronos</item>
     </style>
 </resources>

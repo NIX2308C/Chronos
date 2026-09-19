@@ -1,9 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  twa_host, twa_url and asset_statements are NOT here: app/build.gradle emits
-  them with resValue so they follow the -PtwaHost build property. Declaring
-  them here as well would be a duplicate-resource error.
--->
 <resources>
     <string name="app_name">Chronos</string>
 </resources>

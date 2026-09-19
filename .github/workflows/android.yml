@@ -1,4 +1,7 @@
-# Builds the Chronos TWA and publishes the APK as a GitHub Release asset.
+# Builds the native Chronos Android app and publishes the APK as a GitHub
+# Release asset. (Through build 6 this built a Trusted Web Activity; that
+# project is preserved on the `twa-legacy` branch, which carries its own copy
+# of this workflow and can still be built from the Actions tab.)
 #
 # This runs here rather than locally on purpose: the Android SDK and Google's
 # Maven repository both live on dl.google.com, which is unreachable from the
@@ -8,14 +11,14 @@ name: Android APK
 on:
   workflow_dispatch:
     inputs:
-      host:
+      apiHost:
         description: >-
-          Host the app should open, with no scheme. Defaults to the live site;
-          override only to build against staging.
+          Backend host the app talks to, with no scheme. Defaults to the live
+          site; override only to build against staging.
         required: true
         default: chronos.tevproject.com
   push:
-    branches: [android-app]
+    branches: [main, native-android]
     paths:
       - 'android/**'
       - '.github/workflows/android.yml'
@@ -32,7 +35,7 @@ jobs:
       - name: Resolve the target host
         id: cfg
         run: |
-          HOST="${{ github.event.inputs.host || 'chronos.tevproject.com' }}"
+          HOST="${{ github.event.inputs.apiHost || 'chronos.tevproject.com' }}"
           echo "host=$HOST" >> "$GITHUB_OUTPUT"
           echo "slug=$(echo "$HOST" | tr '.' '-')" >> "$GITHUB_OUTPUT"
 
@@ -82,9 +85,29 @@ jobs:
         run: |
           set -euo pipefail
           KS="$RUNNER_TEMP/chronos.jks"
-          printf '%s' "$KEYSTORE_B64" | base64 -d > "$KS"
-          test -s "$KS" || { echo "::error::keystore decoded to an empty file — is the secret valid base64?"; exit 1; }
+          # Strip whitespace first: pasting a few thousand base64 characters into
+          # a browser field is exactly where stray newlines come from, and they
+          # would otherwise fail the decode for a reason nobody can see.
+          printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 -d > "$KS" || {
+            echo "::error::Could not base64-decode ANDROID_KEYSTORE_BASE64. Re-copy it with Set-Clipboard -Value, not through an editor."
+            exit 1
+          }
+          test -s "$KS" || { echo "::error::keystore decoded to an empty file — is the secret set?"; exit 1; }
+          # A JKS starts with the magic bytes FE ED FE ED; a PKCS12 is a DER
+          # sequence starting 30 82. Anything else means a truncated or wrong
+          # paste, and failing here beats a confusing Gradle error later.
+          MAGIC=$(head -c 2 "$KS" | od -An -tx1 | tr -d ' \n')
+          case "$MAGIC" in
+            feed|3082) echo "Keystore looks valid ($(stat -c%s "$KS") bytes)." ;;
+            *) echo "::error::Decoded file is not a keystore (starts $MAGIC). The secret is probably truncated."; exit 1 ;;
+          esac
           echo "CHRONOS_KEYSTORE_PATH=$KS" >> "$GITHUB_ENV"
+
+      # Cheap, and it is what catches a regression in the ported logic before an
+      # APK anyone can install exists.
+      - name: Unit tests
+        working-directory: android
+        run: ./gradlew --no-daemon testDebugUnitTest
 
       - name: Build APK
         working-directory: android
@@ -92,11 +115,18 @@ jobs:
           CHRONOS_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           CHRONOS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           CHRONOS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # Not a secret — it ships inside every APK — but it is
+          # environment-specific. Falls back to gradle.properties when unset.
+          FB_APP_ID: ${{ vars.FIREBASE_ANDROID_APP_ID }}
         run: |
           if [ "${{ steps.sign.outputs.mode }}" = "release" ]; then
-            ./gradlew --no-daemon assembleRelease -PtwaHost=${{ steps.cfg.outputs.host }}
+            ./gradlew --no-daemon assembleRelease \
+              -PchronosHost=${{ steps.cfg.outputs.host }} \
+              -PfbAppId="$FB_APP_ID"
           else
-            ./gradlew --no-daemon assembleDebug -PtwaHost=${{ steps.cfg.outputs.host }}
+            ./gradlew --no-daemon assembleDebug \
+              -PchronosHost=${{ steps.cfg.outputs.host }} \
+              -PfbAppId="$FB_APP_ID"
           fi
 
       - name: Name the artefact
@@ -111,20 +141,17 @@ jobs:
           echo "path=$OUT" >> "$GITHUB_OUTPUT"
           ls -l "$OUT"
 
-      # The fingerprint is public by design — it is what assetlinks.json serves.
-      # Reading it off the built APK means nobody has to run keytool locally,
-      # and comparing it to the committed file catches the mismatch that is the
-      # usual reason the URL bar refuses to go away.
-      - name: Signing fingerprint vs assetlinks.json
+      # The fingerprint is public by design. There is no assetlinks.json check
+      # any more: Digital Asset Links only mattered while the app was a Trusted
+      # Web Activity, and a native app verifies nothing against the site. It is
+      # still printed, because Play App Signing will want it one day.
+      - name: Signing fingerprint
         id: fp
         run: |
           set -euo pipefail
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort | tail -1)
-          FP=$("$APKSIGNER" verify --print-certs "${{ steps.apk.outputs.path }}" \
-               | grep -i 'SHA-256 digest' | head -1 | awk '{print $NF}' \
-               | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//')
+          FP=$("$APKSIGNER" verify --print-certs "${{ steps.apk.outputs.path }}" | grep -i 'SHA-256 digest' | head -1 | awk '{print $NF}' | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//')
           echo "fingerprint=$FP" >> "$GITHUB_OUTPUT"
-          WANT=$(python3 -c "import json;print(json.load(open('web/.well-known/assetlinks.json'))[0]['target']['sha256_cert_fingerprints'][0])")
           {
             echo "### Signing fingerprint"
             echo
@@ -132,14 +159,6 @@ jobs:
             echo "$FP"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$FP" = "$WANT" ]; then
-            echo "match=yes" >> "$GITHUB_OUTPUT"
-            echo "assetlinks.json already matches this key." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "match=no" >> "$GITHUB_OUTPUT"
-            echo "::warning::assetlinks.json does not match this APK's key, so the app will show a URL bar. Put the fingerprint above into web/.well-known/assetlinks.json and redeploy."
-            echo "**The app will show a URL bar.** \`web/.well-known/assetlinks.json\` currently has a different fingerprint. Copy the one above into it and redeploy the site." >> "$GITHUB_STEP_SUMMARY"
-          fi
 
       - name: Publish the release
         env:
@@ -150,17 +169,14 @@ jobs:
             --target "${{ github.sha }}" \
             --title "Chronos Android (${{ steps.sign.outputs.mode }}) — build ${{ github.run_number }}" \
             --prerelease \
-            --notes "Trusted Web Activity built from \`android/\`, **${{ steps.sign.outputs.mode }}**-signed.
+            --notes "Native Android app built from \`android/\`, **${{ steps.sign.outputs.mode }}**-signed.
 
-          **Opens:** \`https://${{ steps.cfg.outputs.host }}/login.html\`
+          **Talks to:** \`https://${{ steps.cfg.outputs.host }}\`
 
           **Signing SHA-256:**
           \`\`\`
           ${{ steps.fp.outputs.fingerprint }}
           \`\`\`
-          assetlinks.json matches this key: **${{ steps.fp.outputs.match }}**. If that
-          says \`no\`, the app shows a browser URL bar — put the fingerprint above
-          into \`web/.well-known/assetlinks.json\` and redeploy the site.
 
           A debug-signed APK cannot go to Play. To build against a different
-          host, re-run this workflow from the Actions tab and set \`host\`."
+          backend, re-run this workflow from the Actions tab and set \`apiHost\`."

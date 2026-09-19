@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark page surface, matching html.dark --page in web/student.html. -->
+<resources>
+    <color name="backgroundColor">#0D0D10</color>
+</resources>

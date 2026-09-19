@@ -1,7 +1,7 @@
 pluginManagement {
     repositories {
-        // androidx.browser and androidbrowserhelper are published to Google's
-        // Maven only — they are not on Maven Central. google() must come first.
+        // google() stays first: the Android Gradle Plugin and the AndroidX and
+        // Firebase artifacts are published to Google's Maven only.
         google()
         mavenCentral()
         gradlePluginPortal()
@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "Chronos"
-include ':app'
+include(":app")

@@ -13,11 +13,12 @@ import androidx.navigation.compose.rememberNavController
 import com.chronos.tutor.AppContainer
 import com.chronos.tutor.data.AuthState
 import com.chronos.tutor.ui.RootViewModel
-import com.chronos.tutor.ui.account.AccountScreen
 import com.chronos.tutor.ui.login.FinishSignupScreen
 import com.chronos.tutor.ui.login.LoginScreen
 import com.chronos.tutor.ui.login.LoginUiState
 import com.chronos.tutor.ui.login.LoginViewModel
+import com.chronos.tutor.ui.student.ChatScreen
+import com.chronos.tutor.ui.student.ChatViewModel
 
 /**
  * The whole navigation graph.
@@ -113,12 +114,33 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
             )
         }
 
-        // P0 ships the account screen here. P1 replaces this route with the
-        // tutor chat; until then this is a complete small screen, not a stub.
         composable(Routes.HOME) {
-            AccountScreen(
-                state = state,
-                api = container.api,
+            val me = (state as? AuthState.Ready)?.me
+            val vm: ChatViewModel = viewModel(
+                // Keyed on uid so signing in as someone else does not inherit
+                // the previous user's conversations.
+                key = "chat-" + (me?.uid ?: "anon"),
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                        ChatViewModel(
+                            chatRepo = container.chatRepository,
+                            classRepo = container.classRepository,
+                            prefs = container.prefs,
+                            isTeacher = me?.role == "teacher",
+                        ) as T
+                },
+            )
+            val ui by vm.state.collectAsStateWithLifecycle()
+            ChatScreen(
+                state = ui,
+                onInput = vm::setInput,
+                onSend = vm::send,
+                onSelectChat = { vm.selectChat(it) },
+                onDeleteChat = { vm.deleteChat(it) },
+                onNewChat = { vm.newChat() },
+                onSwitchClass = { vm.switchClass(it) },
+                onJoin = { vm.join(it) },
                 onSignOut = root::signOut,
             )
         }

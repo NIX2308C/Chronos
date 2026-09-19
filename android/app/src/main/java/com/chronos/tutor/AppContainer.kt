@@ -3,7 +3,10 @@ package com.chronos.tutor
 import android.content.Context
 import com.chronos.tutor.data.AuthRepository
 import com.chronos.tutor.data.Prefs
+import com.chronos.tutor.data.ChatRepository
+import com.chronos.tutor.data.ClassRepository
 import com.chronos.tutor.net.Api
+import com.chronos.tutor.net.ChatStream
 import com.chronos.tutor.net.AuthInterceptor
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -46,6 +49,9 @@ class AppContainer(context: Context, firebaseReady: Boolean) {
         .build()
 
     val api = Api(client = httpClient)
+
+    val chatRepository = ChatRepository(api, ChatStream(api, httpClient))
+    val classRepository = ClassRepository(api)
 
     /** Null when Firebase is unconfigured; the UI shows an unconfigured state. */
     val authRepository: AuthRepository? =

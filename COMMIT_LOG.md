@@ -193,3 +193,32 @@ quiz answers werent random + material is teacher-only now
 
 - ran all six test scripts (added the sixth), node --check on every inline script
   block in the two pages i touched
+
+## android: the port plan, filled in
+
+- started the android transition on its own branch. git wont take "Android app"
+  as a branch name (refnames cant have spaces) so its `android-app`
+- no app code in this one. ANDROID.md was written before the last commit and had
+  drifted: student.html's sidebar is at 262 not 258, and the phase A items stopped
+  at "fix the tap targets" without saying which rules. read all four pages and
+  wrote every file, rule and id down
+- three things in the old plan were wrong. the bfcache/back-button risk is
+  already handled — transition.js:98-106 clears the wipe classes on a persisted
+  pageshow, so thats a confirm-on-device not a defect. and student.html has no
+  100vh anywhere: it sizes off h-full, which is 100% of a viewport that doesnt
+  shrink with the url bar, so it needs the same dvh fix as the teacher pages
+- the two real showstoppers, both now written up with line numbers: a student on
+  a phone cant switch course, open an old conversation or sign out (everything
+  lives in the hidden md:flex nav), and a teacher is stranded on whichever of the
+  two teacher pages they opened, because that aside is the only link between them
+- also caught two controls that are broken on touch rather than just small —
+  teacherknowledge.html:98-101 and student.html:498 both reveal their edit/delete
+  buttons on :hover, so on a phone theyre invisible
+- phase A gets two shared files, mobile.css and mobile.js, served like theme.css
+  and theme.js. the drawer is attribute-driven the way theme.js already is, so
+  the same ~20 lines cover all four pages instead of four copies
+- icons: generated from the wordmark, pillow in a throwaway venv only — it must
+  not go in requirements.txt, that file ships to cloud run
+- phase C needs a jdk, the android sdk, a play account and a deployed host, so it
+  cant be done from a container at all. said so in the file rather than leaving
+  it to be discovered

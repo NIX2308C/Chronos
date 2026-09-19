@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
 <title>Chronos | Sign in</title>
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
@@ -18,7 +18,9 @@
         --edge:#3D3D46;--rule:#303038;--crimson-d:#FF5262;--err-bg:#321014;--err-fg:#FF9A91;color-scheme:dark}
   *{box-sizing:border-box}
   body{margin:0;background:var(--page);color:var(--ink);font-family:"Schibsted Grotesk",sans-serif;
-       -webkit-font-smoothing:antialiased;overflow-x:hidden}
+       -webkit-font-smoothing:antialiased;overflow-x:hidden;
+       min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
+       padding-bottom:env(safe-area-inset-bottom)}
   ::selection{background:var(--crimson);color:#F7F4EC}
   :focus-visible{outline:2px solid var(--crimson);outline-offset:3px}
   a{color:var(--crimson-d);text-decoration:none}
@@ -65,7 +67,12 @@
     color:var(--faint);cursor:pointer;transition:color .15s}
   .ico-btn:hover{color:var(--crimson)}
 
+  /* The utility bar holds the server status, and it is hidden below 1000px —
+     so the header shows it instead at exactly those widths. */
+  [data-status-mobile]{display:none}
+
   @media (max-width:1000px){
+    [data-status-mobile]{display:flex}
     [data-split]{grid-template-columns:minmax(0,1fr)!important}
     [data-showcase]{display:none!important}
     [data-navlinks]{display:none!important}
@@ -73,6 +80,7 @@
   }
   @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
+<link href="mobile.css" rel="stylesheet"/>
 </head>
 <body>
 
@@ -85,8 +93,8 @@
     <span style="color:#8C8880">It answers only from the documents a teacher uploads.</span>
     <span style="margin-left:auto;display:flex;align-items:center;gap:18px">
       <span style="display:flex;align-items:center;gap:7px">
-        <span id="statusDot" style="width:8px;height:8px;background:#C9A227;display:inline-block"></span>
-        <span id="statusText" style="color:#8C8880">Connecting&hellip;</span>
+        <span id="statusDot" data-status-dot style="width:8px;height:8px;background:#C9A227;display:inline-block"></span>
+        <span id="statusText" data-status-text style="color:#8C8880">Connecting&hellip;</span>
       </span>
       <span style="color:#8C8880">Sign in to begin</span>
     </span>
@@ -100,6 +108,10 @@
       <span style="font-size:12.5px;color:var(--sub)">An AI tutor for schools</span>
     </span>
     <span style="display:flex;align-items:center;gap:14px">
+      <span data-status-mobile style="align-items:center;gap:7px;font-size:12.5px;color:var(--sub)">
+        <span data-status-dot style="width:8px;height:8px;background:#C9A227;display:inline-block"></span>
+        <span data-status-text>Connecting&hellip;</span>
+      </span>
       <button class="ico-btn" data-theme-toggle title="Switch to dark mode"><span class="msym" style="font-size:19px">dark_mode</span></button>
     </span>
   </div>
@@ -110,7 +122,10 @@
   </div>
 </header>
 
-<main data-split style="display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);min-height:calc(100vh - 104px)">
+<!-- flex:1 rather than calc(100vh - 104px): that 104 was the utility bar plus the
+     header, and the utility bar is hidden below 1000px, so on a phone it was wrong
+     in both directions and pushed the footer off screen. -->
+<main data-split style="display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);flex:1">
 
   <section style="display:flex;align-items:center;justify-content:center;padding:56px 28px 72px">
     <div id="formCard" style="width:100%;max-width:440px">
@@ -285,14 +300,19 @@
   if(params.get("denied")) showErr("That page needs a different account. Sign in with the right one.");
   paintMode();
 
-  // Reflect server reachability in the utility bar.
+  // Reflect server reachability. Two copies carry it — the utility bar at desktop
+  // widths, the header below 1000px — so write every match rather than one id.
+  function setStatus(text, dot){
+    document.querySelectorAll("[data-status-text]").forEach(el=>{el.textContent=text;});
+    if(dot)document.querySelectorAll("[data-status-dot]").forEach(el=>{el.style.background=dot;});
+  }
+
   (async()=>{
     try{
       const r = await fetch(Chronos.BASE + "/health", {cache:"no-store"});
-      if(r.ok){ $("statusText").textContent = "System online"; return; }
+      if(r.ok){ setStatus("System online"); return; }
     }catch(e){}
-    $("statusDot").style.background = "#E2001A";
-    $("statusText").textContent = "Server offline";
+    setStatus("Server offline", "#E2001A");
   })();
 
   // Already signed in? Skip the form and go where they belong.

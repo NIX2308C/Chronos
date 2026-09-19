@@ -1354,6 +1354,16 @@ def transition_js():
     return send_from_directory(BASE_DIR, 'transition.js', max_age=3600)
 
 
+@app.route('/mobile.css')
+def mobile_css():
+    return send_from_directory(BASE_DIR, 'mobile.css', max_age=3600)
+
+
+@app.route('/mobile.js')
+def mobile_js():
+    return send_from_directory(BASE_DIR, 'mobile.js', max_age=3600)
+
+
 # ---------- auth ----------
 
 @app.route('/auth/config', methods=['GET'])

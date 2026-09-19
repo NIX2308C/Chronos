@@ -222,3 +222,61 @@ quiz answers werent random + material is teacher-only now
 - phase C needs a jdk, the android sdk, a play account and a deployed host, so it
   cant be done from a container at all. said so in the file rather than leaving
   it to be discovered
+
+## android phase A: the site works on a phone now
+
+- the two showstoppers are fixed. student.html kept the course switcher, the chat
+  history and sign-out inside a `hidden md:flex` nav, so below 768px a student
+  couldnt switch course, reopen a conversation or sign out at all. both teacher
+  pages did `[data-side]{display:none}` at 980px, and that aside is the only link
+  between them, so a teacher was stranded on whichever one they opened — also
+  with no sign-out
+- one drawer, not three. mobile.css + mobile.js are new and served like
+  theme.css/theme.js. attribute-driven the way theme.js already finds
+  [data-theme-toggle]: [data-drawer], [data-drawer-toggle], [data-drawer-scrim],
+  [data-drawer-close], [data-drawer-keep]. the breakpoint is a token on the
+  element ("sm" 767 / "md" 980) because the pages dont agree on one
+- the existing sidebars BECAME the drawer rather than getting a second copy —
+  duplicate ids would have broken every getElementById on the page
+- a closed drawer is properly gone: inert where its supported, visibility:hidden
+  elsewhere, with the visibility delayed by the length of the slide so closing
+  still animates instead of the panel vanishing
+- 100vh -> 100vh;100dvh on both teacher shells. student.html had no 100vh at all,
+  it sizes off h-full, which is 100% of a viewport that doesnt shrink with the url
+  bar — same bug, so `html.h-full,body.h-full` gets the dvh pair (the .h-full in
+  the selector is what outranks tailwinds own .h-full)
+- login.html's calc(100vh - 104px) is gone. the 104 was the utility bar plus the
+  header, and the bar is hidden below 1000px, so it was wrong on every phone and
+  pushed the footer off screen. its a flex column with flex:1 on main now
+- viewport-fit=cover on all four, then env(safe-area-inset-*) on the student
+  header and composer, the teacher asides and toasts, and the login footer. the
+  mobile header height and the chat columns top spacer come off the same inset so
+  they cant drift apart
+- two controls were broken on touch rather than just small: both teacher pages
+  reveal a rows edit/delete on :hover (opacity:0 otherwise), and student.htmls
+  chat rows do the same with group-hover. forced visible under the breakpoint
+- caught one of my own while testing: bumping .ibtn to 44px overflowed
+  .rule-row's 32px action columns, which dont grow to fit — widened the tracks
+- .doc-row stacks below 980px instead of squeezing a filename into ~116px. its
+  column header repeats that grid as an inline style, so it got a [data-doc-head]
+  hook and is hidden rather than restacked twice
+- a phone finally sees which conversation and course its in, plus server status:
+  paintHeader/setStatus write every [data-thread-title]/[data-status-dot] match
+  instead of one id, so both headers stay in step. login does the same for its
+  status, the dark bar keeps its copy for desktop
+- the mobile header traded the "Chronos." wordmark for the thread title — the
+  wordmark is right there in the drawer
+- keyboard: visualViewport.resize keeps #messages pinned and #input scrolls into
+  view on focus, but only when the thread was already at the bottom
+- verified in chromium at 360x640 and 1280x900 on all four pages: drawer opens
+  from the hamburger, closes on scrim/escape/selection, focus moves in and back,
+  aria-expanded tracks, closed drawer is inert, desktop byte-identical in
+  behaviour (md:ml-64 still 256px, sidebar still fixed), no horizontal overflow.
+  had to build tailwind locally from the page's own config — the cdn is blocked
+  in the sandbox, and without the css every md:/w-64 utility silently does
+  nothing, so the desktop assertions would have proved nothing
+- one caveat: google fonts is blocked too, so icon ligatures render as their
+  literal names (~111px instead of a 19px glyph). constrained the icon spans to
+  one em before measuring width, which is what a real glyph occupies. so the
+  overflow numbers are sound but nobody has looked at this on a real device yet
+- all six test scripts still pass, node --check clean on every inline script

@@ -1,0 +1,200 @@
+/* ============================================================
+   Chronos mobile layer — the off-canvas nav drawer, plus the
+   touch-target and overflow fixes the four pages share.
+
+   Why one file: student.html hides its sidebar with Tailwind's
+   `hidden md:flex`, and the two teacher pages hide theirs with
+   `[data-side]{display:none!important}` at 980px. Three copies of
+   the same bug — a phone loses the course switcher, the history and
+   sign-out. The drawer below replaces all three; the behaviour half
+   lives in mobile.js.
+
+   The breakpoint is declared per page on the element itself, because
+   the pages don't agree on one:
+
+     [data-drawer="sm"]  student.html            (<768px, Tailwind's md)
+     [data-drawer="md"]  the two teacher pages   (<981px, their own)
+
+   The toggle and the scrim take the same token, so all three parts of
+   one drawer switch on together. Everything here is inside a width
+   query, so at desktop widths this file changes nothing.
+   ============================================================ */
+
+/* teacherknowledge.html is the one page with no reduced-motion block
+   of its own. Now that it has a transform to animate, it needs one. */
+@media (prefers-reduced-motion:reduce) {
+  * { animation:none!important; transition:none!important }
+}
+
+/* Off above the breakpoint, and before mobile.js has run. */
+[data-drawer-toggle], [data-drawer-scrim] { display:none }
+
+/* ---------- the drawer ---------- */
+
+@media (max-width:980px) {
+  :is([data-drawer="sm"], [data-drawer="md"]) {
+    position:fixed; top:0; bottom:0; left:0; max-width:85vw;
+    height:auto; z-index:35; will-change:transform;
+  }
+  /* Each page's own sidebar width, so the drawer is the panel they already
+     had rather than a new size: 16rem is student.html's w-64, 264px is the
+     teacher shell's first grid column. */
+  [data-drawer="sm"] { width:16rem }
+  [data-drawer="md"] { width:264px }
+  :is([data-drawer-scrim="sm"], [data-drawer-scrim="md"]) {
+    position:fixed; inset:0; z-index:30; background:rgba(11,11,12,.55);
+    border:none; padding:0; margin:0;
+  }
+  html.drawer-open :is([data-drawer-scrim="sm"], [data-drawer-scrim="md"]) { display:block }
+}
+
+/* The closed state, one block per breakpoint, so each drawer sits
+   flush open the moment its own breakpoint is passed.
+
+   `visibility` is what keeps an off-screen drawer out of the tab order
+   in browsers without `inert` (mobile.js sets that where it exists).
+   It cannot be animated, so it is delayed by the length of the slide
+   on the way out and applied immediately on the way in — otherwise
+   closing would make the drawer vanish instead of slide away. */
+@media (max-width:767px) {
+  [data-drawer="sm"] {
+    transform:translateX(-100%); visibility:hidden;
+    transition:transform .26s cubic-bezier(.2,.8,.2,1), visibility 0s linear .26s;
+  }
+  html.drawer-open [data-drawer="sm"] {
+    transform:translateX(0); visibility:visible;
+    transition:transform .26s cubic-bezier(.2,.8,.2,1), visibility 0s;
+  }
+  [data-drawer-toggle="sm"] { display:flex }
+}
+@media (max-width:980px) {
+  [data-drawer="md"] {
+    transform:translateX(-100%); visibility:hidden;
+    transition:transform .26s cubic-bezier(.2,.8,.2,1), visibility 0s linear .26s;
+  }
+  html.drawer-open [data-drawer="md"] {
+    transform:translateX(0); visibility:visible;
+    transition:transform .26s cubic-bezier(.2,.8,.2,1), visibility 0s;
+  }
+  [data-drawer-toggle="md"] { display:flex }
+}
+
+/* The hamburger. Sized to the 44px floor from the start, since it only
+   ever exists at touch widths. */
+[data-drawer-toggle] {
+  align-items:center; justify-content:center;
+  width:44px; height:44px; flex:none; padding:0;
+  background:transparent; border:1px solid transparent;
+  color:inherit; font:inherit; cursor:pointer;
+}
+
+/* ============================================================
+   Touch targets. 44px is the floor; every rule below is under it.
+
+   Scoped to 980px rather than 767px even for student.html's classes:
+   the controls concerned live in the drawer or the composer, where a
+   larger target is no worse at 800px than at 380px, and one breakpoint
+   is easier to keep honest than two.
+   ============================================================ */
+@media (max-width:980px) {
+  /* 34px on student.html, 32px on both teacher pages. One rule covers
+     ~14 controls: sign out, theme, help, refresh and every row action. */
+  .ibtn { min-width:44px; min-height:44px }
+
+  /* Broken rather than small: both teacher pages reveal a row's edit and
+     delete buttons with `opacity:0` until `:hover`, which on a touch
+     screen never arrives. */
+  .doc-row .ibtn, .rule-row .ibtn { opacity:1!important }
+
+  /* .rule-row's action columns are 32px wide. A 44px button in a 32px track
+     doesn't widen it — it overflows and overlaps its neighbour — so the track
+     has to grow with the button. (.doc-row's is set in its restack below.) */
+  .rule-row { grid-template-columns:minmax(0,1fr) 44px 44px }
+
+  .side-link { padding-top:13px; padding-bottom:13px }
+  .teacher-tab { padding:12px 13px }
+  .rangebtn { padding:13px 15px }
+
+  /* The 40x22 switch keeps its looks; only the hit area grows. */
+  .switch::after {
+    content:""; position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%); width:44px; height:44px;
+  }
+
+  /* student.html composer and practice row. */
+  .practice-chip { padding:11px 14px }
+  .attach-btn { padding:10px 11px }
+  .file-chip { padding:6px 8px 6px 11px }
+  .file-chip button { padding:6px; margin:-6px }
+
+  /* login.html: header theme toggle, and the show-password button
+     sitting inside the field. */
+  .ico-btn { width:44px; height:44px }
+  #pwToggle { width:44px!important; height:44px!important }
+}
+
+/* student.html builds its chat rows with `opacity-0 group-hover:opacity-100`,
+   so the delete button is invisible on touch — inside the very drawer we
+   just made reachable. */
+@media (max-width:767px) {
+  #chatList .group [class*="opacity-0"] { opacity:1!important }
+}
+
+/* ============================================================
+   Horizontal overflow. Both teacher bodies are `overflow:hidden`, so
+   anything too wide clips silently instead of scrolling. Usable width
+   at 360px is 288px there (main padding is 32px 36px).
+   ============================================================ */
+@media (max-width:980px) {
+  /* Three tab labels at 13.5px/600 measure ~275-295px in a 288px box,
+     with no wrap and no min-width:0. Let the strip scroll instead. */
+  .teacher-tabs { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none }
+  .teacher-tabs::-webkit-scrollbar { display:none }
+  .teacher-tab { flex:none }
+
+  /* Two KPI columns inherit a 36px inline gap, leaving ~126px each for a
+     33px Newsreader figure. */
+  [data-kpis] { gap:16px!important }
+
+  /* right:24px with max-width:24rem clips a long message off the edge. */
+  #toast { left:16px; right:16px; max-width:none }
+
+  /* A filename squeezed into ~116px truncates to nothing, so the row
+     stacks: name on the first line, chunk count under it, delete button
+     spanning both. Its column header is hidden rather than restacked —
+     see [data-doc-head]. */
+  .doc-row { grid-template-columns:minmax(0,1fr) 44px; gap:2px 12px }
+  .doc-row > :nth-child(1) { grid-column:1; grid-row:1 }
+  .doc-row > :nth-child(2) { grid-column:1; grid-row:2 }
+  .doc-row > :nth-child(3) { grid-column:2; grid-row:1 / span 2; align-self:center }
+  [data-doc-head] { display:none!important }
+}
+
+/* ============================================================
+   Safe areas. viewport-fit=cover lets the pages paint under the
+   notch and the gesture bar, which is what standalone/TWA display
+   wants — so anything fixed to an edge has to inset itself.
+   ============================================================ */
+@media (max-width:767px) {
+  /* The mobile header is fixed to the top edge. Its height and the chat
+     column's top spacer are derived from the same inset so they cannot
+     drift apart the way two literals would. */
+  [data-mobile-header] {
+    height:calc(4rem + env(safe-area-inset-top));
+    padding-top:env(safe-area-inset-top);
+  }
+  [data-chat-col] { padding-top:calc(4rem + env(safe-area-inset-top))!important }
+  [data-composer] { padding-bottom:calc(0.875rem + env(safe-area-inset-bottom)) }
+}
+@media (max-width:980px) {
+  [data-side] { padding-top:env(safe-area-inset-top) }
+  #toast { bottom:calc(24px + env(safe-area-inset-bottom)) }
+}
+
+@media (max-width:767px) {
+  /* 15rem is two thirds of a 360px line. */
+  .file-chip { max-width:100% }
+  /* Long unbroken tokens: concept-map labels, and inline code in an
+     answer. The bubbles themselves already have overflow-wrap. */
+  .map-node, .map-link, .ai-prose code { overflow-wrap:anywhere }
+}

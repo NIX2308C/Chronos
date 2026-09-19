@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html class="h-full" lang="en"><head>
 <meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
 <title>Chronos | Tutor</title>
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
@@ -230,9 +230,16 @@
     .ai-prose pre code { background:none; border:none; padding:0; font-size:.8rem; line-height:1.55; display:block; color:var(--c-ink); }
     .ai-prose blockquote { border-left:4px solid var(--crimson); padding-left:.75rem; margin:.6rem 0; color:var(--c-sub); }
 
+    /* The shell is sized off h-full, i.e. 100% of a viewport that on a phone
+       ignores the browser chrome — the same trap as 100vh, and what pushes the
+       composer under the URL bar. The .h-full in the selector is there to
+       outrank Tailwind's own .h-full, whose injection order we don't control. */
+    html.h-full, body.h-full { height:100vh; height:100dvh }
+
     @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
 <link href="theme.css" rel="stylesheet"/>
+<link href="mobile.css" rel="stylesheet"/>
 </head>
 <body class="bg-background text-on-background h-full antialiased overflow-hidden flex">
 
@@ -258,8 +265,10 @@
 </div>
 </div>
 
-<!-- Sidebar -->
-<nav class="hidden md:flex h-full w-64 fixed left-0 top-0 bg-surface-container flex-col z-10" style="border-right:1px solid var(--c-rule)">
+<!-- Sidebar. Below 768px this is the off-canvas drawer: mobile.css slides it
+     on a transform rather than hiding it, because everything a student needs
+     to switch course, reopen a conversation or sign out lives in here. -->
+<nav id="sideNav" data-drawer="sm" class="flex h-full w-64 fixed left-0 top-0 bg-surface-container flex-col z-[35]" style="border-right:1px solid var(--c-rule)">
 <a class="block px-5 pt-4 pb-3.5" href="login.html" style="border-bottom:1px solid var(--c-rule)">
 <h1 class="font-headline-md text-headline-md text-on-background leading-none">Chronos<span class="text-primary">.</span></h1>
 <span class="slabel block mt-1" style="font-weight:400" id="modeLabel">Student</span>
@@ -269,16 +278,16 @@
 <p class="slabel mb-2">Course</p>
 <div class="flex gap-1.5">
 <div class="relative flex-1 min-w-0">
-<select class="fld appearance-none w-full min-w-0 font-label-md text-label-md pl-3 pr-8 py-2.5 outline-none cursor-pointer" id="classSwitcher" title="Active course"></select>
+<select class="fld appearance-none w-full min-w-0 font-label-md text-label-md pl-3 pr-8 py-2.5 outline-none cursor-pointer" id="classSwitcher" data-drawer-close title="Active course"></select>
 <span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">unfold_more</span>
 </div>
-<button class="flex-shrink-0 w-10 flex items-center justify-center hard text-on-surface-variant hover:bg-primary hover:text-on-primary hover:border-primary transition-colors" id="joinAnotherBtn" title="Join another course">
+<button class="flex-shrink-0 w-10 flex items-center justify-center hard text-on-surface-variant hover:bg-primary hover:text-on-primary hover:border-primary transition-colors" id="joinAnotherBtn" data-drawer-close title="Join another course">
 <span class="material-symbols-outlined text-[18px]">add</span>
 </button>
 </div>
 </div>
 <div class="px-5 pt-4">
-<button class="kbtn w-full" id="newChatBtn">
+<button class="kbtn w-full" id="newChatBtn" data-drawer-close>
 <span><span class="material-symbols-outlined text-lg align-middle">add</span> New chat</span>
 </button>
 <a class="hidden w-full mt-2 items-center gap-3 px-4 py-2.5 hard text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="teacherknowledge.html" id="teacherBackLink">
@@ -286,7 +295,7 @@
 </a>
 </div>
 <p class="slabel px-5 pt-4 pb-2">Recent</p>
-<div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-2 pb-3" id="chatList"></div>
+<div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-2 pb-3" id="chatList" data-drawer-close></div>
 <div class="px-5 py-3.5" style="border-top:1px solid var(--c-rule)">
 <div class="flex items-center gap-2.5">
 <span class="w-[30px] h-[30px] flex-shrink-0 grid place-items-center text-[12.5px] font-semibold" style="background:var(--c-ink);color:var(--c-page)" id="userInitials">…</span>
@@ -295,7 +304,7 @@
 <span class="slabel block" style="font-weight:400" id="roleLabel">Student</span>
 </span>
 <span class="flex items-center gap-0.5 flex-shrink-0">
-<button aria-label="How this works" class="ibtn" id="tutHelp" title="How this works">
+<button aria-label="How this works" class="ibtn" id="tutHelp" data-drawer-close title="How this works">
 <span class="material-symbols-outlined text-[18px]">help</span>
 </button>
 <button class="ibtn" data-theme-toggle="" title="Switch to dark mode">
@@ -308,13 +317,21 @@
 </div>
 </div>
 </nav>
+<div data-drawer-scrim="sm" aria-hidden="true"></div>
 
 <!-- Main -->
 <main class="flex-1 flex flex-col min-w-0 md:ml-64 h-full bg-surface-container-lowest">
 <!-- Mobile header -->
-<header class="md:hidden fixed top-0 w-full bg-surface-container-lowest h-16 flex items-center justify-between px-margin-mobile z-20" style="border-bottom:1px solid var(--c-rule)">
-<h1 class="font-headline-md text-headline-md text-on-background">Chronos<span class="text-primary">.</span></h1>
-<button class="w-10 h-10 flex items-center justify-center bg-primary text-on-primary" id="newChatBtnMobile">
+<header data-mobile-header class="md:hidden fixed top-0 w-full bg-surface-container-lowest flex items-center gap-3 px-margin-mobile z-20" style="border-bottom:1px solid var(--c-rule)">
+<button data-drawer-toggle="sm" class="text-on-surface-variant -ml-2.5" aria-label="Open menu" title="Menu">
+<span class="material-symbols-outlined text-[22px]">menu</span>
+</button>
+<span class="min-w-0 flex-1">
+<span class="block truncate font-label-md text-[15px] leading-tight text-on-background" data-thread-title>New chat</span>
+<span class="block truncate font-body-md text-[12px] text-on-surface-variant" data-thread-class></span>
+</span>
+<span class="w-2 h-2 block flex-none bg-outline" data-status-dot title="Checking…"></span>
+<button class="w-11 h-11 flex-none flex items-center justify-center bg-primary text-on-primary" id="newChatBtnMobile">
 <span class="material-symbols-outlined text-lg">add</span>
 </button>
 </header>
@@ -322,22 +339,22 @@
 <!-- Desktop header: which conversation, which class, and whether we're online -->
 <header class="hidden md:flex flex-none items-center justify-between gap-5 px-8 py-3.5" style="border-bottom:3px solid var(--c-ink)">
 <div class="min-w-0">
-<div class="font-label-md text-[16px] leading-tight text-on-background truncate" id="threadTitle">New chat</div>
-<div class="font-body-md text-[13px] text-on-surface-variant mt-0.5 truncate" id="threadClass"></div>
+<div class="font-label-md text-[16px] leading-tight text-on-background truncate" id="threadTitle" data-thread-title>New chat</div>
+<div class="font-body-md text-[13px] text-on-surface-variant mt-0.5 truncate" id="threadClass" data-thread-class></div>
 </div>
 <span class="flex items-center gap-2 flex-none font-body-md text-[13px] text-on-surface-variant">
-<span class="w-2 h-2 block bg-outline" id="statusDot"></span>
-<span id="statusText">Checking…</span>
+<span class="w-2 h-2 block bg-outline" id="statusDot" data-status-dot></span>
+<span id="statusText" data-status-text>Checking…</span>
 </span>
 </header>
 
 <!-- Chat column -->
-<section class="flex-1 flex flex-col min-h-0 pt-16 md:pt-0 w-full">
+<section data-chat-col class="flex-1 flex flex-col min-h-0 pt-16 md:pt-0 w-full">
 <div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-6 md:px-8 pt-8 pb-6" id="messages">
 <div class="max-w-[720px] mx-auto" id="messagesInner"></div>
 </div>
 <!-- Input -->
-<div class="flex-none px-6 md:px-8 pt-4 pb-3.5" style="border-top:1px solid var(--c-rule)">
+<div data-composer class="flex-none px-6 md:px-8 pt-4 pb-3.5" style="border-top:1px solid var(--c-rule)">
 <div class="max-w-[720px] mx-auto">
 <!-- The student's own work: reviewed by the tutor, never added to the class material. -->
 <div class="flex items-center flex-wrap gap-2 mb-2" id="fileBar">
@@ -368,6 +385,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
 <script src="theme.js"></script>
+<script src="mobile.js"></script>
 <script src="transition.js"></script>
 <script>
   // Backend base (same-origin in deployment; dev server via Live Server/file://).
@@ -426,7 +444,7 @@
   // until the first answer, so no practice chips are offered before then.
   let TOOLKITS=[];
   const CLASS_KEY="chronos_student_class";
-  const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),statusDot:document.getElementById("statusDot"),statusText:document.getElementById("statusText"),messages:document.getElementById("messages")};
+  const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),messages:document.getElementById("messages")};
 
   function tempId(){return"new_"+Math.random().toString(36).slice(2,10);}
   function activeChat(){return chats.find(c=>c.id===activeChatId);}
@@ -496,6 +514,7 @@
       it.onclick=()=>selectChat(c.id);
       const del=document.createElement("button");
       del.className="px-2 opacity-0 group-hover:opacity-100 transition-opacity hover:text-error flex-shrink-0";
+      del.dataset.drawerKeep="1";   // deleting a conversation shouldn't shut the drawer
       del.title="Delete conversation";
       del.innerHTML='<span class="material-symbols-outlined text-[18px]">delete</span>';
       del.onclick=(e)=>{e.stopPropagation();deleteChat(c.id);};
@@ -510,10 +529,15 @@
 
   function className(){const c=CLASSES.find(x=>x.id===ACTIVE_CLASS);return c?c.name:"";}
 
+  // Both headers carry the same data-* hooks: the desktop one at md and up, the
+  // mobile one below it. Writing to every match means a phone finally shows which
+  // conversation and which course it is looking at.
+  function paintAll(sel,text){document.querySelectorAll(sel).forEach(el=>{el.textContent=text;});}
+
   function paintHeader(){
     const c=activeChat();
-    $s("threadTitle").textContent=(c&&c.title)||"New chat";
-    $s("threadClass").textContent=className();
+    paintAll("[data-thread-title]",(c&&c.title)||"New chat");
+    paintAll("[data-thread-class]",className());
   }
 
   function renderMessages(){
@@ -845,10 +869,19 @@
 
   function setSending(on){els.sendBtn.disabled=on;els.input.disabled=on;if(!on)els.input.focus();}
 
+  const STATUS={online:["bg-secondary","Online"],waking:["bg-secondary","Waking server…"],offline:["bg-error","Offline"]};
+
   function setStatus(state){
-    if(state==="online"){els.statusDot.className="w-2 h-2 block bg-secondary";els.statusText.textContent="Online";}
-    else if(state==="waking"){els.statusDot.className="w-2 h-2 block bg-secondary animate-pulse";els.statusText.textContent="Waking server…";}
-    else{els.statusDot.className="w-2 h-2 block bg-error";els.statusText.textContent="Offline";}
+    const [tone,label]=STATUS[state]||STATUS.offline;
+    // Toggling only the colour, rather than reassigning className, so the mobile
+    // dot keeps the layout classes it needs inside a flex header.
+    document.querySelectorAll("[data-status-dot]").forEach(el=>{
+      el.classList.remove("bg-outline","bg-secondary","bg-error","animate-pulse");
+      el.classList.add(tone);
+      if(state==="waking")el.classList.add("animate-pulse");
+      el.title=label;
+    });
+    paintAll("[data-status-text]",label);
   }
 
   async function checkServer(){
@@ -871,6 +904,25 @@
   els.newChatBtnMobile.onclick=newChat;
   els.input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}});
   els.input.addEventListener("input",()=>{els.input.style.height="auto";els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";});
+
+  // The on-screen keyboard doesn't resize the layout viewport, so the composer
+  // ends up behind it and the last message with it. visualViewport is the only
+  // thing that reports the keyboard, so track it and keep the thread pinned.
+  (function keyboardAware(){
+    const vv=window.visualViewport;
+    if(!vv)return;
+    const atBottom=()=>els.messages.scrollHeight-els.messages.scrollTop-els.messages.clientHeight<120;
+    let wasAtBottom=true;
+    els.messages.addEventListener("scroll",()=>{wasAtBottom=atBottom();},{passive:true});
+    const pin=()=>{if(wasAtBottom)els.messages.scrollTop=els.messages.scrollHeight;};
+    vv.addEventListener("resize",pin);
+    els.input.addEventListener("focus",()=>{
+      wasAtBottom=true;
+      // After the keyboard has actually animated in — before that the viewport
+      // hasn't changed yet and scrolling lands in the wrong place.
+      setTimeout(()=>{pin();els.input.scrollIntoView({block:"nearest"});},300);
+    });
+  })();
   $s("logoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("login.html?role=student",true);};
   $s("joinLogoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("login.html?role=student",true);};
   $s("classSwitcher").onchange=e=>switchClass(e.target.value);
@@ -1075,7 +1127,7 @@
 
 <!-- How-it-works tutorial -->
 <div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile" style="background:rgba(11,11,12,.72)" id="tut">
-<div class="w-full max-w-md bg-surface-container-lowest hard cast-red p-stack-lg max-h-[85vh] overflow-y-auto">
+<div class="w-full max-w-md bg-surface-container-lowest hard cast-red p-stack-lg max-h-[85dvh] overflow-y-auto">
 <div class="flex items-start justify-between gap-3 mb-stack-md">
 <h2 class="font-headline-md text-headline-md text-on-background" id="tutTitle"></h2>
 <button class="ibtn flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>

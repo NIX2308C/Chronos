@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
 <title>Chronos | Course material</title>
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
@@ -107,10 +107,10 @@
 
   @media (max-width:980px){
     [data-shell]{grid-template-columns:minmax(0,1fr)!important}
-    [data-side]{display:none!important}
     [data-panels]{grid-template-columns:minmax(0,1fr)!important}
   }
 </style>
+<link href="mobile.css" rel="stylesheet"/>
 </head>
 <body>
 
@@ -121,9 +121,9 @@
 <span class="msym spin" style="font-size:30px;color:var(--sub)">progress_activity</span>
 </div>
 
-<div id="app" class="hidden" data-shell style="grid-template-columns:264px minmax(0,1fr);height:100vh">
+<div id="app" class="hidden" data-shell style="grid-template-columns:264px minmax(0,1fr);height:100vh;height:100dvh">
 
-  <aside data-side style="background:var(--side);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:0">
+  <aside id="sideNav" data-side data-drawer="md" style="background:var(--side);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:0">
     <div style="padding:18px 20px 16px;border-bottom:1px solid var(--rule)">
       <a href="login.html" style="font-family:Newsreader,serif;font-size:24px;line-height:1;text-decoration:none;letter-spacing:-.015em">Chronos<span style="color:var(--crimson)">.</span></a>
       <div style="font-size:12.5px;color:var(--mid);margin-top:4px">Teacher</div>
@@ -131,7 +131,7 @@
 
     <div data-scroll style="padding:16px 12px 8px;overflow-y:auto;min-height:0">
       <div style="font-size:12.5px;font-weight:600;color:var(--mid);padding:0 8px 8px">Your courses</div>
-      <div id="classList"></div>
+      <div id="classList" data-drawer-close></div>
       <div style="display:flex;align-items:center;gap:4px;margin-top:4px">
         <button id="newClassBtn" style="flex:1;display:flex;align-items:center;gap:7px;background:transparent;border:none;padding:12px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer" title="Create a course">
           <span class="msym" style="font-size:18px">add</span>New course
@@ -142,8 +142,8 @@
 
     <nav style="margin-top:8px;padding:12px;border-top:1px solid var(--rule);display:flex;flex-direction:column">
       <span class="side-link on"><span class="msym" style="font-variation-settings:'FILL' 1">folder_open</span>Course material</span>
-      <a class="side-link" href="teacherstats.html"><span class="msym">insights</span>Analytics</a>
-      <a class="side-link" href="student.html"><span class="msym">chat</span>Preview as student</a>
+      <a class="side-link" data-drawer-close href="teacherstats.html"><span class="msym">insights</span>Analytics</a>
+      <a class="side-link" data-drawer-close href="student.html"><span class="msym">chat</span>Preview as student</a>
     </nav>
 
     <div style="margin-top:auto;border-top:1px solid var(--rule);padding:10px 14px 14px">
@@ -161,12 +161,16 @@
       </div>
     </div>
   </aside>
+  <div data-drawer-scrim="md" aria-hidden="true"></div>
 
   <main id="mainPane" data-scroll style="min-width:0;min-height:0;overflow-y:auto">
     <header style="border-bottom:3px solid var(--ink);padding:22px 36px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
-      <div style="min-width:0">
-        <h1 id="className" style="margin:0 0 5px;font-size:27px;line-height:1.1">&nbsp;</h1>
-        <p id="classMeta" style="margin:0;font-size:14px;color:var(--mid)"></p>
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <button data-drawer-toggle="md" aria-label="Open menu" title="Menu" style="color:var(--sub)"><span class="msym" style="font-size:22px">menu</span></button>
+        <div style="min-width:0">
+          <h1 id="className" style="margin:0 0 5px;font-size:27px;line-height:1.1">&nbsp;</h1>
+          <p id="classMeta" style="margin:0;font-size:14px;color:var(--mid)"></p>
+        </div>
       </div>
       <div style="display:flex;align-items:center;gap:10px">
         <button id="copyBtn" class="kbtn kbtn-ghost hidden"><span class="msym" style="font-size:18px">content_copy</span><span id="copyLabel">Copy join code</span></button>
@@ -248,7 +252,10 @@
             <h2 class="lbl" style="margin:0;font-family:inherit">Documents</h2>
             <span id="docCount" style="font-size:13.5px;color:var(--mid)"></span>
           </div>
-          <div style="display:grid;grid-template-columns:minmax(0,1fr) 78px 32px;gap:12px;padding:9px 18px 8px;border-bottom:1px solid var(--rule2)">
+          <!-- Column header for .doc-row. It repeats that grid as an inline style, so it
+               has to move whenever .doc-row does; mobile.css stacks the row below 980px
+               and hides this by the data-doc-head hook rather than restacking it too. -->
+          <div data-doc-head style="display:grid;grid-template-columns:minmax(0,1fr) 78px 32px;gap:12px;padding:9px 18px 8px;border-bottom:1px solid var(--rule2)">
             <span class="col-lbl">Document</span>
             <span class="col-lbl">Chunks</span>
             <span></span>
@@ -282,6 +289,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
 <script src="theme.js"></script>
+<script src="mobile.js"></script>
 <script src="transition.js"></script>
 <script>
   let RULES=[],CLASSES=[],ACTIVE_CLASS=null,SETTINGS=null,uploading=false;
@@ -877,7 +885,7 @@
 
 <!-- How-it-works tutorial -->
 <div id="tut" class="hidden" style="position:fixed;inset:0;z-index:60;align-items:center;justify-content:center;padding:16px;background:rgba(11,11,12,.72)">
-<div class="card" style="width:100%;max-width:28rem;padding:24px;max-height:85vh;overflow-y:auto">
+<div class="card" style="width:100%;max-width:28rem;padding:24px;max-height:85dvh;overflow-y:auto">
 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px">
 <h2 id="tutTitle" style="margin:0;font-size:22px;line-height:1"></h2>
 <button id="tutClose" class="ibtn" aria-label="Close"><span class="msym">close</span></button>

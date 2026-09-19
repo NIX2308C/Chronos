@@ -39,3 +39,9 @@ android/local.properties
 *.aab
 *.keystore
 *.jks
+
+# Intermediate files that can carry a signing key in text form. Writing one of
+# these into the repo by accident is an easy mistake; this makes it harmless.
+*.b64
+*.base64
+keystore*.txt

@@ -3,8 +3,10 @@ package com.chronos.tutor.ui.nav
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -55,7 +57,13 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
     NavHost(navController = navController, startDestination = start) {
 
         composable(Routes.LOGIN) {
-            val vm = remember { LoginViewModel(container.authRepository) }
+            // viewModel(), not remember(): a ViewModel created by remember is
+            // never cleared, so its viewModelScope outlives the screen.
+            val vm: LoginViewModel = viewModel(factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    LoginViewModel(container.authRepository) as T
+            })
             val ui by vm.state.collectAsStateWithLifecycle()
             LoginScreen(
                 state = ui,

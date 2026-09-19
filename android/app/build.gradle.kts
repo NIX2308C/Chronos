@@ -98,6 +98,7 @@ dependencies {
     implementation(libs.activity.compose)
     implementation(libs.lifecycle.vm.compose)
     implementation(libs.lifecycle.runtime)
+    implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.navigation.compose)
     implementation(libs.datastore.prefs)
 

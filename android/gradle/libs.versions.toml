@@ -33,6 +33,9 @@ activity-compose      = { module = "androidx.activity:activity-compose",        
 
 lifecycle-vm-compose  = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 lifecycle-runtime     = { module = "androidx.lifecycle:lifecycle-runtime-compose",   version.ref = "lifecycle" }
+# repeatOnLifecycle lives here, not in -compose. MainActivity needs it to hold
+# the splash without reading Compose state from outside a composition.
+lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx",       version.ref = "lifecycle" }
 navigation-compose    = { module = "androidx.navigation:navigation-compose",         version.ref = "navigation" }
 datastore-prefs       = { module = "androidx.datastore:datastore-preferences",       version.ref = "datastore" }
 

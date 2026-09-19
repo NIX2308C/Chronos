@@ -85,8 +85,10 @@ class Api(
             json.parseToJsonElement(raw) as? JsonObject
         }.getOrNull()
 
-        val serverMessage = parsed?.get("details")?.stringOrNull()
-            ?: parsed?.get("error")?.stringOrNull()
+        // takeIf { isNotBlank() }: app.py can answer {"error":""}, and a blank
+        // message winning over the generated one would render an empty error.
+        val serverMessage = parsed?.get("details")?.stringOrNull()?.takeIf { it.isNotBlank() }
+            ?: parsed?.get("error")?.stringOrNull()?.takeIf { it.isNotBlank() }
 
         when (code) {
             401 -> throw ApiError.Unauthorized(serverMessage)
@@ -99,12 +101,15 @@ class Api(
         }
         if (!isSuccessful) throw ApiError.Server(code, serverMessage)
 
+        val obj = parsed
+            ?: throw ApiError.Malformed("expected a JSON object, got ${raw.take(120)}")
+
         // A 2xx carrying {"error": ...} is still a failure — the web treats it
         // the same way, and several app.py routes answer that shape.
-        if (serverMessage != null && parsed?.containsKey("error") == true) {
+        if (serverMessage != null && obj.containsKey("error")) {
             throw ApiError.Server(code, serverMessage)
         }
-        return parsed ?: throw ApiError.Malformed("expected a JSON object, got ${raw.take(120)}")
+        return obj
     }
 }
 

@@ -106,8 +106,34 @@ jobs:
       # Cheap, and it is what catches a regression in the ported logic before an
       # APK anyone can install exists.
       - name: Unit tests
+        id: tests
         working-directory: android
-        run: ./gradlew --no-daemon testDebugUnitTest
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon testDebugUnitTest 2>&1 | tee "$RUNNER_TEMP/test.log"
+
+      # Downloading the run log needs admin rights, so a red build is otherwise
+      # opaque to anyone without them. This puts the reason — a Kotlin compile
+      # error or a failed assertion — straight into the job summary.
+      - name: Why it failed
+        if: failure() && steps.tests.outcome == 'failure'
+        working-directory: android
+        run: |
+          {
+            echo "### Failure output"
+            echo
+            echo '```'
+            grep -E "^e: |FAILED|expected:|actual:|AssertionError|Unresolved reference|Caused by" "$RUNNER_TEMP/test.log" | head -60
+            echo '```'
+            echo
+            echo "<details><summary>Last 80 lines</summary>"
+            echo
+            echo '```'
+            tail -80 "$RUNNER_TEMP/test.log"
+            echo '```'
+            echo
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build APK
         working-directory: android

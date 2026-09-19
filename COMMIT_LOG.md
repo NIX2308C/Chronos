@@ -401,3 +401,15 @@ quiz answers werent random + material is teacher-only now
   manifest.json, no icons, and /.well-known/assetlinks.json 404s. the app will
   open now but the site inside it is the old one, and the url bar cant go away
   until assetlinks is actually served. android-app needs merging to main
+
+- merged android-app into main (fast-forward, e80114f..22eace5) so cloud run
+  redeploys the site with phase A and B on it. ran the six test scripts, all the
+  browser suites, and checked the app boots serving manifest.json, mobile.css,
+  mobile.js, the icons, favicon.ico and assetlinks.json before pushing
+- confirmed on a real android device: build 3 installs, opens and works. that
+  closes the caveat thats been sitting in ANDROID.md since phase A — every check
+  before this was chromium at 360x640 with a locally-built tailwind, because the
+  sandbox cant reach the tailwind cdn or google fonts
+- still open: the url bar. assetlinks.json is served now but its fingerprint is
+  a placeholder, and the CI debug key is regenerated every run so it cant be
+  pinned. needs a release keystore in github secrets

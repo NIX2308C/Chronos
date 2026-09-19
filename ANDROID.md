@@ -38,15 +38,18 @@ restarts, and a user already signed in on the web is signed in in the app.
 also helps anyone opening Chronos on a phone browser today. The rest of this
 section is what was done, kept as the record of how it works.
 
-Two things are still outstanding and neither blocks Phase B:
+**Confirmed working on a real Android device** by the repo owner, after
+`main` was fast-forwarded to this work and Cloud Run redeployed. Before that it
+had only been driven in Chromium at 360x640 and 1280x900 — and note the test
+sandbox cannot reach the Tailwind CDN or Google Fonts, so Tailwind is built
+locally from the page's own config and the icon spans are constrained to one em
+(what a real glyph occupies) before widths are measured. That makes the
+automated layout numbers sound but says nothing about the look; the device check
+is what covers that.
 
-- **Nobody has looked at this on a real device.** It was verified in Chromium at
-  360x640 and 1280x900, but the test sandbox cannot reach the Tailwind CDN or
-  Google Fonts, so Tailwind was built locally from the page's own config and the
-  icon spans were constrained to one em (what a real glyph occupies) before
-  widths were measured. Layout numbers are sound; the look is not confirmed.
-- The `[data-kpis]` and `.gap-row` behaviour on `teacherstats.html` was reasoned
-  about but never rendered with real analytics data in it.
+One thing is still unexercised: the `[data-kpis]` and `.gap-row` behaviour on
+`teacherstats.html` was reasoned about but never rendered with real analytics
+data in it.
 
 ### A0 — two new shared files
 
@@ -405,7 +408,9 @@ and set the `host` input. Nothing needs committing to change where the app point
   key — that mismatch is the classic reason the URL bar appears only on the
   build that came from Play. Note a CI debug key is regenerated per run and so
   cannot be pinned here at all.
-- **Nobody has run it on a device.** Verify with:
+- ~~Nobody has run it on a device.~~ **Build 3 (`android-v3`) was installed on a
+  real Android device and works.** Builds 1 and 2 did not launch at all — see
+  the splash/adaptive-icon bug in COMMIT_LOG.md. To re-check a future build:
 
 ```
 adb install chronos-<host>-debug.apk

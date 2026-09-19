@@ -32,11 +32,21 @@ What a TWA gives us for free: Firebase `Persistence.LOCAL` and the
 `chronos-theme` / `chronos-role` / `chronos_student_class` keys survive app
 restarts, and a user already signed in on the web is signed in in the app.
 
-## Phase A — make the site usable on a phone
+## Phase A — make the site usable on a phone — DONE (9a2dac4)
 
-**This is the largest phase and the only genuinely blocking one.** It is pure
-web work: no Android toolchain, no Play account, and every fix also helps
-anyone opening Chronos on a phone browser today. Do it first, ship it on its own.
+**Built.** Pure web work: no Android toolchain, no Play account, and every fix
+also helps anyone opening Chronos on a phone browser today. The rest of this
+section is what was done, kept as the record of how it works.
+
+Two things are still outstanding and neither blocks Phase B:
+
+- **Nobody has looked at this on a real device.** It was verified in Chromium at
+  360x640 and 1280x900, but the test sandbox cannot reach the Tailwind CDN or
+  Google Fonts, so Tailwind was built locally from the page's own config and the
+  icon spans were constrained to one em (what a real glyph occupies) before
+  widths were measured. Layout numbers are sound; the look is not confirmed.
+- The `[data-kpis]` and `.gap-row` behaviour on `teacherstats.html` was reasoned
+  about but never rendered with real analytics data in it.
 
 ### A0 — two new shared files
 

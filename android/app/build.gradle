@@ -7,9 +7,31 @@ plugins {
 def twaHost = project.findProperty('twaHost') ?: 'chronos.tevproject.com'
 def twaUrl  = "https://${twaHost}/login.html"   // matches manifest.json's start_url
 
+// Release signing comes from the environment, never from a file in the repo —
+// this is a public repository. CI writes the keystore to a temp path from a
+// GitHub Actions secret and exports these four vars. With any of them missing
+// the release config simply isn't created, and the build falls back to debug
+// rather than silently emitting an unsigned APK nobody can install.
+def ksPath   = System.getenv('CHRONOS_KEYSTORE_PATH')
+def ksPass   = System.getenv('CHRONOS_KEYSTORE_PASSWORD')
+def ksAlias  = System.getenv('CHRONOS_KEY_ALIAS')
+def ksKeyPass = System.getenv('CHRONOS_KEY_PASSWORD')
+def canSignRelease = ksPath && ksPass && ksAlias && ksKeyPass && file(ksPath).exists()
+
 android {
     namespace 'com.chronos.tutor'
     compileSdk 35
+
+    signingConfigs {
+        if (canSignRelease) {
+            create('release') {
+                storeFile file(ksPath)
+                storePassword ksPass
+                keyAlias ksAlias
+                keyPassword ksKeyPass
+            }
+        }
+    }
 
     defaultConfig {
         applicationId "com.chronos.tutor"
@@ -40,6 +62,9 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (canSignRelease) {
+                signingConfig signingConfigs.getByName('release')
+            }
         }
     }
 

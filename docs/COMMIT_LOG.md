@@ -437,3 +437,21 @@ quiz answers werent random + material is teacher-only now
   four browser suites and the pwa checks pass, and a check that the docker
   build context still contains every file the service needs and none of the
   three it shouldnt
+
+## release signing, without putting a key in a public repo
+
+- the keystore never touches the repo. gradle reads it from four env vars, CI
+  decodes it from a github actions secret into $RUNNER_TEMP, and the runner is
+  destroyed after. .gitignore already refuses *.jks/*.keystore/*.p12/*.pem
+- if the secret isnt set the release config simply isnt created and the build
+  falls back to debug. it does NOT emit an unsigned release apk, which is the
+  failure mode where you get a file that looks fine and wont install
+- the workflow now reads the REAL signing fingerprint off the built apk with
+  apksigner and prints it in the job summary and the release notes. so nobody
+  has to run keytool locally to find out what to put in assetlinks.json
+- and it compares that fingerprint to web/.well-known/assetlinks.json, warning
+  loudly when they disagree. that mismatch is the usual reason the url bar
+  refuses to go away, and its otherwise invisible until you install and look
+- to be clear about whats secret and whats not: the KEYSTORE is secret. the
+  SHA-256 FINGERPRINT is public — assetlinks.json is served to the whole
+  internet, thats the entire mechanism

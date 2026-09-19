@@ -58,19 +58,88 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
+      # Release-sign when the keystore secret exists, otherwise fall back to a
+      # debug build so the workflow still works for anyone without it. The
+      # keystore never lives in the repo: it is decoded to a temp file here and
+      # the runner is destroyed afterwards.
+      - name: Signing mode
+        id: sign
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "mode=release" >> "$GITHUB_OUTPUT"
+            echo "Release signing: keystore secret present."
+          else
+            echo "mode=debug" >> "$GITHUB_OUTPUT"
+            echo "::notice::No ANDROID_KEYSTORE_BASE64 secret, building debug. The installed app will show a URL bar."
+          fi
+
+      - name: Decode the keystore
+        if: steps.sign.outputs.mode == 'release'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          KS="$RUNNER_TEMP/chronos.jks"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$KS"
+          test -s "$KS" || { echo "::error::keystore decoded to an empty file — is the secret valid base64?"; exit 1; }
+          echo "CHRONOS_KEYSTORE_PATH=$KS" >> "$GITHUB_ENV"
+
+      - name: Build APK
         working-directory: android
-        run: ./gradlew --no-daemon assembleDebug -PtwaHost=${{ steps.cfg.outputs.host }}
+        env:
+          CHRONOS_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          CHRONOS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          CHRONOS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ "${{ steps.sign.outputs.mode }}" = "release" ]; then
+            ./gradlew --no-daemon assembleRelease -PtwaHost=${{ steps.cfg.outputs.host }}
+          else
+            ./gradlew --no-daemon assembleDebug -PtwaHost=${{ steps.cfg.outputs.host }}
+          fi
 
       - name: Name the artefact
         id: apk
         run: |
-          SRC=android/app/build/outputs/apk/debug/app-debug.apk
+          set -euo pipefail
+          MODE="${{ steps.sign.outputs.mode }}"
+          SRC="android/app/build/outputs/apk/$MODE/app-$MODE.apk"
           test -s "$SRC" || { echo "::error::no APK produced at $SRC"; exit 1; }
-          OUT="chronos-${{ steps.cfg.outputs.slug }}-debug.apk"
+          OUT="chronos-${{ steps.cfg.outputs.slug }}-$MODE.apk"
           cp "$SRC" "$OUT"
           echo "path=$OUT" >> "$GITHUB_OUTPUT"
           ls -l "$OUT"
+
+      # The fingerprint is public by design — it is what assetlinks.json serves.
+      # Reading it off the built APK means nobody has to run keytool locally,
+      # and comparing it to the committed file catches the mismatch that is the
+      # usual reason the URL bar refuses to go away.
+      - name: Signing fingerprint vs assetlinks.json
+        id: fp
+        run: |
+          set -euo pipefail
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort | tail -1)
+          FP=$("$APKSIGNER" verify --print-certs "${{ steps.apk.outputs.path }}" \
+               | grep -i 'SHA-256 digest' | head -1 | awk '{print $NF}' \
+               | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//')
+          echo "fingerprint=$FP" >> "$GITHUB_OUTPUT"
+          WANT=$(python3 -c "import json;print(json.load(open('web/.well-known/assetlinks.json'))[0]['target']['sha256_cert_fingerprints'][0])")
+          {
+            echo "### Signing fingerprint"
+            echo
+            echo '```'
+            echo "$FP"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$FP" = "$WANT" ]; then
+            echo "match=yes" >> "$GITHUB_OUTPUT"
+            echo "assetlinks.json already matches this key." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "match=no" >> "$GITHUB_OUTPUT"
+            echo "::warning::assetlinks.json does not match this APK's key, so the app will show a URL bar. Put the fingerprint above into web/.well-known/assetlinks.json and redeploy."
+            echo "**The app will show a URL bar.** \`web/.well-known/assetlinks.json\` currently has a different fingerprint. Copy the one above into it and redeploy the site." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Publish the release
         env:
@@ -79,16 +148,19 @@ jobs:
           TAG="android-v${{ github.run_number }}"
           gh release create "$TAG" "${{ steps.apk.outputs.path }}" \
             --target "${{ github.sha }}" \
-            --title "Chronos Android (debug) — build ${{ github.run_number }}" \
+            --title "Chronos Android (${{ steps.sign.outputs.mode }}) — build ${{ github.run_number }}" \
             --prerelease \
-            --notes "Debug-signed Trusted Web Activity, built from \`android/\`.
+            --notes "Trusted Web Activity built from \`android/\`, **${{ steps.sign.outputs.mode }}**-signed.
 
           **Opens:** \`https://${{ steps.cfg.outputs.host }}/login.html\`
 
-          Sideload only — a debug-signed APK cannot be uploaded to Play, which
-          needs a release key and Play App Signing. It will show a browser URL
-          bar until the host serves \`/.well-known/assetlinks.json\` carrying the
-          SHA-256 of the key that signed this build.
+          **Signing SHA-256:**
+          \`\`\`
+          ${{ steps.fp.outputs.fingerprint }}
+          \`\`\`
+          assetlinks.json matches this key: **${{ steps.fp.outputs.match }}**. If that
+          says \`no\`, the app shows a browser URL bar — put the fingerprint above
+          into \`web/.well-known/assetlinks.json\` and redeploy the site.
 
-          To point it at a real deployment, run this workflow again from the
-          Actions tab and set the \`host\` input."
+          A debug-signed APK cannot go to Play. To build against a different
+          host, re-run this workflow from the Actions tab and set \`host\`."

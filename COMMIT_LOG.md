@@ -366,3 +366,16 @@ quiz answers werent random + material is teacher-only now
 - what i did NOT verify here, because i cant: that the project compiles.
   resolving AGP alone needs google maven. thats what the CI run is for, and i
   wont call the apk delivered until a green run has one attached
+
+- first CI run failed: android-actions/setup-android runs `sdkmanager tools`
+  unconditionally and the `tools` package no longer exists in the sdk, so it
+  died before anything built. dropped the action — the runner already ships the
+  sdk, so accepting the licences and installing platform-35 + build-tools is
+  three lines and one less third-party action in the build
+- second run green. the apk is real, not just a green tick: downloaded it and
+  checked it's a signed android package (AndroidManifest.xml, classes.dex,
+  resources.arsc, APK Signing Block), that its sha256 matches the digest github
+  recorded, that the package id is com.chronos.tutor, and that -PtwaHost reached
+  BOTH the manifest intent filter and the launch url in resources.arsc — which
+  is the bit that proves re-pointing it at the real host will actually work
+- 573 KB, at releases/tag/android-v2

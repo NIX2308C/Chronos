@@ -351,7 +351,14 @@ criteria above were asserted directly, including a pixel check that nothing but
 the flat ground sits outside the maskable icon's 80% safe circle, so no launcher
 crops the mark.)
 
-## Phase C — the wrapper — BUILT, in CI
+## Phase C — the wrapper — BUILT (first green run: android-v2)
+
+The workflow builds and publishes. Verified on the published artefact, not
+just on a green tick: the release asset is a real signed Android package
+(`AndroidManifest.xml`, `classes.dex`, `resources.arsc`, an APK Signing Block),
+its SHA-256 matches the digest GitHub recorded, `com.chronos.tutor` is the
+package id, and the `-PtwaHost` plumbing reached both the manifest's intent
+filter and the launch URL in `resources.arsc`.
 
 **The project exists and is built by GitHub Actions.** What changed from the
 plan above, and why:

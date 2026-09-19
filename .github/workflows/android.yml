@@ -161,14 +161,16 @@ jobs:
           # environment-specific. Falls back to gradle.properties when unset.
           FB_APP_ID: ${{ vars.FIREBASE_ANDROID_APP_ID }}
         run: |
+          # Only pass -PfbAppId when the variable is actually set. Passing it
+          # empty OVERRIDES the value committed in gradle.properties, which
+          # silently shipped a build that could never authenticate.
+          ARGS="-PchronosHost=${{ steps.cfg.outputs.host }}"
+          if [ -n "$FB_APP_ID" ]; then ARGS="$ARGS -PfbAppId=$FB_APP_ID"; fi
+          echo "gradle args: $ARGS"
           if [ "${{ steps.sign.outputs.mode }}" = "release" ]; then
-            ./gradlew --no-daemon assembleRelease \
-              -PchronosHost=${{ steps.cfg.outputs.host }} \
-              -PfbAppId="$FB_APP_ID"
+            ./gradlew --no-daemon assembleRelease $ARGS
           else
-            ./gradlew --no-daemon assembleDebug \
-              -PchronosHost=${{ steps.cfg.outputs.host }} \
-              -PfbAppId="$FB_APP_ID"
+            ./gradlew --no-daemon assembleDebug $ARGS
           fi
 
       - name: Name the artefact

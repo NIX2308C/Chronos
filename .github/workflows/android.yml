@@ -141,7 +141,12 @@ jobs:
           # diagnosable from outside the repo. sed/awk do the percent-encoding
           # the workflow-command protocol wants; bash ${var//...} needs a
           # literal newline in the pattern, which YAML will not carry.
-          PICK=$(grep -E "^e: |FAILED|expected:|actual:|AssertionError|Unresolved reference|Caused by" "$RUNNER_TEMP/test.log" | head -25)
+          # Gradle prints the real cause under "What went wrong", below the
+          # FAILED line — grepping only for FAILED named the task that broke
+          # but never the file that broke it.
+          WHY=$(sed -n "/What went wrong/,/Try:/p" "$RUNNER_TEMP/test.log" | head -30)
+          ERRS=$(grep -E "^e: |AssertionError|Unresolved reference|error:" "$RUNNER_TEMP/test.log" | head -20)
+          PICK=$(printf "%s" "$WHY"; echo; printf "%s" "$ERRS")
           [ -n "$PICK" ] || PICK=$(tail -25 "$RUNNER_TEMP/test.log")
           REASON=$(echo "$PICK" | sed "s/%/%25/g" | awk '{printf "%s%%0A", $0}')
           echo "::error title=Build or test failure::$REASON"

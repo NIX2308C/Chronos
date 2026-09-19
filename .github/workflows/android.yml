@@ -135,6 +135,18 @@ jobs:
             echo "</details>"
           } >> "$GITHUB_STEP_SUMMARY"
 
+          # Also emit the reason as a workflow error. Annotations are readable
+          # through the public API without admin rights, unlike the run log and
+          # the job summary, so this is the only channel that makes a red build
+          # diagnosable from outside the repo.
+          REASON=$(grep -E "^e: |FAILED|expected:|actual:|AssertionError|Unresolved reference|Caused by" "$RUNNER_TEMP/test.log" | head -25)
+          [ -n "$REASON" ] || REASON=$(tail -25 "$RUNNER_TEMP/test.log")
+          REASON="${REASON//'%'/'%25'}"
+          REASON="${REASON//$'
+'/'%0A'}"
+          REASON="${REASON//$''/''}"
+          echo "::error title=Build or test failure::$REASON"
+
       - name: Build APK
         working-directory: android
         env:

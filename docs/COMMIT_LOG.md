@@ -455,3 +455,21 @@ quiz answers werent random + material is teacher-only now
 - to be clear about whats secret and whats not: the KEYSTORE is secret. the
   SHA-256 FINGERPRINT is public — assetlinks.json is served to the whole
   internet, thats the entire mechanism
+
+## the url bar: real signing key, real assetlinks
+
+- build 6 is the first release-signed apk. proof its the owners key and not a
+  debug fallback: the release is titled (release), the asset is -release.apk,
+  its 526 KB vs 626 KB for debug, and the certificate subject is
+  CN=Chronos,OU=n/a,O=n/a,L=n/a,ST=n/a,C=US — what was typed at the keytool
+  prompt
+- assetlinks.json now carries that keys real sha-256:
+  D8:FF:78:72:70:BA:17:DF:BE:3D:D2:38:C0:9E:69:1D:42:B6:68:48:86:BF:37:B6:08:82:9D:2F:B8:61:B9:3B
+  and the placeholder _comment block is gone, its job done
+- verified by downloading the published apk and parsing META-INF/CERT.RSA with
+  a real asn.1 pkcs#7 parse, not by trusting the number the workflow printed.
+  worth noting a first attempt at that check used a regex over the DER and
+  produced a DIFFERENT fingerprint — it had grabbed the wrong SEQUENCE. the
+  proper parse agrees with apksigner. dont hand-roll asn.1
+- the fingerprint is stable from now on, which is the whole point: every future
+  build signs with the same key, so this file never needs changing again

@@ -36,7 +36,7 @@ html.wiping .px { display: block; pointer-events: auto; }
   background: #E2001A;
   will-change: transform;
   transform: translateX(var(--off)) skewX(-14deg);
-  transition: transform .24s cubic-bezier(.65, 0, .35, 1);
+  transition: transform .42s cubic-bezier(.76, 0, .24, 1);
 }
 .px-b:nth-child(odd)  { --off: -140%; }
 .px-b:nth-child(even) { --off:  140%; }
@@ -52,18 +52,18 @@ html.wiping .px-b { transform: translateX(0) skewX(-14deg); transition: none; }
 /* leaving: sweep in, top-to-bottom */
 .px.cover .px-b { transform: translateX(0) skewX(-14deg); }
 .px.cover .px-b:nth-child(1) { transition-delay: 0ms; }
-.px.cover .px-b:nth-child(2) { transition-delay: 20ms; }
-.px.cover .px-b:nth-child(3) { transition-delay: 40ms; }
-.px.cover .px-b:nth-child(4) { transition-delay: 60ms; }
-.px.cover .px-b:nth-child(5) { transition-delay: 80ms; }
+.px.cover .px-b:nth-child(2) { transition-delay: 45ms; }
+.px.cover .px-b:nth-child(3) { transition-delay: 90ms; }
+.px.cover .px-b:nth-child(4) { transition-delay: 135ms; }
+.px.cover .px-b:nth-child(5) { transition-delay: 180ms; }
 
 /* arriving: sweep back out, bottom-to-top so it reads as one motion */
-.px.reveal .px-b { transform: translateX(var(--off)) skewX(-14deg); transition-duration: .3s; }
+.px.reveal .px-b { transform: translateX(var(--off)) skewX(-14deg); transition-duration: .55s; }
 .px.reveal .px-b:nth-child(5) { transition-delay: 0ms; }
-.px.reveal .px-b:nth-child(4) { transition-delay: 20ms; }
-.px.reveal .px-b:nth-child(3) { transition-delay: 40ms; }
-.px.reveal .px-b:nth-child(2) { transition-delay: 60ms; }
-.px.reveal .px-b:nth-child(1) { transition-delay: 80ms; }
+.px.reveal .px-b:nth-child(4) { transition-delay: 45ms; }
+.px.reveal .px-b:nth-child(3) { transition-delay: 90ms; }
+.px.reveal .px-b:nth-child(2) { transition-delay: 135ms; }
+.px.reveal .px-b:nth-child(1) { transition-delay: 180ms; }
 
 /* the mark that lands once the screen is covered */
 .px-mark {
@@ -73,10 +73,10 @@ html.wiping .px-b { transform: translateX(0) skewX(-14deg); transition: none; }
   place-items: center;
   opacity: 0;
   transform: scale(2.6) rotate(-18deg);
-  transition: opacity .16s ease, transform .34s cubic-bezier(.2, 1.6, .35, 1);
+  transition: opacity .3s ease, transform .6s cubic-bezier(.22, 1.2, .36, 1);
 }
 .px.cover .px-mark,
-html.wiping .px-mark { opacity: 1; transform: scale(1) rotate(-7deg); transition-delay: .18s; }
+html.wiping .px-mark { opacity: 1; transform: scale(1) rotate(-7deg); transition-delay: .3s; }
 .px.reveal .px-mark { opacity: 0; transform: scale(.7) rotate(-7deg); transition-delay: 0s; }
 
 .px-tag {
@@ -93,14 +93,14 @@ html.wiping .px-mark { opacity: 1; transform: scale(1) rotate(-7deg); transition
 }
 
 @keyframes chronos-page-enter {
-  from { opacity: .01; transform: translateY(7px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: .01; transform: translateY(14px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 body.chronos-page-enter main,
 body.chronos-page-enter nav,
 body.chronos-page-enter #app,
 body.chronos-page-enter #formCard {
-  animation: chronos-page-enter .32s cubic-bezier(.2,.9,.3,1) both;
+  animation: chronos-page-enter .7s cubic-bezier(.22,1,.36,1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -121,6 +121,7 @@ body.chronos-page-enter #formCard {
   font: 500 14px 'Schibsted Grotesk', sans-serif;
   pointer-events: auto;
 }
+.chronos-view-loading:not([hidden]) { animation: chronos-view-loading-in .3s ease both; }
 .chronos-view-loading[hidden] { display: none; }
 .chronos-view-spinner {
   width: 18px;
@@ -132,9 +133,10 @@ body.chronos-page-enter #formCard {
 }
 @keyframes chronos-view-spin { to { transform: rotate(360deg); } }
 .chronos-view-reveal [data-transition-content] {
-  animation: chronos-view-reveal .2s ease-out both;
+  animation: chronos-view-reveal .45s cubic-bezier(.22,1,.36,1) both;
 }
-@keyframes chronos-view-reveal { from { opacity: .35; } to { opacity: 1; } }
+@keyframes chronos-view-reveal { from { opacity: .2; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes chronos-view-loading-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .chronos-view-spinner, .chronos-view-reveal [data-transition-content] { animation: none; }
 }

@@ -83,7 +83,15 @@
        theme.css only has to repoint the Tailwind-generated utility classes. */
     :root{--c-page:#E9E4D6;--c-paper:#F7F4EC;--c-ink:#141311;--c-sub:#5D5B55;--c-edge:#1C1A16;
           --c-hi:#E4DECD;--c-rule:#DED8C6;--crimson:#E2001A;--gold:#C9A227;
-          --snap:cubic-bezier(.2,1.45,.35,1)}
+          --snap:cubic-bezier(.22,1,.36,1);--soft:cubic-bezier(.22,1,.36,1)}
+    /* One shared, gentler curve for every Tailwind colour/transform transition. */
+    html .transition-colors,html .transition-transform,html .transition-opacity,html .transition-all { transition-duration:.3s; transition-timing-function:var(--soft) }
+    html { scroll-behavior:smooth }
+    @keyframes rise-in { from { opacity:0;transform:translateY(12px);filter:blur(2px) } to { opacity:1;transform:none;filter:blur(0) } }
+    @keyframes slide-in-left { from { opacity:0;transform:translateX(-12px) } to { opacity:1;transform:none } }
+    @keyframes fade-in { from { opacity:0 } to { opacity:1 } }
+    @keyframes menu-in { from { opacity:0;transform:translateY(8px) scale(.96) } to { opacity:1;transform:none } }
+    @keyframes chip-in { from { opacity:0;transform:scale(.85) } to { opacity:1;transform:none } }
     html.dark{--c-page:#0D0D10;--c-paper:#16161B;--c-ink:#F7F4EC;--c-sub:#B3AEA3;--c-edge:#3D3D46;
               --c-hi:#212128;--c-rule:#303038;color-scheme:dark}
 
@@ -116,7 +124,7 @@
     /* ---- message bubbles ---- */
     .bub-you { max-width:78%; background:var(--crimson); color:#F7F4EC; padding:12px 16px;
         font-size:15.5px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere;
-        animation:pop .32s var(--snap) both }
+        transform-origin:100% 100%;animation:pop .55s var(--snap) both }
     /* The answer is the page, not a card in it: plain serif on the paper, no
        chrome around it. Only the question gets a bubble. */
     .bub-ai { color:var(--c-ink); font-family:'Newsreader',serif; font-size:19px; line-height:1.62;
@@ -125,7 +133,21 @@
        its edge so the thread reads differently at a glance. Existing tokens only. */
     .bub-ai.bub-blocked { color:var(--c-sub); border-left:3px solid var(--crimson);
         padding-left:14px }
-    @keyframes pop { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:none} }
+    @keyframes pop { from{opacity:0;transform:translateY(16px) scale(.94)} to{opacity:1;transform:none} }
+    #messagesInner > div { animation:rise-in .5s var(--soft) both }
+    #chatList .chat-row { animation:slide-in-left .45s var(--soft) both;animation-delay:calc(var(--i,0)*35ms) }
+    .starter { animation:rise-in .55s var(--soft) both;animation-delay:calc(var(--i,0)*80ms + 120ms);transition:color .25s var(--soft),padding-left .3s var(--soft) }
+    .starter:hover { padding-left:12px }
+    .starter .material-symbols-outlined { transition:transform .3s var(--soft) }
+    .starter:hover .material-symbols-outlined { transform:translateX(5px) }
+    .empty-state > h2,.empty-state > p { animation:rise-in .6s var(--soft) both }
+    .empty-state > p { animation-delay:.08s }
+    #userInitials,#joinCard { animation:rise-in .5s var(--soft) both }
+    .file-chip { animation:chip-in .35s var(--snap) both }
+    .composer-menu:not([hidden]) { animation:menu-in .26s var(--soft) both;transform-origin:0 100% }
+    .composer-menu button { transition:background-color .2s,color .2s,padding-left .25s var(--soft) }
+    .composer-menu button:hover { padding-left:15px }
+    #statusDot,[data-status-dot] { transition:background-color .5s ease }
 
     /* ---- sidebar conversation rows ---- */
     .chat-row { display:flex; align-items:center; border-left:3px solid transparent; color:var(--c-sub);
@@ -196,35 +218,54 @@
     .fld:focus { outline:none; border-color:var(--crimson) }
 
     /* ---- compact source disclosure ---- */
-    .src-drop summary { list-style: none; }
-    .src-drop summary::-webkit-details-marker { display: none; }
-    .src-drop { width:fit-content;max-width:85%;margin-top:12px;color:var(--c-sub); }
-    .src-drop summary { display:flex;align-items:center;gap:5px;padding:4px 0;font-size:11px;font-weight:600;letter-spacing:.055em;text-transform:uppercase;cursor:pointer;opacity:.82;transition:color .16s ease,opacity .16s ease; }
-    .src-drop summary:hover,.src-drop[open] summary { color:var(--c-ink);opacity:1; }
-    .src-drop .source-copy { max-width:100%;margin:5px 0 0;padding:8px 0 0;border-top:1px solid var(--c-rule); }
+    .src-drop { width:fit-content;max-width:min(100%,560px);margin-top:12px;color:var(--c-sub); }
+    .src-toggle { display:flex;align-items:center;gap:5px;padding:4px 0;border:0;background:transparent;color:inherit;font:inherit;font-size:11px;font-weight:600;letter-spacing:.055em;text-transform:uppercase;cursor:pointer;opacity:.7;transition:color .25s var(--soft),opacity .25s var(--soft); }
+    .src-toggle:hover,.src-drop.open .src-toggle { color:var(--c-ink);opacity:1; }
+    .src-toggle .chev { margin-left:2px;transition:transform .4s var(--soft); }
+    .src-drop.open .chev { transform:rotate(180deg); }
+    /* Grid rows 0fr -> 1fr animates height without measuring it, so opening
+       never shoves the thread around; the text itself is one small, capped,
+       scrollable block. */
+    .src-panel { display:grid;grid-template-rows:0fr;opacity:0;visibility:hidden;transition:grid-template-rows .45s var(--soft),opacity .35s ease,visibility 0s .45s; }
+    .src-drop.open .src-panel { grid-template-rows:1fr;opacity:1;visibility:visible;transition-delay:0s; }
+    .src-panel > div { overflow:hidden;min-height:0; }
+    .src-drop .source-copy { max-height:168px;overflow-y:auto;margin:4px 0 0;padding:9px 12px;border-left:2px solid var(--c-rule);background:var(--c-hi);font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere; }
+    .src-drop .source-copy::-webkit-scrollbar { width:6px; }
+    .src-drop .source-copy::-webkit-scrollbar-thumb { background:var(--c-edge); }
     .learning-tool { width:100%;max-width:620px;border:1px solid var(--c-rule);padding:18px;margin-top:14px;background:var(--c-paper);box-shadow:0 10px 28px rgba(11,11,12,.06); }
-    .learning-tool.toolkit-enter { animation:toolkit-arrive .62s var(--snap) both; }
-    .tool-status { position:relative;isolation:isolate;overflow:hidden;display:flex;align-items:center;gap:8px;width:fit-content;max-width:100%;margin-top:14px;padding:9px 12px;border:1px solid var(--c-rule);background:var(--c-paper);color:var(--c-sub);font-size:12.5px;line-height:1.4; }
-    .tool-status .material-symbols-outlined { font-size:17px; }
-    .tool-status.using { border-color:var(--crimson);color:var(--c-ink);animation:tool-wait-in .34s var(--snap) both; }
-    .tool-status.using::before { content:"";position:absolute;z-index:-1;inset:0;background:linear-gradient(105deg,transparent 18%,rgba(226,0,26,.13) 43%,transparent 68%);transform:translateX(-110%);animation:tool-sheen 1.45s ease-in-out infinite; }
-    .tool-status.using .material-symbols-outlined { color:var(--crimson);animation:tool-spark 1.15s ease-in-out infinite; }
-    .tool-status.done { color:#1E7A4E;border-color:#1E7A4E;animation:tool-finish .42s var(--snap) both; }
+    .learning-tool { transform-origin:0 0; }
+    .learning-tool.toolkit-enter { animation:toolkit-arrive .9s var(--soft) both; }
+    .learning-tool.toolkit-enter .tool-topline,.learning-tool.toolkit-enter .tool-nav,.learning-tool.toolkit-enter .map-node,.learning-tool.toolkit-enter .map-link,.learning-tool.toolkit-enter .review-sec,.learning-tool.toolkit-enter .tool-bar { animation:rise-in .65s var(--soft) both;animation-delay:calc(var(--i,0)*70ms + 220ms); }
+    /* Tool status is plain text, not a chip: it pops in, and while the tool runs
+       a soft crimson glow travels through the letters along a figure-eight
+       (x completes one loop while y completes two, a 1:2 Lissajous). */
+    @property --gx { syntax:"<percentage>";inherits:false;initial-value:50%; }
+    @property --gy { syntax:"<percentage>";inherits:false;initial-value:50%; }
+    .tool-status { position:relative;display:flex;align-items:center;gap:12px;width:fit-content;max-width:100%;margin-top:14px;padding:2px 0;color:var(--c-sub);font-size:14px;font-weight:500;line-height:1.4;letter-spacing:.01em;animation:tool-text-in .75s var(--soft) both; }
+    .tool-status .tool-text { position:relative;display:inline-block; }
+    .tool-status.using { color:var(--c-sub); }
+    .tool-status.using .tool-text::after { content:attr(data-text);position:absolute;left:0;top:0;white-space:nowrap;color:transparent;pointer-events:none;
+        background:radial-gradient(46px 15px at var(--gx) var(--gy),#FF3B52 0%,rgba(226,0,26,.85) 38%,transparent 75%);
+        -webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 0 5px rgba(226,0,26,.65));
+        animation:glow-x 1.9s ease-in-out infinite alternate,glow-y .95s ease-in-out -.475s infinite alternate; }
+    .tool-status.done { color:#1E7A4E;animation:tool-finish .7s var(--soft) both; }
     .tool-status.failed { color:var(--crimson); }
+    .tool-status.canceled { color:var(--c-sub);opacity:.8; }
     html.dark .tool-status.done { color:#6FD5A0; }
     html.dark .tool-status.failed { color:#FF6572; }
-    .tool-status button { border:0;background:transparent;color:inherit;text-decoration:underline;text-underline-offset:2px;font:inherit;cursor:pointer; }
-    @keyframes tool-wait-in { from { opacity:0;transform:translateY(10px) scale(.97); } to { opacity:1;transform:none; } }
-    @keyframes tool-sheen { to { transform:translateX(110%); } }
-    @keyframes tool-spark { 50% { transform:scale(1.22) rotate(12deg); } }
-    @keyframes tool-finish { 0% { opacity:.4;transform:translateY(5px) scale(.98); } 55% { transform:translateY(-2px) scale(1.02); } 100% { opacity:1;transform:none; } }
-    @keyframes toolkit-arrive { 0% { opacity:0;transform:translateX(-28px) scale(.97); } 62% { opacity:1;transform:translateX(3px) scale(1.005); } 100% { opacity:1;transform:none; } }
+    .tool-status.leaving { overflow:hidden;animation:tool-out .5s cubic-bezier(.5,0,.75,0) both; }
+    .tool-status button { border:0;background:transparent;color:var(--c-sub);opacity:.75;text-decoration:underline;text-underline-offset:3px;font:inherit;font-size:12px;cursor:pointer;transition:color .25s,opacity .25s; }
+    .tool-status button:hover { color:var(--crimson);opacity:1; }
+    @keyframes tool-text-in { from { opacity:0;transform:translateY(10px) scale(.96);filter:blur(6px);letter-spacing:.09em; } to { opacity:1;transform:none;filter:blur(0);letter-spacing:.01em; } }
+    @keyframes glow-x { from { --gx:0%; } to { --gx:100%; } }
+    @keyframes glow-y { from { --gy:0%; } to { --gy:100%; } }
+    @keyframes tool-finish { 0% { opacity:.3;transform:translateY(6px) scale(.94);filter:blur(3px); } 55% { opacity:1;transform:translateY(-1px) scale(1.04);filter:blur(0); } 100% { opacity:1;transform:none; } }
+    @keyframes tool-out { from { opacity:1;transform:none;filter:blur(0);max-height:34px;margin-top:14px; } to { opacity:0;transform:translateY(-14px) scale(.94);filter:blur(6px);max-height:0;margin-top:0;padding-top:0;padding-bottom:0; } }
+    @keyframes toolkit-arrive { 0% { opacity:0;transform:translateY(22px) scale(.95);filter:blur(6px); } 100% { opacity:1;transform:none;filter:blur(0); } }
     .stream-tail { overflow-wrap:anywhere;min-height:1lh; }
-    .typing-indicator { display:inline-flex;align-items:center;gap:4px;height:25px;padding:0 8px;background:var(--crimson);color:#F7F4EC;vertical-align:middle;animation:typing-in .26s var(--snap) both; }
-    .typing-indicator i { width:4px;height:4px;border-radius:50%;background:currentColor;opacity:.45;animation:typing-dot 1s ease-in-out infinite; }
-    .typing-indicator i:nth-child(2) { animation-delay:.14s; }.typing-indicator i:nth-child(3) { animation-delay:.28s; }
-    @keyframes typing-in { from { opacity:0;transform:translateY(4px) scale(.9); } to { opacity:1;transform:none; } }
-    @keyframes typing-dot { 0%,60%,100% { transform:translateY(0);opacity:.38; } 30% { transform:translateY(-3px);opacity:1; } }
+    /* Thinking indicator: a solid crimson block cursor, blinking. */
+    .typing-indicator { display:inline-block;width:.55em;height:1.05em;background:var(--crimson);vertical-align:text-bottom;animation:cursor-blink 1.05s steps(1,end) infinite; }
+    @keyframes cursor-blink { 0%,55% { opacity:1; } 56%,100% { opacity:0; } }
     .tool-heading { font-family:'Newsreader',serif;font-size:22px;line-height:1.15;margin:0;color:var(--c-ink); }
     .tool-topline { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px; }
     .tool-count { color:var(--c-sub);font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap; }
@@ -262,7 +303,93 @@
     .flash-hint { color:var(--c-sub);font-size:12px; }
     .tool-list { margin:0;padding-left:1.25rem;color:var(--c-ink); }.tool-list li{margin:.5rem 0;}
     .map-node { border-left:3px solid var(--gold);padding:10px 12px;margin-top:9px;background:var(--c-hi); }.map-link{font-size:12px;color:var(--c-sub);margin:6px 0 0 13px;}
-    .src-drop[open] .chev { transform: rotate(180deg); }
+    /* ---- toolkit polish ---- */
+    .tool-topline .tool-count { transition:opacity .3s; }
+    .tool-bar { height:3px;margin:-4px 0 16px;background:var(--c-rule);overflow:hidden; }
+    .tool-bar > i { display:block;height:100%;width:var(--p,0%);background:var(--crimson);transition:width .7s var(--soft); }
+    .tool-stage[data-dir="next"] > * { animation-name:stage-next; }
+    .tool-stage[data-dir="prev"] > * { animation-name:stage-prev; }
+    .tool-stage > * { animation-duration:.55s;animation-timing-function:var(--soft); }
+    .tool-stage.still > * { animation:none; }
+    @keyframes stage-next { from { opacity:0;transform:translateX(26px); } to { opacity:1;transform:none; } }
+    @keyframes stage-prev { from { opacity:0;transform:translateX(-26px); } to { opacity:1;transform:none; } }
+    .tool-stage:not(.still) .quiz-option { animation:rise-in .5s var(--soft) both;animation-delay:calc(var(--i,0)*60ms + 90ms); }
+    .quiz-option { transition:background-color .3s var(--soft),color .3s var(--soft),border-color .3s var(--soft),transform .3s var(--soft),box-shadow .3s var(--soft); }
+    .quiz-option:hover:not(:disabled),.quiz-option:focus-visible { box-shadow:0 6px 16px rgba(226,0,26,.1);transform:translateX(3px); }
+    .quiz-option:active:not(:disabled) { transform:scale(.985); }
+    .quiz-option .quiz-letter { transition:background-color .3s,color .3s; }
+    .quiz-option:hover:not(:disabled) .quiz-letter { background:var(--crimson);border-color:var(--crimson);color:#fff; }
+    .quiz-option.correct { animation:opt-correct .6s var(--soft) both !important; }
+    .quiz-option.wrong { animation:opt-shake .5s var(--soft) both !important; }
+    .quiz-option:disabled:not(.correct):not(.wrong) { opacity:.55; }
+    .quiz-feedback { animation:rise-in .45s var(--soft) both; }
+    @keyframes opt-correct { 0% { transform:scale(.98); } 45% { transform:scale(1.025); } 100% { transform:none; } }
+    @keyframes opt-shake { 0%,100% { transform:none; } 20% { transform:translateX(-7px); } 40% { transform:translateX(6px); } 60% { transform:translateX(-4px); } 80% { transform:translateX(2px); } }
+    .tool-nav button { transition:border-color .25s,color .25s,transform .25s var(--soft),background-color .25s; }
+    .tool-nav button:hover:not(:disabled),.tool-review:hover { transform:translateY(-1px); }
+    .tool-nav button:active:not(:disabled),.tool-review:active { transform:scale(.96); }
+    .tool-nav button.primary,.tool-review.primary { background:var(--crimson);border-color:var(--crimson);color:#fff; }
+    .tool-nav button.primary:hover:not(:disabled) { background:#B90015;border-color:#B90015;color:#fff; }
+    .tool-progress-dots span { transition:width .5s var(--soft),background-color .4s; }
+    .tool-actions { display:flex;flex-wrap:wrap;gap:8px; }
+    .tool-review { transition:border-color .25s,color .25s,transform .25s var(--soft); }
+    .tool-score { font-variant-numeric:tabular-nums; }
+    .quiz-recap { list-style:none;margin:0 0 18px;padding:0;display:grid;gap:6px; }
+    .quiz-recap li { display:flex;gap:10px;align-items:flex-start;padding:8px 10px;background:var(--c-hi);border-left:3px solid var(--crimson);font-size:13px;line-height:1.4;color:var(--c-ink);animation:rise-in .5s var(--soft) both;animation-delay:calc(var(--i,0)*70ms + 250ms); }
+    .quiz-recap li.ok { border-left-color:#1E7A4E; }
+    .quiz-recap .mark { flex:none;font-weight:700;width:14px; }
+    .quiz-recap li.ok .mark { color:#1E7A4E; }
+    .quiz-recap li:not(.ok) .mark { color:var(--crimson); }
+    /* flashcards */
+    .tool-stage > .flashcard-shell { animation-name:stage-next; }
+    .tool-stage[data-dir="prev"] > .flashcard-shell { animation-name:stage-prev; }
+    .flashcard { transition:transform .85s cubic-bezier(.34,1.28,.5,1),box-shadow .5s var(--soft);box-shadow:0 10px 24px rgba(11,11,12,.08); }
+    .flashcard:not(.is-flipped):hover { transform:rotateY(-7deg) rotateX(2deg) translateY(-2px);box-shadow:0 18px 32px rgba(11,11,12,.14); }
+    .flashcard.is-flipped:hover { transform:rotateY(173deg) rotateX(2deg) translateY(-2px); }
+    .flashcard:active { transform:scale(.985) !important; }
+    .flash-face { transition:background-color .4s; }
+    .flash-rate { display:flex;gap:8px;margin-top:12px;height:38px;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .4s var(--soft),transform .5s var(--soft); }
+    .flash-rate.show { opacity:1;transform:none;pointer-events:auto; }
+    .flash-rate button { flex:1;min-height:36px;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .25s,color .25s,background-color .25s,transform .25s var(--soft); }
+    .flash-rate button:hover { transform:translateY(-1px); }
+    .flash-rate button.again:hover { border-color:var(--crimson);color:var(--crimson); }
+    .flash-rate button.got:hover { border-color:#1E7A4E;color:#1E7A4E; }
+    .flash-rate button:active { transform:scale(.96); }
+    .flash-tally { display:flex;gap:12px;font-size:12px;font-weight:600;color:var(--c-sub);margin-top:10px; }
+    .flash-tally b { color:var(--c-ink);font-variant-numeric:tabular-nums; }
+    /* concept map */
+    .map-group { position:relative;margin-top:10px;padding-left:16px; }
+    .map-group::before { content:"";position:absolute;left:4px;top:0;bottom:-10px;width:1px;background:var(--c-rule); }
+    .map-group:last-child::before { bottom:50%; }
+    .map-group::after { content:"";position:absolute;left:0;top:19px;width:9px;height:9px;background:var(--gold);transform:rotate(45deg) scale(1);transition:transform .4s var(--soft); }
+    .map-group:hover::after,.map-group.pulse::after { transform:rotate(45deg) scale(1.35); }
+    .map-node { margin-top:0;transition:background-color .3s,transform .4s var(--soft),box-shadow .4s var(--soft); }
+    .map-group:hover .map-node { transform:translateX(3px); }
+    .map-group.pulse .map-node { animation:map-pulse 1.2s var(--soft); }
+    @keyframes map-pulse { 0%,100% { box-shadow:0 0 0 0 rgba(201,162,39,0); } 30% { box-shadow:0 0 0 4px rgba(201,162,39,.45);background:var(--c-paper); } }
+    .map-links { display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 0; }
+    .map-chip { border:1px solid var(--c-rule);background:transparent;color:var(--c-sub);font:inherit;font-size:12px;padding:3px 9px;cursor:pointer;transition:border-color .25s,color .25s,transform .25s var(--soft); }
+    .map-chip:hover { border-color:var(--gold);color:var(--c-ink);transform:translateY(-1px); }
+    /* review sheet */
+    .review-sec { border-top:1px solid var(--c-rule);margin-top:6px; }
+    .review-head { width:100%;display:flex;align-items:center;gap:8px;padding:11px 0;border:0;background:transparent;color:var(--c-ink);font:inherit;font-size:14px;font-weight:600;text-align:left;cursor:pointer; }
+    .review-head .rcount { margin-left:auto;font-size:11.5px;font-weight:600;color:var(--c-sub);font-variant-numeric:tabular-nums; }
+    .review-head .chev { transition:transform .4s var(--soft);color:var(--c-sub); }
+    .review-sec.open .review-head .chev { transform:rotate(180deg); }
+    .review-body { display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s var(--soft); }
+    .review-sec.open .review-body { grid-template-rows:1fr; }
+    .review-body > div { overflow:hidden;min-height:0; }
+    .review-pt { display:flex;gap:10px;align-items:flex-start;width:100%;padding:6px 0;border:0;background:transparent;color:var(--c-ink);font:inherit;font-size:14px;line-height:1.45;text-align:left;cursor:pointer;transition:color .3s,opacity .3s; }
+    .review-pt .box { flex:none;width:16px;height:16px;margin-top:2px;border:1.5px solid var(--c-edge);display:grid;place-items:center;transition:background-color .3s,border-color .3s; }
+    .review-pt .box::after { content:"";width:8px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) scale(0);margin-top:-2px;transition:transform .35s var(--snap); }
+    .review-pt.done { opacity:.55; }
+    .review-pt.done .txt { text-decoration:line-through; }
+    .review-pt.done .box { background:#1E7A4E;border-color:#1E7A4E; }
+    .review-pt.done .box::after { transform:rotate(-45deg) scale(1); }
+    .review-tools { display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;font-size:12px;color:var(--c-sub); }
+    .review-tools button { border:0;background:transparent;color:var(--c-sub);font:inherit;font-size:12px;text-decoration:underline;text-underline-offset:3px;cursor:pointer; }
+    .review-tools button:hover { color:var(--crimson); }
+    @media (hover:none){ .flashcard:not(.is-flipped):hover,.flashcard.is-flipped:hover { box-shadow:0 10px 24px rgba(11,11,12,.08); } .flashcard:not(.is-flipped):hover { transform:none; } .flashcard.is-flipped:hover { transform:rotateY(180deg); } }
     html.dark .learning-tool { box-shadow:0 12px 28px rgba(0,0,0,.26); }
     html.dark .quiz-option.correct { background:#238457;border-color:#36A46E;color:#fff; }
     html.dark .quiz-option.wrong { background:rgba(226,0,26,.16); }
@@ -595,10 +722,11 @@
   function renderSidebar(){
     els.chatList.innerHTML="";
     paintHeader();
-    chats.forEach(c=>{
+    chats.forEach((c,i)=>{
       const on=c.id===activeChatId;
       const row=document.createElement("div");
       row.className="group chat-row"+(on?" on":"");
+      row.style.setProperty("--i",Math.min(i,12));
       const it=document.createElement("button");
       it.className="flex-1 min-w-0 text-left px-3 py-2.5 font-label-md text-label-md truncate";
       it.textContent=c.title;
@@ -637,7 +765,7 @@
     paintHeader();
     if(!c||c.messages.length===0){
       const e=document.createElement("div");
-      e.className="pt-10 pb-2";
+      e.className="pt-10 pb-2 empty-state";
       const h=document.createElement("h2");
       h.className="font-headline-lg text-headline-lg text-on-background mb-3";
       // textContent, not innerHTML: the class name is teacher-supplied.
@@ -647,9 +775,9 @@
       p.textContent="Ask about this course. Your teacher sets how Chronos uses course material.";
       const list=document.createElement("div");
       list.style.borderTop="1px solid var(--c-rule)";
-      STARTERS.forEach(t=>{
+      STARTERS.forEach((t,i)=>{
         const b=document.createElement("button");
-        b.className="starter";
+        b.className="starter";b.style.setProperty("--i",i);
         b.innerHTML='<span></span><span class="material-symbols-outlined text-[19px] text-on-surface-variant flex-shrink-0">arrow_forward</span>';
         b.firstChild.textContent=t;
         b.onclick=()=>{els.input.value=t;send();};
@@ -703,7 +831,7 @@
     // replayed the .learning-tool pop animation each time.
     if(m.tool){
       if(!m._toolEl){m._toolEl=buildLearningTool(m.tool);}
-      else{m._toolEl.style.animation="none";}
+      else{m._toolEl.classList.remove("toolkit-enter");}
       w.appendChild(m._toolEl);
     }
     return w;
@@ -739,24 +867,23 @@
   // Teacher-only "Sources used" dropdown: a collapsed disclosure under an answer
   // that expands to the exact passages the tutor drew on. Hidden from students.
   function buildSourcesDropdown(rules){
-    const d=document.createElement("details");
+    const d=document.createElement("div");
     d.className="src-drop";
-    const s=document.createElement("summary");
-    s.className="cursor-pointer select-none";
+    const s=document.createElement("button");
+    s.type="button";s.className="src-toggle select-none";s.setAttribute("aria-expanded","false");
     s.innerHTML='<span class="material-symbols-outlined text-[16px]">menu_book</span>'+
       '<span>Sources used ('+rules.length+')</span>'+
-      '<span class="material-symbols-outlined text-[18px] ml-auto chev transition-transform">expand_more</span>';
+      '<span class="material-symbols-outlined text-[18px] chev">expand_more</span>';
     d.appendChild(s);
+    // One quiet block of text: opening it animates in place and never scrolls
+    // the thread. Long material scrolls inside the block instead.
+    const panel=document.createElement("div");panel.className="src-panel";panel.setAttribute("role","region");
+    const inner=document.createElement("div");
     const body=document.createElement("div");
-    body.className="source-copy space-y-1.5";
-    rules.forEach(x=>{
-      const ln=document.createElement("p");
-      ln.className="font-body-md text-[13px] leading-snug pt-2";
-      ln.style.color="var(--c-sub)";
-      ln.textContent=typeof x==="string"?x:((x.label||"Course material")+(x.section?" · section "+x.section:"")+" — "+(x.excerpt||""));
-      body.appendChild(ln);
-    });
-    d.appendChild(body);
+    body.className="source-copy";
+    body.textContent=rules.map(x=>typeof x==="string"?x:((x.label||"Course material")+(x.section?" · section "+x.section:"")+" — "+(x.excerpt||""))).join("\n\n");
+    inner.appendChild(body);panel.appendChild(inner);d.appendChild(panel);
+    s.onclick=()=>{const open=d.classList.toggle("open");s.setAttribute("aria-expanded",String(open));};
     return d;
   }
 
@@ -772,11 +899,85 @@
     }else if(tool.type==="flashcards"){
       buildFlashcardTool(box,tool);
     }else if(tool.type==="concept_map"){
-      toolTitle(box,"Concept map",tool.title);(tool.nodes||[]).forEach((node,i)=>{const n=document.createElement("div");n.className="map-node";n.innerHTML="<strong></strong><span></span>";n.querySelector("strong").textContent=node.label;n.querySelector("span").textContent=node.detail?" — "+node.detail:"";box.appendChild(n);(tool.links||[]).filter(l=>l.from===i).forEach(l=>{const p=document.createElement("p");p.className="map-link";p.textContent="↳ "+(l.label||"relates to")+": "+((tool.nodes||[])[l.to]||{}).label;box.appendChild(p);});});
+      buildConceptMap(box,tool);
     }else if(tool.type==="review_sheet"){
-      toolTitle(box,"Review sheet",tool.title);(tool.sections||[]).forEach(section=>{const h=document.createElement("p");h.className="font-label-md text-on-surface mt-4 mb-1";h.textContent=section.heading;const list=document.createElement("ul");list.className="tool-list";(section.points||[]).forEach(point=>{const li=document.createElement("li");li.textContent=point;list.appendChild(li);});box.append(h,list);});
-    }else { toolTitle(box,"Learning activity",tool.title); }
+      buildReviewSheet(box,tool);    }else { toolTitle(box,"Learning activity",tool.title); }
+    // Stagger the pieces of the activity in, then drop the class so a later
+    // rebuild of the thread does not replay the entrance.
+    box.querySelectorAll(".tool-topline,.map-group,.review-sec").forEach((el,i)=>el.style.setProperty("--i",Math.min(i,10)));
+    box.addEventListener("animationend",e=>{if(e.target===box)box.classList.remove("toolkit-enter");});
     return box;
+  }
+
+  // Concept map: each node carries its outgoing links as chips; a chip jumps to
+  // and pulses the node it points at.
+  function buildConceptMap(box,tool){
+    toolTitle(box,"Concept map",tool.title);
+    const nodes=tool.nodes||[],links=tool.links||[],groups=[];
+    const wrap=document.createElement("div");wrap.style.marginTop="14px";
+    nodes.forEach((node,i)=>{
+      const g=document.createElement("div");g.className="map-group";groups[i]=g;
+      const n=document.createElement("div");n.className="map-node";n.innerHTML="<strong></strong><span></span>";
+      n.querySelector("strong").textContent=node.label;n.querySelector("span").textContent=node.detail?" — "+node.detail:"";
+      g.appendChild(n);
+      const out=links.filter(l=>l.from===i&&nodes[l.to]);
+      if(out.length){
+        const row=document.createElement("div");row.className="map-links";
+        out.forEach(l=>{
+          const chip=document.createElement("button");chip.type="button";chip.className="map-chip";
+          chip.textContent=(l.label||"relates to")+" → "+nodes[l.to].label;
+          chip.onclick=()=>{
+            const target=groups[l.to];if(!target)return;
+            target.scrollIntoView({behavior:reduceMotion?"auto":"smooth",block:"nearest"});
+            target.classList.remove("pulse");void target.offsetWidth;target.classList.add("pulse");
+          };
+          row.appendChild(chip);
+        });
+        g.appendChild(row);
+      }
+      wrap.appendChild(g);
+    });
+    box.appendChild(wrap);
+  }
+
+  // Review sheet: collapsible sections whose points can be ticked off, with a
+  // running count so it doubles as a study checklist.
+  function buildReviewSheet(box,tool){
+    toolTitle(box,"Review sheet",tool.title);
+    const sections=(tool.sections||[]).filter(s=>s&&s.heading);
+    const total=sections.reduce((n,s)=>n+(s.points||[]).length,0);
+    let done=0;
+    const tools=document.createElement("div");tools.className="review-tools";tools.style.marginTop="14px";
+    const count=document.createElement("span");
+    const toggleAll=document.createElement("button");toggleAll.type="button";toggleAll.textContent="Collapse all";
+    tools.append(count,toggleAll);
+    const bar=document.createElement("div");bar.className="tool-bar";bar.style.margin="0 0 8px";const fill=document.createElement("i");bar.appendChild(fill);
+    const paint=()=>{count.textContent=done+" of "+total+" reviewed";fill.style.setProperty("--p",(total?done/total*100:0)+"%");};
+    box.append(tools,bar);
+    const secs=[];
+    sections.forEach((section,si)=>{
+      const sec=document.createElement("div");sec.className="review-sec open";
+      const head=document.createElement("button");head.type="button";head.className="review-head";head.setAttribute("aria-expanded","true");
+      const title=document.createElement("span");title.textContent=section.heading;
+      const rc=document.createElement("span");rc.className="rcount";
+      const chev=document.createElement("span");chev.className="material-symbols-outlined chev text-[18px]";chev.textContent="expand_more";
+      head.append(title,rc,chev);
+      const body=document.createElement("div");body.className="review-body";const inner=document.createElement("div");body.appendChild(inner);
+      const pts=section.points||[];let secDone=0;
+      const paintSec=()=>{rc.textContent=secDone+"/"+pts.length;};
+      pts.forEach(point=>{
+        const b=document.createElement("button");b.type="button";b.className="review-pt";b.setAttribute("role","checkbox");b.setAttribute("aria-checked","false");
+        const bx=document.createElement("span");bx.className="box";const tx=document.createElement("span");tx.className="txt";tx.textContent=point;
+        b.append(bx,tx);
+        b.onclick=()=>{const on=b.classList.toggle("done");b.setAttribute("aria-checked",String(on));done+=on?1:-1;secDone+=on?1:-1;paint();paintSec();};
+        inner.appendChild(b);
+      });
+      const setOpen=open=>{sec.classList.toggle("open",open);head.setAttribute("aria-expanded",String(open));};
+      head.onclick=()=>setOpen(!sec.classList.contains("open"));
+      sec.append(head,body);paintSec();box.appendChild(sec);secs.push(setOpen);
+    });
+    toggleAll.onclick=()=>{const collapse=toggleAll.textContent==="Collapse all";secs.forEach(f=>f(!collapse));toggleAll.textContent=collapse?"Expand all":"Collapse all";};
+    paint();
   }
 
   function toolHeader(box,kind,title,count){
@@ -791,12 +992,32 @@
     for(let i=0;i<total;i++){const dot=document.createElement("span");if(i===current)dot.className="on";dots.appendChild(dot);}return dots;
   }
 
+  // Counts a number up to its target so a result lands instead of just appearing.
+  function countUp(el,target,total){
+    if(reduceMotion){el.textContent=target+" / "+total;return;}
+    let start=null;
+    const tick=ts=>{
+      if(start===null)start=ts;
+      const p=Math.min(1,(ts-start)/800);
+      el.textContent=Math.round(target*(1-Math.pow(1-p,3)))+" / "+total;
+      if(p<1&&el.isConnected)requestAnimationFrame(tick);
+    };
+    el.textContent="0 / "+total;requestAnimationFrame(tick);
+  }
+  function toolBar(box){
+    const bar=document.createElement("div");bar.className="tool-bar";const fill=document.createElement("i");bar.appendChild(fill);box.appendChild(bar);
+    return ratio=>fill.style.setProperty("--p",Math.round(ratio*100)+"%");
+  }
+
   function buildQuizTool(box,tool){
     const questions=(tool.questions||[]).filter(q=>q&&q.prompt&&Array.isArray(q.options)&&q.options.length>1);
     if(!questions.length){toolTitle(box,"Practice quiz",tool.title);return;}
-    let index=0,advanceTimer=null,readingUntil=0;
+    // `order` is the queue of question numbers being asked: all of them at first,
+    // then only the missed ones after "Retry missed".
+    let order=questions.map((q,i)=>i),index=0,advanceTimer=null,readingUntil=0,dir="next",finished=false;
     const answers=Array(questions.length).fill(null);
     const badge=toolHeader(box,"Practice quiz",tool.title,"Question 1 of "+questions.length);
+    const setBar=toolBar(box);
     const stage=document.createElement("div");stage.className="tool-stage";box.appendChild(stage);
     const nav=document.createElement("div");nav.className="tool-nav";box.appendChild(nav);
     const previous=document.createElement("button");previous.type="button";previous.textContent="Previous";
@@ -804,26 +1025,38 @@
     const markReading=()=>{readingUntil=Date.now()+5000;};
     ["pointerenter","focusin","touchstart","keydown"].forEach(type=>stage.addEventListener(type,markReading,{passive:type!=="focusin"&&type!=="keydown"}));
     const clearAdvance=()=>{if(advanceTimer){clearTimeout(advanceTimer);advanceTimer=null;}};
+    const goNext=()=>{dir="next";if(index<order.length-1){index++;render();}else renderComplete();};
     const scheduleAdvance=()=>{
       clearAdvance();
-      if(answers[index]===null)return;
+      if(answers[order[index]]===null)return;
       const advance=()=>{
         if(document.hidden||Date.now()<readingUntil){advanceTimer=setTimeout(advance,900);return;}
-        if(index<questions.length-1){index++;render();}else renderComplete();
+        goNext();
       };
       advanceTimer=setTimeout(advance,5000);
     };
-    const render=()=>{
+    // Answering re-renders in place (.still) so only the chosen option and the
+    // feedback animate, not the whole question.
+    const choose=optionIndex=>{
+      const q=order[index];if(answers[q]!==null)return;
+      answers[q]=optionIndex;render(false);scheduleAdvance();
+    };
+    const render=(animate=true)=>{
+      finished=false;
+      const hadFocus=box.contains(document.activeElement);
       clearAdvance();stage.replaceChildren();nav.replaceChildren();
-      const question=questions[index],answer=answers[index];badge.textContent="Question "+(index+1)+" of "+questions.length;
+      stage.dataset.dir=dir;stage.classList.toggle("still",!animate);
+      const qn=order[index],question=questions[qn],answer=answers[qn];
+      badge.textContent="Question "+(index+1)+" of "+order.length;
+      setBar(order.filter(q=>answers[q]!==null).length/order.length);
       const prompt=document.createElement("p");prompt.className="tool-prompt";prompt.textContent=question.prompt;stage.appendChild(prompt);
       const options=document.createElement("div");options.className="quiz-options";stage.appendChild(options);
       question.options.forEach((option,optionIndex)=>{
-        const choice=document.createElement("button");choice.type="button";choice.className="quiz-option";
+        const choice=document.createElement("button");choice.type="button";choice.className="quiz-option";choice.style.setProperty("--i",optionIndex);
         const letter=document.createElement("span");letter.className="quiz-letter";letter.textContent=String.fromCharCode(65+optionIndex);
         const text=document.createElement("span");text.textContent=option;choice.append(letter,text);
         if(answer!==null){choice.disabled=true;if(optionIndex===answer)choice.classList.add(answer===question.answer?"correct":"wrong");if(tool.reveal_final_answers===true&&answer!==question.answer&&optionIndex===question.answer)choice.classList.add("correct");}
-        choice.onclick=()=>{answers[index]=optionIndex;render();scheduleAdvance();};options.appendChild(choice);
+        choice.onclick=()=>choose(optionIndex);options.appendChild(choice);
       });
       if(answer!==null){
         const feedback=document.createElement("p");feedback.className="quiz-feedback "+(answer===question.answer?"good":"missed");
@@ -832,22 +1065,47 @@
         else feedback.textContent="Not quite. Keep the key idea in mind; you can review the missed concept with AI at the end.";
         stage.appendChild(feedback);
       }
-      previous.disabled=index===0;previous.onclick=()=>{index--;render();};
-      next.textContent=index===questions.length-1?"Finish":"Next";next.disabled=answers[index]===null;next.onclick=()=>{if(index<questions.length-1){index++;render();}else renderComplete();};
-      nav.append(previous,toolDots(questions.length,index),next);
+      previous.disabled=index===0;previous.onclick=()=>{dir="prev";index--;render();};
+      next.textContent=index===order.length-1?"Finish":"Next";next.disabled=answer===null;next.className=answer===null?"":"primary";next.onclick=goNext;
+      nav.append(previous,toolDots(order.length,index),next);
+      if(hadFocus)(answer!==null?next:stage.querySelector(".quiz-option"))?.focus({preventScroll:true});
     };
     const renderComplete=()=>{
-      clearAdvance();stage.replaceChildren();nav.replaceChildren();badge.textContent="Complete";
+      finished=true;clearAdvance();stage.replaceChildren();nav.replaceChildren();
+      stage.dataset.dir="next";stage.classList.remove("still");badge.textContent="Complete";setBar(1);
       const score=answers.reduce((total,answer,i)=>total+(answer===questions[i].answer?1:0),0);
+      const missed=questions.map((q,i)=>i).filter(i=>answers[i]!==questions[i].answer);
       const complete=document.createElement("div");complete.className="tool-complete";
       const label=document.createElement("p");label.className="slabel";label.textContent="Quiz complete";
-      const scoreLine=document.createElement("div");scoreLine.className="tool-score";scoreLine.textContent=score+" / "+questions.length;
+      const scoreLine=document.createElement("div");scoreLine.className="tool-score";
       const copy=document.createElement("p");copy.textContent=score===questions.length?"Strong recall. Keep the ideas connected by explaining one in your own words.":"Your result is ready for a focused follow-up in this chat.";
-      const review=document.createElement("button");review.type="button";review.className="tool-review";review.textContent="Review with AI";
-      review.onclick=()=>sendQuizReview(tool,questions,answers,score,review);
-      complete.append(label,scoreLine,copy,review);stage.appendChild(complete);
-      const restart=document.createElement("button");restart.type="button";restart.textContent="Try again";restart.onclick=()=>{answers.fill(null);index=0;render();};nav.append(restart,toolDots(questions.length,questions.length-1));
+      const recap=document.createElement("ul");recap.className="quiz-recap";
+      questions.forEach((q,i)=>{
+        const ok=answers[i]===q.answer;
+        const li=document.createElement("li");li.className=ok?"ok":"";li.style.setProperty("--i",Math.min(i,8));
+        const mark=document.createElement("span");mark.className="mark";mark.textContent=ok?"✓":"✗";
+        const txt=document.createElement("span");txt.textContent=q.prompt+(!ok&&tool.reveal_final_answers===true?" — "+q.options[q.answer]:"");
+        li.append(mark,txt);recap.appendChild(li);
+      });
+      const actions=document.createElement("div");actions.className="tool-actions";
+      const review=document.createElement("button");review.type="button";review.className="tool-review primary";review.textContent="Review with AI";
+      review.onclick=()=>sendQuizReview(tool,questions,answers,score,review);actions.appendChild(review);
+      if(missed.length){
+        const retry=document.createElement("button");retry.type="button";retry.className="tool-review";retry.textContent="Retry missed ("+missed.length+")";
+        retry.onclick=()=>{order=missed.slice();missed.forEach(i=>{answers[i]=null;});index=0;dir="next";render();};actions.appendChild(retry);
+      }
+      complete.append(label,scoreLine,copy,recap,actions);stage.appendChild(complete);
+      countUp(scoreLine,score,questions.length);
+      const restart=document.createElement("button");restart.type="button";restart.textContent="Try again";restart.onclick=()=>{answers.fill(null);order=questions.map((q,i)=>i);index=0;dir="next";render();};nav.append(restart,toolDots(questions.length,questions.length-1));
     };
+    // A–D or 1–4 answers the open question when focus is inside the quiz.
+    box.addEventListener("keydown",e=>{
+      if(finished||e.ctrlKey||e.metaKey||e.altKey)return;
+      const q=order[index];if(answers[q]!==null)return;
+      let i=-1;
+      if(/^[1-9]$/.test(e.key))i=+e.key-1;else if(/^[a-zA-Z]$/.test(e.key))i=e.key.toUpperCase().charCodeAt(0)-65;
+      if(i>=0&&i<questions[q].options.length){e.preventDefault();choose(i);}
+    });
     render();
   }
 
@@ -866,39 +1124,93 @@
   function buildFlashcardTool(box,tool){
     const cards=(tool.cards||[]).filter(card=>card&&card.front&&card.back);
     if(!cards.length){toolTitle(box,"Flashcards",tool.title);return;}
-    let index=0,flipped=false,advanceTimer=null,readingUntil=0;
+    // `deck` is the queue of card numbers being studied; "Study remaining" narrows it.
+    let deck=cards.map((c,i)=>i),index=0,flipped=false,dir="next",finished=false;
+    const known=new Set(),again=new Set();
     const badge=toolHeader(box,"Flashcards",tool.title,"Card 1 of "+cards.length);
+    const setBar=toolBar(box);
     const stage=document.createElement("div");stage.className="tool-stage";box.appendChild(stage);
     const nav=document.createElement("div");nav.className="tool-nav";box.appendChild(nav);
-    const clearAdvance=()=>{if(advanceTimer){clearTimeout(advanceTimer);advanceTimer=null;}};
-    const scheduleAdvance=()=>{
-      clearAdvance();if(!flipped||index===cards.length-1)return;
-      const advance=()=>{if(document.hidden||Date.now()<readingUntil){advanceTimer=setTimeout(advance,900);return;}index++;flipped=false;render();};
-      advanceTimer=setTimeout(advance,5000);
+    const flipLabel=()=>flipped?"Showing answer. Activate to show prompt.":"Showing prompt. Activate to reveal answer.";
+    const go=step=>{
+      dir=step>0?"next":"prev";flipped=false;
+      if(index+step>=deck.length){renderComplete();return;}
+      index=Math.max(0,index+step);render();
+    };
+    const rate=kind=>{
+      const ci=deck[index];
+      if(kind==="got"){known.add(ci);again.delete(ci);}else{again.add(ci);known.delete(ci);}
+      go(1);
     };
     const render=()=>{
-      clearAdvance();stage.replaceChildren();nav.replaceChildren();badge.textContent="Card "+(index+1)+" of "+cards.length;
+      finished=false;
+      const hadFocus=box.contains(document.activeElement);
+      stage.replaceChildren();nav.replaceChildren();
+      stage.dataset.dir=dir;stage.classList.remove("still");
+      const ci=deck[index],data=cards[ci];
+      badge.textContent="Card "+(index+1)+" of "+deck.length;setBar(index/deck.length);
       const shell=document.createElement("div");shell.className="flashcard-shell";
-      const card=document.createElement("button");card.type="button";card.className="flashcard"+(flipped?" is-flipped":"");card.setAttribute("aria-pressed",String(flipped));card.setAttribute("aria-label",flipped?"Showing answer. Activate to show prompt.":"Showing prompt. Activate to reveal answer.");
-      const front=document.createElement("span");front.className="flash-face front";const frontLabel=document.createElement("span");frontLabel.className="flash-label";frontLabel.textContent="Prompt";const frontText=document.createElement("strong");frontText.className="flash-text";frontText.textContent=cards[index].front;const frontHint=document.createElement("span");frontHint.className="flash-hint";frontHint.textContent="Select to reveal";front.append(frontLabel,frontText,frontHint);
-      const back=document.createElement("span");back.className="flash-face back";const backLabel=document.createElement("span");backLabel.className="flash-label";backLabel.textContent="Answer";const backText=document.createElement("strong");backText.className="flash-text";backText.textContent=cards[index].back;const backHint=document.createElement("span");backHint.className="flash-hint";backHint.textContent=index<cards.length-1?"Next card in 5 seconds when you are ready":"Select to revisit the prompt";back.append(backLabel,backText,backHint);
-      card.append(front,back);card.onclick=()=>{
-        // Keep this card mounted: rebuilding it made the flipped state the
-        // initial state, so its transform transition could never be seen.
-        flipped=!flipped;readingUntil=Date.now()+5000;
+      const card=document.createElement("button");card.type="button";card.className="flashcard"+(flipped?" is-flipped":"");card.setAttribute("aria-pressed",String(flipped));card.setAttribute("aria-label",flipLabel());
+      const front=document.createElement("span");front.className="flash-face front";const frontLabel=document.createElement("span");frontLabel.className="flash-label";frontLabel.textContent="Prompt";const frontText=document.createElement("strong");frontText.className="flash-text";frontText.textContent=data.front;const frontHint=document.createElement("span");frontHint.className="flash-hint";frontHint.textContent="Select to reveal";front.append(frontLabel,frontText,frontHint);
+      const back=document.createElement("span");back.className="flash-face back";const backLabel=document.createElement("span");backLabel.className="flash-label";backLabel.textContent="Answer";const backText=document.createElement("strong");backText.className="flash-text";backText.textContent=data.back;const backHint=document.createElement("span");backHint.className="flash-hint";backHint.textContent="Select to flip back";back.append(backLabel,backText,backHint);
+      card.append(front,back);
+      const rating=document.createElement("div");rating.className="flash-rate";
+      const againBtn=document.createElement("button");againBtn.type="button";againBtn.className="again";againBtn.textContent="Still learning";againBtn.onclick=()=>rate("again");
+      const gotBtn=document.createElement("button");gotBtn.type="button";gotBtn.className="got";gotBtn.textContent="Got it";gotBtn.onclick=()=>rate("got");
+      rating.append(againBtn,gotBtn);
+      const syncRating=()=>{rating.classList.toggle("show",flipped);againBtn.disabled=gotBtn.disabled=!flipped;};
+      syncRating();
+      // Keep this card mounted: rebuilding it made the flipped state the
+      // initial state, so its transform transition could never be seen.
+      card.onclick=()=>{
+        flipped=!flipped;
         card.classList.toggle("is-flipped",flipped);
-        card.setAttribute("aria-pressed",String(flipped));
-        card.setAttribute("aria-label",flipped?"Showing answer. Activate to show prompt.":"Showing prompt. Activate to reveal answer.");
-        frontHint.textContent=flipped?"Select to revisit the prompt":"Select to reveal";
-        backHint.textContent=flipped?(index<cards.length-1?"Next card in 5 seconds when you are ready":"Select to revisit the prompt"):"";
-        if(flipped)scheduleAdvance();else clearAdvance();
+        card.setAttribute("aria-pressed",String(flipped));card.setAttribute("aria-label",flipLabel());
+        syncRating();
       };
-      ["pointerenter","focusin","touchstart","keydown"].forEach(type=>shell.addEventListener(type,()=>{readingUntil=Date.now()+5000;},{passive:type!=="focusin"&&type!=="keydown"}));
-      shell.appendChild(card);stage.appendChild(shell);
-      const previous=document.createElement("button");previous.type="button";previous.textContent="Previous";previous.disabled=index===0;previous.onclick=()=>{index--;flipped=false;render();};
-      const next=document.createElement("button");next.type="button";next.textContent=index===cards.length-1?"Start over":"Next";next.onclick=()=>{if(index===cards.length-1){index=0;}else index++;flipped=false;render();};
-      nav.append(previous,toolDots(cards.length,index),next);
+      shell.appendChild(card);
+      const tally=document.createElement("div");tally.className="flash-tally";
+      tally.innerHTML="<span>Got it <b>"+known.size+"</b></span><span>Still learning <b>"+again.size+"</b></span>";
+      const shuffle=document.createElement("button");shuffle.type="button";shuffle.textContent="Shuffle";
+      shuffle.style.cssText="margin-left:auto;border:0;background:transparent;color:var(--c-sub);font:inherit;font-size:12px;font-weight:600;text-decoration:underline;text-underline-offset:3px;cursor:pointer";
+      shuffle.onclick=()=>{
+        for(let i=deck.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]];}
+        index=0;flipped=false;dir="next";render();
+      };
+      tally.appendChild(shuffle);
+      stage.append(shell,rating,tally);
+      const previous=document.createElement("button");previous.type="button";previous.textContent="Previous";previous.disabled=index===0;previous.onclick=()=>go(-1);
+      const next=document.createElement("button");next.type="button";next.textContent=index===deck.length-1?"Finish":"Next";next.onclick=()=>go(1);
+      nav.append(previous,deck.length<=14?toolDots(deck.length,index):document.createElement("span"),next);
+      if(hadFocus)card.focus({preventScroll:true});
     };
+    const renderComplete=()=>{
+      finished=true;stage.replaceChildren();nav.replaceChildren();
+      stage.dataset.dir="next";stage.classList.remove("still");badge.textContent="Complete";setBar(1);
+      const remaining=cards.map((c,i)=>i).filter(i=>!known.has(i));
+      const complete=document.createElement("div");complete.className="tool-complete";
+      const label=document.createElement("p");label.className="slabel";label.textContent="Deck complete";
+      const scoreLine=document.createElement("div");scoreLine.className="tool-score";
+      const copy=document.createElement("p");
+      copy.textContent=remaining.length?remaining.length+(remaining.length===1?" card is":" cards are")+" still worth another pass.":"You got every card. Try explaining a few from memory.";
+      complete.append(label,scoreLine,copy);
+      const actions=document.createElement("div");actions.className="tool-actions";
+      if(remaining.length){
+        const study=document.createElement("button");study.type="button";study.className="tool-review primary";study.textContent="Study remaining ("+remaining.length+")";
+        study.onclick=()=>{deck=remaining.slice();index=0;flipped=false;dir="next";render();};actions.appendChild(study);
+      }
+      const restart=document.createElement("button");restart.type="button";restart.className="tool-review";restart.textContent="Restart";
+      restart.onclick=()=>{known.clear();again.clear();deck=cards.map((c,i)=>i);index=0;flipped=false;dir="next";render();};actions.appendChild(restart);
+      complete.appendChild(actions);stage.appendChild(complete);countUp(scoreLine,known.size,cards.length);
+    };
+    // ← / → move between cards; 1 / 2 rate a revealed card.
+    box.addEventListener("keydown",e=>{
+      if(finished||e.ctrlKey||e.metaKey||e.altKey)return;
+      if(e.key==="ArrowRight"){e.preventDefault();go(1);}
+      else if(e.key==="ArrowLeft"&&index>0){e.preventDefault();go(-1);}
+      else if(flipped&&e.key==="1"){rate("again");}
+      else if(flipped&&e.key==="2"){rate("got");}
+    });
     render();
   }
   function buildToolProgress(request){
@@ -907,15 +1219,22 @@
   function buildToolStatus(status){
     const box=document.createElement("div");box.className="tool-status "+status.state;
     box.setAttribute("role","status");box.setAttribute("aria-live","polite");
-    const icon=document.createElement("span");icon.className="material-symbols-outlined";
-    icon.textContent=status.state==="done"?"check_circle":status.state==="failed"?"error_outline":status.state==="canceled"?"pause_circle":"auto_awesome";
-    const label=document.createElement("span");label.textContent=status.text;box.append(icon,label);
+    // Plain text; data-text feeds the glow layer that runs while it is working.
+    const label=document.createElement("span");label.className="tool-text";label.textContent=status.text;label.dataset.text=status.text;
+    box.appendChild(label);
     if(status.state==="using"&&status.cancel){
       const stop=document.createElement("button");stop.type="button";stop.textContent="Stop";stop.onclick=status.cancel;box.appendChild(stop);
     }
     return box;
   }
-
+  // Slides the finished status up and away before the activity takes its place.
+  function dismissStatus(el){
+    return new Promise(resolve=>{
+      if(reduceMotion||!el.isConnected){resolve();return;}
+      let settled=false;const end=()=>{if(!settled){settled=true;resolve();}};
+      el.classList.add("leaving");el.addEventListener("animationend",end,{once:true});setTimeout(end,700);
+    });
+  }
   function scrollBottom(){els.messages.scrollTop=els.messages.scrollHeight;}
 
   const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -938,7 +1257,7 @@
   function createReplyStream(node){
     node.replaceChildren();
     const pending=document.createElement("span");pending.className="typing-indicator";pending.setAttribute("role","status");pending.setAttribute("aria-label","Chronos is typing");
-    pending.innerHTML="<i></i><i></i><i></i>";
+    
     const tail=document.createElement("div");tail.className="stream-tail";
     tail.hidden=true;node.append(pending,tail);
     let source="",typed="",committed=0,typingTimer=null,finishResolve=null,finishRequested=false;
@@ -973,18 +1292,29 @@
     }
     function typeNext(){
       typingTimer=null;
-      if(source.length>typed.length){
-        // A few characters per frame feels alive without making a long answer
-        // take longer than the request itself.
-        const count=reduceMotion?source.length-typed.length:Math.min(5,source.length-typed.length);
+      const backlog=source.length-typed.length;
+      if(backlog>0){
+        // A couple of characters per beat with a little randomness so it reads
+        // as typing; speeds up only when the text is arriving faster than this.
+        let count=reduceMotion?backlog:Math.max(1+Math.floor(Math.random()*3),Math.ceil(backlog/90));
+        count=Math.min(count,backlog);
+        const end=typed.length+count,code=source.charCodeAt(end-1);
+        if(code>=0xD800&&code<=0xDBFF&&end<source.length)count++;
         pending.remove();
         typed+=source.slice(typed.length,typed.length+count);
         flush(false);
       }
-      if(source.length>typed.length){typingTimer=setTimeout(typeNext,reduceMotion?0:16);return;}
+      if(source.length>typed.length){
+        let delay=reduceMotion?0:9+Math.random()*13;
+        if(!reduceMotion&&source.length-typed.length<160){
+          const last=typed.charAt(typed.length-1);
+          if(/[.!?]/.test(last)&&Math.random()<.6)delay+=70;
+          else if(/[,;:]/.test(last)&&Math.random()<.4)delay+=35;
+        }
+        typingTimer=setTimeout(typeNext,delay);return;
+      }
       if(finishRequested){flush(true);if(finishResolve){finishResolve();finishResolve=null;}}
-    }
-    function scheduleTyping(){if(!typingTimer)typeNext();}
+    }    function scheduleTyping(){if(!typingTimer)typeNext();}
     return {
       push(chunk){if(chunk){source+=chunk;scheduleTyping();}},
       finish(text){
@@ -1073,8 +1403,11 @@
       chat.messages.push(msg);
       status.state="done";status.text=(TOOL_LABELS[request.type]||"Activity")+" ready";
       progress.replaceWith(progress=buildToolStatus(status));playSound("done");
-      await new Promise(resolve=>setTimeout(resolve,reduceMotion?0:380));
-      if(gen===VIEW_GEN&&progress.isConnected)progress.replaceWith(msg._toolEl);
+      await new Promise(resolve=>setTimeout(resolve,reduceMotion?0:850));
+      if(gen===VIEW_GEN&&progress.isConnected){
+        await dismissStatus(progress);
+        if(gen===VIEW_GEN&&progress.isConnected)progress.replaceWith(msg._toolEl);
+      }
     }catch(err){
       if(stopped||gen!==VIEW_GEN||(err&&err.name==="AbortError")){
         if(status.state==="using"){status.state="canceled";status.text="Stopped on this device.";}

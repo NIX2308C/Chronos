@@ -8,7 +8,7 @@
    ============================================================ */
 (function () {
   var KEY = "chronos-wipe";
-  var COVER_MS = 560;
+  var COVER_MS = 400;
   var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   var px = null;
   var navigating = false;
@@ -52,7 +52,7 @@
       requestAnimationFrame(function () {
         node.classList.remove("cover");
         node.classList.add("reveal");
-        setTimeout(function () { node.classList.remove("act", "reveal"); }, 820);
+        setTimeout(function () { node.classList.remove("act", "reveal"); }, 520);
       });
     });
   }
@@ -146,14 +146,14 @@
       container.setAttribute("aria-busy", "true");
       timer = setTimeout(function () {
         if (current === sequence) indicator.hidden = false;
-      }, 180);
+      }, 140);
       try {
         var data = await prepare();
         if (current !== sequence) return false;
         clear();
         commit(data);
         container.classList.add("chronos-view-reveal");
-        revealTimer = setTimeout(function () { container.classList.remove("chronos-view-reveal"); }, 460);
+        revealTimer = setTimeout(function () { container.classList.remove("chronos-view-reveal"); }, 300);
         return true;
       } catch (error) {
         if (current === sequence) {

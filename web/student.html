@@ -168,12 +168,20 @@
     .composer { background:var(--c-paper); border:1px solid var(--c-rule); transition:border-color .15s ease }
     .composer:focus-within { border-color:var(--crimson) }
 
-    /* ---- the student's own work: assignment + rubric ---- */
-    .attach-btn { display:inline-flex; align-items:center; gap:5px; padding:4px 9px; font:inherit;
-        font-size:12.5px; background:transparent; border:1px solid var(--c-rule); color:var(--c-sub);
-        cursor:pointer; transition:color .15s ease, border-color .15s ease }
-    .attach-btn:hover:not(:disabled) { color:var(--crimson); border-color:var(--crimson) }
-    .attach-btn:disabled { opacity:.45; cursor:default }
+    /* ---- compact composer actions ---- */
+    .composer-action { width:36px;height:36px;flex:none;display:grid;place-items:center;
+        border:1px solid var(--c-rule);background:transparent;color:var(--c-sub);cursor:pointer; }
+    .composer-action:hover:not(:disabled),.composer-action:focus-visible,.composer-action[aria-expanded="true"] { color:var(--crimson);border-color:var(--crimson); }
+    .composer-action:disabled { opacity:.45;cursor:default; }
+    .composer-menu { position:absolute;bottom:calc(100% + 10px);left:0;z-index:10;
+        width:min(250px,calc(100vw - 48px));padding:6px;background:var(--c-paper);
+        border:1px solid var(--c-rule);box-shadow:0 12px 28px rgba(0,0,0,.14); }
+    .composer-menu[hidden],.composer-action[hidden] { display:none; }
+    .composer-menu button { width:100%;display:flex;align-items:center;gap:10px;padding:10px 11px;
+        border:0;background:transparent;color:var(--c-ink);text-align:left;font:inherit;font-size:13px;cursor:pointer; }
+    .composer-menu button:hover,.composer-menu button:focus-visible { background:var(--c-hi);color:var(--crimson); }
+    .composer-menu .menu-hint { display:block;padding:7px 11px 4px;color:var(--c-sub);font-size:12px;line-height:1.35; }
+    #fileBar[hidden] { display:none; }
     .file-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 9px;
         font-size:12.5px; background:var(--c-hi); color:var(--c-ink); max-width:15rem }
     .file-chip .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
@@ -193,12 +201,6 @@
     .tool-progress summary { cursor:pointer;color:var(--c-sub);font-size:12px;margin-top:6px; }
     .tool-progress p { margin:0; }
     .tool-heading { font-family:'Newsreader',serif;font-size:21px;line-height:1.15;margin:0 0 10px;color:var(--c-ink); }
-    /* Practice chips: the student's own way in. The tutor may also offer an
-       activity on its own, but tapping one of these never depends on it doing so. */
-    .practice-row { display:flex;flex-wrap:wrap;gap:8px;margin-top:12px; }
-    .practice-chip { display:inline-flex;align-items:center;gap:6px;border:1px solid var(--c-rule);background:var(--c-paper);color:var(--c-sub);padding:7px 13px;font-size:13px;cursor:pointer;transition:border-color .16s,color .16s; }
-    .practice-chip:hover:not(:disabled) { border-color:var(--crimson);color:var(--c-ink); }
-    .practice-chip:disabled { opacity:.5;cursor:default; }
     .quiz-feedback { margin-top:8px;font-size:13px;color:var(--c-sub);line-height:1.5; }
     .quiz-option { width:100%;text-align:left;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);padding:10px 12px;margin-top:8px;transition:background-color .16s,color .16s,border-color .16s; }
     .quiz-option:hover:not(:disabled) { border-color:var(--crimson); }
@@ -365,25 +367,29 @@
 <!-- Input -->
 <div data-composer class="flex-none px-6 md:px-8 pt-4 pb-3.5" style="border-top:1px solid var(--c-rule)">
 <div class="max-w-[720px] mx-auto">
-<!-- The student's own work: reviewed by the tutor, never added to the class material. -->
-<div class="flex items-center flex-wrap gap-2 mb-2" id="fileBar">
+<!-- The student's own work stays in this conversation. -->
+<div class="flex items-center flex-wrap gap-2 mb-2" id="fileBar" hidden>
 <span class="flex items-center flex-wrap gap-2" id="fileChips"></span>
-<button class="attach-btn" data-kind="assignment" title="Your own work, for this conversation only. Course material is your teacher's to add — uploads that look like notes, slides or a textbook are refused.">
-<span class="material-symbols-outlined text-[16px]">upload_file</span><span>Assignment</span>
-</button>
-<button class="attach-btn" data-kind="rubric" title="The marking criteria or task brief for this conversation">
-<span class="material-symbols-outlined text-[16px]">checklist</span><span>Rubric</span>
-</button>
 <span class="font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal" id="fileErr"></span>
 <input accept=".pdf,.docx,.txt,.md,.csv" class="hidden" id="fileInput" type="file"/>
 </div>
-<div class="composer p-2 pl-3.5 flex items-end gap-2.5">
+<div class="composer relative p-2 flex items-end gap-2">
+<div class="relative flex items-end gap-1.5 flex-none">
+<button type="button" class="composer-action" id="addFileBtn" aria-label="Add to conversation" aria-haspopup="menu" aria-expanded="false" title="Add to conversation"><span class="material-symbols-outlined text-[21px]">add</span></button>
+<button type="button" class="composer-action" id="toolBtn" aria-label="Create learning activity" aria-haspopup="menu" aria-expanded="false" title="Create learning activity" hidden><span class="material-symbols-outlined text-[19px]">auto_awesome</span></button>
+<div class="composer-menu" id="addFileMenu" role="menu" hidden>
+<button type="button" role="menuitem" data-add-kind="assignment"><span class="material-symbols-outlined text-[18px]">upload_file</span>Add assignment</button>
+<button type="button" role="menuitem" data-add-kind="rubric"><span class="material-symbols-outlined text-[18px]">checklist</span>Add rubric</button>
+<button type="button" role="menuitem" data-add-kind="file"><span class="material-symbols-outlined text-[18px]">attach_file</span>Add file</button>
+</div>
+<div class="composer-menu" id="toolMenu" role="menu" hidden></div>
+</div>
 <textarea class="w-full bg-transparent border-none focus:ring-0 resize-none max-h-32 min-h-[44px] py-2 px-0 font-body-md text-[15.5px] text-on-surface placeholder:text-on-surface-variant" id="input" placeholder="Ask a question…" rows="1"></textarea>
 <button class="sendbtn" id="sendBtn" title="Send">
 <span class="material-symbols-outlined fill text-[19px]">arrow_upward</span>
 </button>
 </div>
-<p class="text-center mt-2.5 font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal">Answers come from your teacher&rsquo;s material. Attachments stay in this conversation and never become course knowledge.</p>
+<p class="text-center mt-2.5 font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal">Your teacher sets how course material is used. Attachments stay in this conversation and never become course knowledge.</p>
 </div>
 </div>
 </section>
@@ -455,7 +461,7 @@
   const CLASS_KEY="chronos_student_class";
   const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),messages:document.getElementById("messages")};
   const chatTransition=ChronosWipe.createViewTransition(document.querySelector("[data-chat-col]"));
-  let navigationBusy=false,sending=false;
+  let navigationBusy=false,sending=false,toolRunning=false;
 
   function tempId(){return"new_"+Math.random().toString(36).slice(2,10);}
   function activeChat(){return chats.find(c=>c.id===activeChatId);}
@@ -487,7 +493,7 @@
       ACTIVE_CLASS=classId;localStorage.setItem(CLASS_KEY,classId);
       chats=ALL_CHATS.filter(x=>x.classId===classId);
       activeChatId=id;FILES=c.files;
-      syncToolkits();paintClassSwitcher();renderSidebar();renderFiles();renderMessages();
+      fileErr("");syncToolkits();paintClassSwitcher();renderSidebar();renderFiles();renderMessages();
       els.input.value=c.draft||"";
       els.input.style.height="auto";
       els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";
@@ -582,7 +588,7 @@
       h.textContent="Ask anything from "+(className()||"this course");
       const p=document.createElement("p");
       p.className="font-body-lg text-body-lg text-on-surface-variant mb-7 max-w-[48ch]";
-      p.textContent="Answers come from the documents your teacher uploaded. Where the material stops, so do the answers.";
+      p.textContent="Ask about this course. Your teacher sets how Chronos uses course material.";
       const list=document.createElement("div");
       list.style.borderTop="1px solid var(--c-rule)";
       STARTERS.forEach(t=>{
@@ -597,15 +603,7 @@
       els.messagesInner.appendChild(e);
       return;
     }
-    let last=null;
-    c.messages.forEach(m=>{last=buildMsgEl(m);els.messagesInner.appendChild(last);});
-    // Offer practice under the newest answer, so the chips follow the
-    // conversation instead of piling up once per exchange. Re-added here rather
-    // than cached on the message because the thread is rebuilt wholesale.
-    const tail=c.messages[c.messages.length-1];
-    if(last&&tail&&tail.role==="teacher"&&(tail.content||tail.tool)&&TOOLKITS.length){
-      last.appendChild(buildPracticeRow(c,practiceTopic(c)));
-    }
+    c.messages.forEach(m=>els.messagesInner.appendChild(buildMsgEl(m)));
     scrollBottom();
   }
 
@@ -787,6 +785,8 @@
   // chip. Renders the creating state, then swaps in the activity or the reason
   // it could not be built.
   async function runTool(request,chat,anchor){
+    if(toolRunning)return;
+    toolRunning=true;updateComposer();
     const gen=VIEW_GEN;
     const progress=buildToolProgress(request);
     anchor.appendChild(progress);scrollBottom();
@@ -817,30 +817,78 @@
       if(gen!==VIEW_GEN||(err&&err.name==="AbortError"))return;
       fail("Couldn’t create that activity.");
     }finally{
-      scrollBottom();
+      toolRunning=false;updateComposer();
+      if(gen===VIEW_GEN)scrollBottom();
     }
   }
 
-  // Practice chips let the student ask for an activity directly. The tutor may
-  // also call for one itself, but that is a suggestion — this is the path that
-  // always works, and the only comfortable one on a phone.
-  const TOOL_LABELS={quiz:"Quiz me",flashcards:"Flashcards",concept_map:"Concept map",review_sheet:"Review sheet"};
-  function buildPracticeRow(chat,topic){
-    const row=document.createElement("div");row.className="practice-row";
-    TOOLKITS.forEach(kind=>{
-      const b=document.createElement("button");b.type="button";b.className="practice-chip";
-      b.textContent=TOOL_LABELS[kind]||kind.replace(/_/g," ");
-      b.onclick=()=>{
-        row.querySelectorAll(".practice-chip").forEach(x=>x.disabled=true);
-        runTool({type:kind,topic:topic},chat,row.parentElement||row);
-      };
-      row.appendChild(b);
-    });
-    return row;
+  const TOOL_LABELS={quiz:"Quiz",flashcards:"Flashcards",concept_map:"Concept map",review_sheet:"Review sheet"};
+
+  function closeComposerMenus(){
+    $s("addFileMenu").hidden=true;$s("toolMenu").hidden=true;
+    $s("addFileBtn").setAttribute("aria-expanded","false");
+    $s("toolBtn").setAttribute("aria-expanded","false");
+    PENDING_FILE=null;
   }
 
-  async function send(){
-    if(navigationBusy||sending)return;
+  function openComposerMenu(id){
+    const menu=$s(id),button=$s(id==="addFileMenu"?"addFileBtn":"toolBtn");
+    const opening=menu.hidden;
+    closeComposerMenus();
+    if(opening){menu.hidden=false;button.setAttribute("aria-expanded","true");menu.querySelector("button")?.focus();}
+  }
+
+  function renderAddFileMenu(file){
+    const menu=$s("addFileMenu");menu.replaceChildren();
+    if(file){
+      const hint=document.createElement("span");hint.className="menu-hint";
+      hint.textContent="Use “"+file.name+"” as:";menu.appendChild(hint);
+    }
+    const choices=file?[["assignment","Assignment","upload_file"],["rubric","Rubric","checklist"]]:
+      [["assignment","Add assignment","upload_file"],["rubric","Add rubric","checklist"],["file","Add file","attach_file"]];
+    choices.forEach(([kind,label,icon])=>{
+      const button=document.createElement("button");button.type="button";button.setAttribute("role","menuitem");
+      const symbol=document.createElement("span");symbol.className="material-symbols-outlined text-[18px]";symbol.textContent=icon;
+      button.append(symbol,document.createTextNode(label));
+      button.onclick=()=>{
+        const picked=PENDING_FILE;
+        closeComposerMenus();
+        if(picked){uploadFile(kind,picked);return;}
+        PENDING_KIND=kind;$s("fileInput").value="";$s("fileInput").click();
+      };
+      menu.appendChild(button);
+    });
+  }
+
+  function renderToolMenu(){
+    const button=$s("toolBtn"),menu=$s("toolMenu");
+    button.hidden=TOOLKITS.length===0;
+    if(button.hidden){closeComposerMenus();return;}
+    menu.replaceChildren();
+    TOOLKITS.forEach(kind=>{
+      const item=document.createElement("button");item.type="button";item.setAttribute("role","menuitem");
+      const symbol=document.createElement("span");symbol.className="material-symbols-outlined text-[18px]";symbol.textContent="auto_awesome";
+      item.append(symbol,document.createTextNode(TOOL_LABELS[kind]||kind.replace(/_/g," ")));
+      item.onclick=()=>{closeComposerMenus();invokeTool(kind);};
+      menu.appendChild(item);
+    });
+  }
+
+  function invokeTool(kind){
+    if(navigationBusy||sending||toolRunning||!TOOLKITS.includes(kind))return;
+    const chat=activeChat();if(!chat)return;
+    const topic=els.input.value.trim()||practiceTopic(chat)||className()||"this course";
+    const request={type:kind,topic:topic==="New chat"?(className()||"this course"):topic};
+    if(chat.isNew){
+      els.input.value="Make a "+(TOOL_LABELS[kind]||kind.replace(/_/g," ")).toLowerCase()+" about "+request.topic+".";
+      send({requestedTool:request});
+    }else{
+      runTool(request,chat,els.messagesInner);
+    }
+  }
+
+  async function send(options={}){
+    if(navigationBusy||sending||toolRunning)return;
     const text=els.input.value.trim();if(!text)return;
     if(!activeChat())await newChat();
     const c=activeChat();
@@ -869,8 +917,8 @@
       tm.content=data.response||"";tm.rules=data.rules_used||[];tm.sources=data.sources||[];
       tm.reviewed=!!data.reviewed;tm.blocked=!!data.blocked;
       tm.gap=!!data.material_gap&&!tm.reviewed&&!tm.blocked;
-      if(Array.isArray(data.toolkits))TOOLKITS=data.toolkits;
       if(c.id!==activeChatId){setSending(false);return;}
+      if(Array.isArray(data.toolkits)){TOOLKITS=data.toolkits;renderToolMenu();}
       b.textContent="";
       const gen=VIEW_GEN;
       typeOut(b,tm.content,()=>{
@@ -884,8 +932,7 @@
             if(tm.reviewed)el.appendChild(reviewedNote());
             const sources=IS_TEACHER?(tm.sources.length?tm.sources:tm.rules):[];
             if(sources.length)el.appendChild(buildSourcesDropdown(sources));
-            if(data.tool_request)await runTool(data.tool_request,c,el);
-            else if(TOOLKITS.length)el.appendChild(buildPracticeRow(c,text));
+            if(data.tool_request||(options.requestedTool&&!data.blocked))await runTool(data.tool_request||options.requestedTool,c,el);
           }catch(err){
             /* a missing extra beneath the answer must never cost the answer */
           }finally{
@@ -900,9 +947,10 @@
   }
 
   function updateComposer(){
-    els.sendBtn.disabled=sending||navigationBusy;
-    els.input.disabled=sending||navigationBusy;
-    document.querySelectorAll(".attach-btn").forEach(b=>{b.disabled=navigationBusy||FILES.length>=FILE_MAX;});
+    els.sendBtn.disabled=sending||navigationBusy||toolRunning;
+    els.input.disabled=sending||navigationBusy||toolRunning;
+    $s("addFileBtn").disabled=navigationBusy||sending||toolRunning||FILES.length>=FILE_MAX;
+    $s("toolBtn").disabled=navigationBusy||sending||toolRunning;
   }
   function setSending(on){sending=on;updateComposer();if(!on&&!navigationBusy)els.input.focus();}
 
@@ -990,6 +1038,7 @@
   function syncToolkits(){
     const c=CLASSES.find(x=>x.id===ACTIVE_CLASS);
     TOOLKITS=(c&&Array.isArray(c.toolkits))?c.toolkits:[];
+    renderToolMenu();
   }
 
   async function switchClass(id){
@@ -1034,11 +1083,12 @@
   // The server keys these by class, so this list is swapped on every class switch
   // exactly like the conversations are: nothing a student attaches follows them
   // into another class.
-  let FILES=[],FILE_MAX=3,PENDING_KIND=null;
+  let FILES=[],FILE_MAX=3,PENDING_KIND=null,PENDING_FILE=null;
 
   function fileErr(msg){
     const el=$s("fileErr");el.textContent=msg||"";
-    if(msg)setTimeout(()=>{if(el.textContent===msg)el.textContent="";},7000);
+    $s("fileBar").hidden=!msg&&!FILES.length;
+    if(msg)setTimeout(()=>{if(el.textContent===msg){el.textContent="";$s("fileBar").hidden=!FILES.length;}},7000);
   }
 
   function renderFiles(){
@@ -1057,7 +1107,8 @@
       chip.appendChild(icon);chip.appendChild(nm);chip.appendChild(x);
       box.appendChild(chip);
     });
-    document.querySelectorAll(".attach-btn").forEach(b=>{b.disabled=navigationBusy||FILES.length>=FILE_MAX;});
+    $s("fileBar").hidden=!FILES.length&&!$s("fileErr").textContent;
+    updateComposer();
   }
 
   async function fetchFiles(c){
@@ -1067,35 +1118,43 @@
   }
 
   async function uploadFile(kind,file){
-    if(!ACTIVE_CLASS)return;
+    const chat=activeChat(),classId=ACTIVE_CLASS;
+    if(!chat||!classId)return;
     const fd=new FormData();
-    fd.append("class_id",ACTIVE_CLASS);fd.append("chat_id",activeChat().id);fd.append("kind",kind);fd.append("file",file);
-    document.querySelectorAll(".attach-btn").forEach(b=>{b.disabled=true;});
+    fd.append("class_id",classId);fd.append("chat_id",chat.id);fd.append("kind",kind);fd.append("file",file);
+    $s("addFileBtn").disabled=true;
     fileErr("Reading "+file.name+"…");
     try{
       // No Content-Type header: FormData has to set its own multipart boundary.
       const res=await Chronos.apiFetch("/student/files",{method:"POST",body:fd});
       let d={};try{d=await res.json();}catch(e){}
-      if(!res.ok||d.error){fileErr(d.error||"Could not attach that file.");renderFiles();return;}
-      FILES.push({id:d.id,name:d.name,kind:d.kind});
-      activeChat().files=FILES;
-      fileErr(d.warning||"");
-    }catch(e){fileErr("Can’t reach the server.");}
+      if(!res.ok||d.error){if(chat===activeChat())fileErr(d.error||"Could not attach that file.");renderFiles();return;}
+      chat.files=chat.files||[];
+      chat.files.push({id:d.id,name:d.name,kind:d.kind});
+      if(chat===activeChat()){FILES=chat.files;fileErr(d.warning||"");}
+    }catch(e){if(chat===activeChat())fileErr("Can’t reach the server.");}
     renderFiles();
   }
 
   async function removeFile(id){
+    const chat=activeChat();if(!chat)return;
     try{await Chronos.apiJson("/student/files/"+encodeURIComponent(id),undefined,"DELETE");}
     catch(e){fileErr((e&&e.message)||"Could not remove that file.");return;}
-    FILES=FILES.filter(f=>f.id!==id);activeChat().files=FILES;renderFiles();
+    chat.files=(chat.files||[]).filter(f=>f.id!==id);
+    if(chat===activeChat()){FILES=chat.files;renderFiles();}
   }
 
-  document.querySelectorAll(".attach-btn").forEach(b=>{
-    b.onclick=()=>{PENDING_KIND=b.dataset.kind;const i=$s("fileInput");i.value="";i.click();};
+  $s("addFileBtn").onclick=()=>{renderAddFileMenu(null);openComposerMenu("addFileMenu");};
+  $s("toolBtn").onclick=()=>openComposerMenu("toolMenu");
+  document.addEventListener("click",e=>{
+    if(!e.target.closest("#addFileMenu,#toolMenu,#addFileBtn,#toolBtn"))closeComposerMenus();
   });
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")closeComposerMenus();});
   $s("fileInput").onchange=e=>{
     const f=e.target.files&&e.target.files[0];
-    if(f&&PENDING_KIND)uploadFile(PENDING_KIND,f);
+    if(f&&PENDING_KIND==="file"){
+      renderAddFileMenu(f);openComposerMenu("addFileMenu");PENDING_FILE=f;
+    }else if(f&&PENDING_KIND)uploadFile(PENDING_KIND,f);
     PENDING_KIND=null;
   };
 
@@ -1185,9 +1244,9 @@
     const TITLE="Quick tour";
     const KEY="chronos_tut_student_v2";
     const STEPS=[
-      {icon:"school",title:"Pick your course",text:"Use the course menu on the left. Each course only knows what that teacher put into it, so make sure you're on the right one."},
-      {icon:"forum",title:"Just ask",text:"Type your question and hit Enter. Answers come straight out of your teacher's notes and files, so it isn't making things up."},
-      {icon:"flag",title:"If it's not there, it'll say so",text:"Asked something your teacher hasn't covered yet? You'll get told, not fobbed off with a guess. Worth mentioning to them so they can add it."},
+      {icon:"school",title:"Pick your course",text:"Use the course menu on the left so you're asking the right tutor."},
+      {icon:"forum",title:"Just ask",text:"Type a question and hit Enter. Your teacher controls how the tutor uses course material."},
+      {icon:"flag",title:"Missing material?",text:"If strict course grounding is on and a topic isn't covered, the tutor will say so. You can ask your teacher to add it."},
     ];
     let idx=0;
     const body=document.getElementById("tutBody");

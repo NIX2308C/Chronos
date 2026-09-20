@@ -25,8 +25,7 @@ Thumbs.db
 .agents/
 skills-lock.json
 
-# --- Local Claude Code project notes / settings (not for the public repo) ---
-CLAUDE.md
+# --- Local Claude Code settings (not for the public repo) ---
 .claude/
 
 # --- Android (phase C). The project sources are committed; build output,

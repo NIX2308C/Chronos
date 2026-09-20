@@ -1329,21 +1329,41 @@ def rate_limited(key, limit=CHAT_RATE_LIMIT, window=CHAT_RATE_WINDOW):
 # ---------- static pages ----------
 
 @app.route('/')
-@app.route('/landing.html')
 def page_home():
     """The app opens on the sign-in page — there is no marketing landing page.
     /landing.html stays as a redirect so old links and bookmarks don't 404."""
-    return redirect('/login.html', code=302)
+    return redirect('/login', code=302)
 
 
-@app.route('/student.html')
+def legacy_page_redirect(path):
+    """Permanently preserve old .html bookmarks, including their query string."""
+    query = request.query_string.decode('utf-8')
+    return redirect(path + (f'?{query}' if query else ''), code=308)
+
+
+@app.route('/landing.html')
+def legacy_landing():
+    return legacy_page_redirect('/login')
+
+
+@app.route('/student')
 def page_student():
     return send_from_directory(WEB_DIR, 'student.html')
 
 
-@app.route('/login.html')
+@app.route('/student.html')
+def legacy_student():
+    return legacy_page_redirect('/student')
+
+
+@app.route('/login')
 def page_login():
     return send_from_directory(WEB_DIR, 'login.html')
+
+
+@app.route('/login.html')
+def legacy_login():
+    return legacy_page_redirect('/login')
 
 
 @app.route('/auth.js')
@@ -1351,14 +1371,24 @@ def auth_js():
     return send_from_directory(WEB_DIR, 'auth.js', max_age=3600)
 
 
-@app.route('/teacherknowledge.html')
+@app.route('/teacher')
 def page_knowledge():
     return send_from_directory(WEB_DIR, 'teacherknowledge.html')
 
 
-@app.route('/teacherstats.html')
+@app.route('/teacherknowledge.html')
+def legacy_knowledge():
+    return legacy_page_redirect('/teacher')
+
+
+@app.route('/teacher-stats')
 def page_stats():
     return send_from_directory(WEB_DIR, 'teacherstats.html')
+
+
+@app.route('/teacherstats.html')
+def legacy_stats():
+    return legacy_page_redirect('/teacher-stats')
 
 
 @app.route('/theme.css')

@@ -63,7 +63,8 @@
     if (!href || href.charAt(0) === "#") return false;
     if (/^(mailto:|tel:|javascript:)/i.test(href)) return false;
     if (a.host && a.host !== location.host) return false;
-    return /\.html(\?|#|$)/i.test(href);
+    return /^\/(?:login|student|teacher(?:-stats)?)(?:\?|#|$)/i.test(href)
+      || /\.html(\?|#|$)/i.test(href);
   }
 
   document.addEventListener("click", function (e) {

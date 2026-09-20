@@ -98,7 +98,7 @@
      pages navigate identically at every width. -->
 <aside id="sideNav" data-side data-drawer="md" style="background:var(--side);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:0">
   <div style="padding:18px 20px 16px;border-bottom:1px solid var(--rule)">
-    <a href="login.html" style="color:var(--ink);font-family:Newsreader,serif;font-size:24px;line-height:1;text-decoration:none;letter-spacing:-.015em">Chronos<span style="color:var(--crimson)">.</span></a>
+    <a href="/login" style="color:var(--ink);font-family:Newsreader,serif;font-size:24px;line-height:1;text-decoration:none;letter-spacing:-.015em">Chronos<span style="color:var(--crimson)">.</span></a>
     <div style="font-size:12.5px;color:var(--mid);margin-top:4px">Teacher</div>
   </div>
 
@@ -108,9 +108,9 @@
   </div>
 
   <nav style="margin-top:8px;padding:12px;border-top:1px solid var(--rule);display:flex;flex-direction:column">
-    <a class="side-link" data-drawer-close href="teacherknowledge.html"><span class="msym">folder_open</span>Course material</a>
+    <a class="side-link" data-drawer-close href="/teacher"><span class="msym">folder_open</span>Course material</a>
     <span class="side-link on"><span class="msym" style="font-variation-settings:'FILL' 1">insights</span>Analytics</span>
-    <a class="side-link" data-drawer-close href="student.html"><span class="msym">chat</span>Preview as student</a>
+    <a class="side-link" data-drawer-close href="/student"><span class="msym">chat</span>Preview as student</a>
   </nav>
 
   <div style="margin-top:auto;border-top:1px solid var(--rule);padding:10px 14px 14px">
@@ -260,7 +260,7 @@
   }
 
   async function api(path,body){ return Chronos.apiJson(path,body||{}); }
-  async function lock(){ try{await Chronos.logout();}catch(e){} ChronosWipe.go("login.html?role=teacher",true); }
+  async function lock(){ try{await Chronos.logout();}catch(e){} ChronosWipe.go("/login?role=teacher",true); }
   function activeClassObj(){ return CLASSES.find(c=>c.id===ACTIVE_CLASS); }
   const plural=(n,w)=>n+" "+w+(n===1?"":"s");
 
@@ -381,7 +381,7 @@
       who.textContent=plural(g.students,"student");
 
       const link=document.createElement("a");
-      link.href="teacherknowledge.html";
+      link.href="/teacher";
       link.style.cssText="font-size:14px;font-weight:600;justify-self:start";
       link.textContent="Add material";
 

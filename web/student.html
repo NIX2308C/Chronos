@@ -463,7 +463,7 @@
      on a transform rather than hiding it, because everything a student needs
      to switch course, reopen a conversation or sign out lives in here. -->
 <nav id="sideNav" data-drawer="sm" class="flex h-full w-64 fixed left-0 top-0 bg-surface-container flex-col z-[35]" style="border-right:1px solid var(--c-rule)">
-<a class="block px-5 pt-4 pb-3.5" href="login.html" style="border-bottom:1px solid var(--c-rule)">
+<a class="block px-5 pt-4 pb-3.5" href="/login" style="border-bottom:1px solid var(--c-rule)">
 <h1 class="font-headline-md text-headline-md text-on-background leading-none">Chronos<span class="text-primary">.</span></h1>
 <span class="slabel block mt-1" style="font-weight:400" id="modeLabel">Student</span>
 </a>
@@ -484,7 +484,7 @@
 <button class="kbtn w-full" id="newChatBtn" data-drawer-close>
 <span><span class="material-symbols-outlined text-lg align-middle">add</span> New chat</span>
 </button>
-<a class="hidden w-full mt-2 items-center gap-3 px-4 py-2.5 hard text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="teacherknowledge.html" id="teacherBackLink">
+<a class="hidden w-full mt-2 items-center gap-3 px-4 py-2.5 hard text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="/teacher" id="teacherBackLink">
 <span class="material-symbols-outlined text-[18px]">arrow_back</span> Teacher panel
 </a>
 </div>
@@ -1611,8 +1611,8 @@
       setTimeout(()=>{pin();els.input.scrollIntoView({block:"nearest"});},300);
     });
   })();
-  $s("logoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("login.html?role=student",true);};
-  $s("joinLogoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("login.html?role=student",true);};
+  $s("logoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("/login?role=student",true);};
+  $s("joinLogoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("/login?role=student",true);};
   $s("classSwitcher").onchange=e=>switchClass(e.target.value);
   $s("joinAnotherBtn").onclick=()=>showJoinGate();
   $s("joinBtn").onclick=submitJoin;
@@ -1783,11 +1783,11 @@
         '<span class="material-symbols-outlined text-[28px]">school</span></div>'+
       '<h1 class="font-headline-md text-headline-md text-on-background mb-2">Make a course first</h1>'+
       '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You haven’t got any courses yet. Set one up in Course Material and you can try the tutor on your own material.</p>'+
-      '<a class="kbtn w-full" href="teacherknowledge.html"><span>'+
+      '<a class="kbtn w-full" href="/teacher"><span>'+
         '<span class="material-symbols-outlined text-[18px] align-middle">add</span> Go to Knowledge Base</span></a>'+
       '<button class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" id="teacherGateLogout">Sign out</button>';
     const out=$s("teacherGateLogout");
-    if(out)out.onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("login.html?role=teacher",true);};
+    if(out)out.onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("/login?role=teacher",true);};
     $s("joinGate").classList.remove("hidden");
   }
 

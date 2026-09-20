@@ -295,7 +295,7 @@
         : await Chronos.login(email, password);
       // Honor the account's real role for the redirect. Route it through the
       // page wipe so a successful sign-in transitions like any other nav.
-      ChronosWipe.go(info.role === "teacher" ? "teacherknowledge.html" : "student.html", true);
+      ChronosWipe.go(info.role === "teacher" ? "/teacher" : "/student", true);
     }catch(e){
       showErr(e.message || "That didn't work. Give it another go?");
       busy = false; btn.disabled = false;
@@ -341,7 +341,7 @@
       try{
         const info = await Chronos.me();
         // No role means a half-finished signup, not a session to resume.
-        if(info && info.role) ChronosWipe.go(info.role === "teacher" ? "teacherknowledge.html" : "student.html", true);
+        if(info && info.role) ChronosWipe.go(info.role === "teacher" ? "/teacher" : "/student", true);
       }catch(e){}
     });
   }).catch(e => showErr(e.message));

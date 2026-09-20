@@ -6,7 +6,7 @@
   "lang": "en",
   "dir": "ltr",
   "categories": ["education"],
-  "start_url": "/login.html",
+  "start_url": "/login",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",

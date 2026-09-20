@@ -230,14 +230,14 @@
     return new Promise((resolve) => {
       onUser(async (user) => {
         if (!user) {
-          location.replace("login.html?role=" + encodeURIComponent(primary));
+          location.replace("/login?role=" + encodeURIComponent(primary));
           return;
         }
         let info;
         try { info = await me(); } catch (e) { info = null; }
         if (!info || (allowed.length && allowed.indexOf(info.role) === -1)) {
           // Signed in but role not allowed here — send to login to pick correctly.
-          location.replace("login.html?role=" + encodeURIComponent(primary) + "&denied=1");
+          location.replace("/login?role=" + encodeURIComponent(primary) + "&denied=1");
           return;
         }
         resolve(info);

@@ -69,9 +69,9 @@
       projectId: cfg.projectId,
     });
     _auth = firebase.auth();
-    // LOCAL persistence (the default) keeps the user signed in across page
-    // navigations and reloads — this is what stops the constant re-login.
-    await _auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    // Firebase's default browser persistence is LOCAL. Calling setPersistence
+    // on every navigation makes session restoration wait for an extra storage
+    // operation before onAuthStateChanged can settle.
     return _auth;
   })();
 

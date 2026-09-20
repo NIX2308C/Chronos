@@ -1626,7 +1626,7 @@
 
   // Load classes; returns true if the student is in at least one.
   async function loadClasses(){
-    try{CLASSES=await Chronos.listClasses();}catch(e){CLASSES=[];}
+    CLASSES=await Chronos.listClasses();
     let pick=localStorage.getItem(CLASS_KEY);
     if(!CLASSES.find(c=>c.id===pick))pick=CLASSES.length?CLASSES[0].id:null;
     ACTIVE_CLASS=pick;
@@ -1665,9 +1665,11 @@
   }
 
   // Load this student's saved conversations (all classes) from the server.
-  async function loadChats(){
+  async function loadChats(pending){
     try{
-      const d=await Chronos.apiJson("/chats",undefined,"GET");
+      const result=pending?await pending:null;
+      if(result&&result.error)throw result.error;
+      const d=result?result.data:await Chronos.apiJson("/chats",undefined,"GET");
       const retained=new Map(ALL_CHATS.map(c=>[c.id,c]));
       const saved=(d.chats||[]).map(c=>{
         const local=retained.get(c.id);
@@ -1716,6 +1718,9 @@
 
   async function fetchFiles(c){
     if(c.filesLoaded)return {files:c.files,max:FILE_MAX};
+    // A locally created conversation has no server-side attachments until an
+    // upload succeeds. Keep its in-memory files and skip an empty Firestore read.
+    if(c.isNew)return {files:c.files||[],max:FILE_MAX};
     const d=await Chronos.apiJson("/student/files?class_id="+encodeURIComponent(c.classId)+"&chat_id="+encodeURIComponent(c.id),undefined,"GET");
     return {files:d.files||[],max:d.max};
   }
@@ -1815,9 +1820,13 @@
     $s("modeLabel").textContent=role;$s("roleLabel").textContent=role;
     // Show a way back to the teacher panels when a teacher is using the tutor.
     if(IS_TEACHER){$s("teacherBackLink").classList.remove("hidden");$s("teacherBackLink").classList.add("flex");}
+    // Start independent requests together. The chat list needs the selected
+    // class only when it is displayed, not while it is fetched.
+    const pendingChats=Chronos.apiJson("/chats",undefined,"GET")
+      .then(data=>({data}),error=>({error}));
     const hasClass=await loadClasses();
     if(!hasClass){ info.role==="teacher" ? showTeacherNoClassGate() : showJoinGate(); }
-    else { await loadChats(); if(window.__tutFirstVisit)window.__tutFirstVisit(); }
+    else { await loadChats(pendingChats); if(window.__tutFirstVisit)window.__tutFirstVisit(); }
     $s("authGate").remove();
     checkServer();setInterval(checkServer,15000);
   }).catch(e=>{

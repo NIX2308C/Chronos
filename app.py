@@ -2351,7 +2351,7 @@ def ingest():
 
 
 def migrate_legacy_custom_rules(class_id):
-    """Move pre-policy rules out of Pinecone once, preserving their wording.
+    """Move pre-policy rules out of Pinecone, returning the remaining vector count.
 
     Older releases embedded typed rules without a ``source`` field. They need to
     stop being retrievable, but teachers should not have to re-enter them.
@@ -2372,7 +2372,7 @@ def migrate_legacy_custom_rules(class_id):
             if text:
                 legacy.append({"id": str(match["id"])[:120], "text": text})
         if not legacy:
-            return 0
+            return count
         def absorb(current):
             for rule in legacy:
                 current.setdefault(rule["id"], rule)
@@ -2380,10 +2380,10 @@ def migrate_legacy_custom_rules(class_id):
 
         mutate_custom_rules(class_id, absorb)
         pinecone_index.delete(ids=[r["id"] for r in legacy], namespace=class_id)
-        return len(legacy)
+        return max(0, count - len(legacy))
     except Exception:
         logger.exception("Could not migrate legacy custom rules for course %s", class_id)
-        return 0
+        return None
 
 
 @app.route('/rules', methods=['POST'])
@@ -2405,8 +2405,9 @@ def list_rules():
     if not class_owned_by(class_id, request.uid):
         return jsonify({"error": "Unknown course, or you don't own it."}), 403
     try:
-        migrate_legacy_custom_rules(class_id)
-        count = class_vector_count(class_id)
+        count = migrate_legacy_custom_rules(class_id)
+        if count is None:
+            count = class_vector_count(class_id)
         custom_rules = load_custom_rules(class_id)
         if count == 0:
             return jsonify({"rules": [{**r, "source": None} for r in custom_rules], "total_vectors": 0,

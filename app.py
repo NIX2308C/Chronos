@@ -9,6 +9,7 @@ import random
 import secrets
 import logging
 import zipfile
+from datetime import datetime, timezone
 from functools import wraps
 from collections import deque
 from threading import Lock, Thread
@@ -23,6 +24,12 @@ from firebase_admin import credentials, firestore, auth as fb_auth
 import profanity
 import student_profile
 from pinecone import Pinecone
+try:
+    from google.cloud.devtools import cloudbuild_v1
+    from google.cloud import run_v2
+except ImportError:  # Kept optional so offline/unit-test imports still work.
+    cloudbuild_v1 = None
+    run_v2 = None
 try:
     import pypdf
 except ImportError:
@@ -248,11 +255,166 @@ DEV_EMAILS = {
     for e in os.getenv("DEV_EMAILS", "test@gmail.com").split(",") if e.strip()
 }
 
+# The status page reads deployment state with the Cloud Run *runtime* service
+# account through Application Default Credentials. These are identifiers, not
+# secrets; leave them blank outside the deployed service and the developer
+# panel will simply report deployment data as unavailable.
+CLOUD_STATUS_PROJECT_ID = os.getenv("CLOUD_STATUS_PROJECT_ID", "").strip()
+CLOUD_STATUS_REGION = os.getenv("CLOUD_STATUS_REGION", "").strip()
+CLOUD_STATUS_SERVICE = os.getenv("CLOUD_STATUS_SERVICE", "").strip()
+CLOUD_STATUS_BUILD_TRIGGER_ID = os.getenv("CLOUD_STATUS_BUILD_TRIGGER_ID", "").strip()
+STATUS_CHECK_TTL = max(10, int(os.getenv("STATUS_CHECK_TTL", "30")))
+_status_cache = {"checked_at": 0.0, "services": None, "refreshing": False}
+_status_lock = Lock()
+
 
 def is_dev_user(user):
     """True when the verified Firebase token belongs to a developer account."""
     email = str((user or {}).get("email") or "").strip().lower()
     return bool(email) and email in DEV_EMAILS
+
+
+def require_developer(fn):
+    """Require a verified Firebase user in the server-owned developer allowlist."""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        decoded = verify_user()
+        if not decoded:
+            return jsonify({"error": "Unauthorized. Please sign in."}), 401
+        if not is_dev_user(decoded):
+            return jsonify({"error": "Forbidden."}), 403
+        request.user = decoded
+        request.uid = decoded["uid"]
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def _status_timestamp(value=None):
+    """Return an ISO timestamp without ever leaking a provider-specific object."""
+    value = value or datetime.now(timezone.utc)
+    if hasattr(value, "ToDatetime"):
+        value = value.ToDatetime()
+    if not isinstance(value, datetime):
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _run_status_checks():
+    """Run bounded, low-cost dependency checks. Errors stay in server logs only."""
+    checks = {
+        "chronos": lambda: True,
+        # Fetching model metadata validates the configured API key without asking
+        # the model to generate text or incurring generation cost.
+        "ai": lambda: client.models.get(model=CHAT_MODEL),
+        "data": lambda: list(db.collection("Classes").limit(1).stream()),
+        "materials": lambda: pinecone_index.describe_index_stats(),
+    }
+    services = {}
+    for name, check in checks.items():
+        try:
+            check()
+            services[name] = "operational"
+        except Exception:
+            # Do not return the dependency name, exception, or credentials to the
+            # public endpoint. Logs retain enough context for an operator.
+            logger.exception("Status check failed for %s", name)
+            services[name] = "degraded"
+    return services
+
+
+def public_status_snapshot():
+    """Get a cached public-safe status response without stampeding providers."""
+    now = time.time()
+    with _status_lock:
+        fresh = _status_cache["services"] and now - _status_cache["checked_at"] < STATUS_CHECK_TTL
+        if fresh:
+            services, checked_at = _status_cache["services"], _status_cache["checked_at"]
+        elif _status_cache["refreshing"]:
+            services, checked_at = _status_cache["services"], _status_cache["checked_at"]
+            if not services:
+                return {"status": "checking", "checked_at": None, "services": {
+                    key: "checking" for key in ("chronos", "ai", "data", "materials")}}
+        else:
+            _status_cache["refreshing"] = True
+            services = checked_at = None
+    if services is None:
+        try:
+            services = _run_status_checks()
+            checked_at = time.time()
+            with _status_lock:
+                _status_cache.update(services=services, checked_at=checked_at)
+        finally:
+            with _status_lock:
+                _status_cache["refreshing"] = False
+    overall = "operational" if all(v == "operational" for v in services.values()) else "degraded"
+    return {
+        "status": overall,
+        "checked_at": _status_timestamp(datetime.fromtimestamp(checked_at, timezone.utc)),
+        "services": dict(services),
+    }
+
+
+def deployment_status_snapshot():
+    """Read the latest trigger build and serving Cloud Run revision for developers."""
+    configured = all((CLOUD_STATUS_PROJECT_ID, CLOUD_STATUS_REGION, CLOUD_STATUS_SERVICE,
+                      CLOUD_STATUS_BUILD_TRIGGER_ID, cloudbuild_v1, run_v2))
+    if not configured:
+        return {"status": "unavailable"}
+    try:
+        build_client = cloudbuild_v1.CloudBuildClient()
+        builds = build_client.list_builds(
+            project_id=CLOUD_STATUS_PROJECT_ID,
+            filter='trigger_id="%s"' % CLOUD_STATUS_BUILD_TRIGGER_ID,
+            page_size=1,
+        )
+        build = next(iter(builds), None)
+        run_client = run_v2.ServicesClient()
+        service_name = "projects/%s/locations/%s/services/%s" % (
+            CLOUD_STATUS_PROJECT_ID, CLOUD_STATUS_REGION, CLOUD_STATUS_SERVICE)
+        service = run_client.get_service(name=service_name)
+    except Exception:
+        logger.exception("Could not retrieve Cloud deployment status")
+        return {"status": "unavailable"}
+
+    # Cloud Build's protobuf enum: QUEUED=1, WORKING=2, SUCCESS=3, then its
+    # terminal error states. Keep the browser vocabulary deliberately smaller.
+    build_states = {1: "queued", 2: "building", 3: "live", 4: "failed", 5: "failed",
+                    6: "failed", 7: "failed", 9: "failed"}
+    build_status = "unavailable"
+    build_data = None
+    if build:
+        code = int(build.status)
+        build_status = build_states.get(code, "building")
+        source = getattr(getattr(build, "source", None), "repo_source", None)
+        substitutions = dict(getattr(build, "substitutions", {}) or {})
+        revision = (getattr(source, "commit_sha", "") or substitutions.get("COMMIT_SHA") or
+                    getattr(source, "branch_name", ""))
+        build_data = {
+            "state": build_status,
+            "started_at": _status_timestamp(getattr(build, "start_time", None)),
+            "finished_at": _status_timestamp(getattr(build, "finish_time", None)),
+            "revision": revision[:80] if revision else None,
+            "console_url": "https://console.cloud.google.com/cloud-build/builds/%s?project=%s" %
+                           (build.id, CLOUD_STATUS_PROJECT_ID),
+        }
+    traffic = list(getattr(service, "traffic", []) or [])
+    serving = next((t for t in traffic if getattr(t, "percent", 0) > 0), None)
+    revision = getattr(serving, "revision", "") or getattr(service, "latest_ready_revision", "")
+    ready = bool(getattr(service, "latest_ready_revision", ""))
+    rollout_state = "live" if ready else "deploying"
+    status = "failed" if build_status == "failed" else ("deploying" if build_status in ("queued", "building") or not ready else "live")
+    return {
+        "status": status,
+        "build": build_data,
+        "service": {
+            "state": rollout_state,
+            "revision": revision or None,
+            "console_url": "https://console.cloud.google.com/run/detail/%s/%s/revisions?project=%s" %
+                           (CLOUD_STATUS_REGION, CLOUD_STATUS_SERVICE, CLOUD_STATUS_PROJECT_ID),
+        },
+    }
 
 
 # Tutor personalities a student can pick. Style only: the directive is appended
@@ -1700,6 +1862,11 @@ def page_login():
 @app.route('/login.html')
 def legacy_login():
     return legacy_page_redirect('/login')
+
+
+@app.route('/status')
+def page_status():
+    return send_from_directory(WEB_DIR, 'status.html')
 
 
 @app.route('/auth.js')
@@ -3774,6 +3941,19 @@ def delete_student_file(file_id):
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "ok"})
+
+
+@app.route('/status/public', methods=['GET'])
+def status_public():
+    """Public, intentionally coarse service health. Safe for unauthenticated use."""
+    return jsonify(public_status_snapshot())
+
+
+@app.route('/status/deployment', methods=['GET'])
+@require_developer
+def status_deployment():
+    """Cloud deployment details are limited to verified developer accounts."""
+    return jsonify(deployment_status_snapshot())
 
 
 if __name__ == '__main__':

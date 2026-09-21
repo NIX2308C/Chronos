@@ -11,7 +11,7 @@
     default: "Balanced and clear.", encouraging: "Warm, notices progress.", concise: "Short and to the point.",
     socratic: "Guides with questions.", casual: "Relaxed study partner.", vibetastic: "Dev only. Unhinged 2023 chatbot."
   };
-  var root = null, prefs = null, personalities = [], timer = null, pending = {}, savedTimer = null;
+  var root = null, prefs = null, personalities = [], timer = null, pending = {}, savedTimer = null, deploymentTimer = null;
   var savedEl = null, opts = {}, me = null, lastFocus = null;
 
   function h(tag, attrs, kids) {
@@ -126,6 +126,9 @@
     var pane = h("div");
     pane.appendChild(row("Signed in as", "", h("div", { class: "cs-kv", text: (me && me.email) || "" })));
     pane.appendChild(row("Role", "", h("div", { class: "cs-kv", text: (me && me.role) || "" })));
+    pane.appendChild(row("System status", "See the current availability of Chronos services.", h("a", {
+      class: "cs-btn", href: "/status", text: "View status"
+    })));
     if (opts.onReplayTour) {
       pane.appendChild(row("How it works", "", h("button", { type: "button", class: "cs-btn", text: "Replay tour",
         onclick: function () { close(); opts.onReplayTour(); } })));
@@ -171,6 +174,12 @@
         try { sessionStorage.removeItem("chronos-role"); } catch (e) {}
         flash("Cleared");
       } })));
+    var deployment = h("div", { class: "cs-pre", text: "Loading deployment status…", "aria-live": "polite" });
+    var refresh = h("button", { type: "button", class: "cs-btn", text: "Refresh" });
+    refresh.addEventListener("click", function () { loadDeployment(deployment, true); });
+    pane.appendChild(row("Cloud deployment", "Latest build and serving revision. Refreshes while a rollout is active.", refresh));
+    pane.appendChild(deployment);
+    loadDeployment(deployment);
     var info = {
       uid: me && me.uid, role: me && me.role, api: Chronos.BASE || "(same origin)",
       hint: Chronos.hint(), preferences: prefs, ui: window.ChronosTheme.ui(),
@@ -179,8 +188,45 @@
     return pane;
   }
 
+  function loadDeployment(box, manual) {
+    clearTimeout(deploymentTimer);
+    if (!box || !box.isConnected) return;
+    if (manual) box.textContent = "Refreshing deployment status…";
+    Chronos.apiFetch("/status/deployment", { cache: "no-store" }).then(function (res) {
+      if (!res.ok) throw new Error("unavailable");
+      return res.json();
+    }).then(function (data) {
+      if (!box.isConnected) return;
+      if (data.status === "unavailable") {
+        box.textContent = "Deployment data unavailable.";
+        return;
+      }
+      var lines = ["Overall: " + data.status];
+      if (data.build) {
+        lines.push("Latest build: " + data.build.state);
+        if (data.build.started_at) lines.push("Started: " + data.build.started_at);
+        if (data.build.revision) lines.push("Source revision: " + data.build.revision);
+      }
+      if (data.service) lines.push("Serving revision: " + (data.service.revision || "Deploying"));
+      box.replaceChildren();
+      box.appendChild(document.createTextNode(lines.join("\n")));
+      [data.build, data.service].forEach(function (part) {
+        if (!part || !part.console_url) return;
+        box.appendChild(document.createElement("br"));
+        var link = h("a", { href: part.console_url, target: "_blank", rel: "noopener", text: part === data.build ? "Open build in Cloud Console" : "Open service in Cloud Console" });
+        box.appendChild(link);
+      });
+      if (["queued", "building", "deploying"].indexOf(data.status) !== -1) {
+        deploymentTimer = setTimeout(function () { loadDeployment(box); }, 5000);
+      }
+    }).catch(function () {
+      if (box.isConnected) box.textContent = "Deployment data unavailable.";
+    });
+  }
+
   function close() {
     if (!root) return;
+    clearTimeout(deploymentTimer);
     root.remove(); root = null;
     document.removeEventListener("keydown", onKey);
     if (lastFocus && lastFocus.focus) lastFocus.focus();

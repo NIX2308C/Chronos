@@ -199,6 +199,10 @@ Configuration goes in the Cloud Run service, not in the repo:
 - **Secrets** — `TEACHER_SIGNUP_CODE`, `GEMINI_API_KEY`, `PINECONE_API_KEY`, `FIREBASE_CREDENTIALS_JSON` (the full contents of `firebase_credentials.json`). Use Secret Manager and expose them to the service as environment variables rather than plain env vars, so they aren't readable from the service description.
 - **Plain env vars** — `FLASK_DEBUG=0`, `TRUST_PROXY_HOPS=1` (Cloud Run puts exactly one proxy in front of you, so trusting that single hop gives real client IPs without letting anyone forge `X-Forwarded-For`), `ALLOWED_ORIGINS` set to your real front-end origin, and the `FIREBASE_*` web config values.
 
+### Status page deployment access
+
+`/status` is public and reports only coarse service health. Its developer-only deployment panel needs `CLOUD_STATUS_PROJECT_ID`, `CLOUD_STATUS_REGION`, `CLOUD_STATUS_SERVICE`, and `CLOUD_STATUS_BUILD_TRIGGER_ID` set on the Cloud Run service. Grant its runtime service account `roles/cloudbuild.builds.viewer` and `roles/run.viewer`, and enable the Cloud Build and Cloud Run Admin APIs. The panel is visible only to verified Firebase accounts listed in `DEV_EMAILS`; it uses the runtime identity and never sends Google credentials to the browser.
+
 The Werkzeug debugger stays off unless you explicitly set `FLASK_DEBUG=1`. If `ALLOWED_ORIGINS` is left on the local-dev default, or `TRUST_PROXY_HOPS` is still 0, the app logs a warning at startup — the first means your front-end will be CORS-blocked, the second means the teacher-code rate limit sees the load balancer's IP for every caller and throttles globally instead of per client.
 
 **Firestore rules** live in `firestore.rules` and deny all client access (`allow read, write: if false`). That is deliberate and load-bearing: nothing in the browser talks to Firestore, so every read and write goes through `app.py` via the Admin SDK, which bypasses rules. Relaxing them to the usual `if request.auth != null` would let any signed-in student write their own `Users/{uid}.role` and make themselves a teacher, bypassing `TEACHER_SIGNUP_CODE` entirely. Deploy with `firebase deploy --only firestore:rules`.
@@ -215,5 +219,6 @@ All endpoints below the auth layer expect a Firebase ID token in the `Authorizat
 - **Student (any signed-in user in the course):** `/chat`, `/chats`, `/chats/<id>/messages`, `DELETE /chats/<id>`, all course-scoped.
 - **Teacher (owner of the course):** `/ingest`, `/upload`, `/rules`, `/delete_rule`, `/stats`, and `/course-settings`; these retain the legacy `class_id` field.
 - `/health` is a plain health check.
+- `/status/public` is a public, coarse health snapshot; `/status/deployment` is developer-only Cloud Build/Run state.
 
 Legacy rules from before courses existed are automatically migrated into the first course a teacher creates.

@@ -22,7 +22,7 @@ Chronos is a course grounded AI tutor. Teachers create courses, upload source ma
 | User preferences, personalities, dev accounts | `app.py`: `PERSONALITIES`, `normalize_preferences`, `preference_directive`, `/me/preferences`, `is_dev_user` (`DEV_EMAILS` env, default `test@gmail.com`, email match only), `/auth/me` returns `is_dev`; debug payload built in `chat` only when `is_dev_user` and `debug:true`; UI in `web/student.html` (`setDebug`, `buildDebugPanel`) and `web/settings.js` |
 | Course outline (knowledge-base awareness) | `app.py`: `summarize_document`, `save_manifest_entry`, `load_course_manifest`, `manifest_outline`, `rebuild_manifest`; stored at `Classes/{id}.manifest.docs`, built at `/upload`, backfilled from `/rules`, injected by `build_system_instruction` |
 | Native Android | `android/app/src/main/java/com/chronos/tutor/`: `ui/nav/ChronosNav.kt`, `ui/student/`, `ui/login/`, `data/`, `net/`; build config in `android/app/build.gradle.kts` |
-| Tests and deployment | `tests/test_*.py`, Android `src/test/`; `Dockerfile`, `.github/workflows/android.yml`, `firestore.rules` |
+| Tests and deployment | `tests/test_*.py`, Android `src/test/`; `Dockerfile`, `.github/workflows/android.yml`, `firestore.rules`; public `/status` and developer-only `/status/deployment` read Cloud Build/Run via runtime ADC |
 
 ## Data and trust boundaries
 

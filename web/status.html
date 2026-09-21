@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<script>try{var d=document.documentElement,t=localStorage.getItem('chronos-theme');if(t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches))d.classList.add('dark')}catch(_){}</script>
+<title>Chronos | Status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="theme.css" rel="stylesheet"><link href="mobile.css" rel="stylesheet">
+<style>
+:root{--page:#F7F4EC;--field:#FFFDF7;--ink:#141311;--sub:#5D5B55;--rule:#DED8C6;--good:#24734A;--warn:#B45A00;--bad:#B10014}html.dark{--page:#0D0D10;--field:#19191F;--ink:#F7F4EC;--sub:#B3AEA3;--rule:#303038;--good:#6FD5A0;--warn:#F0AD4E;--bad:#FF6572;color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:var(--page);color:var(--ink);font-family:'Schibsted Grotesk',sans-serif}.wrap{max-width:860px;margin:auto;padding:28px 24px 72px}header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--rule);padding-bottom:22px}a{color:inherit}.brand{font:500 29px Newsreader,serif;text-decoration:none}.brand b{color:#E2001A}.login{font-size:14px;color:var(--sub)}h1,h2{font-family:Newsreader,serif;font-weight:400}h1{font-size:48px;margin:64px 0 9px;letter-spacing:-.03em}p{color:var(--sub);line-height:1.6}.summary{display:flex;align-items:center;gap:10px;margin:30px 0 18px;font-size:15px}.dot{width:10px;height:10px;border-radius:50%;background:var(--warn);flex:none}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card{background:var(--field);border:1px solid var(--rule);padding:22px}.name{font-weight:600}.state{font-size:14px;margin-top:8px;color:var(--sub)}.operational .state{color:var(--good)}.degraded .state{color:var(--bad)}.checking .state{color:var(--warn)}.dev{margin-top:42px;border-top:1px solid var(--rule);padding-top:28px}.hidden{display:none!important}.deploy-card{background:var(--field);border:1px solid var(--rule);padding:22px;margin-top:14px}.row{display:flex;justify-content:space-between;gap:18px;padding:9px 0;border-bottom:1px solid var(--rule);font-size:14px}.row:last-child{border:0}.muted{color:var(--sub)}.failure{color:var(--bad)}@media(max-width:560px){.grid{grid-template-columns:1fr}h1{font-size:39px}.wrap{padding:20px 16px 48px}}
+</style></head><body><main class="wrap">
+<header><a class="brand" href="/login">Chronos<b>.</b></a><a class="login" href="/login">Sign in</a></header>
+<h1>System status</h1><p id="message">Checking the services that keep Chronos running.</p>
+<div class="summary"><i class="dot" id="overallDot"></i><span id="overall">Checking status</span><span class="muted" id="checked"></span></div>
+<section class="grid" aria-live="polite" aria-label="Service status">
+  <article class="card checking" data-service="chronos"><div class="name">Chronos</div><div class="state">Checking</div></article>
+  <article class="card checking" data-service="ai"><div class="name">AI service</div><div class="state">Checking</div></article>
+  <article class="card checking" data-service="data"><div class="name">Learning data</div><div class="state">Checking</div></article>
+  <article class="card checking" data-service="materials"><div class="name">Course materials</div><div class="state">Checking</div></article>
+</section>
+</main>
+<script>
+(()=>{let timer;
+const stamp=v=>v?new Date(v).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}):'';
+function paintPublic(data){const degraded=data.status==='degraded';document.querySelector('#overall').textContent=degraded?'Some services are degraded':'All services are operational';document.querySelector('#overallDot').style.background=degraded?'var(--bad)':'var(--good)';document.querySelector('#message').textContent=degraded?'Chronos may be slower or unavailable for some requests. We are checking it.':'Chronos is operating normally.';document.querySelector('#checked').textContent=data.checked_at?'Checked '+stamp(data.checked_at):'';Object.entries(data.services||{}).forEach(([key,state])=>{const c=document.querySelector('[data-service="'+key+'"]');if(!c)return;c.className='card '+state;c.querySelector('.state').textContent=state==='operational'?'Operational':state==='degraded'?'Degraded':'Checking'})}
+async function refreshPublic(){try{const r=await fetch('/status/public',{cache:'no-store'});if(!r.ok)throw 0;paintPublic(await r.json())}catch(_){paintPublic({status:'degraded',services:{chronos:'degraded',ai:'checking',data:'checking',materials:'checking'}})}}
+async function refresh(){if(document.hidden)return;await refreshPublic();clearTimeout(timer);timer=setTimeout(refresh,30000)}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});refresh();})();
+</script></body></html>

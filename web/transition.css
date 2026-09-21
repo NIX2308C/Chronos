@@ -1,142 +1,57 @@
 /* ============================================================
-   Chronos page wipe.
+   Chronos navigation and loading.
 
-   Persona-style transition between pages: five skewed crimson
-   bars sweep in from alternating sides to cover the screen, a
-   mark lands in the middle, then the next page sweeps them back
-   out the way they came.
-
-   Two halves, on two different pages:
-     • leaving  — transition.js adds .act.cover, waits, navigates
-     • arriving — an inline <head> snippet reads the sessionStorage
-       flag and puts `wiping` on <html> BEFORE first paint, so the
-       new page's first frame is already covered (no flash of
-       un-wiped content). transition.js then plays the reveal.
-
-   This file must stay a render-blocking <link> in <head> for that
-   covered first frame to work.
+   Page changes crossfade natively (Chromium; other browsers simply
+   cut). Keep this a render-blocking <link> in <head> so the opt-in
+   is present on the very first navigation.
    ============================================================ */
 
-.px {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: none;
-  overflow: hidden;
-  pointer-events: none;
-}
-.px.act,
-html.wiping .px { display: block; pointer-events: auto; }
-
-.px-b {
-  position: absolute;
-  left: -25%;
-  width: 150%;
-  height: calc(20% + 1px);
-  background: #E2001A;
-  will-change: transform;
-  transform: translateX(var(--off)) skewX(-14deg);
-  transition: transform .3s cubic-bezier(.65, 0, .35, 1);
-}
-.px-b:nth-child(odd)  { --off: -140%; }
-.px-b:nth-child(even) { --off:  140%; }
-.px-b:nth-child(1) { top:  0; }
-.px-b:nth-child(2) { top: 20%; }
-.px-b:nth-child(3) { top: 40%; }
-.px-b:nth-child(4) { top: 60%; }
-.px-b:nth-child(5) { top: 80%; }
-
-/* arriving: covered on the first frame, no animation yet */
-html.wiping .px-b { transform: translateX(0) skewX(-14deg); transition: none; }
-
-/* leaving: sweep in, top-to-bottom */
-.px.cover .px-b { transform: translateX(0) skewX(-14deg); }
-.px.cover .px-b:nth-child(1) { transition-delay: 0ms; }
-.px.cover .px-b:nth-child(2) { transition-delay: 28ms; }
-.px.cover .px-b:nth-child(3) { transition-delay: 56ms; }
-.px.cover .px-b:nth-child(4) { transition-delay: 84ms; }
-.px.cover .px-b:nth-child(5) { transition-delay: 112ms; }
-
-/* arriving: sweep back out, bottom-to-top so it reads as one motion */
-.px.reveal .px-b { transform: translateX(var(--off)) skewX(-14deg); transition-duration: .38s; }
-.px.reveal .px-b:nth-child(5) { transition-delay: 0ms; }
-.px.reveal .px-b:nth-child(4) { transition-delay: 28ms; }
-.px.reveal .px-b:nth-child(3) { transition-delay: 56ms; }
-.px.reveal .px-b:nth-child(2) { transition-delay: 84ms; }
-.px.reveal .px-b:nth-child(1) { transition-delay: 112ms; }
-
-/* the mark that lands once the screen is covered */
-.px-mark {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  opacity: 0;
-  transform: scale(2.6) rotate(-18deg);
-  transition: opacity .2s ease, transform .4s cubic-bezier(.2, 1.4, .35, 1);
-}
-.px.cover .px-mark,
-html.wiping .px-mark { opacity: 1; transform: scale(1) rotate(-7deg); transition-delay: .2s; }
-.px.reveal .px-mark { opacity: 0; transform: scale(.7) rotate(-7deg); transition-delay: 0s; }
-
-.px-tag {
-  display: block;
-  background: #0B0B0C;
-  color: #F7F4EC;
-  font-family: 'Newsreader', serif;
-  font-weight: 400;
-  font-size: clamp(2rem, 8vw, 5rem);
-  line-height: 1;
-  letter-spacing: -.015em;
-  padding: .18em .34em .24em;
-  border: 1px solid #F7F4EC;
+@view-transition { navigation: auto; }
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: .14s;
+  animation-timing-function: ease-out;
 }
 
-@keyframes chronos-page-enter {
-  from { opacity: .01; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-body.chronos-page-enter main,
-body.chronos-page-enter nav,
-body.chronos-page-enter #app,
-body.chronos-page-enter #formCard {
-  animation: chronos-page-enter .42s cubic-bezier(.2,.9,.3,1) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .px, .px.act, html.wiping .px { display: none !important; }
-}
-
+/* Views that swap content in place (chats, courses, ranges). */
 .chronos-view-host { position: relative; }
 .chronos-view-loading {
   position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: color-mix(in srgb, var(--c-paper, #F7F4EC) 84%, transparent);
-  color: var(--c-sub, #56534F);
-  font: 500 14px 'Schibsted Grotesk', sans-serif;
-  pointer-events: auto;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 5;
+  overflow: hidden;
+  pointer-events: none;
 }
-.chronos-view-loading:not([hidden]) { animation: chronos-view-loading-in .2s ease both; }
 .chronos-view-loading[hidden] { display: none; }
-.chronos-view-spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid currentColor;
-  border-right-color: var(--crimson, #E2001A);
-  border-radius: 50%;
-  animation: chronos-view-spin .75s linear infinite;
+.chronos-view-loading::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  background: var(--crimson, #E2001A);
+  animation: chronos-view-slide 1s ease-in-out infinite;
 }
-@keyframes chronos-view-spin { to { transform: rotate(360deg); } }
-.chronos-view-reveal [data-transition-content] {
-  animation: chronos-view-reveal .28s ease-out both;
+@keyframes chronos-view-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(270%); }
 }
-@keyframes chronos-view-reveal { from { opacity: .35; transform: translateY(5px); } to { opacity: 1; transform: none; } }
-@keyframes chronos-view-loading-in { from { opacity: 0; } to { opacity: 1; } }
+.chronos-view-reveal [data-transition-content] { animation: chronos-view-fade .14s ease-out both; }
+@keyframes chronos-view-fade { from { opacity: .6; } to { opacity: 1; } }
+
+.chronos-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .chronos-view-spinner, .chronos-view-reveal [data-transition-content] { animation: none; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  .chronos-view-loading::before { animation: none; width: 100%; opacity: .5; }
+  .chronos-view-reveal [data-transition-content] { animation: none; }
 }

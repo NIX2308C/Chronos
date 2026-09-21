@@ -1,0 +1,79 @@
+/* Chronos settings panel. Self-contained: it carries its own tokens so it looks
+   the same on every page, whatever that page calls its colours. */
+.cs-root {
+  --cs-bg: #FFFDF7; --cs-ink: #141311; --cs-sub: #5D5B55; --cs-edge: #DED8C6;
+  --cs-hi: #F1EDE0; --cs-accent: #E2001A; --cs-accent-text: #B10014;
+}
+html.dark .cs-root {
+  --cs-bg: #16161B; --cs-ink: #F7F4EC; --cs-sub: #B3AEA3; --cs-edge: #303038;
+  --cs-hi: #212128; --cs-accent-text: #FF3B4E;
+}
+.cs-root {
+  position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(11, 11, 12, .55); font-family: 'Schibsted Grotesk', sans-serif;
+  animation: cs-fade .12s ease-out both;
+}
+.cs-root[hidden] { display: none; }
+@keyframes cs-fade { from { opacity: 0; } to { opacity: 1; } }
+.cs-panel {
+  width: 100%; max-width: 640px; max-height: min(720px, calc(100dvh - 32px)); display: flex; flex-direction: column;
+  background: var(--cs-bg); color: var(--cs-ink); border: 1px solid var(--cs-edge);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .28);
+}
+.cs-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--cs-edge); }
+.cs-head h2 { margin: 0; flex: 1; font: 400 22px/1.2 'Newsreader', serif; letter-spacing: -.015em; }
+.cs-x, .cs-btn {
+  font: inherit; cursor: pointer; color: var(--cs-ink); background: transparent; border: 1px solid var(--cs-edge);
+  transition: background-color .12s, border-color .12s, color .12s;
+}
+.cs-x { width: 34px; height: 34px; display: grid; place-items: center; border-color: transparent; color: var(--cs-sub); }
+.cs-x:hover, .cs-btn:hover { border-color: var(--cs-ink); color: var(--cs-ink); }
+.cs-btn { font-size: 13.5px; font-weight: 600; padding: 8px 14px; }
+.cs-btn.danger { color: var(--cs-accent-text); }
+.cs-btn.danger:hover { border-color: var(--cs-accent); }
+.cs-body { display: flex; min-height: 0; flex: 1; }
+.cs-tabs { flex: none; width: 150px; padding: 10px; border-right: 1px solid var(--cs-edge); display: flex; flex-direction: column; gap: 2px; }
+.cs-tab {
+  text-align: left; font: inherit; font-size: 14px; padding: 9px 10px; border: 0; background: transparent;
+  color: var(--cs-sub); cursor: pointer; border-left: 2px solid transparent;
+}
+.cs-tab:hover { color: var(--cs-ink); background: var(--cs-hi); }
+.cs-tab[aria-selected="true"] { color: var(--cs-ink); border-left-color: var(--cs-accent); background: var(--cs-hi); font-weight: 600; }
+.cs-pane { flex: 1; min-width: 0; overflow-y: auto; padding: 8px 20px 20px; }
+.cs-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--cs-edge); }
+.cs-row:last-child { border-bottom: 0; }
+.cs-row.stack { flex-direction: column; align-items: stretch; gap: 8px; }
+.cs-label { font-size: 14.5px; font-weight: 600; }
+.cs-note { font-size: 12.5px; color: var(--cs-sub); margin-top: 2px; }
+.cs-select, .cs-input, .cs-text {
+  font: inherit; font-size: 14px; color: var(--cs-ink); background: var(--cs-bg); border: 1px solid var(--cs-edge);
+  padding: 8px 10px; border-radius: 0; min-width: 0;
+}
+.cs-select:focus, .cs-input:focus, .cs-text:focus { outline: none; border-color: var(--cs-accent); }
+.cs-text { resize: vertical; min-height: 64px; width: 100%; }
+.cs-seg { display: inline-flex; border: 1px solid var(--cs-edge); flex: none; }
+.cs-seg button {
+  font: inherit; font-size: 13px; padding: 7px 12px; border: 0; background: transparent; color: var(--cs-sub);
+  cursor: pointer; border-right: 1px solid var(--cs-edge);
+}
+.cs-seg button:last-child { border-right: 0; }
+.cs-seg button:hover { color: var(--cs-ink); }
+.cs-seg button[aria-pressed="true"] { background: var(--cs-ink); color: var(--cs-bg); }
+.cs-switch { position: relative; width: 40px; height: 22px; flex: none; border: 1px solid var(--cs-edge); background: var(--cs-hi); cursor: pointer; padding: 0; }
+.cs-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: var(--cs-sub); transition: transform .14s, background-color .14s; }
+.cs-switch[aria-checked="true"] { border-color: var(--cs-accent); background: var(--cs-accent); }
+.cs-switch[aria-checked="true"]::after { transform: translateX(18px); background: #F7F4EC; }
+.cs-foot { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 10px 20px; border-top: 1px solid var(--cs-edge); min-height: 44px; }
+.cs-saved { font-size: 12.5px; color: var(--cs-sub); opacity: 0; transition: opacity .2s; }
+.cs-saved.on { opacity: 1; }
+.cs-saved.err { color: var(--cs-accent-text); opacity: 1; }
+.cs-kv { font-size: 12.5px; color: var(--cs-sub); word-break: break-all; }
+.cs-pre { margin: 0; max-height: 160px; overflow: auto; font: 12px/1.45 ui-monospace, Consolas, monospace; background: var(--cs-hi); padding: 10px; white-space: pre-wrap; }
+.cs-dev { color: var(--cs-accent-text); }
+@media (max-width: 560px) {
+  .cs-body { flex-direction: column; }
+  .cs-tabs { width: auto; flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--cs-edge); padding: 6px 10px; }
+  .cs-tab { white-space: nowrap; border-left: 0; border-bottom: 2px solid transparent; }
+  .cs-tab[aria-selected="true"] { border-bottom-color: var(--cs-accent); }
+  .cs-row { flex-wrap: wrap; }
+}

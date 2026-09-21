@@ -2,14 +2,14 @@
 <html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
+<script>try{var d=document.documentElement,t=localStorage.getItem("chronos-theme"),u=JSON.parse(localStorage.getItem("chronos-ui")||"{}");if(t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches))d.classList.add("dark");if(u.motion==="reduce")d.dataset.motion="reduce";if(u.text==="large")d.dataset.text="large";}catch(e){}</script>
+<script>/* Returning user: forward before anything else loads. A hint only, the app page still verifies the session and clears it if it is stale. */try{var h=JSON.parse(localStorage.getItem("chronos-hint")||"null");if(h&&h.role&&!/[?&]denied=/.test(location.search))location.replace(h.role==="teacher"?"/teacher":"/student");}catch(e){}</script>
 <title>Chronos | Sign in</title>
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
 <link href="transition.css" rel="stylesheet"/>
-<script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
 <style>
   :root{--page:#F7F4EC;--field:#FFFDF7;--ink:#141311;--sub:#5D5B55;--mid:#7A7871;--faint:#8C8880;
         --edge:#C9C2AC;--rule:#E0DACA;--crimson:#E2001A;--crimson-d:#B10014;--gold:#C9A227;
@@ -80,6 +80,7 @@
   }
   @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
+<link href="theme.css" rel="stylesheet"/>
 <link href="mobile.css" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
 <!-- The manifest carries one theme_color; these two let a browser follow the
@@ -93,7 +94,6 @@
 </head>
 <body>
 
-<div class="px" aria-hidden="true"><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><span class="px-mark"><span class="px-tag">Chronos</span></span></div>
 
 <div data-util style="background:#141311;color:#B5B0A5;font-size:12.5px;line-height:1.5">
   <div class="wrap" style="padding-top:9px;padding-bottom:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -139,8 +139,8 @@
   <section style="display:flex;align-items:center;justify-content:center;padding:56px 28px 72px">
     <div id="formCard" style="width:100%;max-width:440px">
       <p id="eyebrow" style="margin:0 0 12px;font-size:14px;font-weight:600;color:var(--crimson-d)">Sign in</p>
-      <h1 id="title" class="dsp" style="margin:0 0 10px;font-size:clamp(1.9rem,3.4vw,2.5rem);line-height:1.08;letter-spacing:-.02em">Welcome back</h1>
-      <p id="subtitle" style="margin:0 0 34px;font-size:16.5px;line-height:1.55;color:var(--sub)">Good to see you again.</p>
+      <h1 id="title" class="dsp" style="margin:0 0 28px;font-size:clamp(1.9rem,3.4vw,2.5rem);line-height:1.08;letter-spacing:-.02em">Welcome back</h1>
+      <p id="subtitle" class="hidden" style="margin:-14px 0 28px;font-size:15px;line-height:1.55;color:var(--sub)"></p>
 
       <div style="margin-bottom:26px">
         <div style="font-size:13.5px;font-weight:600;color:var(--sub);margin-bottom:9px">I am a</div>
@@ -254,9 +254,8 @@
     $("roleTeacher").setAttribute("aria-pressed", String(role === "teacher"));
     $("eyebrow").textContent = isUp ? "New account" : "Sign in";
     $("title").textContent = isUp ? "Create your account" : "Welcome back";
-    $("subtitle").textContent = isUp
-      ? (role === "teacher" ? "Two fields and your first course is next." : "Takes about ten seconds.")
-      : "Good to see you again.";
+    $("subtitle").textContent = isUp && role === "teacher" ? "Teacher accounts need the signup code." : "";
+    $("subtitle").classList.toggle("hidden", !$("subtitle").textContent);
     $("submitLabel").textContent = isUp ? "Create account" : "Sign in";
     $("password").autocomplete = isUp ? "new-password" : "current-password";
     $("toggleText").textContent = isUp ? "Already have an account?" : "New here?";
@@ -293,9 +292,8 @@
       const info = mode === "signup"
         ? await Chronos.signup(email, password, role, $("teacherCode").value.trim())
         : await Chronos.login(email, password);
-      // Honor the account's real role for the redirect. Route it through the
-      // page wipe so a successful sign-in transitions like any other nav.
-      ChronosWipe.go(info.role === "teacher" ? "/teacher" : "/student", true);
+      // Honor the account's real role for the redirect.
+      ChronosNav.go(info.role === "teacher" ? "/teacher" : "/student", true);
     }catch(e){
       showErr(e.message || "That didn't work. Give it another go?");
       busy = false; btn.disabled = false;
@@ -341,7 +339,7 @@
       try{
         const info = await Chronos.me();
         // No role means a half-finished signup, not a session to resume.
-        if(info && info.role) ChronosWipe.go(info.role === "teacher" ? "/teacher" : "/student", true);
+        if(info && info.role) ChronosNav.go(info.role === "teacher" ? "/teacher" : "/student", true);
       }catch(e){}
     });
   }).catch(e => showErr(e.message));

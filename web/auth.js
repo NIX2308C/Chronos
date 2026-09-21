@@ -24,7 +24,28 @@
   const CONFIG_KEY = "chronos-auth-config";
   const ROLE_KEY = "chronos-role";
   const CONFIG_TTL = 24 * 60 * 60 * 1000;
-  const ROLE_TTL = 60 * 1000;
+  const ROLE_TTL = 10 * 60 * 1000;
+  // What the last verified sign-in looked like: {uid, email, role, dev}. It lets
+  // the login page forward a returning user before Firebase has even loaded and
+  // lets the app pages paint their shell straight away. It is a hint, never a
+  // grant — every API call is still authorized by the server — and it is cleared
+  // on sign-out and whenever a page bounces the user back to login.
+  const HINT_KEY = "chronos-hint";
+
+  function readHint() {
+    try {
+      const h = JSON.parse(localStorage.getItem(HINT_KEY) || "null");
+      return h && h.uid && h.role ? h : null;
+    } catch (_) { return null; }
+  }
+
+  function writeHint(info) {
+    try { localStorage.setItem(HINT_KEY, JSON.stringify(info)); } catch (_) {}
+  }
+
+  function clearHint() {
+    try { localStorage.removeItem(HINT_KEY); } catch (_) {}
+  }
 
   function readCache(storage, key, maxAge) {
     try {
@@ -40,11 +61,16 @@
   function clearRole() {
     _role = null; _roleUid = null;
     try { sessionStorage.removeItem(ROLE_KEY); } catch (_) {}
+    clearHint();
   }
 
-  function rememberRole(uid, role) {
+  function rememberRole(uid, role, email) {
     _role = role; _roleUid = uid;
     writeCache(sessionStorage, ROLE_KEY, { uid, role });
+    // `dev` is left unknown until /auth/me has answered once.
+    const prev = readHint();
+    writeHint({ uid, role, email: email || (prev && prev.uid === uid ? prev.email : ""),
+                dev: prev && prev.uid === uid ? prev.dev : undefined });
   }
 
   // Resolve once Firebase is configured and initialized.
@@ -89,6 +115,9 @@
 
   // fetch() against the backend with the Bearer token attached.
   async function apiFetch(path, opts = {}) {
+    // Developer tool (Settings → Developer): add artificial latency to every call.
+    const lag = Number(localStorage.getItem("chronos-dev-lag")) || 0;
+    if (lag > 0) await new Promise((r) => setTimeout(r, lag));
     const token = await idToken();
     const headers = Object.assign({}, opts.headers || {});
     if (token) headers["Authorization"] = "Bearer " + token;
@@ -146,7 +175,7 @@
   async function register(cred, role, teacherCode, rollback) {
     try {
       const data = await apiJson("/auth/register", { role, teacher_code: teacherCode });
-      rememberRole(cred.user.uid, data.role);
+      rememberRole(cred.user.uid, data.role, cred.user.email);
       return data;
     } catch (e) {
       if (rollback) { try { await cred.user.delete(); } catch (_) {} }
@@ -213,11 +242,16 @@
         _role = cached.role; _roleUid = cached.uid;
       }
     }
-    if (_role && _roleUid === u.uid) {
-      return { uid: u.uid, email: u.email, role: _role };
+    const hint = readHint();
+    // A cached role is trusted only once the server has also said whether this is
+    // a developer account; a hint written at signup doesn't know yet.
+    if (_role && _roleUid === u.uid && hint && hint.uid === u.uid && typeof hint.dev === "boolean") {
+      return { uid: u.uid, email: u.email, role: _role, is_dev: hint.dev };
     }
     const data = await apiJson("/auth/me", undefined, "GET");
-    rememberRole(u.uid, data.role);
+    _role = data.role; _roleUid = u.uid;
+    writeCache(sessionStorage, ROLE_KEY, { uid: u.uid, role: data.role });
+    writeHint({ uid: u.uid, role: data.role, email: data.email || u.email, dev: !!data.is_dev });
     return data;
   }
 
@@ -230,6 +264,7 @@
     return new Promise((resolve) => {
       onUser(async (user) => {
         if (!user) {
+          clearHint();
           location.replace("/login?role=" + encodeURIComponent(primary));
           return;
         }
@@ -237,11 +272,22 @@
         try { info = await me(); } catch (e) { info = null; }
         if (!info || (allowed.length && allowed.indexOf(info.role) === -1)) {
           // Signed in but role not allowed here — send to login to pick correctly.
+          clearHint();
           location.replace("/login?role=" + encodeURIComponent(primary) + "&denied=1");
           return;
         }
         resolve(info);
       });
+    });
+  }
+
+  // Resolves with the Firebase user as soon as a session is restored, before the
+  // role has been verified. Lets a page start its data requests immediately
+  // while requireRole() confirms the role in parallel; the server authorizes
+  // each of those requests itself.
+  function whenSignedIn() {
+    return new Promise((resolve) => {
+      onUser((user) => { if (user) resolve(user); });
     });
   }
 
@@ -260,7 +306,7 @@
 
   window.Chronos = {
     BASE, ready, onUser, idToken, apiFetch, apiJson,
-    login, signup, logout, me, requireRole, friendlyAuthError,
+    login, signup, logout, me, requireRole, friendlyAuthError, hint: readHint, whenSignedIn,
     listClasses, createClass, joinClass, deleteClass,
     get auth() { return _auth; },
   };

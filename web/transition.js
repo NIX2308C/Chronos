@@ -1,60 +1,16 @@
 /* ============================================================
-   Chronos page wipe — behaviour half. Styles live in transition.css,
-   which explains the two-page handoff.
+   Chronos navigation and view loading. Styles live in transition.css.
 
-   Exposes window.ChronosWipe.go(href, replace) so the pages that
-   navigate from script (the login redirect, sign-out) get the same
-   transition as a plain link click.
+   Page changes are plain navigations; the browser crossfades them
+   (see @view-transition in transition.css). ChronosNav.go() stays the
+   single place script navigations go through, so callers don't care.
+
+   createViewTransition() keeps a view mounted while its replacement is
+   prepared, showing only a thin progress line if that takes a moment.
    ============================================================ */
 (function () {
-  var KEY = "chronos-wipe";
-  var COVER_MS = 400;
-  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var px = null;
-  var navigating = false;
-
-  function el() {
-    if (!px) px = document.querySelector(".px");
-    return px;
-  }
-
-  function flag() { try { sessionStorage.setItem(KEY, "1"); } catch (e) {} }
-  function unflag() { try { sessionStorage.removeItem(KEY); } catch (e) {} }
-
-  // Leaving: cover, then navigate.
   function go(href, replace) {
-    if (navigating) return;
-    navigating = true;
-    var node = el();
-    if (reduce || !node) {
-      replace ? location.replace(href) : (location.href = href);
-      return;
-    }
-    flag();
-    node.classList.add("act", "cover");
-    setTimeout(function () {
-      replace ? location.replace(href) : (location.href = href);
-    }, COVER_MS);
-  }
-
-  // Arriving: <html class="wiping"> already painted the covered state,
-  // so hand the bars a transition and sweep them back out.
-  function reveal() {
-    var node = el();
-    unflag();
-    if (!node) { document.documentElement.classList.remove("wiping"); return; }
-    // .cover holds the same covered transform, but with transitions live —
-    // swapping in the same frame is invisible, and gives the next frame
-    // something to animate away from.
-    node.classList.add("act", "cover");
-    document.documentElement.classList.remove("wiping");
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        node.classList.remove("cover");
-        node.classList.add("reveal");
-        setTimeout(function () { node.classList.remove("act", "reveal"); }, 520);
-      });
-    });
+    replace ? location.replace(href) : (location.href = href);
   }
 
   function isInternalPage(a) {
@@ -67,16 +23,7 @@
       || /\.html(\?|#|$)/i.test(href);
   }
 
-  document.addEventListener("click", function (e) {
-    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    var a = e.target.closest ? e.target.closest("a[href]") : null;
-    if (!isInternalPage(a)) return;
-    e.preventDefault();
-    go(a.getAttribute("href"));
-  });
-
-  // Warm up internal destinations while the pointer is heading for them. This
-  // is intentionally a document prefetch, not eager page loading on startup.
+  // Warm up internal destinations while the pointer is heading for them.
   function prefetch(e) {
     var a = e.target.closest ? e.target.closest("a[href]") : null;
     if (!isInternalPage(a) || a.dataset.chronosPrefetched) return;
@@ -89,33 +36,10 @@
   document.addEventListener("pointerover", prefetch, { passive: true });
   document.addEventListener("touchstart", prefetch, { passive: true });
 
-  // Back/forward out of the bfcache would otherwise restore a covered page.
-  addEventListener("pageshow", function (e) {
-    if (!e.persisted) return;
-    var node = el();
-    if (node) node.classList.remove("act", "cover", "reveal");
-    document.documentElement.classList.remove("wiping");
-    unflag();
-    navigating = false;
-  });
-
-  if (document.documentElement.classList.contains("wiping")) {
-    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", reveal);
-    else reveal();
-  } else {
-    unflag();
-  }
-
-  // A short entrance motion makes ordinary (non-wipe) loads, including the
-  // first page after authentication, feel deliberate without ever hiding data.
-  function enterPage() {
-    requestAnimationFrame(function () { document.body && document.body.classList.add("chronos-page-enter"); });
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", enterPage);
-  else enterPage();
-
   // Keep the current view mounted while its replacement is prepared. A later
   // request supersedes an earlier one, including a request that finishes late.
+  // options.instant runs `commit` in the same frame with no loading state, for
+  // views whose data is already in memory.
   function createViewTransition(container) {
     var sequence = 0;
     var timer = null;
@@ -125,7 +49,7 @@
     indicator.setAttribute("role", "status");
     indicator.setAttribute("aria-live", "polite");
     indicator.hidden = true;
-    indicator.innerHTML = '<span class="chronos-view-spinner" aria-hidden="true"></span><span></span>';
+    indicator.innerHTML = '<span class="chronos-sr"></span>';
     container.classList.add("chronos-view-host");
     container.appendChild(indicator);
 
@@ -143,18 +67,22 @@
       clearTimeout(revealTimer);
       container.classList.remove("chronos-view-reveal");
       options = options || {};
-      indicator.lastElementChild.textContent = options.label || "Loading…";
+      if (options.instant) {
+        commit(prepare());
+        return true;
+      }
+      indicator.firstElementChild.textContent = options.label || "Loading";
       container.setAttribute("aria-busy", "true");
       timer = setTimeout(function () {
         if (current === sequence) indicator.hidden = false;
-      }, 140);
+      }, 200);
       try {
         var data = await prepare();
         if (current !== sequence) return false;
         clear();
         commit(data);
         container.classList.add("chronos-view-reveal");
-        revealTimer = setTimeout(function () { container.classList.remove("chronos-view-reveal"); }, 300);
+        revealTimer = setTimeout(function () { container.classList.remove("chronos-view-reveal"); }, 160);
         return true;
       } catch (error) {
         if (current === sequence) {
@@ -168,5 +96,6 @@
     return { show: show, cancel: cancel };
   }
 
-  window.ChronosWipe = { go: go, createViewTransition: createViewTransition };
+  window.ChronosNav = { go: go, createViewTransition: createViewTransition };
+  window.ChronosWipe = window.ChronosNav; // older call sites
 })();

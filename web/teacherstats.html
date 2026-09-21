@@ -2,11 +2,10 @@
 <html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
+<script>try{var d=document.documentElement,t=localStorage.getItem("chronos-theme"),u=JSON.parse(localStorage.getItem("chronos-ui")||"{}");if(t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches))d.classList.add("dark");if(u.motion==="reduce")d.dataset.motion="reduce";if(u.text==="large")d.dataset.text="large";}catch(e){}</script>
 <title>Chronos | Analytics</title>
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
 <link href="transition.css" rel="stylesheet"/>
-<script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
@@ -72,6 +71,8 @@
   }
   @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
+<link href="theme.css" rel="stylesheet"/>
+<link href="settings.css" rel="stylesheet"/>
 <link href="mobile.css" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
 <!-- The manifest carries one theme_color; these two let a browser follow the
@@ -85,26 +86,18 @@
 </head>
 <body>
 
-<div class="px" aria-hidden="true"><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><span class="px-mark"><span class="px-tag">Chronos</span></span></div>
 
-<!-- Auth loading gate -->
-<div id="gate" style="position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:var(--page)">
-<span class="msym spin" style="font-size:30px;color:var(--sub)">progress_activity</span>
-</div>
-
-<div id="app" class="hidden" data-shell style="grid-template-columns:264px minmax(0,1fr);height:100vh;height:100dvh">
+<div id="app" data-shell style="display:grid;grid-template-columns:264px minmax(0,1fr);height:100vh;height:100dvh">
 
 <!-- Sidebar — identical structure to teacherknowledge.html so the two teacher
      pages navigate identically at every width. -->
 <aside id="sideNav" data-side data-drawer="md" style="background:var(--side);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:0">
   <div style="padding:18px 20px 16px;border-bottom:1px solid var(--rule)">
     <a href="/login" style="color:var(--ink);font-family:Newsreader,serif;font-size:24px;line-height:1;text-decoration:none;letter-spacing:-.015em">Chronos<span style="color:var(--crimson)">.</span></a>
-    <div style="font-size:12.5px;color:var(--mid);margin-top:4px">Teacher</div>
   </div>
 
   <div data-scroll style="padding:16px 12px 8px;overflow-y:auto;min-height:0">
-    <div style="font-size:12.5px;font-weight:600;color:var(--mid);padding:0 8px 8px">Your courses</div>
-    <div id="classList" data-drawer-close></div>
+    <div id="classList" data-drawer-close><i class="skeleton" style="height:14px;width:70%;margin:14px 12px"></i><i class="skeleton" style="height:14px;width:55%;margin:14px 12px"></i></div>
   </div>
 
   <nav style="margin-top:8px;padding:12px;border-top:1px solid var(--rule);display:flex;flex-direction:column">
@@ -115,7 +108,7 @@
 
   <div style="margin-top:auto;border-top:1px solid var(--rule);padding:10px 14px 14px">
     <div style="display:flex;gap:2px;margin-bottom:6px">
-      <button id="tutHelp" class="ibtn" aria-label="How this works" title="How this works"><span class="msym">help</span></button>
+      <button id="settingsBtn" class="ibtn" aria-label="Settings" title="Settings"><span class="msym">settings</span></button>
       <button class="ibtn" data-theme-toggle title="Switch to dark mode"><span class="msym">dark_mode</span></button>
       <button id="refreshBtn" class="ibtn" aria-label="Refresh" title="Refresh"><span class="msym" id="refreshIcon">refresh</span></button>
     </div>
@@ -124,6 +117,7 @@
       <span style="min-width:0">
         <span id="userEmail" class="trunc" style="display:block;font-size:13.5px;font-weight:600"></span>
         <span style="display:block;font-size:12px;color:var(--faint)">Teacher</span>
+        <span id="devBadge" class="hidden" style="display:block;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--crimson-d)">DEV</span>
       </span>
       <button id="lockBtn" class="ibtn" style="margin-left:auto" aria-label="Sign out" title="Sign out"><span class="msym">logout</span></button>
     </div>
@@ -132,12 +126,12 @@
 <div data-drawer-scrim="md" aria-hidden="true"></div>
 
 <main data-scroll style="min-width:0;min-height:0;overflow-y:auto">
-  <header style="border-bottom:3px solid var(--ink);padding:22px 36px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
+  <header style="border-bottom:1px solid var(--rule);padding:22px 36px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
     <div style="display:flex;align-items:center;gap:10px;min-width:0">
       <button data-drawer-toggle="md" aria-label="Open menu" title="Menu" style="color:var(--sub)"><span class="msym" style="font-size:22px">menu</span></button>
       <div style="min-width:0">
-        <h1 id="className" style="margin:0 0 5px;font-size:27px;line-height:1.1">&nbsp;</h1>
-        <p id="classMeta" style="margin:0;font-size:14px;color:var(--mid)"></p>
+        <h1 id="className" style="margin:0;font-size:27px;line-height:1.1">&nbsp;</h1>
+        <p id="classMeta" style="margin:5px 0 0;font-size:14px;color:var(--mid)"></p>
       </div>
     </div>
     <div id="ranges" style="display:flex;gap:1px;border:1px solid var(--field-b)">
@@ -148,7 +142,8 @@
   </header>
 
   <div id="statsView">
-  <div id="statsLoading" style="padding:56px 36px;color:var(--mid);display:flex;align-items:center;gap:10px"><span class="msym spin">progress_activity</span><span>Loading course analytics…</span></div>
+  <!-- Only for errors and the no-course message. Loading is shown by the thin progress line. -->
+  <div id="statsLoading" class="hidden" style="padding:56px 36px;color:var(--mid);display:flex;align-items:center;gap:10px"></div>
   <div id="statsContent" class="hidden" data-transition-content style="padding:32px 36px 60px;max-width:1120px">
 
     <div data-kpis style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:36px;padding-bottom:30px;border-bottom:1px solid var(--rule2);margin-bottom:38px">
@@ -165,61 +160,56 @@
       <div>
         <div style="font-size:13.5px;color:var(--mid);margin-bottom:7px">Answered from material</div>
         <div class="kpi-n" id="kGrounded">—</div>
-        <div style="font-size:13px;color:var(--faint);margin-top:6px">the rest hit a gap</div>
       </div>
       <div>
         <div style="font-size:13.5px;color:var(--mid);margin-bottom:7px">Gaps to close</div>
         <div class="kpi-n" id="kGaps" style="color:var(--crimson)">0</div>
-        <div style="font-size:13px;color:var(--faint);margin-top:6px">questions your material missed</div>
       </div>
     </div>
 
     <section style="margin-bottom:44px">
-      <h2 class="lbl" style="margin:0 0 6px">Start here &mdash; what your material didn&rsquo;t cover</h2>
-      <p style="margin:0 0 16px;font-size:14.5px;line-height:1.6;color:var(--sub);max-width:64ch">Questions the tutor declined, most-asked first. Each one is something a student wanted and the course material could not give them.</p>
+      <h2 class="lbl" style="margin:0 0 14px">Not covered by your material</h2>
       <div style="border-top:1px solid var(--rule2)" id="gapsList"></div>
-      <p id="gapsEmpty" class="hidden" style="margin:22px 0 0;font-size:15px;line-height:1.6;color:var(--mid);max-width:52ch">No gaps in this window. Everything they asked, your material could answer.</p>
+      <p id="gapsEmpty" class="hidden" style="margin:22px 0 0;font-size:15px;line-height:1.6;color:var(--mid)">No gaps in this window.</p>
     </section>
 
     <div data-cols style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;margin-bottom:44px">
       <section>
-        <h2 class="lbl" style="margin:0 0 6px">Learning signals</h2>
-        <p style="margin:0 0 16px;font-size:14.5px;line-height:1.6;color:var(--sub)">Explicit evidence that students are confused, stuck, or unsure. These are separate from missing course material.</p>
+        <h2 class="lbl" style="margin:0 0 14px">Learning signals</h2>
         <div id="learningList" style="border-top:1px solid var(--rule2)"></div>
-        <p id="learningEmpty" class="hidden" style="color:var(--mid);font-size:14.5px">No clear learning-gap signals in this window.</p>
+        <p id="learningEmpty" class="hidden" style="color:var(--mid);font-size:14.5px">None in this window.</p>
       </section>
       <section>
-        <h2 class="lbl" style="margin:0 0 6px">Behavioral or safety concerns</h2>
-        <p style="margin:0 0 16px;font-size:14.5px;line-height:1.6;color:var(--sub)">Language or conduct signals are shown here and never counted as academic gaps.</p>
+        <h2 class="lbl" style="margin:0 0 14px">Conduct concerns</h2>
         <div id="concernsList" style="border-top:1px solid var(--rule2)"></div>
-        <p id="concernsEmpty" class="hidden" style="color:var(--mid);font-size:14.5px">No behavioral concerns in this window.</p>
+        <p id="concernsEmpty" class="hidden" style="color:var(--mid);font-size:14.5px">None in this window.</p>
       </section>
     </div>
 
     <div data-cols style="display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:48px">
       <section>
-        <h2 class="lbl" style="margin:0 0 6px">Where the questions land</h2>
-        <p style="margin:0 0 18px;font-size:14.5px;line-height:1.6;color:var(--sub)">Grouped by topic across <span id="rangeLower">this term</span>.</p>
+        <h2 class="lbl" style="margin:0 0 18px">Topics</h2>
         <div id="topics" style="display:flex;flex-direction:column;gap:16px"></div>
-        <p id="topicsEmpty" class="hidden" style="margin:0;font-size:14.5px;line-height:1.6;color:var(--mid)">No questions logged in this window yet.</p>
+        <p id="topicsEmpty" class="hidden" style="margin:0;font-size:14.5px;line-height:1.6;color:var(--mid)">No questions in this window yet.</p>
       </section>
 
       <section>
-        <h2 class="lbl" style="margin:0 0 6px">Most-asked questions</h2>
-        <p style="margin:0 0 18px;font-size:14.5px;line-height:1.6;color:var(--sub)">Answered from your material, but asked often enough to be worth revisiting in the course.</p>
+        <h2 class="lbl" style="margin:0 0 14px">Asked repeatedly</h2>
         <div id="repeats" style="border-top:1px solid var(--rule2)"></div>
         <p id="repeatsEmpty" class="hidden" style="margin:0;font-size:14.5px;line-height:1.6;color:var(--mid)">Nothing asked twice yet.</p>
-        <p style="margin:22px 0 0;font-size:13.5px;line-height:1.6;color:var(--faint)">Questions are shown per course and never attributed to an individual student.</p>
+        <p style="margin:18px 0 0;font-size:13px;color:var(--faint)">Questions are never attributed to a student.</p>
       </section>
     </div>
 
     <section style="margin-top:44px">
-      <h2 class="lbl" style="margin:0 0 6px">Individual students</h2>
-      <p style="margin:0 0 18px;font-size:14.5px;line-height:1.6;color:var(--sub);max-width:64ch">How the tutor reads each student in <em>this course only</em> — the level it pitches at and anything they keep coming back to. Nothing a student does in another course appears here.</p>
+      <h2 class="lbl" style="margin:0 0 14px">Students</h2>
       <div data-cols style="display:grid;grid-template-columns:minmax(0,.7fr) minmax(0,1fr);gap:32px">
-        <div id="rosterList" style="border-top:1px solid var(--rule2);max-height:340px;overflow:auto"></div>
+        <div>
+          <input id="rosterSearch" class="hidden" type="search" placeholder="Search students" aria-label="Search students" style="width:100%;height:38px;margin-bottom:10px;padding:0 10px;font:inherit;font-size:14px;background:var(--field);color:var(--ink);border:1px solid var(--field-b)"/>
+          <div id="rosterList" style="border-top:1px solid var(--rule2);max-height:340px;overflow:auto"></div>
+        </div>
         <div id="profilePane" style="font-size:15px;line-height:1.65;color:var(--sub)">
-          <p style="margin:0;color:var(--mid)">Choose a student to see how the tutor is pitching its answers to them.</p>
+          <p style="margin:0;color:var(--mid)">Choose a student.</p>
         </div>
       </div>
       <p id="rosterEmpty" class="hidden" style="margin:16px 0 0;font-size:14.5px;color:var(--mid)">Nobody has joined this course yet.</p>
@@ -239,11 +229,12 @@
 <script src="theme.js"></script>
 <script src="mobile.js"></script>
 <script src="transition.js"></script>
+<script src="settings.js"></script>
 <script>
   const $=id=>document.getElementById(id);
   const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
   let CLASSES=[],ACTIVE_CLASS=null,DAYS=0,LAST=null;
-  const statsTransition=ChronosWipe.createViewTransition($("statsView"));
+  const statsTransition=ChronosNav.createViewTransition($("statsView"));
   const CLASS_KEY="chronos_teacher_class";
   const RANGE_KEY="chronos_stats_range";
   const RANGE_WORDS={7:"the last seven days",30:"the last thirty days",0:"this term"};
@@ -260,7 +251,27 @@
   }
 
   async function api(path,body){ return Chronos.apiJson(path,body||{}); }
-  async function lock(){ try{await Chronos.logout();}catch(e){} ChronosWipe.go("/login?role=teacher",true); }
+  async function lock(){ try{await Chronos.logout();}catch(e){} ChronosNav.go("/login?role=teacher",true); }
+
+  // Long lists show the first few rows and reveal the rest in steps, so a busy
+  // course never floods the page but every row stays one click away.
+  function renderPaged(box,rows,build,first,step){
+    box.textContent="";
+    let shown=0;
+    const more=document.createElement("button");
+    more.type="button";
+    more.style.cssText="display:block;width:100%;padding:12px 4px;background:none;border:0;border-bottom:1px solid var(--rule2);font:inherit;font-size:13.5px;font-weight:600;color:var(--sub);cursor:pointer;text-align:left";
+    function reveal(count){
+      const next=Math.min(rows.length,shown+count);
+      for(;shown<next;shown++)box.insertBefore(build(rows[shown],shown),more);
+      const left=rows.length-shown;
+      more.textContent=left>0?"Show "+Math.min(step,left)+" more ("+left+" hidden)":"";
+      more.style.display=left>0?"block":"none";
+    }
+    more.onclick=()=>reveal(step);
+    box.appendChild(more);
+    reveal(first);
+  }
   function activeClassObj(){ return CLASSES.find(c=>c.id===ACTIVE_CLASS); }
   const plural=(n,w)=>n+" "+w+(n===1?"":"s");
 
@@ -293,8 +304,7 @@
       b.className="class-row"+(c.id===ACTIVE_CLASS?" on":"");
       const inner=document.createElement("span"); inner.style.minWidth="0";
       const n=document.createElement("span"); n.className="cr-name trunc"; n.textContent=c.name; n.title=c.name;
-      const m=document.createElement("span"); m.className="cr-meta"; m.textContent=c.join_code?("Join code "+c.join_code):"";
-      inner.appendChild(n); inner.appendChild(m);
+      inner.appendChild(n);
       b.appendChild(inner);
       b.onclick=()=>{if(c.id!==ACTIVE_CLASS||$("statsView").hasAttribute("aria-busy"))load({classId:c.id});};
       list.appendChild(b);
@@ -305,7 +315,6 @@
     const c=activeClassObj();
     $("className").textContent=c?c.name:"No course yet";
     const words=RANGE_WORDS[DAYS];
-    $("rangeLower").textContent=words;
     const label=words.charAt(0).toUpperCase()+words.slice(1);
     const students=LAST?plural(LAST.students_total||0,"student"):"";
     $("classMeta").textContent=c?((students?students+" · ":"")+label)
@@ -333,11 +342,10 @@
 
   function renderTopics(cats){
     const box=$("topics");
-    box.innerHTML="";
     $("topicsEmpty").classList.toggle("hidden",cats.length>0);
-    if(!cats.length)return;
+    if(!cats.length){box.textContent="";return;}
     const max=Math.max(...cats.map(c=>c.count))||1;
-    cats.forEach((c,i)=>{
+    renderPaged(box,cats,(c,i)=>{
       const wrap=document.createElement("div");
       const head=document.createElement("div");
       head.style.cssText="display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:7px";
@@ -355,16 +363,15 @@
       fill.style.cssText="height:100%;width:0;background:"+topicColor(i,cats.length);
       track.appendChild(fill);
       wrap.appendChild(head); wrap.appendChild(track);
-      box.appendChild(wrap);
       requestAnimationFrame(()=>{fill.style.width=(c.count/max*100).toFixed(0)+"%";});
-    });
+      return wrap;
+    },8,12);
   }
 
   function renderGaps(rows){
     const box=$("gapsList");
-    box.innerHTML="";
     $("gapsEmpty").classList.toggle("hidden",rows.length>0);
-    rows.forEach(g=>{
+    renderPaged(box,rows,g=>{
       const row=document.createElement("div"); row.className="gap-row";
 
       const left=document.createElement("div"); left.style.minWidth="0";
@@ -386,17 +393,16 @@
       link.textContent="Add material";
 
       row.appendChild(left); row.appendChild(who); row.appendChild(link);
-      box.appendChild(row);
-    });
+      return row;
+    },5,10);
   }
 
   function renderRepeats(rows){
     const box=$("repeats");
-    box.innerHTML="";
     // One-off questions aren't "most-asked" — only rows actually asked again.
     const asked=rows.filter(r=>r.count>1);
     $("repeatsEmpty").classList.toggle("hidden",asked.length>0);
-    asked.forEach(r=>{
+    renderPaged(box,asked,r=>{
       const row=document.createElement("div");
       row.style.cssText="display:flex;align-items:baseline;justify-content:space-between;gap:18px;"+
         "border-bottom:1px solid var(--rule2);padding:13px 4px";
@@ -407,18 +413,19 @@
       n.style.cssText="font-size:13.5px;color:var(--mid);flex:none";
       n.textContent=plural(r.count,"time");
       row.appendChild(q); row.appendChild(n);
-      box.appendChild(row);
-    });
+      return row;
+    },5,10);
   }
 
   function renderSignals(rows,listId,emptyId){
-    const box=$(listId);box.innerHTML="";$(emptyId).classList.toggle("hidden",rows.length>0);
-    rows.forEach(r=>{
+    const box=$(listId);$(emptyId).classList.toggle("hidden",rows.length>0);
+    renderPaged(box,rows,r=>{
       const row=document.createElement("div");row.style.cssText="border-bottom:1px solid var(--rule2);padding:13px 4px";
       const q=document.createElement("div");q.style.cssText="font-size:14.5px;line-height:1.5";q.textContent=r.question;
       const meta=document.createElement("div");meta.style.cssText="font-size:12.5px;color:var(--faint);margin-top:4px";meta.textContent=plural(r.students,"student")+" · "+plural(r.count,"signal");
-      row.appendChild(q);row.appendChild(meta);box.appendChild(row);
-    });
+      row.appendChild(q);row.appendChild(meta);
+      return row;
+    },5,10);
   }
 
   // --- individual students -------------------------------------------------
@@ -435,21 +442,26 @@
     pane.appendChild(p);
   }
 
-  let profileSequence=0;
-  function renderRoster(members){
-    profileSequence++;
+  let profileSequence=0,ROSTER=[],SELECTED=null;
+  const ROSTER_SEARCH_MIN=8;
+  function renderRoster(members,keepProfile){
+    ROSTER=members;
+    if(!keepProfile){profileSequence++;SELECTED=null;resetProfilePane("Choose a student.");}
+    const q=$("rosterSearch").value.trim().toLowerCase();
+    $("rosterSearch").classList.toggle("hidden",members.length<ROSTER_SEARCH_MIN&&!q);
     const list=$("rosterList"); list.textContent="";
-    resetProfilePane("Choose a student to see how the tutor is pitching its answers to them.");
     $("rosterEmpty").classList.toggle("hidden",members.length>0);
-    members.forEach(function(m){
+    (q?members.filter(m=>String(m.email||m.uid).toLowerCase().includes(q)):members).forEach(function(m){
       const b=document.createElement("button");
       b.type="button";
       b.style.cssText="display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--rule2);padding:12px 4px;font:inherit;font-size:14.5px;color:var(--ink);cursor:pointer";
       b.textContent=m.email||m.uid;
       b.title=m.email||m.uid;
+      if(SELECTED===m.uid)b.style.fontWeight="600";
       b.addEventListener("click",function(){
         Array.prototype.forEach.call(list.children,function(o){o.style.fontWeight="400";});
         b.style.fontWeight="600";
+        SELECTED=m.uid;
         showProfile(m);
       });
       list.appendChild(b);
@@ -457,7 +469,7 @@
   }
 
   async function showProfile(m){
-    resetProfilePane("Loading…");
+    resetProfilePane("Loading");
     const classId=ACTIVE_CLASS,sequence=++profileSequence;
     let d;
     try{ d=await api("/student-profile",{class_id:classId,student_uid:m.uid}); }
@@ -481,8 +493,7 @@
       // same silence rather than a characterisation nobody can stand behind.
       const p=document.createElement("p");
       p.style.cssText="margin:0;color:var(--mid)";
-      p.textContent="Not enough messages yet to say anything useful — the tutor waits for "
-        +plural(d.min_messages||5,"message")+" before it adapts how it explains things.";
+      p.textContent="Not enough messages yet ("+plural(d.min_messages||5,"message")+" needed).";
       pane.appendChild(p);
       return;
     }
@@ -499,8 +510,8 @@
     });
 
     const note=document.createElement("p");
-    note.style.cssText="margin:16px 0 0;font-size:13.5px;line-height:1.6;color:var(--faint)";
-    note.textContent="This describes how the tutor explains things to them in this course. It is not an assessment of the student.";
+    note.style.cssText="margin:16px 0 0;font-size:13px;line-height:1.6;color:var(--faint)";
+    note.textContent="How the tutor adapts to them in this course. Not an assessment.";
     pane.appendChild(note);
   }
 
@@ -540,8 +551,11 @@
       paintHeader();
       $("statsLoading").classList.add("hidden");$("statsContent").classList.remove("hidden");
       },
-      {label:"Loading course analytics…",onError:e=>{
-        if(!LAST)$("statsLoading").innerHTML='<span class="msym">error</span><span>Could not load analytics. Use refresh to try again.</span>';
+      {label:"Loading course analytics",onError:e=>{
+        if(!LAST){
+          $("statsLoading").innerHTML='<span class="msym">error</span><span>Could not load analytics. Use refresh to try again.</span>';
+          $("statsLoading").classList.remove("hidden");
+        }
         showToast(e.message,false);
       }});
     if(shown||!$("statsView").hasAttribute("aria-busy")){
@@ -565,26 +579,32 @@
     [...$("ranges").children].forEach(b=>b.classList.toggle("on",Number(b.dataset.days)===DAYS));
   }
 
-  // Gate the page: require a signed-in teacher, then reveal and load analytics.
-  Chronos.requireRole("teacher").then(async info=>{
-    const email=info.email||"Teacher";
-    $("userEmail").textContent=email;
-    $("userEmail").title=email;
+  $("rosterSearch").addEventListener("input",()=>renderRoster(ROSTER,true));
+  $("settingsBtn").onclick=()=>ChronosSettings.open({onReplayTour:()=>window.__tutOpen&&window.__tutOpen()});
+
+  function paintUser(email){
+    email=email||"Teacher";
+    $("userEmail").textContent=email;$("userEmail").title=email;
     $("userAvatar").textContent=email.slice(0,2).toUpperCase();
-    $("gate").classList.add("hidden");
-    $("app").classList.remove("hidden");
-    $("app").style.display="grid";
-    if(window.__tutFirstVisit)window.__tutFirstVisit();
+  }
+  // The shell is already on screen; fill in who is signed in from the last
+  // verified sign-in while requireRole confirms it in the background.
+  const hinted=Chronos.hint();
+  if(hinted)paintUser(hinted.email);
+
+  Chronos.requireRole("teacher").then(async info=>{
+    paintUser(info.email);
+    $("devBadge").classList.toggle("hidden",!info.is_dev);
     await loadClasses();
-    if(!ACTIVE_CLASS){$("statsLoading").innerHTML='<span class="msym">school</span><span>Create a course on the Course material page first.</span>';showToast("Create a course on the Course material page first.",true);return;}
+    if(!ACTIVE_CLASS){
+      $("statsLoading").innerHTML='<span class="msym">school</span><span>Create a course on the Course material page first.</span>';
+      $("statsLoading").classList.remove("hidden");
+      return;
+    }
     try{await load();}catch(e){showToast(e.message,false);}
   }).catch(e=>{
-    // textContent, not innerHTML: this string comes off the wire.
-    const g=$("gate");g.textContent="";
-    const p=document.createElement("p");
-    p.style.cssText="color:var(--crimson-d);text-align:center;padding:0 24px;font-weight:500";
-    p.textContent=(e&&e.message)||"Sign-in required";
-    g.appendChild(p);
+    $("classList").textContent="";
+    showToast((e&&e.message)||"Something went wrong. Please refresh.",false);
   });
 </script>
 
@@ -605,10 +625,9 @@
     const TITLE="What you're looking at";
     const KEY="chronos_tut_stats_v2";
     const STEPS=[
-      {icon:"school",title:"One course at a time",text:"Pick a course in the sidebar. Every number on this page is just for the course you've picked, over the date range up top."},
-      {icon:"help",title:"Gaps come first",text:"Knowledge gaps are the questions your material couldn't answer, most-asked first. It's a ready-made list of what to upload next."},
-      {icon:"forum",title:"Where questions land",text:"Questions get grouped by topic, so you can see at a glance what your students keep circling back to."},
-      {icon:"history",title:"Asked again and again",text:"Anything asked repeatedly is worth a minute of course time, even when the tutor answered it fine."},
+      {icon:"school",title:"One course at a time",text:"Every number is for the course selected in the sidebar, over the range at the top."},
+      {icon:"help",title:"Gaps first",text:"Questions your material couldn't answer, most-asked first: a ready-made list of what to upload next."},
+      {icon:"forum",title:"Topics and repeats",text:"Questions are grouped by topic, and anything asked again and again is worth a minute of class time."},
     ];
     let idx=0;
     const body=document.getElementById("tutBody");
@@ -639,9 +658,8 @@
     // Each click only ever advances one step — no skipping ahead, and no
     // dismissing by clicking the backdrop, so the steps actually get read.
     doneBtn.onclick=()=>{ if(idx<STEPS.length-1){idx++;render();} else {close();} };
-    const help=document.getElementById("tutHelp");if(help)help.onclick=open;
-    // Auto-open once on first visit, after the auth gate clears.
-    window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};
+    // Opt-in: Settings → Account → Replay tour. It no longer opens by itself.
+    window.__tutOpen=open;
   })();
 </script>
 </body></html>

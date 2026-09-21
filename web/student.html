@@ -2,13 +2,12 @@
 <html class="h-full" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
-<script>if(localStorage.getItem("chronos-theme")==="dark")document.documentElement.classList.add("dark");</script>
+<script>try{var d=document.documentElement,t=localStorage.getItem("chronos-theme"),u=JSON.parse(localStorage.getItem("chronos-ui")||"{}");if(t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches))d.classList.add("dark");if(u.motion==="reduce")d.dataset.motion="reduce";if(u.text==="large")d.dataset.text="large";}catch(e){}</script>
 <title>Chronos | Tutor</title>
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600&amp;family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet"/>
 <link href="transition.css" rel="stylesheet"/>
-<script>if(sessionStorage.getItem("chronos-wipe")){document.documentElement.classList.add("wiping");setTimeout(function(){document.documentElement.classList.remove("wiping");},2500);}</script>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
     // Token NAMES are Material-Design-shaped and are baked into class strings the
@@ -113,18 +112,15 @@
     .chat-scroll::-webkit-scrollbar-track { background: transparent; }
     .chat-scroll::-webkit-scrollbar-thumb { background-color: var(--c-edge); }
 
-    .spin { animation: spin .7s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
     /* ---- shared shapes ---- */
     .hard { border:1px solid var(--c-rule); }
-    .cast { }
-    .cast-red { border-color:var(--crimson) !important; }
+    /* Dialogs: a neutral edge and a soft shadow, not a red border. */
+    .cast-red { border-color:var(--c-rule) !important; box-shadow:0 20px 48px rgba(0,0,0,.2); }
 
     /* ---- message bubbles ---- */
     .bub-you { max-width:78%; background:var(--crimson); color:#F7F4EC; padding:12px 16px;
         font-size:15.5px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere;
-        transform-origin:100% 100%;animation:pop .38s var(--snap) both }
+        transform-origin:100% 100% }
     /* The answer is the page, not a card in it: plain serif on the paper, no
        chrome around it. Only the question gets a bubble. */
     .bub-ai { color:var(--c-ink); font-family:'Newsreader',serif; font-size:19px; line-height:1.62;
@@ -134,15 +130,13 @@
     .bub-ai.bub-blocked { color:var(--c-sub); border-left:3px solid var(--crimson);
         padding-left:14px }
     @keyframes pop { from{opacity:0;transform:translateY(10px) scale(.97)} to{opacity:1;transform:none} }
-    #messagesInner > div { animation:rise-in .35s var(--soft) both }
-    #chatList .chat-row { animation:slide-in-left .3s var(--soft) both;animation-delay:calc(var(--i,0)*25ms) }
-    .starter { animation:rise-in .35s var(--soft) both;animation-delay:calc(var(--i,0)*50ms + 60ms);transition:color .2s var(--soft),padding-left .2s var(--soft) }
-    .starter:hover { padding-left:9px }
-    .starter .material-symbols-outlined { transition:transform .2s var(--soft) }
-    .starter:hover .material-symbols-outlined { transform:translateX(3px) }
-    .empty-state > h2,.empty-state > p { animation:rise-in .4s var(--soft) both }
-    .empty-state > p { animation-delay:.05s }
-    #userInitials,#joinCard { animation:rise-in .35s var(--soft) both }
+    /* Entrance motion is opt-in per element (.enter) so that reopening a
+       conversation or re-rendering the list never replays it: only what is
+       genuinely new on screen moves. */
+    #messagesInner > .enter { animation:rise-in .22s var(--soft) both }
+    .enter .bub-you { animation:pop .26s var(--snap) both }
+    #chatList .chat-row.enter { animation:slide-in-left .18s var(--soft) both;animation-delay:calc(var(--i,0)*16ms) }
+    .starter { transition:color .15s var(--soft) }
     .file-chip { animation:chip-in .25s var(--snap) both }
     .composer-menu:not([hidden]) { animation:menu-in .18s var(--soft) both;transform-origin:0 100% }
     .composer-menu button { transition:background-color .18s,color .18s,padding-left .18s var(--soft) }
@@ -189,6 +183,31 @@
     /* ---- input bar ---- */
     .composer { background:var(--c-paper); border:1px solid var(--c-rule); transition:border-color .15s ease }
     .composer:focus-within { border-color:var(--crimson) }
+    /* Debug mode (developer accounts): the chat box glows red. */
+    .composer.debug-on { border-color:var(--crimson); box-shadow:0 0 0 1px var(--crimson),0 0 18px rgba(226,0,26,.38) }
+    .dbg-strip { display:none; font:500 11.5px/1.4 ui-monospace,Consolas,monospace; color:var(--c-sub); padding:0 2px 6px;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+    .dbg-strip.on { display:block }
+    .dbg-strip b { color:var(--crimson); font-weight:600 }
+    details.dbg { margin-top:10px; width:100%; max-width:100%; font:12px/1.5 ui-monospace,Consolas,monospace; color:var(--c-sub);
+        border-left:2px solid var(--crimson); padding-left:10px }
+    details.dbg > summary { cursor:pointer; list-style:none; user-select:none }
+    details.dbg > summary::-webkit-details-marker { display:none }
+    details.dbg > summary::before { content:"▸ "; color:var(--crimson) }
+    details.dbg[open] > summary::before { content:"▾ " }
+    .dbg-body { padding:8px 0 4px; display:grid; gap:10px }
+    .dbg-body h4 { margin:0 0 3px; font:600 11px/1.3 'Schibsted Grotesk',sans-serif; text-transform:uppercase; letter-spacing:.06em; color:var(--c-ink) }
+    .dbg-kv { display:grid; grid-template-columns:auto 1fr; gap:1px 14px }
+    .dbg-kv span:nth-child(odd) { color:var(--c-sub) }
+    .dbg-kv span:nth-child(even) { color:var(--c-ink); text-align:right }
+    .dbg-bar { height:3px; background:var(--c-rule); margin-top:2px }
+    .dbg-bar > i { display:block; height:100%; background:var(--crimson) }
+    .dbg-bar > i.drop { background:var(--c-sub);opacity:.4 }
+    .dbg-pre { margin:0; max-height:220px; overflow:auto; white-space:pre-wrap; background:var(--c-hi); padding:8px; color:var(--c-ink) }
+    .dbg-actions { display:flex; gap:8px }
+    .dbg-actions button { font:inherit; color:var(--c-ink); background:transparent; border:1px solid var(--c-rule); padding:3px 9px; cursor:pointer }
+    .dbg-actions button:hover { border-color:var(--crimson); color:var(--crimson) }
+    .chat-skel { display:grid; gap:10px; padding:10px 12px }
 
     /* ---- compact composer actions ---- */
     .composer-action { width:36px;height:36px;flex:none;display:grid;place-items:center;
@@ -424,6 +443,7 @@
     @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
 <link href="theme.css" rel="stylesheet"/>
+<link href="settings.css" rel="stylesheet"/>
 <link href="mobile.css" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
 <!-- The manifest carries one theme_color; these two let a browser follow the
@@ -437,25 +457,29 @@
 </head>
 <body class="bg-background text-on-background h-full antialiased overflow-hidden flex">
 
-<div class="px" aria-hidden="true"><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><i class="px-b"></i><span class="px-mark"><span class="px-tag">Chronos</span></span></div>
 
-<!-- Auth loading gate: shown until we know the user is a signed-in student -->
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-background" id="authGate">
-<span class="material-symbols-outlined text-on-surface-variant text-3xl spin">progress_activity</span>
+<!-- Join-a-course dialog. With no courses yet it is the whole app (no close button);
+     opened from the sidebar it is a normal dialog with an explicit Close. -->
+<div class="hidden fixed inset-0 z-40 flex items-center justify-center p-margin-mobile" style="background:rgba(11,11,12,.55)" id="joinGate" role="dialog" aria-modal="true" aria-labelledby="joinTitle">
+<div class="w-full max-w-sm bg-surface-container-lowest hard cast-red p-stack-lg" id="joinCard">
+<div class="flex items-start justify-between gap-3 mb-stack-md">
+<h1 class="font-headline-md text-headline-md text-on-background" id="joinTitle">Join a course</h1>
+<button class="ibtn -mt-1 -mr-1 flex-shrink-0" id="joinCancelBtn" aria-label="Close" title="Close"><span class="material-symbols-outlined text-[20px]">close</span></button>
+</div>
+<input class="fld w-full mono px-4 py-3 text-center tracking-[.25em] uppercase text-[15px]" id="joinCodeInput" maxlength="14" placeholder="Course code" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Course code" type="text"/>
+<p class="hidden mt-stack-md font-label-sm text-label-sm text-on-error-container bg-error-container border border-error px-3 py-2" id="joinErr" role="alert"></p>
+<button class="kbtn w-full mt-stack-md" id="joinBtn"><span>Join</span></button>
+<p class="hidden mt-stack-md text-center text-[12.5px] text-on-surface-variant" id="joinFoot"><span id="joinEmail"></span> &middot; <button class="underline hover:text-primary transition-colors" id="joinLogoutBtn">Not you? Sign out</button></p>
+</div>
 </div>
 
-<!-- Join-course gate: the tutor is unusable until the student joins a course -->
-<div class="hidden fixed inset-0 z-40 flex items-center justify-center bg-background p-margin-mobile" id="joinGate">
-<div class="w-full max-w-sm bg-surface-container-lowest hard cast-red p-stack-lg text-center" id="joinCard">
-<div class="w-14 h-14 bg-secondary text-on-secondary flex items-center justify-center mx-auto mb-stack-md">
-<span class="material-symbols-outlined text-[28px]">group_add</span>
-</div>
-<h1 class="font-headline-md text-headline-md text-on-background mb-2">Join a course</h1>
-<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Pop in the code your teacher gave you and you&rsquo;re in.</p>
-<input class="fld w-full mono px-4 py-3 text-center tracking-[.25em] uppercase text-[15px]" id="joinCodeInput" maxlength="12" placeholder="COURSE CODE" type="text"/>
-<p class="hidden mt-stack-md font-label-sm text-label-sm text-on-error-container bg-error-container border border-error px-3 py-2" id="joinErr"></p>
-<button class="kbtn w-full mt-stack-md" id="joinBtn"><span>Join course</span></button>
-<button class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" id="joinLogoutBtn">Sign out</button>
+<!-- Teacher with no course yet -->
+<div class="hidden fixed inset-0 z-40 flex items-center justify-center p-margin-mobile" style="background:rgba(11,11,12,.55)" id="teacherGate" role="dialog" aria-modal="true" aria-labelledby="teacherGateTitle">
+<div class="w-full max-w-sm bg-surface-container-lowest hard cast-red p-stack-lg">
+<h1 class="font-headline-md text-headline-md text-on-background mb-2" id="teacherGateTitle">Make a course first</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Create one in Course Material, then try the tutor on it.</p>
+<a class="kbtn w-full" href="/teacher"><span>Go to Course Material</span></a>
+<p class="mt-stack-md text-center text-[12.5px] text-on-surface-variant"><span id="teacherGateEmail"></span> &middot; <button class="underline hover:text-primary transition-colors" id="teacherGateLogout">Not you? Sign out</button></p>
 </div>
 </div>
 
@@ -465,11 +489,9 @@
 <nav id="sideNav" data-drawer="sm" class="flex h-full w-64 fixed left-0 top-0 bg-surface-container flex-col z-[35]" style="border-right:1px solid var(--c-rule)">
 <a class="block px-5 pt-4 pb-3.5" href="/login" style="border-bottom:1px solid var(--c-rule)">
 <h1 class="font-headline-md text-headline-md text-on-background leading-none">Chronos<span class="text-primary">.</span></h1>
-<span class="slabel block mt-1" style="font-weight:400" id="modeLabel">Student</span>
 </a>
 <!-- Class switcher: which class's tutor you're talking to -->
 <div class="px-5 py-4" style="border-bottom:1px solid var(--c-rule)">
-<p class="slabel mb-2">Course</p>
 <div class="flex gap-1.5">
 <div class="relative flex-1 min-w-0">
 <select class="fld appearance-none w-full min-w-0 font-label-md text-label-md pl-3 pr-8 py-2.5 outline-none cursor-pointer" id="classSwitcher" data-drawer-close title="Active course"></select>
@@ -489,17 +511,20 @@
 </a>
 </div>
 <p class="slabel px-5 pt-4 pb-2">Recent</p>
-<div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-2 pb-3" id="chatList" data-drawer-close></div>
+<div class="hidden px-3 pb-2" id="chatSearchWrap"><input class="fld w-full px-3 py-2 text-[13px]" id="chatSearch" type="search" placeholder="Filter conversations" aria-label="Filter conversations" autocomplete="off"/></div>
+<div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-2 pb-3" id="chatList" data-drawer-close>
+<div class="chat-skel" id="chatSkel" aria-hidden="true"><i class="skeleton" style="height:14px;width:82%"></i><i class="skeleton" style="height:14px;width:64%"></i><i class="skeleton" style="height:14px;width:74%"></i></div>
+</div>
 <div class="px-5 py-3.5" style="border-top:1px solid var(--c-rule)">
 <div class="flex items-center gap-2.5">
-<span class="w-[30px] h-[30px] flex-shrink-0 grid place-items-center text-[12.5px] font-semibold" style="background:var(--c-ink);color:var(--c-page)" id="userInitials">…</span>
+<span class="w-[30px] h-[30px] flex-shrink-0 grid place-items-center text-[12.5px] font-semibold" style="background:var(--c-ink);color:var(--c-page)" id="userInitials"></span>
 <span class="min-w-0 flex-1">
-<span class="slabel block truncate" id="userEmail" title="">…</span>
-<span class="slabel block" style="font-weight:400" id="roleLabel">Student</span>
+<span class="slabel block truncate" id="userEmail" title=""></span>
+<span class="slabel block" style="font-weight:400" id="roleLabel"></span>
 </span>
 <span class="flex items-center gap-0.5 flex-shrink-0">
-<button aria-label="How this works" class="ibtn" id="tutHelp" data-drawer-close title="How this works">
-<span class="material-symbols-outlined text-[18px]">help</span>
+<button aria-label="Settings" class="ibtn" id="settingsBtn" data-drawer-close title="Settings">
+<span class="material-symbols-outlined text-[18px]">settings</span>
 </button>
 <button class="ibtn" data-theme-toggle="" title="Switch to dark mode">
 <span class="material-symbols-outlined text-[18px]">dark_mode</span>
@@ -531,14 +556,14 @@
 </header>
 
 <!-- Desktop header: which conversation, which class, and whether we're online -->
-<header class="hidden md:flex flex-none items-center justify-between gap-5 px-8 py-3.5" style="border-bottom:3px solid var(--c-ink)">
+<header class="hidden md:flex flex-none items-center justify-between gap-5 px-8 py-3.5" style="border-bottom:1px solid var(--c-rule)">
 <div class="min-w-0">
 <div class="font-label-md text-[16px] leading-tight text-on-background truncate" id="threadTitle" data-thread-title>New chat</div>
 <div class="font-body-md text-[13px] text-on-surface-variant mt-0.5 truncate" id="threadClass" data-thread-class></div>
 </div>
 <span class="flex items-center gap-2 flex-none font-body-md text-[13px] text-on-surface-variant">
 <span class="w-2 h-2 block bg-outline" id="statusDot" data-status-dot></span>
-<span id="statusText" data-status-text>Checking…</span>
+<span id="statusText" data-status-text></span>
 </span>
 </header>
 
@@ -556,7 +581,8 @@
 <span class="font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal" id="fileErr"></span>
 <input accept=".pdf,.docx,.txt,.md,.csv" class="hidden" id="fileInput" type="file"/>
 </div>
-<div class="composer relative p-2 flex items-end gap-2">
+<div class="dbg-strip" id="dbgStrip" aria-live="polite"></div>
+<div class="composer relative p-2 flex items-end gap-2" id="composerBox">
 <div class="relative flex items-end gap-1.5 flex-none">
 <button type="button" class="composer-action" id="addFileBtn" aria-label="Add to conversation" aria-haspopup="menu" aria-expanded="false" title="Add to conversation"><span class="material-symbols-outlined text-[21px]">add</span></button>
 <button type="button" class="composer-action" id="toolBtn" aria-label="Create learning activity" aria-haspopup="menu" aria-expanded="false" title="Create learning activity" hidden><span class="material-symbols-outlined text-[19px]">auto_awesome</span></button>
@@ -572,7 +598,6 @@
 <span class="material-symbols-outlined fill text-[19px]">arrow_upward</span>
 </button>
 </div>
-<p class="text-center mt-2.5 font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal">Your teacher sets how course material is used. Attachments stay in this conversation and never become course knowledge.</p>
 </div>
 </div>
 </section>
@@ -585,6 +610,7 @@
 <script src="theme.js"></script>
 <script src="mobile.js"></script>
 <script src="transition.js"></script>
+<script src="settings.js"></script>
 <script>
   // Backend base (same-origin in deployment; dev server via Live Server/file://).
   // Chronos.BASE comes from auth.js and uses the same detection.
@@ -643,8 +669,10 @@
   let TOOLKITS=[];
   const CLASS_KEY="chronos_student_class";
   const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),messages:document.getElementById("messages")};
-  const chatTransition=ChronosWipe.createViewTransition(document.querySelector("[data-chat-col]"));
+  const chatTransition=ChronosNav.createViewTransition(document.querySelector("[data-chat-col]"));
   let navigationBusy=false,sending=false,toolRunning=false;
+  let IS_DEV=false,DEBUG=false;   // developer accounts only; decided by the server (/auth/me)
+  const uiPref=(k,d)=>{const v=(window.ChronosTheme?ChronosTheme.ui():{})[k];return v===undefined?d:v;};
 
   function tempId(){return"new_"+Math.random().toString(36).slice(2,10);}
   function activeChat(){return chats.find(c=>c.id===activeChatId);}
@@ -658,35 +686,58 @@
     return selectChat(c.id);
   }
 
+  // Everything visible changes together, in one frame, once the conversation is
+  // ready. `animate` is only for a change of course, where the list is new.
+  function commitChat(c,id,classId,data){
+    const previous=activeChat();
+    if(previous){previous.draft=els.input.value;previous.scrollTop=els.messages.scrollTop;}
+    invalidateView();
+    const courseChanged=classId!==ACTIVE_CLASS;
+    c.messages=data.messages;c.loaded=true;c.files=data.files.files;c.filesLoaded=true;
+    if(data.files.max)FILE_MAX=data.files.max;
+    ACTIVE_CLASS=classId;localStorage.setItem(CLASS_KEY,classId);
+    chats=ALL_CHATS.filter(x=>x.classId===classId);
+    activeChatId=id;FILES=c.files;
+    fileErr("");syncToolkits();paintClassSwitcher();renderSidebar(courseChanged);renderFiles();renderMessages();
+    els.input.value=c.draft||"";
+    els.input.style.height="auto";
+    els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";
+    if(Number.isFinite(c.scrollTop))els.messages.scrollTop=c.scrollTop;
+    setSending(false);
+  }
+
   async function selectChat(id,classId=ACTIVE_CLASS){
     const c=ALL_CHATS.find(x=>x.id===id&&x.classId===classId);
     if(!c)return false;
     if(id===activeChatId&&classId===ACTIVE_CLASS&&!navigationBusy)return true;
+    // Already in memory (visited, prefetched, or brand new): swap in the same
+    // frame, with no spinner, no fade and no waiting.
+    if(c.loaded&&(c.filesLoaded||c.isNew)){
+      chatTransition.cancel();
+      navigationBusy=false;
+      commitChat(c,id,classId,{messages:c.messages,files:{files:c.files||[]}});
+      return true;
+    }
     navigationBusy=true;updateComposer();
     const switched=await chatTransition.show(async()=>{
       const [messages,files]=await Promise.all([loadMessages(c),fetchFiles(c)]);
       return {messages,files};
-    },data=>{
-      // Commit all visible state together, after the next conversation is ready.
-      const previous=activeChat();
-      if(previous){previous.draft=els.input.value;previous.scrollTop=els.messages.scrollTop;}
-      invalidateView();
-      c.messages=data.messages;c.loaded=true;c.files=data.files.files;c.filesLoaded=true;
-      if(data.files.max)FILE_MAX=data.files.max;
-      ACTIVE_CLASS=classId;localStorage.setItem(CLASS_KEY,classId);
-      chats=ALL_CHATS.filter(x=>x.classId===classId);
-      activeChatId=id;FILES=c.files;
-      fileErr("");syncToolkits();paintClassSwitcher();renderSidebar();renderFiles();renderMessages();
-      els.input.value=c.draft||"";
-      els.input.style.height="auto";
-      els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";
-      if(Number.isFinite(c.scrollTop))els.messages.scrollTop=c.scrollTop;
-      setSending(false);
-    },{label:"Opening conversation…",onError:()=>fileErr("Could not open that conversation. Please try again.")});
+    },data=>commitChat(c,id,classId,data),
+    {label:"Opening conversation",onError:()=>fileErr("Could not open that conversation. Please try again.")});
     if(switched||!document.querySelector("[data-chat-col]").hasAttribute("aria-busy")){
       navigationBusy=false;updateComposer();
     }
     return switched;
+  }
+
+  // Start fetching a conversation before it is clicked, so the click is instant.
+  function warmChat(c){
+    if(!c||c.isNew||c._warming||(c.loaded&&c.filesLoaded))return;
+    c._warming=true;
+    Promise.all([loadMessages(c),fetchFiles(c)]).then(([messages,files])=>{
+      if(!c.loaded){c.messages=messages;c.loaded=true;}
+      if(!c.filesLoaded){c.files=files.files;c.filesLoaded=true;if(files.max)FILE_MAX=files.max;}
+    }).catch(()=>{}).finally(()=>{c._warming=false;});
   }
 
   async function loadMessages(c){
@@ -719,18 +770,37 @@
     else renderSidebar();
   }
 
-  function renderSidebar(){
+  // With a long history, a filter box appears above the list. Below the
+  // threshold it stays out of the way.
+  let chatFilter="";
+  const CHAT_FILTER_MIN=12;
+
+  function renderSidebar(animate=false){
+    const scroll=els.chatList.scrollTop;
     els.chatList.innerHTML="";
     paintHeader();
-    chats.forEach((c,i)=>{
+    const box=$s("chatSearchWrap");
+    box.classList.toggle("hidden",chats.length<CHAT_FILTER_MIN);
+    if(chats.length<CHAT_FILTER_MIN)chatFilter="";
+    const q=chatFilter.trim().toLowerCase();
+    const shown=q?chats.filter(c=>c.id===activeChatId||(c.title||"").toLowerCase().includes(q)):chats;
+    if(q&&shown.length===0){
+      const p=document.createElement("p");p.className="px-3 py-2 text-[13px] text-on-surface-variant";
+      p.textContent="No matches";els.chatList.appendChild(p);
+    }
+    shown.forEach((c,i)=>{
       const on=c.id===activeChatId;
       const row=document.createElement("div");
-      row.className="group chat-row"+(on?" on":"");
-      row.style.setProperty("--i",Math.min(i,12));
+      row.className="group chat-row"+(on?" on":"")+(animate?" enter":"");
+      row.style.setProperty("--i",Math.min(i,10));
       const it=document.createElement("button");
       it.className="flex-1 min-w-0 text-left px-3 py-2.5 font-label-md text-label-md truncate";
       it.textContent=c.title;
       it.onclick=()=>selectChat(c.id);
+      const warm=()=>warmChat(c);
+      row.addEventListener("pointerenter",warm,{passive:true});
+      it.addEventListener("focus",warm);
+      row.addEventListener("touchstart",warm,{passive:true});
       const del=document.createElement("button");
       del.className="chat-delete px-2 opacity-0 group-hover:opacity-100 transition-opacity hover:text-error flex-shrink-0";
       del.dataset.drawerKeep="1";   // deleting a conversation shouldn't shut the drawer
@@ -740,6 +810,7 @@
       row.appendChild(it);row.appendChild(del);
       els.chatList.appendChild(row);
     });
+    els.chatList.scrollTop=scroll;
   }
 
   // Class-agnostic openers — the server has no notion of suggested questions, so
@@ -767,23 +838,20 @@
       const e=document.createElement("div");
       e.className="pt-10 pb-2 empty-state";
       const h=document.createElement("h2");
-      h.className="font-headline-lg text-headline-lg text-on-background mb-3";
+      h.className="font-headline-lg text-headline-lg text-on-background mb-6";
       // textContent, not innerHTML: the class name is teacher-supplied.
       h.textContent="Ask anything from "+(className()||"this course");
-      const p=document.createElement("p");
-      p.className="font-body-lg text-body-lg text-on-surface-variant mb-7 max-w-[48ch]";
-      p.textContent="Ask about this course. Your teacher sets how Chronos uses course material.";
       const list=document.createElement("div");
       list.style.borderTop="1px solid var(--c-rule)";
       STARTERS.forEach((t,i)=>{
         const b=document.createElement("button");
-        b.className="starter";b.style.setProperty("--i",i);
+        b.className="starter";
         b.innerHTML='<span></span><span class="material-symbols-outlined text-[19px] text-on-surface-variant flex-shrink-0">arrow_forward</span>';
         b.firstChild.textContent=t;
         b.onclick=()=>{els.input.value=t;send();};
         list.appendChild(b);
       });
-      e.appendChild(h);e.appendChild(p);e.appendChild(list);
+      e.appendChild(h);e.appendChild(list);
       els.messagesInner.appendChild(e);
       return;
     }
@@ -825,6 +893,7 @@
     // what used to put the dropdown in front of students.
     const sources=IS_TEACHER?((m.sources&&m.sources.length)?m.sources:(m.rules||[])):[];
     if(sources.length){w.appendChild(buildSourcesDropdown(sources));}
+    if(m.debug&&DEBUG)w.appendChild(buildDebugPanel(m.debug));
     // Built once and reused. renderMessages rebuilds the thread on any unrelated
     // change (a new chat in the sidebar, a title update), and rebuilding the
     // activity there wiped every answer the student had already given and
@@ -850,7 +919,7 @@
   function gapNote(){
     const p=document.createElement("p");
     p.className="mt-3.5 text-primary text-[13.5px] leading-relaxed";
-    p.textContent="Sent to your teacher as a gap in the course material.";
+    p.textContent="Not in the course material yet. Your teacher can see this.";
     return p;
   }
 
@@ -1062,7 +1131,7 @@
         const feedback=document.createElement("p");feedback.className="quiz-feedback "+(answer===question.answer?"good":"missed");
         if(answer===question.answer)feedback.textContent="Correct. "+(question.explanation||"Nice work—keep going.");
         else if(tool.reveal_final_answers===true)feedback.textContent="Not quite. "+(question.explanation||"Review this idea, then try a similar question.");
-        else feedback.textContent="Not quite. Keep the key idea in mind; you can review the missed concept with AI at the end.";
+        else feedback.textContent="Not quite. You can review this concept with AI at the end.";
         stage.appendChild(feedback);
       }
       previous.disabled=index===0;previous.onclick=()=>{dir="prev";index--;render();};
@@ -1151,8 +1220,8 @@
       badge.textContent="Card "+(index+1)+" of "+deck.length;setBar(index/deck.length);
       const shell=document.createElement("div");shell.className="flashcard-shell";
       const card=document.createElement("button");card.type="button";card.className="flashcard"+(flipped?" is-flipped":"");card.setAttribute("aria-pressed",String(flipped));card.setAttribute("aria-label",flipLabel());
-      const front=document.createElement("span");front.className="flash-face front";const frontLabel=document.createElement("span");frontLabel.className="flash-label";frontLabel.textContent="Prompt";const frontText=document.createElement("strong");frontText.className="flash-text";frontText.textContent=data.front;const frontHint=document.createElement("span");frontHint.className="flash-hint";frontHint.textContent="Select to reveal";front.append(frontLabel,frontText,frontHint);
-      const back=document.createElement("span");back.className="flash-face back";const backLabel=document.createElement("span");backLabel.className="flash-label";backLabel.textContent="Answer";const backText=document.createElement("strong");backText.className="flash-text";backText.textContent=data.back;const backHint=document.createElement("span");backHint.className="flash-hint";backHint.textContent="Select to flip back";back.append(backLabel,backText,backHint);
+      const front=document.createElement("span");front.className="flash-face front";const frontLabel=document.createElement("span");frontLabel.className="flash-label";frontLabel.textContent="Prompt";const frontText=document.createElement("strong");frontText.className="flash-text";frontText.textContent=data.front;const frontHint=document.createElement("span");frontHint.className="flash-hint";frontHint.textContent="";front.append(frontLabel,frontText,frontHint);
+      const back=document.createElement("span");back.className="flash-face back";const backLabel=document.createElement("span");backLabel.className="flash-label";backLabel.textContent="Answer";const backText=document.createElement("strong");backText.className="flash-text";backText.textContent=data.back;const backHint=document.createElement("span");backHint.className="flash-hint";backHint.textContent="";back.append(backLabel,backText,backHint);
       card.append(front,back);
       const rating=document.createElement("div");rating.className="flash-rate";
       const againBtn=document.createElement("button");againBtn.type="button";againBtn.className="again";againBtn.textContent="Still learning";againBtn.onclick=()=>rate("again");
@@ -1464,7 +1533,7 @@
 
   function renderToolMenu(){
     const button=$s("toolBtn"),menu=$s("toolMenu");
-    button.hidden=TOOLKITS.length===0;
+    button.hidden=TOOLKITS.length===0&&!IS_DEV;
     if(button.hidden){closeComposerMenus();return;}
     menu.replaceChildren();
     TOOLKITS.forEach(kind=>{
@@ -1474,6 +1543,87 @@
       item.onclick=()=>{closeComposerMenus();invokeTool(kind);};
       menu.appendChild(item);
     });
+    if(IS_DEV){
+      const item=document.createElement("button");item.type="button";item.setAttribute("role","menuitemcheckbox");
+      item.setAttribute("aria-checked",String(DEBUG));
+      const symbol=document.createElement("span");symbol.className="material-symbols-outlined text-[18px]";symbol.textContent="bug_report";
+      if(DEBUG)symbol.style.color="var(--crimson)";
+      item.append(symbol,document.createTextNode(DEBUG?"Debug mode: on":"Debug mode"));
+      item.onclick=()=>{closeComposerMenus();setDebug(!DEBUG);};
+      menu.appendChild(item);
+    }
+  }
+
+  // ---- debug mode (developer accounts) ----
+  // Red glow on the chat box, and every reply carries a collapsed report of what
+  // the server did: timings, retrieval scores, prompt, tokens. The server only
+  // sends it to developer accounts; this is just where it is shown.
+  function setDebug(on){
+    DEBUG=!!on&&IS_DEV;
+    try{localStorage.setItem("chronos-debug",DEBUG?"1":"0");}catch(e){}
+    applyDebugUi();
+    renderToolMenu();
+    renderMessages();
+  }
+  window.addEventListener("chronos-debug",e=>setDebug(!!(e.detail)));
+
+  const fmtMs=v=>v==null?null:(v>=1000?(v/1000).toFixed(2)+" s":Math.round(v)+" ms");
+  function dbgEl(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
+  function dbgKV(rows){
+    const g=dbgEl("div","dbg-kv");
+    rows.forEach(([k,v])=>{if(v==null||v==="")return;g.appendChild(dbgEl("span",null,k));g.appendChild(dbgEl("span",null,String(v)));});
+    return g;
+  }
+  function dbgSection(title,node){const s=dbgEl("div");s.appendChild(dbgEl("h4",null,title));s.appendChild(node);return s;}
+
+  function paintDebugStrip(d){
+    const t=d.timings||{},tok=d.tokens||{},all=(d.retrieval&&d.retrieval.matches)||[];
+    const parts=[d.model,d.path,fmtMs(t.total_ms),t.first_token_ms!=null?"first token "+fmtMs(t.first_token_ms):null,
+      tok.total!=null?tok.total+" tok":null,all.filter(m=>m.kept).length+"/"+all.length+" hits"].filter(Boolean);
+    const strip=$s("dbgStrip");strip.textContent="";
+    strip.appendChild(dbgEl("b",null,"DEBUG "));strip.appendChild(document.createTextNode(parts.join(" · ")));
+  }
+
+  function buildDebugPanel(d){
+    const box=dbgEl("details","dbg");
+    const t=d.timings||{},tok=d.tokens||{},all=(d.retrieval&&d.retrieval.matches)||[];
+    box.appendChild(dbgEl("summary",null,["debug",d.path,fmtMs(t.total_ms),tok.total!=null?tok.total+" tok":null,
+      all.filter(m=>m.kept).length+"/"+all.length+" hits"].filter(Boolean).join(" · ")));
+    let built=false;
+    box.addEventListener("toggle",()=>{
+      if(!box.open||built)return;built=true;
+      const body=dbgEl("div","dbg-body"),c=d.client||{};
+      body.appendChild(dbgSection("Timing",dbgKV([["embed",fmtMs(t.embed_ms)],["vector search",fmtMs(t.pinecone_ms)],
+        ["history",fmtMs(t.history_ms)],["retry search",fmtMs(t.fallback_ms)],["first token",fmtMs(t.first_token_ms)],
+        ["model",fmtMs(t.model_ms)],["server total",fmtMs(t.total_ms)],["browser: first text",fmtMs(c.first_delta_ms)],
+        ["browser: done",fmtMs(c.done_ms)]])));
+      const list=dbgEl("div");
+      if(!all.length)list.appendChild(dbgEl("div",null,"no vector search ran"));
+      all.forEach(m=>{
+        const row=dbgEl("div"),score=Math.max(0,Math.min(1,m.score||0));
+        row.appendChild(dbgEl("div",null,(m.source||"note")+(m.chunk!=null?" §"+(m.chunk+1):"")+"  "+(m.score||0).toFixed(3)+(m.kept?"":"  (below floor)")));
+        const bar=dbgEl("div","dbg-bar"),fill=dbgEl("i",m.kept?"":"drop");fill.style.width=(score*100)+"%";
+        bar.appendChild(fill);row.appendChild(bar);list.appendChild(row);
+      });
+      const passes=(d.retrieval&&d.retrieval.passes)||[];
+      body.appendChild(dbgSection("Retrieval",list));
+      if(passes.length)body.appendChild(dbgSection("Queries",dbgKV(passes.map((p,i)=>[(i+1)+" · floor "+p.floor,p.query.slice(0,70)]))));
+      const ps=(d.prompt&&d.prompt.sections)||{};
+      body.appendChild(dbgSection("Prompt",dbgKV([["total chars",d.prompt&&d.prompt.chars],["material",ps.material],["outline",ps.outline],
+        ["memory",ps.memory],["student files",ps.student_docs],["preferences",ps.preferences],["summary",ps.summary]])));
+      body.appendChild(dbgSection("Tokens",dbgKV([["prompt",tok.prompt],["reply",tok.reply],["total",tok.total]])));
+      body.appendChild(dbgSection("Request",dbgKV([["model",d.model],["path",d.path],["history turns",d.history_turns],
+        ["outline docs",d.outline_docs],["custom rules",d.custom_rules],["new chat",d.new_chat]])));
+      const actions=dbgEl("div","dbg-actions"),pre=dbgEl("pre","dbg-pre");pre.hidden=true;
+      const showPrompt=dbgEl("button",null,"Prompt");showPrompt.type="button";
+      showPrompt.onclick=()=>{pre.hidden=!pre.hidden;pre.textContent=pre.hidden?"":(d.prompt&&d.prompt.text)||"";};
+      const copy=dbgEl("button",null,"Copy JSON");copy.type="button";
+      copy.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(JSON.stringify(d,null,2)).then(()=>{copy.textContent="Copied";setTimeout(()=>{copy.textContent="Copy JSON";},1200);});};
+      actions.appendChild(showPrompt);actions.appendChild(copy);
+      body.appendChild(actions);body.appendChild(pre);
+      box.appendChild(body);
+    });
+    return box;
   }
 
   function invokeTool(kind){
@@ -1499,19 +1649,27 @@
     if(c.messages.length===1){c.title=text.length>30?text.slice(0,30)+"…":text;renderSidebar();}
     els.input.value="";c.draft="";els.input.style.height="auto";
     renderMessages();
+    // renderMessages rebuilds quietly; only the message just sent should move in.
+    if(els.messagesInner.lastElementChild)els.messagesInner.lastElementChild.classList.add("enter");
     setSending(true);
     const tm={role:"teacher",content:"",rules:[],sources:[],tool:null};c.messages.push(tm);
-    const el=buildMsgEl(tm);els.messagesInner.appendChild(el);
+    const el=buildMsgEl(tm);el.classList.add("enter");els.messagesInner.appendChild(el);
     const b=el.querySelector(".ai-prose"),stream=createReplyStream(b);scrollBottom();
     let reachedServer=false;
+    const tSent=performance.now();let tFirst=0;
     try{
       // The tutor answers from this chat's class. Omit chat_id for a not-yet-saved
       // conversation; the server creates one.
       const body={message:text,class_id:c.classId||ACTIVE_CLASS,chat_id:c.id,stream:true};
+      if(DEBUG)body.debug=true;
       const res=await Chronos.apiFetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       reachedServer=true;setStatus("online");
-      const data=await readChatResponse(res,chunk=>{tm.content+=chunk;stream.push(chunk);});
+      const data=await readChatResponse(res,chunk=>{if(!tFirst)tFirst=performance.now();tm.content+=chunk;stream.push(chunk);});
       if(data.error)throw new Error(data.details||data.error);
+      if(DEBUG&&data.debug){
+        tm.debug=Object.assign({},data.debug,{client:{first_delta_ms:tFirst?Math.round(tFirst-tSent):null,done_ms:Math.round(performance.now()-tSent),
+          cache_hit_chats:ALL_CHATS.filter(x=>x.loaded).length}});
+      }
       // Adopt the server's chat id/title for a freshly-created conversation.
       if(data.chat_id&&c.isNew){const oldId=c.id;c.id=data.chat_id;c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId===oldId)activeChatId=c.id;renderSidebar();}
       // `grounded` comes from the server, which is the only side that can see
@@ -1529,6 +1687,7 @@
       if(tm.reviewed)el.appendChild(reviewedNote());
       const sources=IS_TEACHER?(tm.sources.length?tm.sources:tm.rules):[];
       if(sources.length)el.appendChild(buildSourcesDropdown(sources));
+      if(tm.debug){el.appendChild(buildDebugPanel(tm.debug));paintDebugStrip(tm.debug);}
       if(gen===VIEW_GEN&&(data.tool_request||(options.requestedTool&&!data.blocked)))
         await runTool(data.tool_request||options.requestedTool,c,el);
       if(gen===VIEW_GEN)scrollBottom();
@@ -1569,7 +1728,8 @@
       if(state==="waking")el.classList.add("animate-pulse");
       el.title=label;
     });
-    paintAll("[data-status-text]",label);
+    // "Online" needs no words: the dot says it. Only a problem gets a label.
+    paintAll("[data-status-text]",state==="online"?"":label);
   }
 
   async function checkServer(){
@@ -1590,7 +1750,28 @@
   els.sendBtn.onclick=send;
   els.newChatBtn.onclick=async()=>{if(await newChat())els.input.focus();};
   els.newChatBtnMobile.onclick=async()=>{if(await newChat())els.input.focus();};
-  els.input.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}});
+  els.input.addEventListener("keydown",e=>{
+    if(e.key!=="Enter"||e.isComposing)return;
+    // "Enter sends" is a setting: when off, Ctrl/Cmd+Enter sends and Enter is a new line.
+    const enterSends=uiPref("enterSend",true);
+    if(enterSends?!e.shiftKey:(e.ctrlKey||e.metaKey)){e.preventDefault();send();}
+  });
+  $s("chatSearch").addEventListener("input",e=>{chatFilter=e.target.value;renderSidebar();});
+  $s("settingsBtn").onclick=()=>ChronosSettings.open({
+    tutor:true,
+    onReplayTour:()=>window.__tutOpen&&window.__tutOpen(),
+    onClearChats:clearAllChats,
+  });
+
+  // Delete every conversation the student has, across courses. The server owns
+  // deletion one chat at a time; this just walks the saved ones.
+  async function clearAllChats(){
+    const saved=ALL_CHATS.filter(c=>!c.isNew);
+    for(const c of saved)await Chronos.apiJson("/chats/"+encodeURIComponent(c.id),undefined,"DELETE");
+    ALL_CHATS=ALL_CHATS.filter(c=>c.isNew);chats=chats.filter(c=>c.isNew);
+    activeChatId=null;
+    await applyClassFilter();
+  }
   els.input.addEventListener("input",()=>{if(activeChat())activeChat().draft=els.input.value;els.input.style.height="auto";els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";});
 
   // The on-screen keyboard doesn't resize the layout viewport, so the composer
@@ -1611,11 +1792,19 @@
       setTimeout(()=>{pin();els.input.scrollIntoView({block:"nearest"});},300);
     });
   })();
-  $s("logoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("/login?role=student",true);};
-  $s("joinLogoutBtn").onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("/login?role=student",true);};
+  const signOut=role=>async()=>{try{await Chronos.logout();}catch(e){}ChronosNav.go("/login?role="+role,true);};
+  $s("logoutBtn").onclick=signOut("student");
+  $s("joinLogoutBtn").onclick=signOut("student");
   $s("classSwitcher").onchange=e=>switchClass(e.target.value);
   $s("joinAnotherBtn").onclick=()=>showJoinGate();
   $s("joinBtn").onclick=submitJoin;
+  $s("joinCancelBtn").onclick=()=>hideJoinGate();
+  // Clicking the dim backdrop or pressing Escape closes the dialog, but only when
+  // there is a course behind it to go back to.
+  $s("joinGate").addEventListener("mousedown",e=>{if(e.target===$s("joinGate"))hideJoinGate();});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$s("joinGate").classList.contains("hidden"))hideJoinGate();});
+  // Codes are case-insensitive and often pasted with spaces or dashes.
+  $s("joinCodeInput").addEventListener("input",e=>{e.target.value=e.target.value.replace(/[^a-z0-9]/gi,"").toUpperCase();$s("joinErr").classList.add("hidden");});
   $s("joinCodeInput").addEventListener("keydown",e=>{if(e.key==="Enter")submitJoin();});
 
   function paintClassSwitcher(){
@@ -1625,8 +1814,10 @@
   }
 
   // Load classes; returns true if the student is in at least one.
-  async function loadClasses(){
-    CLASSES=await Chronos.listClasses();
+  async function loadClasses(pending){
+    const result=pending?await pending:null;
+    if(result&&result.error)throw result.error;
+    CLASSES=result?result.value:await Chronos.listClasses();
     let pick=localStorage.getItem(CLASS_KEY);
     if(!CLASSES.find(c=>c.id===pick))pick=CLASSES.length?CLASSES[0].id:null;
     ACTIVE_CLASS=pick;
@@ -1682,6 +1873,8 @@
       fileErr("Could not refresh conversations. Please try again.");
     }
     if(!(await applyClassFilter()))throw new Error("Could not open a conversation. Please try again.");
+    // Quietly fetch the few most recent conversations so opening one is instant.
+    ALL_CHATS.filter(c=>c.classId===ACTIVE_CLASS).slice(0,4).forEach(warmChat);
   }
 
   // ---- the student's own work (assignment + rubric) ----
@@ -1766,34 +1959,37 @@
     PENDING_KIND=null;
   };
 
+  // The join dialog can be dismissed only when there is a course to go back to.
+  // With none, it is the whole app, so it offers a sign-out for the wrong account
+  // (worded as "Not you?", and never next to a Close button it could be mistaken for).
   function showJoinGate(){
+    const dismissible=CLASSES.length>0;
     $s("joinErr").classList.add("hidden");
     $s("joinCodeInput").value="";
+    $s("joinCancelBtn").classList.toggle("hidden",!dismissible);
+    $s("joinFoot").classList.toggle("hidden",dismissible);
+    $s("joinEmail").textContent=(USER&&USER.email)||(Chronos.hint()||{}).email||"";
     $s("joinGate").classList.remove("hidden");
     $s("joinCodeInput").focus();
   }
-  function hideJoinGate(){$s("joinGate").classList.add("hidden");}
+  function hideJoinGate(){
+    if(!CLASSES.length)return;
+    $s("joinGate").classList.add("hidden");
+  }
 
   // Teachers own classes — they should never be asked to *join* one with a code.
-  // If a teacher reaches the tutor without a class, point them at the Knowledge
-  // Base to create one instead of showing the student join-code box.
+  // If a teacher reaches the tutor without a class, point them at Course Material
+  // to create one instead of showing the student join-code box.
   function showTeacherNoClassGate(){
-    $s("joinCard").innerHTML=
-      '<div class="w-14 h-14 bg-secondary text-on-secondary flex items-center justify-center mx-auto mb-stack-md">'+
-        '<span class="material-symbols-outlined text-[28px]">school</span></div>'+
-      '<h1 class="font-headline-md text-headline-md text-on-background mb-2">Make a course first</h1>'+
-      '<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">You haven’t got any courses yet. Set one up in Course Material and you can try the tutor on your own material.</p>'+
-      '<a class="kbtn w-full" href="/teacher"><span>'+
-        '<span class="material-symbols-outlined text-[18px] align-middle">add</span> Go to Knowledge Base</span></a>'+
-      '<button class="inline-block mt-stack-md font-label-sm text-label-sm text-on-surface-variant hover:text-primary transition-colors" id="teacherGateLogout">Sign out</button>';
-    const out=$s("teacherGateLogout");
-    if(out)out.onclick=async()=>{try{await Chronos.logout();}catch(e){}ChronosWipe.go("/login?role=teacher",true);};
-    $s("joinGate").classList.remove("hidden");
+    $s("teacherGateEmail").textContent=(USER&&USER.email)||"";
+    $s("teacherGateLogout").onclick=signOut("teacher");
+    $s("teacherGate").classList.remove("hidden");
   }
 
   async function submitJoin(){
     const code=$s("joinCodeInput").value.trim().toUpperCase();
-    if(!code){$s("joinErr").textContent="Enter a course code.";$s("joinErr").classList.remove("hidden");return;}
+    const showErr=m=>{$s("joinErr").textContent=m;$s("joinErr").classList.remove("hidden");};
+    if(!code){showErr("Enter a course code.");return;}
     $s("joinBtn").disabled=true;
     try{
       const cls=await Chronos.joinClass(code);
@@ -1803,40 +1999,63 @@
       await loadChats();
       hideJoinGate();
     }catch(e){
-      $s("joinErr").textContent=(e&&e.message)||"Could not join.";$s("joinErr").classList.remove("hidden");
+      showErr((e&&e.message)||"That code didn't work. Check it and try again.");
     }
     $s("joinBtn").disabled=false;
   }
 
-  // Gate the page on a signed-in user. Teachers can use the tutor too, so both
-  // roles are allowed here (the backend /chat accepts any signed-in user).
+  function paintUser(email,role){
+    const em=$s("userEmail");em.textContent=email||"Account";em.title=email||"";
+    $s("userInitials").textContent=(email||"?").slice(0,2).toUpperCase();
+    // A teacher trying the tutor isn't a student.
+    $s("roleLabel").textContent=role==="teacher"?"Teacher":"Student";
+    // Show a way back to the teacher panels when a teacher is using the tutor.
+    $s("teacherBackLink").classList.toggle("hidden",role!=="teacher");
+    $s("teacherBackLink").classList.toggle("flex",role==="teacher");
+  }
+  function applyDebugUi(){
+    $s("composerBox").classList.toggle("debug-on",DEBUG);
+    $s("dbgStrip").classList.toggle("on",DEBUG);
+    if(DEBUG&&!$s("dbgStrip").textContent)$s("dbgStrip").innerHTML="<b>DEBUG</b> on · send a message to see the report";
+  }
+  function showPageError(message){
+    const wrap=document.createElement("p");
+    wrap.className="font-body-md text-body-md text-error text-center px-6 py-10";
+    wrap.textContent=message||"Sign-in required";   // textContent: this string comes off the wire
+    els.messagesInner.replaceChildren(wrap);
+    const skel=$s("chatSkel");if(skel)skel.remove();
+  }
+
+  // Paint the shell at once from the last verified sign-in, so there is no blank
+  // "checking who you are" screen. requireRole() confirms it in parallel, and if
+  // the session is stale it sends the user back to sign in as before.
+  const hinted=Chronos.hint();
+  if(hinted)paintUser(hinted.email,hinted.role);
+
+  // Start the data requests the moment a session exists, without waiting for the
+  // role check. The server authorizes each of them itself.
+  const early=Chronos.whenSignedIn().then(()=>({
+    classes:Chronos.listClasses().then(value=>({value}),error=>({error})),
+    chats:Chronos.apiJson("/chats",undefined,"GET").then(data=>({data}),error=>({error})),
+  }));
+
+  // Teachers can use the tutor too, so both roles are allowed here (the backend
+  // /chat accepts any signed-in user).
   Chronos.requireRole(["student","teacher"]).then(async(info)=>{
     USER=info;
     IS_TEACHER=info.role==="teacher";
-    const em=$s("userEmail");em.textContent=info.email||"Account";em.title=info.email||"";
-    $s("userInitials").textContent=(info.email||"?").slice(0,2).toUpperCase();
-    // Reflect the signed-in role: a teacher trying the tutor isn't a student.
-    const role=IS_TEACHER?"Teacher":"Student";
-    $s("modeLabel").textContent=role;$s("roleLabel").textContent=role;
-    // Show a way back to the teacher panels when a teacher is using the tutor.
-    if(IS_TEACHER){$s("teacherBackLink").classList.remove("hidden");$s("teacherBackLink").classList.add("flex");}
-    // Start independent requests together. The chat list needs the selected
-    // class only when it is displayed, not while it is fetched.
-    const pendingChats=Chronos.apiJson("/chats",undefined,"GET")
-      .then(data=>({data}),error=>({error}));
-    const hasClass=await loadClasses();
-    if(!hasClass){ info.role==="teacher" ? showTeacherNoClassGate() : showJoinGate(); }
-    else { await loadChats(pendingChats); if(window.__tutFirstVisit)window.__tutFirstVisit(); }
-    $s("authGate").remove();
+    IS_DEV=!!info.is_dev;
+    DEBUG=IS_DEV&&localStorage.getItem("chronos-debug")==="1";
+    paintUser(info.email,info.role);
+    applyDebugUi();
+    const started=await early;
+    const hasClass=await loadClasses(started.classes);
+    if(!hasClass){
+      const skel=$s("chatSkel");if(skel)skel.remove();
+      info.role==="teacher"?showTeacherNoClassGate():showJoinGate();
+    }else await loadChats(started.chats);
     checkServer();setInterval(checkServer,15000);
-  }).catch(e=>{
-    // textContent, not innerHTML: this string comes off the wire.
-    const g=$s("authGate");g.textContent="";
-    const p=document.createElement("p");
-    p.className="font-body-md text-body-md text-error text-center px-6";
-    p.textContent=(e&&e.message)||"Sign-in required";
-    g.appendChild(p);
-  });
+  }).catch(e=>showPageError((e&&e.message)||"Something went wrong. Please refresh."));
 </script>
 
 <!-- How-it-works tutorial -->
@@ -1856,9 +2075,9 @@
     const TITLE="Quick tour";
     const KEY="chronos_tut_student_v2";
     const STEPS=[
-      {icon:"school",title:"Pick your course",text:"Use the course menu on the left so you're asking the right tutor."},
-      {icon:"forum",title:"Just ask",text:"Type a question and hit Enter. Your teacher controls how the tutor uses course material."},
-      {icon:"flag",title:"Missing material?",text:"If strict course grounding is on and a topic isn't covered, the tutor will say so. You can ask your teacher to add it."},
+      {icon:"school",title:"Pick your course",text:"The menu on the left sets which course the tutor answers from."},
+      {icon:"forum",title:"Just ask",text:"Type a question and press Enter. Attach an assignment or rubric with + to get feedback on your own work."},
+      {icon:"auto_awesome",title:"Practice",text:"When your teacher turns them on, quizzes and flashcards are in the sparkle menu."},
     ];
     let idx=0;
     const body=document.getElementById("tutBody");
@@ -1889,9 +2108,8 @@
     // dismissing by clicking the backdrop, so the steps actually get read.
     doneBtn.onclick=()=>{ if(idx<STEPS.length-1){idx++;render();} else {close();} };
     const help=document.getElementById("tutHelp");if(help)help.onclick=open;
-    // Auto-open only once the app is ready (the main script calls this after the
-    // loading/join gates clear), so it never pops over a full-screen spinner.
-    window.__tutFirstVisit=function(){try{if(!localStorage.getItem(KEY))open();}catch(e){}};
+    // Opt-in: Settings → Account → Replay tour. It no longer opens by itself.
+    window.__tutOpen=open;
   })();
 </script>
 </body></html>

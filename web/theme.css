@@ -25,8 +25,6 @@
    `text-main` …) for the same reason. Different names, same
    values — so they can be repointed together below.
 
-   landing.html doesn't load this file: it is a single-register
-   poster page (light paper, with dark bands) and has no toggle.
    ============================================================ */
 
 html.dark {
@@ -129,4 +127,56 @@ html.dark textarea,
 html.dark select { caret-color: var(--d-crimson); }
 html.dark input::placeholder,
 html.dark textarea::placeholder { color: #85817A !important; opacity: 1; }
-html.dark .px-tag { background: #101014; }
+
+/* ===========================================================
+   Shared primitives (all app pages): one spinner, one skeleton,
+   one "saved" pill, and light/dark-aware motion tokens.
+   =========================================================== */
+:root {
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --dur-fast: .12s;
+  --dur: .18s;
+}
+@keyframes chronos-spin { to { transform: rotate(360deg); } }
+.spin { display: inline-block; animation: chronos-spin .7s linear infinite; }
+
+@keyframes chronos-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.skeleton {
+  display: block;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(128,124,116,.12) 25%, rgba(128,124,116,.24) 50%, rgba(128,124,116,.12) 75%);
+  background-size: 200% 100%;
+  animation: chronos-shimmer 1.4s linear infinite;
+}
+
+/* Autosave confirmation. Toggle .on; it fades itself out. */
+.saved-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 500 12px 'Schibsted Grotesk', sans-serif;
+  color: #5D5B55;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+.saved-pill.on { opacity: 1; }
+.saved-pill.err { color: #B10014; opacity: 1; }
+html.dark .saved-pill { color: var(--d-muted); }
+html.dark .saved-pill.err { color: var(--d-crimson); }
+
+@media (prefers-reduced-motion: reduce) {
+  .spin, .skeleton { animation: none; }
+}
+
+/* Per-device preferences from Settings → Appearance. */
+html[data-motion="reduce"] *,
+html[data-motion="reduce"] *::before,
+html[data-motion="reduce"] *::after {
+  animation-duration: .001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .001ms !important;
+}
+html[data-motion="reduce"]::view-transition-group(*),
+html[data-motion="reduce"]::view-transition-old(*),
+html[data-motion="reduce"]::view-transition-new(*) { animation: none !important; }
+html[data-text="large"] { font-size: 112.5%; }

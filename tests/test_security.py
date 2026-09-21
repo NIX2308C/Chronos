@@ -193,6 +193,8 @@ def test_sources_are_not_sent_to_students():
     # /chat reads these too. Left unstubbed they reach real Firestore, which is
     # exactly what this file claims never to do — it hangs instead of failing.
     A.load_custom_rules = lambda *_a, **_k: []
+    A.load_course_manifest = lambda *_a, **_k: []
+    A.load_user_preferences = lambda *_a, **_k: A.normalize_preferences(None)
     A.load_class_memory = lambda *_a, **_k: ""
     A.refresh_conversation_summary = lambda *_a, **_k: ("", {})
     A.embed = lambda _t: [0.0] * A.EMBED_DIM
@@ -228,6 +230,12 @@ def test_sources_are_not_sent_to_students():
     teacher = ask("teacher")
     assert teacher["rules_used"] == ["SECRET TEACHER MATERIAL"], "teacher lost their sources"
     assert teacher["sources"], "teacher lost the source excerpts"
+    # Debug data is for dev accounts only, and asking for it is not enough.
+    for who in (student, teacher):
+        assert "debug" not in who, "non-dev response carried debug data"
+    signed_in_as(uid="u-student2", role="student")
+    r = c.post("/chat", json={"message": "what is osmosis", "class_id": "c1", "debug": True})
+    assert "debug" not in r.get_json(), "a non-dev could switch debug on"
 
     # Both answers above were produced with the profile store deliberately left
     # unstubbed, so reading and writing it each raised. That is the point: the
@@ -272,6 +280,8 @@ def test_profanity_is_blocked_before_the_model():
     A.load_history = lambda *_a, **_k: []
     A.load_course_settings = lambda *_a, **_k: A.course_settings()
     A.load_custom_rules = lambda *_a, **_k: []
+    A.load_course_manifest = lambda *_a, **_k: []
+    A.load_user_preferences = lambda *_a, **_k: A.normalize_preferences(None)
     A.load_class_memory = lambda *_a, **_k: ""
     A.refresh_conversation_summary = lambda *_a, **_k: ("", {})
     A.summarize_exchange = _REAL_SUMMARIZE_EXCHANGE   # it's half of what this tests

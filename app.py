@@ -1781,7 +1781,10 @@ def page_icon(name):
 
 @app.route('/audio/<name>')
 def page_audio(name):
-    if name not in {'toolkit_using.mp3', 'toolkit_done.mp3', 'toolkit_fail.mp3'}:
+    if name not in {
+        'toolkit_using.mp3', 'toolkit_done.mp3', 'toolkit_fail.mp3',
+        'quiz_correct.mp3', 'quiz_incorrect.mp3', 'high_score.mp3', 'low_score.mp3',
+    }:
         return jsonify({'error': 'Audio not found.'}), 404
     return send_from_directory(os.path.join(WEB_DIR, 'audio'), name, max_age=86400)
 

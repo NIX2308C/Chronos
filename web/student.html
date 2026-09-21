@@ -1109,6 +1109,7 @@
     const choose=optionIndex=>{
       const q=order[index];if(answers[q]!==null)return;
       answers[q]=optionIndex;render(false);scheduleAdvance();
+      playSound(optionIndex===questions[q].answer?"correct":"incorrect");
     };
     const render=(animate=true)=>{
       finished=false;
@@ -1144,6 +1145,7 @@
       stage.dataset.dir="next";stage.classList.remove("still");badge.textContent="Complete";setBar(1);
       const score=answers.reduce((total,answer,i)=>total+(answer===questions[i].answer?1:0),0);
       const missed=questions.map((q,i)=>i).filter(i=>answers[i]!==questions[i].answer);
+      playSound(score/questions.length>=.7?"highScore":"lowScore");
       const complete=document.createElement("div");complete.className="tool-complete";
       const label=document.createElement("p");label.className="slabel";label.textContent="Quiz complete";
       const scoreLine=document.createElement("div");scoreLine.className="tool-score";
@@ -1307,7 +1309,13 @@
   function scrollBottom(){els.messages.scrollTop=els.messages.scrollHeight;}
 
   const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const sounds={using:"audio/toolkit_using.mp3",done:"audio/toolkit_done.mp3",failed:"audio/toolkit_fail.mp3"};
+  // Keep this list in sync with app.py's /audio allowlist. `thinking.mp3` is
+  // intentionally not included until there is a deliberate UX for it.
+  const sounds={
+    using:"audio/toolkit_using.mp3",done:"audio/toolkit_done.mp3",failed:"audio/toolkit_fail.mp3",
+    correct:"audio/quiz_correct.mp3",incorrect:"audio/quiz_incorrect.mp3",
+    highScore:"audio/high_score.mp3",lowScore:"audio/low_score.mp3"
+  };
   let currentSound=null,audioEnabled=false;
   document.addEventListener("pointerdown",()=>{audioEnabled=true;},{passive:true});
   document.addEventListener("keydown",()=>{audioEnabled=true;});

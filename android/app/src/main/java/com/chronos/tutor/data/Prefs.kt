@@ -39,7 +39,7 @@ class Prefs(private val context: Context) {
     val teacherClassId: Flow<String?> = read(Keys.TeacherClass)
     val theme: Flow<String> = context.dataStore.data.map { it[Keys.Theme] ?: "system" }
     val teacherTab: Flow<String> = context.dataStore.data.map { it[Keys.TeacherTab] ?: "material" }
-    val statsRange: Flow<Int> = context.dataStore.data.map { it[Keys.StatsRange] ?: 7 }
+    val statsRange: Flow<Int> = context.dataStore.data.map { it[Keys.StatsRange] ?: 0 }
     val tutorialSeenStudent: Flow<Boolean> = context.dataStore.data.map { it[Keys.TutStudent] ?: false }
     val tutorialSeenTeacher: Flow<Boolean> = context.dataStore.data.map { it[Keys.TutTeacher] ?: false }
 

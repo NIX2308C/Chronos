@@ -5,6 +5,7 @@ import com.chronos.tutor.data.AuthRepository
 import com.chronos.tutor.data.Prefs
 import com.chronos.tutor.data.ChatRepository
 import com.chronos.tutor.data.ClassRepository
+import com.chronos.tutor.data.TeacherRepository
 import com.chronos.tutor.net.Api
 import com.chronos.tutor.net.ChatStream
 import com.chronos.tutor.net.AuthInterceptor
@@ -52,6 +53,7 @@ class AppContainer(context: Context, firebaseReady: Boolean) {
 
     val chatRepository = ChatRepository(api, ChatStream(api, httpClient))
     val classRepository = ClassRepository(api)
+    val teacherRepository = TeacherRepository(api)
 
     /** Null when Firebase is unconfigured; the UI shows an unconfigured state. */
     val authRepository: AuthRepository? =

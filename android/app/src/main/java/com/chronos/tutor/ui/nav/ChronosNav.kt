@@ -19,6 +19,8 @@ import com.chronos.tutor.ui.login.LoginUiState
 import com.chronos.tutor.ui.login.LoginViewModel
 import com.chronos.tutor.ui.student.ChatScreen
 import com.chronos.tutor.ui.student.ChatViewModel
+import com.chronos.tutor.ui.teacher.TeacherScreen
+import com.chronos.tutor.ui.teacher.TeacherViewModel
 
 /**
  * The whole navigation graph.
@@ -33,16 +35,18 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
     val navController = rememberNavController()
     val state by root.state.collectAsStateWithLifecycle()
 
-    val start = when (state) {
-        is AuthState.Ready -> Routes.HOME
+    fun homeFor(s: AuthState.Ready) = if (s.me.role == "teacher") Routes.TEACHER_HOME else Routes.HOME
+
+    val start = when (val s = state) {
+        is AuthState.Ready -> homeFor(s)
         AuthState.NeedsRole -> Routes.FINISH_SIGNUP
         else -> Routes.LOGIN
     }
 
     // Follow auth changes that happen after launch (sign out, token death).
     LaunchedEffect(state) {
-        val target = when (state) {
-            is AuthState.Ready -> Routes.HOME
+        val target = when (val s = state) {
+            is AuthState.Ready -> homeFor(s)
             AuthState.NeedsRole -> Routes.FINISH_SIGNUP
             AuthState.SignedOut -> Routes.LOGIN
             is AuthState.Unconfigured -> Routes.LOGIN
@@ -144,6 +148,28 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                 onSignOut = root::signOut,
                 onRetry = { vm.retry() },
                 onDismissError = vm::dismissError,
+                onTeacherPanel = if (me?.role == "teacher") {
+                    { navController.popBackStack(Routes.TEACHER_HOME, inclusive = false) }
+                } else null,
+            )
+        }
+
+        composable(Routes.TEACHER_HOME) {
+            val me = (state as? AuthState.Ready)?.me
+            val vm: TeacherViewModel = viewModel(
+                key = "teacher-" + (me?.uid ?: "anon"),
+                factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                        TeacherViewModel(container.teacherRepository, container.classRepository, container.prefs) as T
+                },
+            )
+            val ui by vm.state.collectAsStateWithLifecycle()
+            TeacherScreen(
+                vm = vm,
+                state = ui,
+                onPreview = { navController.navigate(Routes.HOME) },
+                onSignOut = root::signOut,
             )
         }
     }

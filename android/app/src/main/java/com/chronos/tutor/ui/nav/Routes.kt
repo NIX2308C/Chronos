@@ -18,7 +18,11 @@ object Routes {
     const val FINISH_SIGNUP = "finish_signup"
 
     /**
-     * Where a signed-in user lands: the tutor chat.
+     * Where a signed-in student lands: the tutor chat. Teachers reach it as
+     * "Preview as student".
      */
     const val HOME = "home"
+
+    /** Where a signed-in teacher lands: course material and analytics. */
+    const val TEACHER_HOME = "teacher_home"
 }

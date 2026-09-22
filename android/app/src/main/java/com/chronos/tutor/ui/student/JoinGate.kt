@@ -33,6 +33,7 @@ fun JoinGate(
     busy: Boolean,
     onJoin: (String) -> Unit,
     onSignOut: () -> Unit,
+    onTeacherPanel: (() -> Unit)? = null,
 ) {
     val extras = LocalChronosColors.current
     var code by remember { mutableStateOf("") }
@@ -67,7 +68,7 @@ fun JoinGate(
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = if (isTeacher)
-                        "You haven't got any courses yet. Set one up in Course Material on the web, then come back and try the tutor on your own material."
+                        "You haven't got any courses yet. Create one in the teacher panel, then come back and try the tutor on your own material."
                     else
                         "Enter the code your teacher gave you.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -130,6 +131,11 @@ fun JoinGate(
                 }
 
                 Spacer(Modifier.height(6.dp))
+                if (onTeacherPanel != null) {
+                    TextButton(onClick = onTeacherPanel, shape = RectangleShape, modifier = Modifier.fillMaxWidth()) {
+                        Text("Teacher panel", style = MaterialTheme.typography.labelLarge, color = extras.crimsonFill)
+                    }
+                }
                 TextButton(onClick = onSignOut, shape = RectangleShape, modifier = Modifier.fillMaxWidth()) {
                     Text("Sign out", style = MaterialTheme.typography.labelLarge, color = extras.muted)
                 }

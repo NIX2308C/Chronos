@@ -44,6 +44,12 @@ class Api(
         }
     }
 
+    // The call timeout alone isn't enough: the client's 30s read timeout would
+    // still fire while the server is silent (embedding, Gemini).
+    private val slowClient by lazy {
+        client.newBuilder().readTimeout(SLOW_CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS).build()
+    }
+
     fun url(path: String): String = baseUrl.trimEnd('/') + path
 
     /** GET returning a parsed JSON object. */
@@ -62,7 +68,7 @@ class Api(
 
     /** Runs a prepared request (used by multipart uploads, which build their own body). */
     fun execute(request: Request, slow: Boolean = false): JsonObject {
-        val call = client.newCall(request)
+        val call = (if (slow) slowClient else client).newCall(request)
         if (slow) call.timeout().timeout(SLOW_CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
 
         val response = try {

@@ -34,6 +34,7 @@ fun StudentDrawer(
     onNewChat: () -> Unit,
     onSwitchClass: (String) -> Unit,
     onSignOut: () -> Unit,
+    onTeacherPanel: (() -> Unit)? = null,
 ) {
     val extras = LocalChronosColors.current
 
@@ -113,6 +114,16 @@ fun StudentDrawer(
             }
 
             HorizontalDivider(color = extras.rule)
+            if (onTeacherPanel != null) {
+                Row(
+                    Modifier.fillMaxWidth().clickable { onTeacherPanel() }.padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Sym("arrow_back", size = 18.sp, tint = extras.crimsonFill)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Teacher panel", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                }
+            }
             Row(
                 Modifier
                     .fillMaxWidth()

@@ -47,6 +47,8 @@ fun ChatScreen(
     onSignOut: () -> Unit,
     onRetry: () -> Unit,
     onDismissError: () -> Unit,
+    /** Non-null only for a teacher previewing the student view. */
+    onTeacherPanel: (() -> Unit)? = null,
 ) {
     val extras = LocalChronosColors.current
     val drawer = rememberDrawerState(DrawerValue.Closed)
@@ -88,6 +90,7 @@ fun ChatScreen(
             busy = state.joining,
             onJoin = onJoin,
             onSignOut = onSignOut,
+            onTeacherPanel = onTeacherPanel,
         )
         return
     }
@@ -102,6 +105,7 @@ fun ChatScreen(
                 onNewChat = { scope.launch { drawer.close() }; onNewChat() },
                 onSwitchClass = onSwitchClass,
                 onSignOut = onSignOut,
+                onTeacherPanel = onTeacherPanel?.let { back -> { scope.launch { drawer.close() }; back() } },
             )
         },
     ) {

@@ -1,6 +1,7 @@
 package com.chronos.tutor.ui.teacher
 
 import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +20,7 @@ import com.chronos.tutor.data.QuestionRow
 import com.chronos.tutor.data.Stats
 import com.chronos.tutor.ui.common.Sym
 import com.chronos.tutor.ui.theme.LocalChronosColors
+import com.chronos.tutor.ui.theme.LocalReduceMotion
 
 private val RANGES = listOf(7 to "7 days", 30 to "30 days", 0 to "This term")
 
@@ -139,7 +141,7 @@ private fun Kpi(label: String, value: Int, sub: String?, modifier: Modifier, col
     // Count-up, as the web's animateCount.
     var target by remember { mutableIntStateOf(0) }
     LaunchedEffect(value) { target = value }
-    val shown by animateIntAsState(target, tween(700), label = label)
+    val shown by animateIntAsState(target, if (LocalReduceMotion.current) snap() else tween(700), label = label)
     Column(modifier) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = extras.muted)
         Text("$shown", fontSize = 30.sp, fontWeight = FontWeight.SemiBold, color = color)

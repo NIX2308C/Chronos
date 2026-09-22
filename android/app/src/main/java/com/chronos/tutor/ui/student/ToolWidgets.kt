@@ -3,6 +3,7 @@ package com.chronos.tutor.ui.student
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -27,6 +28,7 @@ import com.chronos.tutor.data.ToolStatus
 import com.chronos.tutor.ui.common.Sounds
 import com.chronos.tutor.ui.common.Sym
 import com.chronos.tutor.ui.theme.LocalChronosColors
+import com.chronos.tutor.ui.theme.LocalReduceMotion
 import kotlinx.coroutines.delay
 
 private const val NONE = -1
@@ -84,7 +86,7 @@ private fun Header(kind: String, title: String, badge: String? = null) {
 @Composable
 private fun Bar(ratio: Float) {
     val extras = LocalChronosColors.current
-    val p by animateFloatAsState(ratio.coerceIn(0f, 1f), tween(300), label = "bar")
+    val p by animateFloatAsState(ratio.coerceIn(0f, 1f), if (LocalReduceMotion.current) snap() else tween(300), label = "bar")
     Box(Modifier.fillMaxWidth().height(4.dp).background(extras.raised)) {
         Box(Modifier.fillMaxWidth(p).fillMaxHeight().background(extras.crimsonFill))
     }
@@ -95,7 +97,7 @@ private fun Bar(ratio: Float) {
 private fun CountUp(value: Int, total: Int) {
     var target by remember { mutableIntStateOf(0) }
     LaunchedEffect(value) { target = value }
-    val shown by animateIntAsState(target, tween(800), label = "score")
+    val shown by animateIntAsState(target, if (LocalReduceMotion.current) snap() else tween(800), label = "score")
     Text("$shown / $total", fontSize = 34.sp, fontWeight = FontWeight.SemiBold)
 }
 
@@ -283,7 +285,8 @@ private fun Flashcards(tool: LearningTool.Flashcards) {
 
     val ci = deck[index]
     val (front, back) = cards[ci]
-    val rotation by animateFloatAsState(if (flipped) 180f else 0f, tween(400), label = "flip")
+    val rotation by animateFloatAsState(if (flipped) 180f else 0f,
+        if (LocalReduceMotion.current) snap() else tween(400), label = "flip")
     Header("Flashcards", tool.title, "Card ${index + 1} of ${deck.size}")
     Bar(index.toFloat() / deck.size)
     Box(

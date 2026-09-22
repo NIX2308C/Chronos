@@ -44,6 +44,8 @@ private val STARTERS = listOf(
 @Composable
 fun ChatScreen(
     state: ChatUiState,
+    onHelp: () -> Unit,
+    onSettings: () -> Unit,
     onInput: (String) -> Unit,
     onSend: () -> Unit,
     onSelectChat: (String) -> Unit,
@@ -118,6 +120,7 @@ fun ChatScreen(
                 onNewChat = { scope.launch { drawer.close() }; onNewChat() },
                 onSwitchClass = onSwitchClass,
                 onSignOut = onSignOut,
+                onSettings = { scope.launch { drawer.close() }; onSettings() },
                 onTeacherPanel = onTeacherPanel?.let { back -> { scope.launch { drawer.close() }; back() } },
             )
         },
@@ -132,6 +135,7 @@ fun ChatScreen(
                     status = state.status,
                     onMenu = { scope.launch { drawer.open() } },
                     onNewChat = onNewChat,
+                    onHelp = onHelp,
                 )
             },
         ) { padding ->
@@ -178,6 +182,7 @@ private fun ChatTopBar(
     status: ServerStatus,
     onMenu: () -> Unit,
     onNewChat: () -> Unit,
+    onHelp: () -> Unit,
 ) {
     val extras = LocalChronosColors.current
     TopAppBar(
@@ -224,6 +229,9 @@ private fun ChatTopBar(
             }
         },
         actions = {
+            IconButton(onClick = onHelp) {
+                Sym("help", tint = extras.muted)
+            }
             IconButton(onClick = onNewChat) {
                 Sym("edit_square", tint = MaterialTheme.colorScheme.onSurface)
             }
@@ -368,6 +376,36 @@ private fun MessageBubble(m: Message) {
         m.errorNote?.let { Note(it, MaterialTheme.colorScheme.error) }
 
         if (m.sources.isNotEmpty()) SourcesDisclosure(m.sources)
+        m.debug?.let { DebugStrip(it) }
+    }
+}
+
+/** Developer only: the strip the web draws in debug mode, expandable to the full payload. */
+@Composable
+private fun DebugStrip(json: String) {
+    val extras = LocalChronosColors.current
+    var open by remember { mutableStateOf(false) }
+    val summary = remember(json) {
+        runCatching {
+            val o = com.chronos.tutor.net.Api.json.parseToJsonElement(json) as kotlinx.serialization.json.JsonObject
+            fun f(vararg path: String): String? {
+                var e: kotlinx.serialization.json.JsonElement? = o
+                for (p in path) e = (e as? kotlinx.serialization.json.JsonObject)?.get(p)
+                return (e as? kotlinx.serialization.json.JsonPrimitive)?.content
+            }
+            listOfNotNull(f("path"), f("model"), f("timings", "total_ms")?.let { "${it} ms" },
+                f("prompt", "chars")?.let { "$it prompt chars" }).joinToString(" · ")
+        }.getOrDefault("debug")
+    }
+    Spacer(Modifier.height(10.dp))
+    Column(Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.error)) {
+        Text(
+            "DEBUG · $summary",
+            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.fillMaxWidth().clickable { open = !open }.padding(10.dp),
+        )
+        if (open) Text(json, fontSize = 11.sp, color = extras.muted,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, modifier = Modifier.padding(10.dp))
     }
 }
 

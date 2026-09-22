@@ -33,7 +33,21 @@ class Prefs(private val context: Context) {
         val StatsRange   = intPreferencesKey("stats_range")       // 7 | 30 | 0 (term)
         val TutStudent   = booleanPreferencesKey("tut_seen_student")
         val TutTeacher   = booleanPreferencesKey("tut_seen_teacher")
+        val TutStats     = booleanPreferencesKey("tut_seen_stats")
+        val TextSize     = stringPreferencesKey("text_size")      // normal | large
+        val ReduceMotion = booleanPreferencesKey("reduce_motion")
+        val Debug        = booleanPreferencesKey("debug")          // honoured only for dev accounts
     }
+
+    val textSize: Flow<String> = context.dataStore.data.map { it[Keys.TextSize] ?: "normal" }
+    val reduceMotion: Flow<Boolean> = context.dataStore.data.map { it[Keys.ReduceMotion] ?: false }
+    val debug: Flow<Boolean> = context.dataStore.data.map { it[Keys.Debug] ?: false }
+    val tutorialSeenStats: Flow<Boolean> = context.dataStore.data.map { it[Keys.TutStats] ?: false }
+
+    suspend fun setTextSize(value: String) = write(Keys.TextSize, value)
+    suspend fun setReduceMotion(on: Boolean) = context.dataStore.edit { it[Keys.ReduceMotion] = on }
+    suspend fun setDebug(on: Boolean) = context.dataStore.edit { it[Keys.Debug] = on }
+    suspend fun setTutorialSeenStats(seen: Boolean) = context.dataStore.edit { it[Keys.TutStats] = seen }
 
     val studentClassId: Flow<String?> = read(Keys.StudentClass)
     val teacherClassId: Flow<String?> = read(Keys.TeacherClass)

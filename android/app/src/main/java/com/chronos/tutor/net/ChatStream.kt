@@ -27,6 +27,8 @@ data class ChatDone(
     val toolRequest: ToolRequest?,
     val chatId: String?,
     val title: String?,
+    /** Present only for developer accounts that asked for it (app.py builds it in chat). */
+    val debug: JsonObject? = null,
 )
 
 /**
@@ -60,6 +62,7 @@ class ChatStream(private val api: Api, client: OkHttpClient) {
         message: String,
         classId: String,
         chatId: String,
+        debug: Boolean = false,
         onDelta: (String) -> Unit,
     ): ChatDone {
         // `stream` must be a real JSON true: app.py:1967 tests `is True`, so the
@@ -69,6 +72,8 @@ class ChatStream(private val api: Api, client: OkHttpClient) {
             put("class_id", JsonPrimitive(classId))
             put("chat_id", JsonPrimitive(chatId))
             put("stream", JsonPrimitive(true))
+            // The server ignores this for anyone not in DEV_EMAILS.
+            if (debug) put("debug", JsonPrimitive(true))
         }.toString()
 
         val request = Request.Builder()
@@ -179,6 +184,7 @@ internal fun JsonObject.toChatDone(): ChatDone {
         },
         chatId = this["chat_id"]?.stringOrNull(),
         title = this["title"]?.stringOrNull(),
+        debug = this["debug"] as? JsonObject,
     )
 }
 

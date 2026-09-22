@@ -55,6 +55,7 @@ class AppContainer(context: Context, firebaseReady: Boolean) {
     val chatRepository = ChatRepository(api, ChatStream(api, httpClient))
     val classRepository = ClassRepository(api)
     val teacherRepository = TeacherRepository(api)
+    val settingsRepository = com.chronos.tutor.data.SettingsRepository(api)
 
     /** Null when Firebase is unconfigured; the UI shows an unconfigured state. */
     val authRepository: AuthRepository? =

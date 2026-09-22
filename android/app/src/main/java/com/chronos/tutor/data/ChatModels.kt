@@ -36,6 +36,8 @@ data class Message(
     val tool: LearningTool? = null,
     /** In-thread progress line while /tools/run works. */
     val toolStatus: ToolStatus? = null,
+    /** Developer debug payload (pretty JSON), shown as a strip under the answer. */
+    val debug: String? = null,
 ) {
     enum class Role { STUDENT, TUTOR }
 }

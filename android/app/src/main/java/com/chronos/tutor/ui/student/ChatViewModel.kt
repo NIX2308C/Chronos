@@ -20,6 +20,8 @@ import com.chronos.tutor.ui.common.Sounds
 import com.chronos.tutor.ui.common.readUri
 import com.chronos.tutor.net.ApiError
 import kotlinx.coroutines.Job
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,6 +69,7 @@ class ChatViewModel(
     private val prefs: Prefs,
     private val isTeacher: Boolean,
     private val sounds: Sounds,
+    private val isDev: Boolean = false,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ChatUiState(isTeacher = isTeacher))
@@ -287,7 +290,8 @@ class ChatViewModel(
         sendJob = viewModelScope.launch {
             val buffer = StringBuilder()
             try {
-                val done = chatRepo.send(text, chat.classId, chat.id) { delta ->
+                val debug = isDev && prefs.debug.first()
+                val done = chatRepo.send(text, chat.classId, chat.id, debug) { delta ->
                     buffer.append(delta)
                     if (gen == viewGen) {
                         val snapshot = buffer.toString()
@@ -309,6 +313,7 @@ class ChatViewModel(
                     // populates for a teacher using the tutor.
                     sources = done.sources,
                     streaming = false,
+                    debug = done.debug?.let { PRETTY.encodeToString(JsonObject.serializer(), it) },
                 )
 
                 val current = allChats.firstOrNull { it.id == chat.id } ?: return@launch
@@ -468,6 +473,8 @@ class ChatViewModel(
         allChats = allChats.map { if (it.id == chat.id) chat else it }
     }
 }
+
+private val PRETTY = Json { prettyPrint = true }
 
 private fun Throwable.userText(): String =
     (this as? ApiError)?.userMessage ?: message ?: "Can't reach the server. Please try again."

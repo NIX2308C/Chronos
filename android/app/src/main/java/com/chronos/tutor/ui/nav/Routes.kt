@@ -25,4 +25,11 @@ object Routes {
 
     /** Where a signed-in teacher lands: course material and analytics. */
     const val TEACHER_HOME = "teacher_home"
+
+    /** `tutor=true` when opened from the chat: only then is the Tutor section shown, as on the web. */
+    const val SETTINGS = "settings?tutor={tutor}"
+    fun settings(tutor: Boolean) = "settings?tutor=$tutor"
+
+    /** Public service status, from Settings → System status. */
+    const val STATUS = "status"
 }

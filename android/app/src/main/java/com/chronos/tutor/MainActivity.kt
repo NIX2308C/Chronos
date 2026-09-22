@@ -5,7 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -53,7 +55,10 @@ class MainActivity : ComponentActivity() {
 
         val container = (application as ChronosApp).container
         setContent {
-            ChronosTheme {
+            val theme by container.prefs.theme.collectAsStateWithLifecycle("system")
+            val textSize by container.prefs.textSize.collectAsStateWithLifecycle("normal")
+            val reduceMotion by container.prefs.reduceMotion.collectAsStateWithLifecycle(false)
+            ChronosTheme(theme = theme, largeText = textSize == "large", reduceMotion = reduceMotion) {
                 ChronosNav(container = container, root = root)
             }
         }

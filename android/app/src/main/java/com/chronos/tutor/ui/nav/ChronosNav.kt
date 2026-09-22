@@ -20,8 +20,20 @@ import com.chronos.tutor.ui.login.LoginUiState
 import com.chronos.tutor.ui.login.LoginViewModel
 import com.chronos.tutor.ui.student.ChatScreen
 import com.chronos.tutor.ui.student.ChatViewModel
+import com.chronos.tutor.ui.common.MATERIAL_TOUR
+import com.chronos.tutor.ui.common.STATS_TOUR
+import com.chronos.tutor.ui.common.STUDENT_TOUR
+import com.chronos.tutor.ui.common.TourHost
+import com.chronos.tutor.ui.settings.SettingsScreen
+import com.chronos.tutor.ui.settings.SettingsViewModel
+import com.chronos.tutor.ui.settings.StatusScreen
 import com.chronos.tutor.ui.teacher.TeacherScreen
+import com.chronos.tutor.ui.teacher.TeacherSection
 import com.chronos.tutor.ui.teacher.TeacherViewModel
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import kotlinx.coroutines.launch
 
 /**
  * The whole navigation graph.
@@ -135,12 +147,18 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                             prefs = container.prefs,
                             isTeacher = me?.role == "teacher",
                             sounds = container.sounds,
+                            isDev = me?.isDev == true,
                         ) as T
                 },
             )
             val ui by vm.state.collectAsStateWithLifecycle()
+            val seen by container.prefs.tutorialSeenStudent.collectAsStateWithLifecycle(null)
+            val scope = rememberCoroutineScope()
+            TourHost(seen, STUDENT_TOUR, onSeen = { scope.launch { container.prefs.setTutorialSeenStudent(true) } }) { openTour ->
             ChatScreen(
                 state = ui,
+                onHelp = openTour,
+                onSettings = { navController.navigate(Routes.settings(tutor = true)) },
                 onInput = vm::setInput,
                 onSend = vm::send,
                 onSelectChat = { vm.selectChat(it) },
@@ -161,6 +179,7 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                     { navController.popBackStack(Routes.TEACHER_HOME, inclusive = false) }
                 } else null,
             )
+            }
         }
 
         composable(Routes.TEACHER_HOME) {
@@ -174,12 +193,58 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                 },
             )
             val ui by vm.state.collectAsStateWithLifecycle()
-            TeacherScreen(
-                vm = vm,
-                state = ui,
-                onPreview = { navController.navigate(Routes.HOME) },
+            val seenMaterial by container.prefs.tutorialSeenTeacher.collectAsStateWithLifecycle(null)
+            val seenStats by container.prefs.tutorialSeenStats.collectAsStateWithLifecycle(null)
+            val scope = rememberCoroutineScope()
+            // Each teacher page has its own tour, as on the web.
+            val analytics = ui.section == TeacherSection.ANALYTICS
+            TourHost(
+                seen = if (analytics) seenStats else seenMaterial,
+                steps = if (analytics) STATS_TOUR else MATERIAL_TOUR,
+                onSeen = {
+                    scope.launch {
+                        if (analytics) container.prefs.setTutorialSeenStats(true)
+                        else container.prefs.setTutorialSeenTeacher(true)
+                    }
+                },
+            ) { openTour ->
+                TeacherScreen(
+                    vm = vm,
+                    state = ui,
+                    onPreview = { navController.navigate(Routes.HOME) },
+                    onSettings = { navController.navigate(Routes.settings(tutor = false)) },
+                    onHelp = openTour,
+                    onSignOut = root::signOut,
+                )
+            }
+        }
+
+        composable(
+            Routes.SETTINGS,
+            arguments = listOf(navArgument("tutor") { type = NavType.BoolType; defaultValue = false }),
+        ) { entry ->
+            val me = (state as? AuthState.Ready)?.me ?: return@composable
+            SettingsScreen(
+                vm = settingsVm(container),
+                me = me,
+                tutor = entry.arguments?.getBoolean("tutor") == true,
+                onBack = { navController.popBackStack() },
+                onStatus = { navController.navigate(Routes.STATUS) },
                 onSignOut = root::signOut,
             )
         }
+
+        composable(Routes.STATUS) {
+            StatusScreen(vm = settingsVm(container), onBack = { navController.popBackStack() })
+        }
     }
 }
+
+@Composable
+private fun settingsVm(container: AppContainer): SettingsViewModel = viewModel(
+    factory = object : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T =
+            SettingsViewModel(container.settingsRepository, container.chatRepository, container.prefs) as T
+    },
+)

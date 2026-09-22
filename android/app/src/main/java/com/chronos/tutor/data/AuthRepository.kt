@@ -14,7 +14,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 
-data class Me(val uid: String, val email: String?, val role: String)
+/** [isDev] is decided by the server (DEV_EMAILS); it only unlocks developer tooling. */
+data class Me(val uid: String, val email: String?, val role: String, val isDev: Boolean = false)
 
 /** What the app knows about the current user. Drives the nav start destination. */
 sealed interface AuthState {
@@ -146,7 +147,7 @@ class AuthRepository(
     suspend fun me(): Me? = withContext(Dispatchers.IO) {
         val user = auth.currentUser ?: return@withContext null
         cachedRole?.takeIf { cachedUid == user.uid }?.let {
-            return@withContext Me(user.uid, user.email, it)
+            return@withContext Me(user.uid, user.email, it, cachedDev)
         }
         fetchMe()
     }
@@ -155,6 +156,7 @@ class AuthRepository(
         val user = auth.currentUser ?: return null
         val me = api.get("/auth/me").toMe() ?: return null
         rememberRole(me.uid, me.role)
+        cachedDev = me.isDev
         return me
     }
 
@@ -181,13 +183,15 @@ class AuthRepository(
     }
 
     private fun clearRole() {
-        cachedUid = null; cachedRole = null
+        cachedUid = null; cachedRole = null; cachedDev = false
     }
+
+    private var cachedDev = false
 
     private fun kotlinx.serialization.json.JsonObject.toMe(): Me? {
         val uid = this["uid"]?.stringOrNull() ?: return null
         val role = this["role"]?.stringOrNull() ?: return null
-        return Me(uid, this["email"]?.stringOrNull(), role)
+        return Me(uid, this["email"]?.stringOrNull(), role, this["is_dev"]?.stringOrNull() == "true")
     }
 
     private fun Exception.friendly(): String =

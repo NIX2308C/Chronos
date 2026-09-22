@@ -87,9 +87,10 @@ class ChatRepository(private val api: Api, private val stream: ChatStream) {
         message: String,
         classId: String,
         chatId: String,
+        debug: Boolean = false,
         onDelta: (String) -> Unit,
     ): ChatDone = withContext(Dispatchers.IO) {
-        stream.send(message, classId, chatId, onDelta)
+        stream.send(message, classId, chatId, debug, onDelta)
     }
 
     /** Files attached to one conversation, and the per-chat cap. */

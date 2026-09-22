@@ -29,6 +29,8 @@ fun TeacherScreen(
     vm: TeacherViewModel,
     state: TeacherUiState,
     onPreview: () -> Unit,
+    onSettings: () -> Unit,
+    onHelp: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     val extras = LocalChronosColors.current
@@ -108,6 +110,7 @@ fun TeacherScreen(
                 onDelete = { deleting = it },
                 onSection = { scope.launch { drawer.close() }; vm.setSection(it) },
                 onPreview = { scope.launch { drawer.close() }; onPreview() },
+                onSettings = { scope.launch { drawer.close() }; onSettings() },
                 onSignOut = onSignOut,
             )
         },
@@ -122,6 +125,9 @@ fun TeacherScreen(
                         IconButton(onClick = { scope.launch { drawer.open() } }) {
                             Sym("menu", tint = MaterialTheme.colorScheme.onSurface)
                         }
+                    },
+                    actions = {
+                        IconButton(onClick = onHelp) { Sym("help", tint = extras.muted) }
                     },
                     title = {
                         Column {
@@ -156,6 +162,7 @@ private fun TeacherDrawer(
     onDelete: (CourseClass) -> Unit,
     onSection: (TeacherSection) -> Unit,
     onPreview: () -> Unit,
+    onSettings: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     val extras = LocalChronosColors.current
@@ -211,6 +218,7 @@ private fun TeacherDrawer(
             }
 
             HorizontalDivider(color = extras.rule)
+            NavRow("settings", "Settings", false, onSettings)
             NavRow("logout", "Sign out", false, onSignOut)
         }
     }

@@ -123,7 +123,6 @@
 <link href="settings.css" rel="stylesheet"/>
 <link href="mobile.css" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
-<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js");</script>
 <!-- The manifest carries one theme_color; these two let a browser follow the
      page's own light/dark tokens (--c-paper, and its html.dark value). A TWA
      reads the manifest, so its status bar stays the light one. -->
@@ -837,14 +836,9 @@
       if(res.status===401||res.status===403)throw new Error(data.error||"You're not allowed to upload to this course.");
       if(!res.ok||data.error)throw new Error(data.details||data.error||("Upload failed ("+res.status+")."));
       clearTimeout(t1);clearTimeout(t2);
-      // Extraction/chunking already happened server-side; indexing (embed + upsert)
-      // now runs in the background, so poll for it to finish instead of assuming done.
-      uploadStage("Getting ready for questions");
-      const status=await pollUploadStatus(data.id);
       bar.style.animation="none";
       uploadStage("Ready");
-      if(status.error)throw new Error(status.error);
-      if(status.warning)showToast(status.warning,false);
+      if(data.warning)showToast(data.warning,false);
       else showToast(`"${file.name}" added to course material`,true);
       setTimeout(()=>$("uploadCard").classList.add("hidden"),700);
       await loadRules();
@@ -854,20 +848,6 @@
       showToast(e.message,false);
     }
     uploading=false;
-  }
-
-  async function pollUploadStatus(uploadId){
-    if(!uploadId)return{done:true};
-    for(let i=0;i<150;i++){ // ~5 minutes at 2s intervals
-      let res;
-      try{res=await Chronos.apiFetch(`/upload_status?id=${encodeURIComponent(uploadId)}&class_id=${encodeURIComponent(ACTIVE_CLASS)}`);}
-      catch{throw new Error("Lost connection while indexing. Check the course material list in a moment.");}
-      const data=await res.json().catch(()=>({}));
-      if(!res.ok)throw new Error(data.error||"Could not check upload status.");
-      if(data.done)return data;
-      await new Promise(r=>setTimeout(r,2000));
-    }
-    throw new Error("Still indexing — check back in a moment, it will appear once done.");
   }
 
   // ---------- probe ----------

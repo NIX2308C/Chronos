@@ -180,9 +180,6 @@
     pane.appendChild(row("Cloud deployment", "Latest build and serving revision. Refreshes while a rollout is active.", refresh));
     pane.appendChild(deployment);
     loadDeployment(deployment);
-    pane.appendChild(row("Full status page", "Deployment details in their own page — handy on mobile.", h("a", {
-      class: "cs-btn", href: "/status", text: "Open status page"
-    })));
     var info = {
       uid: me && me.uid, role: me && me.role, api: Chronos.BASE || "(same origin)",
       hint: Chronos.hint(), preferences: prefs, ui: window.ChronosTheme.ui(),
@@ -196,13 +193,12 @@
     if (!box || !box.isConnected) return;
     if (manual) box.textContent = "Refreshing deployment status…";
     Chronos.apiFetch("/status/deployment", { cache: "no-store" }).then(function (res) {
-      if (res.status === 401 || res.status === 403) throw new Error("forbidden");
-      if (!res.ok) throw new Error("request-failed");
+      if (!res.ok) throw new Error("unavailable");
       return res.json();
     }).then(function (data) {
       if (!box.isConnected) return;
       if (data.status === "unavailable") {
-        box.textContent = "Deployment details aren't configured for this environment.";
+        box.textContent = "Deployment data unavailable.";
         return;
       }
       var lines = ["Overall: " + data.status];
@@ -223,10 +219,8 @@
       if (["queued", "building", "deploying"].indexOf(data.status) !== -1) {
         deploymentTimer = setTimeout(function () { loadDeployment(box); }, 5000);
       }
-    }).catch(function (e) {
-      if (!box.isConnected) return;
-      box.textContent = e && e.message === "forbidden" ? "You don't have access to deployment status."
-        : "Couldn't reach the server.";
+    }).catch(function () {
+      if (box.isConnected) box.textContent = "Deployment data unavailable.";
     });
   }
 

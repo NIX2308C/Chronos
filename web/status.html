@@ -6,13 +6,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="theme.css" rel="stylesheet"><link href="mobile.css" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="auth.js"></script>
 <style>
 :root{--page:#F7F4EC;--field:#FFFDF7;--ink:#141311;--sub:#5D5B55;--rule:#DED8C6;--good:#24734A;--warn:#B45A00;--bad:#B10014}html.dark{--page:#0D0D10;--field:#19191F;--ink:#F7F4EC;--sub:#B3AEA3;--rule:#303038;--good:#6FD5A0;--warn:#F0AD4E;--bad:#FF6572;color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:var(--page);color:var(--ink);font-family:'Schibsted Grotesk',sans-serif}.wrap{max-width:860px;margin:auto;padding:28px 24px 72px}header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--rule);padding-bottom:22px}a{color:inherit}.brand{font:500 29px Newsreader,serif;text-decoration:none}.brand b{color:#E2001A}.login{font-size:14px;color:var(--sub)}h1,h2{font-family:Newsreader,serif;font-weight:400}h1{font-size:48px;margin:64px 0 9px;letter-spacing:-.03em}p{color:var(--sub);line-height:1.6}.summary{display:flex;align-items:center;gap:10px;margin:30px 0 18px;font-size:15px}.dot{width:10px;height:10px;border-radius:50%;background:var(--warn);flex:none}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card{background:var(--field);border:1px solid var(--rule);padding:22px}.name{font-weight:600}.state{font-size:14px;margin-top:8px;color:var(--sub)}.operational .state{color:var(--good)}.degraded .state{color:var(--bad)}.checking .state{color:var(--warn)}.dev{margin-top:42px;border-top:1px solid var(--rule);padding-top:28px}.hidden{display:none!important}.deploy-card{background:var(--field);border:1px solid var(--rule);padding:22px;margin-top:14px}.row{display:flex;justify-content:space-between;gap:18px;padding:9px 0;border-bottom:1px solid var(--rule);font-size:14px}.row:last-child{border:0}.muted{color:var(--sub)}.failure{color:var(--bad)}@media(max-width:560px){.grid{grid-template-columns:1fr}h1{font-size:39px}.wrap{padding:20px 16px 48px}}
 </style></head><body><main class="wrap">
-<header><a class="brand" href="/login">Chronos<b>.</b></a><a class="login" id="navLink" href="/login">Sign in</a></header>
+<header><a class="brand" href="/login">Chronos<b>.</b></a><a class="login" href="/login">Sign in</a></header>
 <h1>System status</h1><p id="message">Checking the services that keep Chronos running.</p>
 <div class="summary"><i class="dot" id="overallDot"></i><span id="overall">Checking status</span><span class="muted" id="checked"></span></div>
 <section class="grid" aria-live="polite" aria-label="Service status">
@@ -21,12 +18,6 @@
   <article class="card checking" data-service="data"><div class="name">Learning data</div><div class="state">Checking</div></article>
   <article class="card checking" data-service="materials"><div class="name">Course materials</div><div class="state">Checking</div></article>
 </section>
-<section class="dev hidden" id="devSection">
-  <h2>Deployment</h2>
-  <div class="deploy-card">
-    <div id="deployBox" class="muted">Loading deployment status…</div>
-  </div>
-</section>
 </main>
 <script>
 (()=>{let timer;
@@ -34,55 +25,5 @@ const stamp=v=>v?new Date(v).toLocaleTimeString([], {hour:'numeric',minute:'2-di
 function paintPublic(data){const degraded=data.status==='degraded';document.querySelector('#overall').textContent=degraded?'Some services are degraded':'All services are operational';document.querySelector('#overallDot').style.background=degraded?'var(--bad)':'var(--good)';document.querySelector('#message').textContent=degraded?'Chronos may be slower or unavailable for some requests. We are checking it.':'Chronos is operating normally.';document.querySelector('#checked').textContent=data.checked_at?'Checked '+stamp(data.checked_at):'';Object.entries(data.services||{}).forEach(([key,state])=>{const c=document.querySelector('[data-service="'+key+'"]');if(!c)return;c.className='card '+state;c.querySelector('.state').textContent=state==='operational'?'Operational':state==='degraded'?'Degraded':'Checking'})}
 async function refreshPublic(){try{const r=await fetch('/status/public',{cache:'no-store'});if(!r.ok)throw 0;paintPublic(await r.json())}catch(_){paintPublic({status:'degraded',services:{chronos:'degraded',ai:'checking',data:'checking',materials:'checking'}})}}
 async function refresh(){if(document.hidden)return;await refreshPublic();clearTimeout(timer);timer=setTimeout(refresh,30000)}
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});refresh();
-
-let deployTimer;
-function row(label,value){const r=document.createElement('div');r.className='row';const l=document.createElement('span');l.className='muted';l.textContent=label;const v=document.createElement('span');v.textContent=value;r.append(l,v);return r}
-async function loadDeployment(){
-  clearTimeout(deployTimer);
-  const box=document.querySelector('#deployBox');
-  if(!box||!box.isConnected)return;
-  let res;
-  try{res=await Chronos.apiFetch('/status/deployment',{cache:'no-store'})}
-  catch(_){box.textContent="Couldn't reach the server.";return}
-  if(res.status===401||res.status===403){box.textContent="You don't have access to deployment status.";return}
-  if(!res.ok){box.textContent="Deployment status request failed ("+res.status+").";return}
-  let data;
-  try{data=await res.json()}catch(_){box.textContent="Deployment status request failed.";return}
-  if(data.status==='unavailable'){box.textContent="Deployment details aren't configured for this environment.";return}
-  box.replaceChildren();
-  box.appendChild(row('Overall',data.status));
-  if(data.build){
-    box.appendChild(row('Latest build',data.build.state));
-    if(data.build.started_at)box.appendChild(row('Started',data.build.started_at));
-    if(data.build.revision)box.appendChild(row('Source revision',data.build.revision));
-  }
-  if(data.service)box.appendChild(row('Serving revision',data.service.revision||'Deploying'));
-  [data.build,data.service].forEach(part=>{
-    if(!part||!part.console_url)return;
-    const r=document.createElement('div');r.className='row';
-    const link=document.createElement('a');link.href=part.console_url;link.target='_blank';link.rel='noopener';
-    link.textContent=part===data.build?'Open build in Cloud Console':'Open service in Cloud Console';
-    r.appendChild(link);box.appendChild(r);
-  });
-  if(['queued','building','deploying'].indexOf(data.status)!==-1)deployTimer=setTimeout(loadDeployment,5000);
-}
-if(window.Chronos){
-  Chronos.onUser(async(user)=>{
-    if(!user)return;
-    let info=null;
-    try{info=await Chronos.me()}catch(_){}
-    if(!info)return;
-    const navLink=document.querySelector('#navLink');
-    const home=info.role==='teacher'?'/teacher':'/student';
-    navLink.textContent='Back to Chronos';
-    navLink.href=home;
-    // The brand mark is the only other nav on this page — on iOS/PWA standalone
-    // mode there's no reliable browser back button, so it needs the same target
-    // as navLink instead of always bouncing a signed-in user through /login.
-    document.querySelector('.brand').href=home;
-    if(info.is_dev){document.querySelector('#devSection').classList.remove('hidden');loadDeployment()}
-  });
-}
-})();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});refresh();})();
 </script></body></html>

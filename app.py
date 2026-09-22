@@ -2849,8 +2849,12 @@ def chat():
                                     model=CHAT_MODEL, contents=contents, config=chat_config(False)))
                             else:
                                 raise
-                        streamed_tool = streamed_tool or explicit_tool_request(user_message, settings, history)
                         final_answer = "".join(parts).strip()
+                        # If the model itself asked a clarifying question instead of
+                        # building the activity, that's a deliberate choice - don't let
+                        # the "student typed the literal phrasing" fallback override it.
+                        if not streamed_tool and "?" not in final_answer:
+                            streamed_tool = explicit_tool_request(user_message, settings, history)
                         lap("model_ms", t_model)
                         dbg["tokens"] = _usage_dict(usage)
                         if streamed_tool and not final_answer:
@@ -2888,7 +2892,11 @@ def chat():
             lap("model_ms", t_model)
             dbg["tokens"] = _usage_dict(getattr(ai_response, "usage_metadata", None))
             tool_request = tool_call_from_response(ai_response, settings)
-            tool_request = tool_request or explicit_tool_request(user_message, settings, history)
+            # If the model itself asked a clarifying question instead of building the
+            # activity, that's a deliberate choice - don't let the "student typed the
+            # literal phrasing" fallback override it.
+            if not tool_request and "?" not in final_answer:
+                tool_request = explicit_tool_request(user_message, settings, history)
             if tool_request and not final_answer:
                 # The model can answer with the function call alone. The activity
                 # renders under a tutor message, so that message needs words.

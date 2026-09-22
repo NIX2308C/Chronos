@@ -3,8 +3,9 @@ package com.chronos.tutor.net
 import com.chronos.tutor.BuildConfig
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.JsonPrimitive
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -119,5 +120,6 @@ class Api(
     }
 }
 
+/** JSON null is null here, not the string "null" that JsonNull.content gives. */
 internal fun JsonElement.stringOrNull(): String? =
-    runCatching { jsonPrimitive.content }.getOrNull()
+    (this as? JsonPrimitive)?.takeUnless { it is JsonNull }?.content

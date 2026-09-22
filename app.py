@@ -2850,10 +2850,13 @@ def chat():
                             else:
                                 raise
                         final_answer = "".join(parts).strip()
-                        # If the model itself asked a clarifying question instead of
-                        # building the activity, that's a deliberate choice - don't let
-                        # the "student typed the literal phrasing" fallback override it.
-                        if not streamed_tool and "?" not in final_answer:
+                        # Only treat this as the model "forgetting" its declared
+                        # function - real function-calling is part of the request
+                        # contract, so any substantive reply (even a clarifying
+                        # question) is a deliberate choice, not an omission. Force
+                        # the fallback build only when the model produced no answer
+                        # at all.
+                        if not streamed_tool and not final_answer:
                             streamed_tool = explicit_tool_request(user_message, settings, history)
                         lap("model_ms", t_model)
                         dbg["tokens"] = _usage_dict(usage)

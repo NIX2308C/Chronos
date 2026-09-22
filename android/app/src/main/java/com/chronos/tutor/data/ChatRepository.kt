@@ -55,8 +55,19 @@ class ChatRepository(private val api: Api, private val stream: ChatStream) {
                 reviewed = reviewed,
                 gap = !student && gapFrom(o["material_gap"]?.boolOrFalse() ?: false, reviewed, blocked),
                 sources = o.sourceLabels("rules"),
+                tool = parseTool(o["tool"] as? JsonObject),
             )
         }
+    }
+
+    /** Builds one activity. The server also saves it into the chat's history. */
+    suspend fun runTool(classId: String, chatId: String, req: ToolRequest): LearningTool = withContext(Dispatchers.IO) {
+        val o = api.post("/tools/run", buildJsonObject {
+            put("class_id", classId)
+            put("chat_id", chatId)
+            put("tool_request", buildJsonObject { put("type", req.type); put("topic", req.topic) })
+        }, slow = true)
+        parseTool(o["tool"] as? JsonObject) ?: throw com.chronos.tutor.net.ApiError.Server(200, "Couldn't create that activity.")
     }
 
     suspend fun deleteChat(chatId: String) = withContext(Dispatchers.IO) {

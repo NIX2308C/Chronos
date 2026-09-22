@@ -27,6 +27,7 @@ class AppContainer(context: Context, firebaseReady: Boolean) {
     val signedOutEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     val prefs = Prefs(context.applicationContext)
+    val sounds = com.chronos.tutor.ui.common.Sounds(context.applicationContext)
 
     // Null when Firebase could not be configured. Everything auth-shaped is
     // nullable from here down, so a misconfigured build still starts and shows

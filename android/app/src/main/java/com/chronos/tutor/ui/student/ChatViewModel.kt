@@ -9,7 +9,11 @@ import com.chronos.tutor.data.CourseClass
 import com.chronos.tutor.data.Message
 import com.chronos.tutor.data.Prefs
 import com.chronos.tutor.data.ServerStatus
+import com.chronos.tutor.data.ToolRequest
+import com.chronos.tutor.data.ToolStatus
 import com.chronos.tutor.data.gapFrom
+import com.chronos.tutor.data.toolLabel
+import com.chronos.tutor.ui.common.Sounds
 import com.chronos.tutor.net.ApiError
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -39,10 +43,14 @@ data class ChatUiState(
     val isTeacher: Boolean = false,
     val joinError: String? = null,
     val joining: Boolean = false,
+    /** Activity types the active course has switched on. */
+    val toolkits: List<String> = emptyList(),
+    val toolRunning: Boolean = false,
 ) {
     val activeClassName: String?
         get() = classes.firstOrNull { it.id == activeClassId }?.name
-    val canSend: Boolean get() = input.isNotBlank() && !sending && activeClassId != null
+    val busy: Boolean get() = sending || toolRunning
+    val canSend: Boolean get() = input.isNotBlank() && !busy && activeClassId != null
 }
 
 class ChatViewModel(
@@ -50,6 +58,7 @@ class ChatViewModel(
     private val classRepo: ClassRepository,
     private val prefs: Prefs,
     private val isTeacher: Boolean,
+    private val sounds: Sounds,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ChatUiState(isTeacher = isTeacher))
@@ -89,7 +98,10 @@ class ChatViewModel(
             _state.update { it.copy(error = e.userText()) }
             emptyList()
         }
-        _state.update { it.copy(booting = false, needsJoin = false, classes = classes, activeClassId = active) }
+        _state.update {
+            it.copy(booting = false, needsJoin = false, classes = classes, activeClassId = active,
+                toolkits = classes.first { c -> c.id == active }.toolkits)
+        }
         openClass(active)
     }
 
@@ -112,7 +124,10 @@ class ChatViewModel(
 
     fun switchClass(classId: String) = viewModelScope.launch {
         prefs.setStudentClassId(classId)
-        _state.update { it.copy(activeClassId = classId, error = null) }
+        _state.update {
+            it.copy(activeClassId = classId, error = null,
+                toolkits = it.classes.firstOrNull { c -> c.id == classId }?.toolkits ?: emptyList())
+        }
         openClass(classId)
     }
 
@@ -141,6 +156,7 @@ class ChatViewModel(
     fun selectChat(chatId: String) = viewModelScope.launch { openChat(chatId) }
 
     private suspend fun openChat(chatId: String) {
+        stopTool()
         viewGen++
         sendJob?.cancel()
         val chat = allChats.firstOrNull { it.id == chatId } ?: return
@@ -186,7 +202,9 @@ class ChatViewModel(
         allChats = allChats.map { if (it.id == id) it.copy(draft = value) else it }
     }
 
-    fun send() {
+    fun send() = send(requestedTool = null)
+
+    private fun send(requestedTool: ToolRequest?) {
         val s = _state.value
         if (!s.canSend) return
         val chat = allChats.firstOrNull { it.id == s.activeChatId } ?: return
@@ -253,8 +271,11 @@ class ChatViewModel(
                             activeChatId = adopted.id,
                             messages = adopted.messages,
                             chats = allChats.filter { c -> c.classId == adopted.classId },
+                            toolkits = done.toolkits,
                         )
                     }
+                    val tool = done.toolRequest ?: requestedTool?.takeIf { !done.blocked }
+                    if (tool != null) runTool(tool, adopted.id, adopted.classId)
                 }
             } catch (e: Throwable) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -279,6 +300,87 @@ class ChatViewModel(
             }
         }
     }
+
+    // ---- learning tools ---------------------------------------------------
+
+    private var toolJob: Job? = null
+    private var toolChatId: String? = null
+
+    /** The ✨ menu (invokeTool in web/student.html). */
+    fun invokeTool(kind: String) {
+        val s = _state.value
+        if (s.busy || kind !in s.toolkits) return
+        val chat = allChats.firstOrNull { it.id == s.activeChatId } ?: return
+        val lastAsked = chat.messages.lastOrNull { it.role == Message.Role.STUDENT && it.content.isNotBlank() }
+            ?.content?.take(300)
+        val topic = s.input.trim().ifEmpty { null } ?: lastAsked ?: s.activeClassName ?: "this course"
+        val req = ToolRequest(kind, topic)
+        if (chat.isNew) {
+            // /tools/run needs a saved chat, so a new one starts with a message.
+            setInput("Make a ${toolLabel(kind).lowercase()} about $topic.")
+            send(req)
+        } else {
+            runTool(req, chat.id, chat.classId)
+        }
+    }
+
+    /** "Review with AI" at the end of a quiz. */
+    fun sendText(text: String) {
+        if (_state.value.busy) return
+        setInput(text)
+        send()
+    }
+
+    private fun runTool(req: ToolRequest, chatId: String, classId: String) {
+        if (_state.value.toolRunning) return
+        toolChatId = chatId
+        patchChat(chatId) {
+            it + Message(Message.Role.TUTOR, "",
+                toolStatus = ToolStatus(ToolStatus.State.USING, "Creating ${toolLabel(req.type).lowercase()}…"))
+        }
+        _state.update { it.copy(toolRunning = true) }
+        sounds.play(Sounds.Kind.USING)
+        toolJob = viewModelScope.launch {
+            try {
+                val tool = chatRepo.runTool(classId, chatId, req)
+                patchChat(chatId) { it.replaceStatus(Message(Message.Role.TUTOR, "", tool = tool)) }
+                sounds.play(Sounds.Kind.DONE)
+            } catch (e: Throwable) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                patchChat(chatId) {
+                    it.replaceStatus(Message(Message.Role.TUTOR, "",
+                        toolStatus = ToolStatus(ToolStatus.State.FAILED, e.userText())))
+                }
+                sounds.play(Sounds.Kind.FAILED)
+            } finally {
+                if (toolChatId == chatId) { toolChatId = null; _state.update { it.copy(toolRunning = false) } }
+            }
+        }
+    }
+
+    /** Stop button, and leaving the chat mid-run. The UI updates now; the request is abandoned. */
+    fun stopTool() {
+        val chatId = toolChatId ?: return
+        toolChatId = null
+        toolJob?.cancel()
+        sounds.stop()
+        patchChat(chatId) {
+            it.replaceStatus(Message(Message.Role.TUTOR, "",
+                toolStatus = ToolStatus(ToolStatus.State.CANCELED, "Stopped on this device.")))
+        }
+        _state.update { it.copy(toolRunning = false) }
+    }
+
+    fun playSound(kind: Sounds.Kind) = sounds.play(kind)
+
+    private fun patchChat(chatId: String, block: (List<Message>) -> List<Message>) {
+        val chat = allChats.firstOrNull { it.id == chatId } ?: return
+        val updated = chat.copy(messages = block(chat.messages))
+        replaceChat(updated)
+        if (_state.value.activeChatId == chatId) _state.update { it.copy(messages = updated.messages) }
+    }
+
+    override fun onCleared() = sounds.stop()
 
     // ---- join gate --------------------------------------------------------
 
@@ -315,6 +417,12 @@ class ChatViewModel(
 
 private fun Throwable.userText(): String =
     (this as? ApiError)?.userMessage ?: message ?: "Can't reach the server. Please try again."
+
+/** Replaces the running tool's progress line. */
+private fun List<Message>.replaceStatus(with: Message): List<Message> {
+    val idx = indexOfLast { it.toolStatus?.state == ToolStatus.State.USING }
+    return if (idx < 0) this else toMutableList().also { it[idx] = with }
+}
 
 /** Replaces the trailing tutor message, which is the one being streamed into. */
 private inline fun List<Message>.replaceLastTutor(block: (Message) -> Message): List<Message> {

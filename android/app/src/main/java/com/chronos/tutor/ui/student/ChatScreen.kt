@@ -21,7 +21,9 @@ import androidx.compose.ui.unit.sp
 import com.chronos.tutor.data.Chat
 import com.chronos.tutor.data.Message
 import com.chronos.tutor.data.ServerStatus
+import com.chronos.tutor.data.toolLabel
 import com.chronos.tutor.ui.common.MarkdownText
+import com.chronos.tutor.ui.common.Sounds
 import com.chronos.tutor.ui.common.Sym
 import com.chronos.tutor.ui.theme.LocalChronosColors
 import com.chronos.tutor.ui.theme.hardShadow
@@ -47,6 +49,10 @@ fun ChatScreen(
     onSignOut: () -> Unit,
     onRetry: () -> Unit,
     onDismissError: () -> Unit,
+    onTool: (String) -> Unit,
+    onStopTool: () -> Unit,
+    onSound: (Sounds.Kind) -> Unit,
+    onReview: (String) -> Unit,
     /** Non-null only for a teacher previewing the student view. */
     onTeacherPanel: (() -> Unit)? = null,
 ) {
@@ -131,15 +137,21 @@ fun ChatScreen(
                 MessageList(
                     messages = state.messages,
                     className = state.activeClassName,
+                    chatId = state.activeChatId,
                     onStarter = { onInput(it); onSend() },
+                    onStopTool = onStopTool,
+                    onSound = onSound,
+                    onReview = onReview,
                     modifier = Modifier.weight(1f),
                 )
                 Composer(
                     value = state.input,
-                    enabled = !state.sending,
+                    enabled = !state.busy,
                     canSend = state.canSend,
+                    toolkits = state.toolkits,
                     onChange = onInput,
                     onSend = onSend,
+                    onTool = onTool,
                 )
             }
         }
@@ -211,7 +223,11 @@ private fun ChatTopBar(
 private fun MessageList(
     messages: List<Message>,
     className: String?,
+    chatId: String?,
     onStarter: (String) -> Unit,
+    onStopTool: () -> Unit,
+    onSound: (Sounds.Kind) -> Unit,
+    onReview: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -232,7 +248,15 @@ private fun MessageList(
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        items(messages.size) { i -> MessageBubble(messages[i]) }
+        // Index keys keep each activity's saved progress attached to it while scrolled away.
+        items(messages.size, key = { "$chatId:$it" }) { i ->
+            val m = messages[i]
+            when {
+                m.toolStatus != null -> ToolStatusLine(m.toolStatus, onStopTool)
+                m.tool != null -> LearningToolCard(m.tool, onSound, onReview)
+                else -> MessageBubble(m)
+            }
+        }
     }
 }
 
@@ -383,10 +407,13 @@ private fun Composer(
     value: String,
     enabled: Boolean,
     canSend: Boolean,
+    toolkits: List<String>,
     onChange: (String) -> Unit,
     onSend: () -> Unit,
+    onTool: (String) -> Unit,
 ) {
     val extras = LocalChronosColors.current
+    var toolMenu by remember { mutableStateOf(false) }
     Row(
         Modifier
             .fillMaxWidth()
@@ -396,6 +423,22 @@ private fun Composer(
             .navigationBarsPadding(),
         verticalAlignment = Alignment.Bottom,
     ) {
+        // Only the activity types this course has switched on, as the web's ✨ menu.
+        if (toolkits.isNotEmpty()) {
+            Box {
+                IconButton(onClick = { toolMenu = true }, enabled = enabled, modifier = Modifier.size(52.dp)) {
+                    Sym("auto_awesome", size = 22.sp, tint = extras.crimsonFill)
+                }
+                DropdownMenu(expanded = toolMenu, onDismissRequest = { toolMenu = false }) {
+                    toolkits.forEach { kind ->
+                        DropdownMenuItem(
+                            text = { Text(toolLabel(kind)) },
+                            onClick = { toolMenu = false; onTool(kind) },
+                        )
+                    }
+                }
+            }
+        }
         OutlinedTextField(
             value = value,
             onValueChange = onChange,

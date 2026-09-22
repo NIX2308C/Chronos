@@ -132,6 +132,7 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                             classRepo = container.classRepository,
                             prefs = container.prefs,
                             isTeacher = me?.role == "teacher",
+                            sounds = container.sounds,
                         ) as T
                 },
             )
@@ -148,6 +149,10 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                 onSignOut = root::signOut,
                 onRetry = { vm.retry() },
                 onDismissError = vm::dismissError,
+                onTool = vm::invokeTool,
+                onStopTool = vm::stopTool,
+                onSound = vm::playSound,
+                onReview = vm::sendText,
                 onTeacherPanel = if (me?.role == "teacher") {
                     { navController.popBackStack(Routes.TEACHER_HOME, inclusive = false) }
                 } else null,

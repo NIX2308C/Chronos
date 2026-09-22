@@ -32,6 +32,10 @@ data class Message(
     val streaming: Boolean = false,
     /** Appended when a stream dies mid-answer; the partial text is kept. */
     val errorNote: String? = null,
+    /** A learning activity; its message has empty [content]. */
+    val tool: LearningTool? = null,
+    /** In-thread progress line while /tools/run works. */
+    val toolStatus: ToolStatus? = null,
 ) {
     enum class Role { STUDENT, TUTOR }
 }

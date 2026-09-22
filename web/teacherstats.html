@@ -75,6 +75,7 @@
 <link href="settings.css" rel="stylesheet"/>
 <link href="mobile.css" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js");</script>
 <!-- The manifest carries one theme_color; these two let a browser follow the
      page's own light/dark tokens (--c-paper, and its html.dark value). A TWA
      reads the manifest, so its status bar stays the light one. -->
@@ -145,6 +146,12 @@
   <!-- Only for errors and the no-course message. Loading is shown by the thin progress line. -->
   <div id="statsLoading" class="hidden" style="padding:56px 36px;color:var(--mid);display:flex;align-items:center;gap:10px"></div>
   <div id="statsContent" class="hidden" data-transition-content style="padding:32px 36px 60px;max-width:1120px">
+
+    <section id="crisisSection" class="hidden" style="margin-bottom:30px;padding:18px 20px;border:1px solid var(--crimson);border-left-width:4px;background:var(--crimson-bg,rgba(220,38,38,.06))">
+      <h2 class="lbl" style="margin:0 0 12px;color:var(--crimson-d,var(--crimson))">Crisis — needs attention</h2>
+      <div id="crisisList" style="border-top:1px solid var(--rule2)"></div>
+      <p id="crisisEmpty" class="hidden"></p>
+    </section>
 
     <div data-kpis style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:36px;padding-bottom:30px;border-bottom:1px solid var(--rule2);margin-bottom:38px">
       <div>
@@ -547,6 +554,9 @@
       renderRepeats(d.repeats||[]);
       renderSignals(d.learning_gaps||[],"learningList","learningEmpty");
       renderSignals(d.behavior_concerns||[],"concernsList","concernsEmpty");
+      const crisisFlags=d.crisis_flags||[];
+      $("crisisSection").classList.toggle("hidden",crisisFlags.length===0);
+      renderSignals(crisisFlags,"crisisList","crisisEmpty");
       renderRoster(roster.members||[]);
       paintHeader();
       $("statsLoading").classList.add("hidden");$("statsContent").classList.remove("hidden");

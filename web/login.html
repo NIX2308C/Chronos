@@ -75,7 +75,6 @@
     [data-status-mobile]{display:flex}
     [data-split]{grid-template-columns:minmax(0,1fr)!important}
     [data-showcase]{display:none!important}
-    [data-navlinks]{display:none!important}
     [data-util]{display:none!important}
   }
   @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
@@ -83,6 +82,7 @@
 <link href="theme.css" rel="stylesheet"/>
 <link href="mobile.css" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js");</script>
 <!-- The manifest carries one theme_color; these two let a browser follow the
      page's own light/dark tokens (--c-paper, and its html.dark value). A TWA
      reads the manifest, so its status bar stays the light one. -->
@@ -123,11 +123,6 @@
       </span>
       <button class="ico-btn" data-theme-toggle title="Switch to dark mode"><span class="msym" style="font-size:19px">dark_mode</span></button>
     </span>
-  </div>
-  <div class="wrap">
-    <nav data-navlinks style="display:flex;gap:2px;font-size:14.5px;font-weight:600">
-      <span class="navtab on">Sign in</span>
-    </nav>
   </div>
 </header>
 
@@ -377,6 +372,13 @@
       qEl.classList.add("hidden"); srcEl.classList.add("hidden");
       qEl.textContent = d.q; aEl.textContent = "";
       if(reduce){ qEl.classList.remove("hidden"); aEl.textContent = d.a; sources(d.s); return; }
+      // Reserve the answer's final height up front: typing it out character by
+      // character otherwise grows the <p> line by line, and since the showcase
+      // section centers its content vertically, that recentered the whole pane
+      // on every keystroke instead of just filling text in place.
+      aEl.textContent = d.a;
+      aEl.parentElement.style.minHeight = aEl.offsetHeight + "px";
+      aEl.textContent = "";
       await wait(500);
       qEl.classList.remove("hidden");
       await wait(700);

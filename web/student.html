@@ -231,6 +231,13 @@
     .file-chip button { background:none; border:none; padding:0; cursor:pointer; color:var(--c-sub);
         display:flex; align-items:center }
     .file-chip button:hover { color:var(--crimson) }
+    /* Compact summary card for a "review my quiz" message, same visual language
+       as .file-chip so an attachment and a quiz result read as the same kind of
+       thing: app-generated context riding along with the student's message. */
+    .quiz-context-card { display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 9px;
+        font-size:12.5px; background:var(--c-hi); color:var(--c-ink); max-width:15rem; margin-bottom:6px;
+        animation:chip-in .25s var(--snap) both }
+    .quiz-context-card .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 
     .fld { background:var(--c-paper); border:1px solid var(--c-rule); color:var(--c-ink); border-radius:0;
         transition:border-color .15s }
@@ -309,6 +316,10 @@
     .tool-progress-dots span.on { width:18px;border-radius:5px;background:var(--crimson); }
     .tool-complete { padding:8px 0 2px; }
     .tool-score { margin:8px 0 16px;font-family:'Newsreader',serif;font-size:30px;line-height:1;color:var(--c-ink); }
+    .tool-score.good, .tool-score.low { animation:score-pulse .5s var(--soft) both; }
+    .tool-score.good { color:#1E7A4E; }
+    .tool-score.low { color:var(--crimson); }
+    @keyframes score-pulse { 0%{transform:scale(1)} 35%{transform:scale(1.1)} 100%{transform:scale(1)} }
     .tool-complete p { color:var(--c-sub);font-size:14px;line-height:1.5;margin:0 0 16px; }
     .tool-stage > * { animation:tool-stage-in .34s cubic-bezier(.2,.9,.3,1) both; }
     @keyframes tool-stage-in { from { opacity:0;transform:translateY(9px); } to { opacity:1;transform:none; } }
@@ -446,6 +457,7 @@
 <link href="settings.css" rel="stylesheet"/>
 <link href="mobile.css" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js");</script>
 <!-- The manifest carries one theme_color; these two let a browser follow the
      page's own light/dark tokens (--c-paper, and its html.dark value). A TWA
      reads the manifest, so its status bar stays the light one. -->
@@ -872,6 +884,7 @@
     if(m.role==="tool_status")return buildToolStatus(m);
     if(m.role==="student"){
       const w=document.createElement("div");w.className="flex flex-col items-end mb-stack-lg pr-1.5";
+      if(m.quizContext)w.appendChild(quizContextCard(m.quizContext));
       const b=document.createElement("div");
       b.className="bub-you";
       b.textContent=m.content;
@@ -904,6 +917,22 @@
       w.appendChild(m._toolEl);
     }
     return w;
+  }
+
+  // Rendered above a "review my quiz" message, in the same compact style as an
+  // attached file — the quiz result rides along with the message, it isn't the
+  // message itself.
+  function quizContextCard(qc){
+    const chip=document.createElement("span");chip.className="quiz-context-card";
+    const icon=document.createElement("span");
+    icon.className="material-symbols-outlined text-[15px] flex-shrink-0";
+    icon.textContent="quiz";
+    const nm=document.createElement("span");nm.className="nm";
+    const total=(qc.items&&qc.items.length)||qc.total;
+    nm.textContent=(qc.title||"Practice quiz")+(typeof qc.score==="number"&&total?" · "+qc.score+"/"+total:"");
+    nm.title=nm.textContent;
+    chip.appendChild(icon);chip.appendChild(nm);
+    return chip;
   }
 
   // The tutor refused: the message had profanity in it and never reached the
@@ -1145,10 +1174,11 @@
       stage.dataset.dir="next";stage.classList.remove("still");badge.textContent="Complete";setBar(1);
       const score=answers.reduce((total,answer,i)=>total+(answer===questions[i].answer?1:0),0);
       const missed=questions.map((q,i)=>i).filter(i=>answers[i]!==questions[i].answer);
-      playSound(score/questions.length>=.7?"highScore":"lowScore");
+      const passed=score/questions.length>=.7;
+      playSound(passed?"highScore":"lowScore");
       const complete=document.createElement("div");complete.className="tool-complete";
       const label=document.createElement("p");label.className="slabel";label.textContent="Quiz complete";
-      const scoreLine=document.createElement("div");scoreLine.className="tool-score";
+      const scoreLine=document.createElement("div");scoreLine.className="tool-score "+(passed?"good":"low");
       const copy=document.createElement("p");copy.textContent=score===questions.length?"Strong recall. Keep the ideas connected by explaining one in your own words.":"Your result is ready for a focused follow-up in this chat.";
       const recap=document.createElement("ul");recap.className="quiz-recap";
       questions.forEach((q,i)=>{
@@ -1182,13 +1212,19 @@
 
   function sendQuizReview(tool,questions,answers,score,button){
     if(navigationBusy||sending||toolRunning)return;
-    const detail=questions.map((question,index)=>{
-      const selected=answers[index]===null?"No answer":question.options[answers[index]];
-      return "- Q"+(index+1)+": "+question.prompt+" | My answer: "+selected+" | Result: "+(answers[index]===question.answer?"correct":"needs review");
-    }).join("\n");
-    const summary="Quiz result summary\nActivity: "+(tool.title||"Practice quiz")+"\nScore: "+score+"/"+questions.length+"\n"+detail+"\nPlease identify the concepts I need to review, explain only what I missed, then give me one short targeted practice question.";
-    button.disabled=true;button.textContent="Sending to AI…";els.input.value=summary;
-    send().then(sent=>{button.disabled=!!sent;button.textContent=sent?"Sent to AI":"Review with AI";})
+    // A short natural message, plus the actual Q&A detail riding along as a
+    // structured, app-generated context object — not a giant text dump the
+    // student has to look at (or could edit) in the composer.
+    const items=questions.map((question,index)=>({
+      prompt:question.prompt,
+      selected:answers[index]===null?null:question.options[answers[index]],
+      correct_answer:question.options[question.answer],
+      is_correct:answers[index]===question.answer,
+    }));
+    const quizContext={title:tool.title||"Practice quiz",score,total:questions.length,items};
+    button.disabled=true;button.textContent="Sending to AI…";
+    els.input.value="Help me review my quiz answers.";
+    send({quizContext}).then(sent=>{button.disabled=!!sent;button.textContent=sent?"Sent to AI":"Review with AI";})
       .catch(()=>{button.disabled=false;button.textContent="Review with AI";});
   }
 
@@ -1222,6 +1258,11 @@
       badge.textContent="Card "+(index+1)+" of "+deck.length;setBar(index/deck.length);
       const shell=document.createElement("div");shell.className="flashcard-shell";
       const card=document.createElement("button");card.type="button";card.className="flashcard"+(flipped?" is-flipped":"");card.setAttribute("aria-pressed",String(flipped));card.setAttribute("aria-label",flipLabel());
+      // Suppress the flip transition on this fresh node's first paint so a browser
+      // can never animate it in from a stale prior-card transform (the "flips to
+      // the side already showing" glitch); re-enable next frame for the click-flip.
+      card.style.transition="none";
+      requestAnimationFrame(()=>{card.style.transition="";});
       const front=document.createElement("span");front.className="flash-face front";const frontLabel=document.createElement("span");frontLabel.className="flash-label";frontLabel.textContent="Prompt";const frontText=document.createElement("strong");frontText.className="flash-text";frontText.textContent=data.front;const frontHint=document.createElement("span");frontHint.className="flash-hint";frontHint.textContent="";front.append(frontLabel,frontText,frontHint);
       const back=document.createElement("span");back.className="flash-face back";const backLabel=document.createElement("span");backLabel.className="flash-label";backLabel.textContent="Answer";const backText=document.createElement("strong");backText.className="flash-text";backText.textContent=data.back;const backHint=document.createElement("span");backHint.className="flash-hint";backHint.textContent="";back.append(backLabel,backText,backHint);
       card.append(front,back);
@@ -1309,12 +1350,12 @@
   function scrollBottom(){els.messages.scrollTop=els.messages.scrollHeight;}
 
   const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // Keep this list in sync with app.py's /audio allowlist. `thinking.mp3` is
-  // intentionally not included until there is a deliberate UX for it.
+  // Keep this list in sync with app.py's /audio allowlist.
   const sounds={
     using:"audio/toolkit_using.mp3",done:"audio/toolkit_done.mp3",failed:"audio/toolkit_fail.mp3",
     correct:"audio/quiz_correct.mp3",incorrect:"audio/quiz_incorrect.mp3",
-    highScore:"audio/high_score.mp3",lowScore:"audio/low_score.mp3"
+    highScore:"audio/high_score.mp3",lowScore:"audio/low_score.mp3",
+    thinking:"audio/thinking.mp3"
   };
   let currentSound=null,audioEnabled=false;
   document.addEventListener("pointerdown",()=>{audioEnabled=true;},{passive:true});
@@ -1407,7 +1448,7 @@
     };
   }
 
-  async function readChatResponse(res,onDelta){
+  async function readChatResponse(res,onDelta,onStatus){
     if(!res.ok){let error={};try{error=await res.json();}catch{}throw new Error(error.details||error.error||"Could not answer right now.");}
     if(!(res.headers.get("content-type")||"").includes("text/event-stream"))return res.json();
     const reader=res.body&&res.body.getReader();
@@ -1417,6 +1458,7 @@
         if(!line.startsWith("data:"))continue;
         const item=JSON.parse(line.slice(5).trimStart());
         if(item.type==="delta")onDelta(item.text||"");
+        if(item.type==="status"&&onStatus)onStatus(item.kind);
         if(item.type==="done")result=item.data;
         if(item.type==="error")throw new Error(item.message||"Reply interrupted.");
       }
@@ -1653,7 +1695,7 @@
     if(!activeChat())await newChat();
     const c=activeChat();
     if(!c)return;
-    c.messages.push({role:"student",content:text});
+    c.messages.push({role:"student",content:text,quizContext:options.quizContext||null});
     if(c.messages.length===1){c.title=text.length>30?text.slice(0,30)+"…":text;renderSidebar();}
     els.input.value="";c.draft="";els.input.style.height="auto";
     renderMessages();
@@ -1670,9 +1712,11 @@
       // conversation; the server creates one.
       const body={message:text,class_id:c.classId||ACTIVE_CLASS,chat_id:c.id,stream:true};
       if(DEBUG)body.debug=true;
+      if(options.quizContext)body.quiz_context=options.quizContext;
       const res=await Chronos.apiFetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       reachedServer=true;setStatus("online");
-      const data=await readChatResponse(res,chunk=>{if(!tFirst)tFirst=performance.now();tm.content+=chunk;stream.push(chunk);});
+      const data=await readChatResponse(res,chunk=>{if(!tFirst)tFirst=performance.now();tm.content+=chunk;stream.push(chunk);},
+        kind=>{if(kind==="thinking")playSound("thinking");});
       if(data.error)throw new Error(data.details||data.error);
       if(DEBUG&&data.debug){
         tm.debug=Object.assign({},data.debug,{client:{first_delta_ms:tFirst?Math.round(tFirst-tSent):null,done_ms:Math.round(performance.now()-tSent),

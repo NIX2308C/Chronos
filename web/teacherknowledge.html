@@ -123,6 +123,7 @@
 <link href="settings.css" rel="stylesheet"/>
 <link href="mobile.css" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js");</script>
 <!-- The manifest carries one theme_color; these two let a browser follow the
      page's own light/dark tokens (--c-paper, and its html.dark value). A TWA
      reads the manifest, so its status bar stays the light one. -->

@@ -74,8 +74,13 @@ if(window.Chronos){
     try{info=await Chronos.me()}catch(_){}
     if(!info)return;
     const navLink=document.querySelector('#navLink');
+    const home=info.role==='teacher'?'/teacher':'/student';
     navLink.textContent='Back to Chronos';
-    navLink.href=info.role==='teacher'?'/teacher':'/student';
+    navLink.href=home;
+    // The brand mark is the only other nav on this page — on iOS/PWA standalone
+    // mode there's no reliable browser back button, so it needs the same target
+    // as navLink instead of always bouncing a signed-in user through /login.
+    document.querySelector('.brand').href=home;
     if(info.is_dev){document.querySelector('#devSection').classList.remove('hidden');loadDeployment()}
   });
 }

@@ -2797,13 +2797,17 @@ def chat():
             activity_tool = practice_activity_tool(settings)
             wants_thinking = _should_think(
                 user_message, explicit_tool_request(user_message, settings, history))
-            config = types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.35,
-                tools=[activity_tool] if activity_tool else None,
-                thinking_config=types.ThinkingConfig(
-                    thinking_level="low", include_thoughts=False) if wants_thinking else None,
-            )
+
+            def chat_config(thinking):
+                return types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.35,
+                    tools=[activity_tool] if activity_tool else None,
+                    thinking_config=types.ThinkingConfig(
+                        thinking_level="low", include_thoughts=False) if thinking else None,
+                )
+
+            config = chat_config(wants_thinking)
             if stream_requested:
                 @stream_with_context
                 def stream_answer():
@@ -2811,22 +2815,40 @@ def chat():
                         parts = []
                         streamed_tool = None
                         usage = None
+
+                        def consume(chunks):
+                            nonlocal usage, streamed_tool
+                            for chunk in chunks:
+                                delta = "".join(
+                                    part.text for candidate in (getattr(chunk, "candidates", None) or [])
+                                    for part in (getattr(getattr(candidate, "content", None), "parts", None) or [])
+                                    if getattr(part, "text", None)
+                                )
+                                if delta:
+                                    if not parts:
+                                        lap("first_token_ms", t_model)
+                                    parts.append(delta)
+                                    yield event("delta", {"text": delta})
+                                usage = getattr(chunk, "usage_metadata", None) or usage
+                                streamed_tool = tool_call_from_response(chunk, settings) or streamed_tool
+
                         if wants_thinking:
                             yield event("status", {"kind": "thinking"})
-                        for chunk in client.models.generate_content_stream(
-                                model=CHAT_MODEL, contents=contents, config=config):
-                            delta = "".join(
-                                part.text for candidate in (getattr(chunk, "candidates", None) or [])
-                                for part in (getattr(getattr(candidate, "content", None), "parts", None) or [])
-                                if getattr(part, "text", None)
-                            )
-                            if delta:
-                                if not parts:
-                                    lap("first_token_ms", t_model)
-                                parts.append(delta)
-                                yield event("delta", {"text": delta})
-                            usage = getattr(chunk, "usage_metadata", None) or usage
-                            streamed_tool = tool_call_from_response(chunk, settings) or streamed_tool
+                        try:
+                            yield from consume(client.models.generate_content_stream(
+                                model=CHAT_MODEL, contents=contents, config=config))
+                        except Exception:
+                            # A thinking-enabled request can be rejected by the model/API
+                            # (e.g. unsupported on this model) before any content streams.
+                            # Retry once without it rather than failing the whole turn.
+                            if wants_thinking and not parts:
+                                logger.warning(
+                                    "Thinking-enabled chat generation failed for %s; retrying without thinking.",
+                                    CHAT_MODEL, exc_info=True)
+                                yield from consume(client.models.generate_content_stream(
+                                    model=CHAT_MODEL, contents=contents, config=chat_config(False)))
+                            else:
+                                raise
                         streamed_tool = streamed_tool or explicit_tool_request(user_message, settings, history)
                         final_answer = "".join(parts).strip()
                         lap("model_ms", t_model)
@@ -2844,11 +2866,24 @@ def chat():
 
                 return Response(stream_answer(), mimetype="text/event-stream",
                                 headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"})
-            ai_response = client.models.generate_content(
-                model=CHAT_MODEL,
-                contents=contents,
-                config=config,
-            )
+            try:
+                ai_response = client.models.generate_content(
+                    model=CHAT_MODEL,
+                    contents=contents,
+                    config=config,
+                )
+            except Exception:
+                if wants_thinking:
+                    logger.warning(
+                        "Thinking-enabled chat generation failed for %s; retrying without thinking.",
+                        CHAT_MODEL, exc_info=True)
+                    ai_response = client.models.generate_content(
+                        model=CHAT_MODEL,
+                        contents=contents,
+                        config=chat_config(False),
+                    )
+                else:
+                    raise
             final_answer = response_text(ai_response)
             lap("model_ms", t_model)
             dbg["tokens"] = _usage_dict(getattr(ai_response, "usage_metadata", None))

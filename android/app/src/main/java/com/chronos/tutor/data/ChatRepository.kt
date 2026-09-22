@@ -148,11 +148,10 @@ class ClassRepository(private val api: Api) {
     }
 }
 
-private fun JsonObject.toStudentFile(): StudentFile? = StudentFile(
-    id = this["id"]?.stringOrNull() ?: return null,
-    name = this["name"]?.stringOrNull().orEmpty(),
-    kind = this["kind"]?.stringOrNull().orEmpty(),
-)
+private fun JsonObject.toStudentFile(): StudentFile? {
+    val id = this["id"]?.stringOrNull() ?: return null
+    return StudentFile(id, this["name"]?.stringOrNull().orEmpty(), this["kind"]?.stringOrNull().orEmpty())
+}
 
 private fun kotlinx.serialization.json.JsonElement.boolOrFalse(): Boolean =
     runCatching { jsonPrimitive.boolean }.getOrElse { false }

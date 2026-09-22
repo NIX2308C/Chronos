@@ -3,6 +3,7 @@ package com.chronos.tutor.data
 import com.chronos.tutor.net.Api
 import com.chronos.tutor.net.ChatDone
 import com.chronos.tutor.net.ChatStream
+import com.chronos.tutor.net.sourceLabels
 import com.chronos.tutor.net.stringOrNull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -53,9 +54,7 @@ class ChatRepository(private val api: Api, private val stream: ChatStream) {
                 blocked = blocked,
                 reviewed = reviewed,
                 gap = !student && gapFrom(o["material_gap"]?.boolOrFalse() ?: false, reviewed, blocked),
-                sources = (o["sources"] as? JsonArray)?.mapNotNull { it.stringOrNull() }
-                    ?: (o["rules"] as? JsonArray)?.mapNotNull { it.stringOrNull() }
-                    ?: emptyList(),
+                sources = o.sourceLabels("rules"),
             )
         }
     }

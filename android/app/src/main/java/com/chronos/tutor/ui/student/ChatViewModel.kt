@@ -72,10 +72,12 @@ class ChatViewModel(
     }
 
     private fun boot() = viewModelScope.launch {
-        _state.update { it.copy(booting = true) }
-        val classes = runCatching { classRepo.list() }.getOrDefault(emptyList())
+        _state.update { it.copy(booting = true, error = null) }
+        val classes = runCatching { classRepo.list() }.getOrElse { e ->
+            _state.update { it.copy(booting = false, error = e.userText()) }
+            return@launch
+        }
         if (classes.isEmpty()) {
-            // An offline start looks identical to "no courses" on the web too.
             _state.update { it.copy(booting = false, needsJoin = true, classes = emptyList()) }
             return@launch
         }
@@ -83,14 +85,24 @@ class ChatViewModel(
         val active = classes.firstOrNull { it.id == saved }?.id ?: classes.first().id
         prefs.setStudentClassId(active)
 
-        allChats = runCatching { chatRepo.listChats() }.getOrDefault(emptyList())
+        allChats = runCatching { chatRepo.listChats() }.getOrElse { e ->
+            _state.update { it.copy(error = e.userText()) }
+            emptyList()
+        }
         _state.update { it.copy(booting = false, needsJoin = false, classes = classes, activeClassId = active) }
         openClass(active)
     }
 
     private fun pollHealth() = viewModelScope.launch {
         while (true) {
-            val ok = chatRepo.health()
+            var ok = chatRepo.health()
+            // Cloud Run cold starts: show "waking" while retrying, like the web.
+            repeat(3) {
+                if (ok) return@repeat
+                _state.update { it.copy(status = ServerStatus.WAKING) }
+                delay(2_500)
+                ok = chatRepo.health()
+            }
             _state.update { it.copy(status = if (ok) ServerStatus.ONLINE else ServerStatus.OFFLINE) }
             delay(15_000)
         }
@@ -133,9 +145,13 @@ class ChatViewModel(
         sendJob?.cancel()
         val chat = allChats.firstOrNull { it.id == chatId } ?: return
 
+        var loadError: String? = null
         val loaded = if (chat.loaded || chat.isNew) chat else {
-            val msgs = runCatching { chatRepo.loadMessages(chat.id) }.getOrDefault(emptyList())
-            chat.copy(messages = msgs, loaded = true)
+            // Not marked loaded on failure, so reopening the chat retries.
+            runCatching { chatRepo.loadMessages(chat.id) }.fold(
+                onSuccess = { chat.copy(messages = it, loaded = true) },
+                onFailure = { loadError = it.userText(); chat },
+            )
         }
         replaceChat(loaded)
         _state.update {
@@ -144,7 +160,7 @@ class ChatViewModel(
                 messages = loaded.messages,
                 input = loaded.draft,
                 sending = false,
-                error = null,
+                error = loadError,
                 chats = allChats.filter { c -> c.classId == loaded.classId },
             )
         }
@@ -152,7 +168,10 @@ class ChatViewModel(
 
     fun deleteChat(chatId: String) = viewModelScope.launch {
         val chat = allChats.firstOrNull { it.id == chatId } ?: return@launch
-        if (!chat.isNew) runCatching { chatRepo.deleteChat(chatId) }
+        if (!chat.isNew) runCatching { chatRepo.deleteChat(chatId) }.onFailure { e ->
+            _state.update { it.copy(error = e.userText()) }
+            return@launch
+        }
         allChats = allChats.filterNot { it.id == chatId }
         val classId = chat.classId
         _state.update { it.copy(chats = allChats.filter { c -> c.classId == classId }) }
@@ -287,10 +306,15 @@ class ChatViewModel(
 
     fun dismissError() = _state.update { it.copy(error = null) }
 
+    fun retry() = boot()
+
     private fun replaceChat(chat: Chat) {
         allChats = allChats.map { if (it.id == chat.id) chat else it }
     }
 }
+
+private fun Throwable.userText(): String =
+    (this as? ApiError)?.userMessage ?: message ?: "Can't reach the server. Please try again."
 
 /** Replaces the trailing tutor message, which is the one being streamed into. */
 private inline fun List<Message>.replaceLastTutor(block: (Message) -> Message): List<Message> {

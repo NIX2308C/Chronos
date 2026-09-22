@@ -110,6 +110,8 @@ class ChatStream(private val api: Api, client: OkHttpClient) {
             if (!contentType.contains("text/event-stream")) {
                 val obj = runCatching { Api.json.parseToJsonElement(body.string()) as? JsonObject }
                     .getOrNull() ?: throw ApiError.Malformed("non-JSON reply")
+                obj["error"]?.stringOrNull()?.takeIf { it.isNotBlank() }
+                    ?.let { throw ApiError.Server(res.code, it) }
                 return obj.toChatDone()
             }
 
@@ -169,9 +171,7 @@ internal fun JsonObject.toChatDone(): ChatDone {
         materialGap = this["material_gap"]?.boolOrFalse() ?: false,
         // Empty for students at the API level (app.py:1952-1953), not merely
         // hidden — so there is no student-facing sources UI to build.
-        sources = (this["sources"] as? JsonArray)?.mapNotNull { it.sourceLabel() }
-            ?: (this["rules_used"] as? JsonArray)?.mapNotNull { it.stringOrNull() }
-            ?: emptyList(),
+        sources = sourceLabels("rules_used"),
         toolkits = (this["toolkits"] as? JsonArray)?.mapNotNull { it.stringOrNull() } ?: emptyList(),
         toolRequest = (this["tool_request"] as? JsonObject)?.let { tr ->
             val type = tr["type"]?.stringOrNull() ?: return@let null
@@ -184,6 +184,12 @@ internal fun JsonObject.toChatDone(): ChatDone {
 
 private fun kotlinx.serialization.json.JsonElement.boolOrFalse(): Boolean =
     runCatching { jsonPrimitive.boolean }.getOrElse { false }
+
+/** `sources`, else the rules list under [rulesKey]; the /chat reply and chat history name it differently. */
+internal fun JsonObject.sourceLabels(rulesKey: String): List<String> =
+    (this["sources"] as? JsonArray)?.mapNotNull { it.sourceLabel() }?.takeIf { it.isNotEmpty() }
+        ?: (this[rulesKey] as? JsonArray)?.mapNotNull { it.stringOrNull() }
+        ?: emptyList()
 
 /** Sources arrive either as plain excerpt strings or as {label, excerpt, section}. */
 private fun kotlinx.serialization.json.JsonElement.sourceLabel(): String? {

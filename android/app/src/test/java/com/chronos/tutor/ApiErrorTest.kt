@@ -42,6 +42,15 @@ class ApiErrorTest {
     }
 
     @Test
+    fun `non-streamed chat 200 carrying an error throws`() {
+        respond(200, """{"error":"Course not found"}""", mapOf("Content-Type" to "application/json"))
+        val stream = com.chronos.tutor.net.ChatStream(api, OkHttpClient())
+        val e = runCatching { stream.send("hi", "c", "new_x") {} }.exceptionOrNull()
+        assertTrue(e is ApiError.Server)
+        assertEquals("Course not found", (e as ApiError.Server).serverMessage)
+    }
+
+    @Test
     fun `200 returns the parsed object`() {
         respond(200, """{"status":"ok"}""")
         val out = api.get("/health")

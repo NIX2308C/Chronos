@@ -18,8 +18,7 @@ object Routes {
     const val FINISH_SIGNUP = "finish_signup"
 
     /**
-     * Where a signed-in user lands. P0 shows the account screen here; P1
-     * replaces it with the tutor chat, which is why the name is neutral.
+     * Where a signed-in user lands: the tutor chat.
      */
     const val HOME = "home"
 }

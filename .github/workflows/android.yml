@@ -75,7 +75,7 @@ jobs:
             echo "Release signing: keystore secret present."
           else
             echo "mode=debug" >> "$GITHUB_OUTPUT"
-            echo "::notice::No ANDROID_KEYSTORE_BASE64 secret, building debug. The installed app will show a URL bar."
+            echo "::notice::No ANDROID_KEYSTORE_BASE64 secret, building debug-signed."
           fi
 
       - name: Decode the keystore

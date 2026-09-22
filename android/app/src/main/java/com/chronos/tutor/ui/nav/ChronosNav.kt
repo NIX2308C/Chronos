@@ -142,6 +142,8 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                 onSwitchClass = { vm.switchClass(it) },
                 onJoin = { vm.join(it) },
                 onSignOut = root::signOut,
+                onRetry = { vm.retry() },
+                onDismissError = vm::dismissError,
             )
         }
     }

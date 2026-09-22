@@ -45,14 +45,38 @@ fun ChatScreen(
     onSwitchClass: (String) -> Unit,
     onJoin: (String) -> Unit,
     onSignOut: () -> Unit,
+    onRetry: () -> Unit,
+    onDismissError: () -> Unit,
 ) {
     val extras = LocalChronosColors.current
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+
+    LaunchedEffect(state.error) {
+        val msg = state.error ?: return@LaunchedEffect
+        if (state.classes.isEmpty()) return@LaunchedEffect  // the retry screen shows it
+        snackbar.showSnackbar(msg)
+        onDismissError()
+    }
 
     if (state.booting) {
         Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), Alignment.Center) {
             CircularProgressIndicator(color = extras.crimsonFill, strokeWidth = 2.dp)
+        }
+        return
+    }
+
+    if (state.classes.isEmpty() && state.error != null) {
+        Column(
+            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(state.error, color = MaterialTheme.colorScheme.onBackground, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = onRetry) { Text("Try again") }
+            TextButton(onClick = onSignOut) { Text("Sign out") }
         }
         return
     }
@@ -83,6 +107,7 @@ fun ChatScreen(
     ) {
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
+            snackbarHost = { SnackbarHost(snackbar) },
             topBar = {
                 ChatTopBar(
                     title = state.chats.firstOrNull { it.id == state.activeChatId }?.title ?: "New chat",

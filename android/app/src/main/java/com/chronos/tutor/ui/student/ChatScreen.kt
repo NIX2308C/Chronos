@@ -1,5 +1,8 @@
 package com.chronos.tutor.ui.student
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,7 +24,9 @@ import androidx.compose.ui.unit.sp
 import com.chronos.tutor.data.Chat
 import com.chronos.tutor.data.Message
 import com.chronos.tutor.data.ServerStatus
+import com.chronos.tutor.data.StudentFile
 import com.chronos.tutor.data.toolLabel
+import com.chronos.tutor.ui.common.DOC_MIME_TYPES
 import com.chronos.tutor.ui.common.MarkdownText
 import com.chronos.tutor.ui.common.Sounds
 import com.chronos.tutor.ui.common.Sym
@@ -53,6 +58,8 @@ fun ChatScreen(
     onStopTool: () -> Unit,
     onSound: (Sounds.Kind) -> Unit,
     onReview: (String) -> Unit,
+    onAttach: (Uri, String) -> Unit,
+    onRemoveFile: (StudentFile) -> Unit,
     /** Non-null only for a teacher previewing the student view. */
     onTeacherPanel: (() -> Unit)? = null,
 ) {
@@ -149,9 +156,14 @@ fun ChatScreen(
                     enabled = !state.busy,
                     canSend = state.canSend,
                     toolkits = state.toolkits,
+                    files = state.files,
+                    filesMax = state.filesMax,
+                    attaching = state.attaching,
                     onChange = onInput,
                     onSend = onSend,
                     onTool = onTool,
+                    onAttach = onAttach,
+                    onRemoveFile = onRemoveFile,
                 )
             }
         }
@@ -402,18 +414,52 @@ private fun SourcesDisclosure(sources: List<String>) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Composer(
     value: String,
     enabled: Boolean,
     canSend: Boolean,
     toolkits: List<String>,
+    files: List<StudentFile>,
+    filesMax: Int,
+    attaching: Boolean,
     onChange: (String) -> Unit,
     onSend: () -> Unit,
     onTool: (String) -> Unit,
+    onAttach: (Uri, String) -> Unit,
+    onRemoveFile: (StudentFile) -> Unit,
 ) {
     val extras = LocalChronosColors.current
     var toolMenu by remember { mutableStateOf(false) }
+    var fileMenu by remember { mutableStateOf(false) }
+    var pendingKind by remember { mutableStateOf("assignment") }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) onAttach(uri, pendingKind)
+    }
+    val full = filesMax > 0 && files.size >= filesMax
+
+    if (files.isNotEmpty() || attaching) {
+        FlowRow(
+            Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow).padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            files.forEach { f ->
+                Row(Modifier.border(1.dp, extras.rule).padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Sym(if (f.kind == "rubric") "checklist" else "assignment", size = 15.sp, tint = extras.crimsonFill)
+                    Spacer(Modifier.width(6.dp))
+                    Text(f.name, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 180.dp))
+                    IconButton(onClick = { onRemoveFile(f) }, modifier = Modifier.size(30.dp)) {
+                        Sym("close", size = 14.sp, tint = extras.muted)
+                    }
+                }
+            }
+            if (attaching) Text("Attaching…", style = MaterialTheme.typography.labelSmall, color = extras.muted,
+                modifier = Modifier.padding(6.dp))
+        }
+    }
+
     Row(
         Modifier
             .fillMaxWidth()
@@ -423,6 +469,22 @@ private fun Composer(
             .navigationBarsPadding(),
         verticalAlignment = Alignment.Bottom,
     ) {
+        // Only the student's own work and its rubric; the server rejects course material.
+        Box {
+            IconButton(onClick = { fileMenu = true }, enabled = enabled && !attaching, modifier = Modifier.size(52.dp)) {
+                Sym("add", size = 22.sp, tint = extras.muted)
+            }
+            DropdownMenu(expanded = fileMenu, onDismissRequest = { fileMenu = false }) {
+                if (full) {
+                    DropdownMenuItem(text = { Text("You can attach $filesMax files per chat") }, onClick = { fileMenu = false }, enabled = false)
+                } else listOf("assignment" to "Add assignment", "rubric" to "Add rubric").forEach { (kind, label) ->
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        onClick = { fileMenu = false; pendingKind = kind; pick.launch(DOC_MIME_TYPES) },
+                    )
+                }
+            }
+        }
         // Only the activity types this course has switched on, as the web's ✨ menu.
         if (toolkits.isNotEmpty()) {
             Box {

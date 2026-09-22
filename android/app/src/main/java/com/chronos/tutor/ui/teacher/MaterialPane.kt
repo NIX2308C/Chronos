@@ -23,18 +23,12 @@ import androidx.compose.ui.unit.sp
 import com.chronos.tutor.data.CourseDoc
 import com.chronos.tutor.data.CourseSettings
 import com.chronos.tutor.data.CustomRule
+import com.chronos.tutor.ui.common.DOC_MIME_TYPES
 import com.chronos.tutor.ui.common.MarkdownText
 import com.chronos.tutor.ui.common.Sym
 import com.chronos.tutor.ui.theme.LocalChronosColors
 import java.text.DateFormat
 import java.util.Date
-
-/** The upload types app.py accepts at /upload. */
-private val UPLOAD_MIME = arrayOf(
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "text/plain", "text/markdown", "text/csv",
-)
 
 private val TABS = listOf("material" to "Course material", "rules" to "Tutor rules", "tools" to "Toolkits")
 
@@ -90,7 +84,7 @@ private fun UploadCard(vm: TeacherViewModel, state: TeacherUiState) {
             Spacer(Modifier.height(8.dp))
             LinearProgressIndicator(Modifier.fillMaxWidth(), color = LocalChronosColors.current.crimsonFill)
         } else {
-            PrimaryButton("CHOOSE FILE", Modifier.fillMaxWidth()) { pick.launch(UPLOAD_MIME) }
+            PrimaryButton("CHOOSE FILE", Modifier.fillMaxWidth()) { pick.launch(DOC_MIME_TYPES) }
         }
     }
 }

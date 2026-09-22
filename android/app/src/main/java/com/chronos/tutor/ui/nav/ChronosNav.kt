@@ -3,6 +3,7 @@ package com.chronos.tutor.ui.nav
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -120,6 +121,7 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
 
         composable(Routes.HOME) {
             val me = (state as? AuthState.Ready)?.me
+            val context = LocalContext.current
             val vm: ChatViewModel = viewModel(
                 // Keyed on uid so signing in as someone else does not inherit
                 // the previous user's conversations.
@@ -153,6 +155,8 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                 onStopTool = vm::stopTool,
                 onSound = vm::playSound,
                 onReview = vm::sendText,
+                onAttach = { uri, kind -> vm.attach(context.contentResolver, uri, kind) },
+                onRemoveFile = { vm.removeFile(it) },
                 onTeacherPanel = if (me?.role == "teacher") {
                     { navController.popBackStack(Routes.TEACHER_HOME, inclusive = false) }
                 } else null,

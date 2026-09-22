@@ -59,5 +59,8 @@ data class CourseClass(
     val joinCode: String? = null,
 )
 
+/** A student's own assignment or rubric attached to one chat. */
+data class StudentFile(val id: String, val name: String, val kind: String)
+
 /** Server reachability, shown as the header dot. */
 enum class ServerStatus { ONLINE, WAKING, OFFLINE }

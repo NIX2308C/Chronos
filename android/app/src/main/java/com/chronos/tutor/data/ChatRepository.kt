@@ -1,6 +1,11 @@
 package com.chronos.tutor.data
 
 import com.chronos.tutor.net.Api
+import com.chronos.tutor.net.ApiError
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import com.chronos.tutor.net.ChatDone
 import com.chronos.tutor.net.ChatStream
 import com.chronos.tutor.net.sourceLabels
@@ -67,7 +72,7 @@ class ChatRepository(private val api: Api, private val stream: ChatStream) {
             put("chat_id", chatId)
             put("tool_request", buildJsonObject { put("type", req.type); put("topic", req.topic) })
         }, slow = true)
-        parseTool(o["tool"] as? JsonObject) ?: throw com.chronos.tutor.net.ApiError.Server(200, "Couldn't create that activity.")
+        parseTool(o["tool"] as? JsonObject) ?: throw ApiError.Server(200, "Couldn't create that activity.")
     }
 
     suspend fun deleteChat(chatId: String) = withContext(Dispatchers.IO) {
@@ -86,6 +91,29 @@ class ChatRepository(private val api: Api, private val stream: ChatStream) {
     ): ChatDone = withContext(Dispatchers.IO) {
         stream.send(message, classId, chatId, onDelta)
     }
+
+    /** Files attached to one conversation, and the per-chat cap. */
+    suspend fun listFiles(classId: String, chatId: String): Pair<List<StudentFile>, Int> = withContext(Dispatchers.IO) {
+        val o = api.get("/student/files?class_id=$classId&chat_id=$chatId")
+        val files = (o["files"] as? JsonArray)?.mapNotNull { (it as? JsonObject)?.toStudentFile() } ?: emptyList()
+        files to (o["max"]?.stringOrNull()?.toIntOrNull() ?: 0)
+    }
+
+    /** kind is "assignment" or "rubric". Returns the file and the server's truncation warning, if any. */
+    suspend fun addFile(
+        classId: String, chatId: String, kind: String, name: String, mime: String?, bytes: ByteArray,
+    ): Pair<StudentFile, String?> = withContext(Dispatchers.IO) {
+        val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("class_id", classId)
+            .addFormDataPart("chat_id", chatId)
+            .addFormDataPart("kind", kind)
+            .addFormDataPart("file", name, bytes.toRequestBody(mime?.toMediaTypeOrNull()))
+            .build()
+        val o = api.execute(Request.Builder().url(api.url("/student/files")).post(body).build(), slow = true)
+        (o.toStudentFile() ?: throw ApiError.Malformed("no file id")) to o["warning"]?.stringOrNull()
+    }
+
+    suspend fun deleteFile(id: String) = withContext(Dispatchers.IO) { api.delete("/student/files/$id"); Unit }
 
     suspend fun health(): Boolean = withContext(Dispatchers.IO) {
         runCatching { api.get("/health") }.isSuccess
@@ -119,6 +147,12 @@ class ClassRepository(private val api: Api) {
         )
     }
 }
+
+private fun JsonObject.toStudentFile(): StudentFile? = StudentFile(
+    id = this["id"]?.stringOrNull() ?: return null,
+    name = this["name"]?.stringOrNull().orEmpty(),
+    kind = this["kind"]?.stringOrNull().orEmpty(),
+)
 
 private fun kotlinx.serialization.json.JsonElement.boolOrFalse(): Boolean =
     runCatching { jsonPrimitive.boolean }.getOrElse { false }

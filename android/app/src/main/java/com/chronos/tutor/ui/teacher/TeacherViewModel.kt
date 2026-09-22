@@ -2,7 +2,6 @@ package com.chronos.tutor.ui.teacher
 
 import android.content.ContentResolver
 import android.net.Uri
-import android.provider.OpenableColumns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chronos.tutor.data.ClassRepository
@@ -18,14 +17,13 @@ import com.chronos.tutor.data.StudentProfile
 import com.chronos.tutor.data.TeacherRepository
 import com.chronos.tutor.net.ApiError
 import com.chronos.tutor.net.ChatDone
-import kotlinx.coroutines.Dispatchers
+import com.chronos.tutor.ui.common.readUri
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 enum class TeacherSection { MATERIAL, ANALYTICS }
 
@@ -267,15 +265,6 @@ class TeacherViewModel(
 
     fun closeProfile() = _state.update { it.copy(profileFor = null, profile = null) }
 }
-
-private suspend fun readUri(resolver: ContentResolver, uri: Uri): Triple<String, String?, ByteArray> =
-    withContext(Dispatchers.IO) {
-        val name = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
-            if (it.moveToFirst()) it.getString(0) else null
-        } ?: "document"
-        val bytes = resolver.openInputStream(uri)?.use { it.readBytes() } ?: error("unreadable")
-        Triple(name, resolver.getType(uri), bytes)
-    }
 
 internal fun Throwable.text(): String =
     (this as? ApiError)?.userMessage ?: message ?: "Something went wrong. Please try again."

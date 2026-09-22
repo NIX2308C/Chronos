@@ -1,5 +1,7 @@
 package com.chronos.tutor.ui.student
 
+import android.content.ContentResolver
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.chronos.tutor.data.Chat
@@ -9,11 +11,13 @@ import com.chronos.tutor.data.CourseClass
 import com.chronos.tutor.data.Message
 import com.chronos.tutor.data.Prefs
 import com.chronos.tutor.data.ServerStatus
+import com.chronos.tutor.data.StudentFile
 import com.chronos.tutor.data.ToolRequest
 import com.chronos.tutor.data.ToolStatus
 import com.chronos.tutor.data.gapFrom
 import com.chronos.tutor.data.toolLabel
 import com.chronos.tutor.ui.common.Sounds
+import com.chronos.tutor.ui.common.readUri
 import com.chronos.tutor.net.ApiError
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -46,6 +50,10 @@ data class ChatUiState(
     /** Activity types the active course has switched on. */
     val toolkits: List<String> = emptyList(),
     val toolRunning: Boolean = false,
+    /** The active chat's attachments. */
+    val files: List<StudentFile> = emptyList(),
+    val filesMax: Int = 0,
+    val attaching: Boolean = false,
 ) {
     val activeClassName: String?
         get() = classes.firstOrNull { it.id == activeClassId }?.name
@@ -67,6 +75,10 @@ class ChatViewModel(
     /** Every chat across all classes; [ChatUiState.chats] is the filtered view. */
     private var allChats: List<Chat> = emptyList()
     private var sendJob: Job? = null
+    /** Attachments per chat, so switching back does not refetch. Unsaved chats start empty. */
+    private val filesByChat = mutableMapOf<String, List<StudentFile>>()
+    private var toolJob: Job? = null
+    private var toolChatId: String? = null
 
     /**
      * Bumped whenever the visible conversation changes. A reply that lands
@@ -178,8 +190,50 @@ class ChatViewModel(
                 sending = false,
                 error = loadError,
                 chats = allChats.filter { c -> c.classId == loaded.classId },
+                files = filesByChat[loaded.id].orEmpty(),
             )
         }
+        if (!loaded.isNew && loaded.id !in filesByChat) loadFiles(loaded)
+    }
+
+    // ---- attachments ------------------------------------------------------
+
+    private fun loadFiles(chat: Chat) = viewModelScope.launch {
+        runCatching { chatRepo.listFiles(chat.classId, chat.id) }.onSuccess { (files, max) ->
+            filesByChat[chat.id] = files
+            if (_state.value.activeChatId == chat.id) _state.update { it.copy(files = files, filesMax = max) }
+        }
+    }
+
+    fun attach(resolver: ContentResolver, uri: Uri, kind: String) = viewModelScope.launch {
+        val s = _state.value
+        val chat = allChats.firstOrNull { it.id == s.activeChatId } ?: return@launch
+        if (s.attaching) return@launch
+        val (name, mime, bytes) = runCatching { readUri(resolver, uri) }.getOrElse {
+            _state.update { it.copy(error = "Couldn't read that file.") }; return@launch
+        }
+        _state.update { it.copy(attaching = true) }
+        runCatching { chatRepo.addFile(chat.classId, chat.id, kind, name, mime, bytes) }.fold(
+            onSuccess = { (file, warning) ->
+                filesByChat[chat.id] = filesByChat[chat.id].orEmpty() + file
+                _state.update {
+                    it.copy(attaching = false, error = warning,
+                        files = if (it.activeChatId == chat.id) filesByChat[chat.id].orEmpty() else it.files)
+                }
+            },
+            onFailure = { e -> _state.update { it.copy(attaching = false, error = e.userText()) } },
+        )
+    }
+
+    fun removeFile(file: StudentFile) = viewModelScope.launch {
+        val chatId = _state.value.activeChatId ?: return@launch
+        runCatching { chatRepo.deleteFile(file.id) }.fold(
+            onSuccess = {
+                filesByChat[chatId] = filesByChat[chatId].orEmpty() - file
+                if (_state.value.activeChatId == chatId) _state.update { it.copy(files = filesByChat[chatId].orEmpty()) }
+            },
+            onFailure = { e -> _state.update { it.copy(error = e.userText()) } },
+        )
     }
 
     fun deleteChat(chatId: String) = viewModelScope.launch {
@@ -188,6 +242,9 @@ class ChatViewModel(
             _state.update { it.copy(error = e.userText()) }
             return@launch
         }
+        // An unsaved draft has no server chat to cascade from, so its files go one by one.
+        if (chat.isNew) filesByChat[chatId].orEmpty().forEach { f -> runCatching { chatRepo.deleteFile(f.id) } }
+        filesByChat.remove(chatId)
         allChats = allChats.filterNot { it.id == chatId }
         val classId = chat.classId
         _state.update { it.copy(chats = allChats.filter { c -> c.classId == classId }) }
@@ -302,9 +359,6 @@ class ChatViewModel(
     }
 
     // ---- learning tools ---------------------------------------------------
-
-    private var toolJob: Job? = null
-    private var toolChatId: String? = null
 
     /** The ✨ menu (invokeTool in web/student.html). */
     fun invokeTool(kind: String) {

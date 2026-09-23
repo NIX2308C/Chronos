@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,8 +37,16 @@ fun StudentDrawer(
     onSignOut: () -> Unit,
     onSettings: () -> Unit,
     onTeacherPanel: (() -> Unit)? = null,
+    email: String? = null,
+    onJoinAnother: (() -> Unit)? = null,
 ) {
     val extras = LocalChronosColors.current
+    var filter by remember { mutableStateOf("") }
+    // A filter box appears only with a long history (CHAT_FILTER_MIN, student.html:776).
+    val filtering = state.chats.size >= 12
+    val q = if (filtering) filter.trim().lowercase() else ""
+    val shown = if (q.isEmpty()) state.chats
+        else state.chats.filter { it.id == state.activeChatId || it.title.lowercase().contains(q) }
     var pendingDelete by remember { mutableStateOf<String?>(null) }
 
     pendingDelete?.let { id ->
@@ -66,7 +75,16 @@ fun StudentDrawer(
                     color = extras.muted,
                 )
                 Spacer(Modifier.height(14.dp))
-                CourseSwitcher(state, onSwitchClass)
+                Row(Modifier.height(IntrinsicSize.Min)) {
+                    Box(Modifier.weight(1f)) { CourseSwitcher(state, onSwitchClass) }
+                    if (onJoinAnother != null) {
+                        Spacer(Modifier.width(6.dp))
+                        Box(
+                            Modifier.width(44.dp).fillMaxHeight().border(1.dp, extras.rule).clickable { onJoinAnother() },
+                            contentAlignment = Alignment.Center,
+                        ) { Sym("add", size = 18.sp, tint = extras.muted) }
+                    }
+                }
                 Spacer(Modifier.height(12.dp))
                 Button(
                     onClick = onNewChat,
@@ -91,10 +109,25 @@ fun StudentDrawer(
                 color = extras.muted,
                 modifier = Modifier.padding(start = 18.dp, top = 16.dp, bottom = 8.dp),
             )
+            if (filtering) {
+                OutlinedTextField(
+                    value = filter,
+                    onValueChange = { filter = it },
+                    singleLine = true,
+                    placeholder = { Text("Filter conversations", style = MaterialTheme.typography.bodySmall) },
+                    textStyle = MaterialTheme.typography.bodySmall,
+                    shape = RectangleShape,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 8.dp),
+                )
+            }
+            if (q.isNotEmpty() && shown.isEmpty()) {
+                Text("No matches", style = MaterialTheme.typography.bodySmall, color = extras.muted,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp))
+            }
 
             LazyColumn(Modifier.weight(1f)) {
-                items(state.chats.size) { i ->
-                    val chat = state.chats[i]
+                items(shown.size) { i ->
+                    val chat = shown[i]
                     val active = chat.id == state.activeChatId
                     Row(
                         Modifier
@@ -129,6 +162,18 @@ fun StudentDrawer(
             }
 
             HorizontalDivider(color = extras.rule)
+            // Who is signed in, as the web's sidebar footer (student.html:520).
+            Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(30.dp).background(MaterialTheme.colorScheme.onSurface), contentAlignment = Alignment.Center) {
+                    Text((email ?: "?").take(2).uppercase(), style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.surface)
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(email ?: "Account", style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(if (state.isTeacher) "Teacher" else "Student", style = MaterialTheme.typography.labelSmall, color = extras.muted)
+                }
+            }
             Row(
                 Modifier.fillMaxWidth().clickable { onSettings() }.padding(18.dp),
                 verticalAlignment = Alignment.CenterVertically,

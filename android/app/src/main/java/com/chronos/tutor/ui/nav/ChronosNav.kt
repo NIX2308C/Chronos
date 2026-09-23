@@ -183,6 +183,9 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                 onTeacherPanel = if (me?.role == "teacher") {
                     { navController.popBackStack(Routes.TEACHER_HOME, inclusive = false) }
                 } else null,
+                email = me?.email,
+                onOpenJoin = vm::openJoin,
+                onCloseJoin = vm::closeJoin,
             )
             }
         }

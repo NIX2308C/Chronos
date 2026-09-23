@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,6 +67,9 @@ fun ChatScreen(
     onRemoveFile: (StudentFile) -> Unit,
     /** Non-null only for a teacher previewing the student view. */
     onTeacherPanel: (() -> Unit)? = null,
+    email: String? = null,
+    onOpenJoin: () -> Unit = {},
+    onCloseJoin: () -> Unit = {},
 ) {
     val extras = LocalChronosColors.current
     val drawer = rememberDrawerState(DrawerValue.Closed)
@@ -98,14 +104,16 @@ fun ChatScreen(
         return
     }
 
-    if (state.needsJoin) {
+    if (state.needsJoin || state.joinOpen) {
         JoinGate(
-            isTeacher = state.isTeacher,
+            isTeacher = state.isTeacher && state.needsJoin,
             error = state.joinError,
             busy = state.joining,
             onJoin = onJoin,
             onSignOut = onSignOut,
-            onTeacherPanel = onTeacherPanel,
+            onTeacherPanel = onTeacherPanel.takeIf { state.needsJoin },
+            email = email,
+            onCancel = if (state.needsJoin) null else onCloseJoin,
         )
         return
     }
@@ -122,6 +130,8 @@ fun ChatScreen(
                 onSignOut = onSignOut,
                 onSettings = { scope.launch { drawer.close() }; onSettings() },
                 onTeacherPanel = onTeacherPanel?.let { back -> { scope.launch { drawer.close() }; back() } },
+                email = email,
+                onJoinAnother = if (state.isTeacher) null else ({ scope.launch { drawer.close() }; onOpenJoin() }),
             )
         },
     ) {
@@ -164,6 +174,7 @@ fun ChatScreen(
                     files = state.files,
                     filesMax = state.filesMax,
                     attaching = state.attaching,
+                    enterSend = state.enterSend,
                     onChange = onInput,
                     onSend = onSend,
                     onTool = onTool,
@@ -462,6 +473,7 @@ private fun Composer(
     files: List<StudentFile>,
     filesMax: Int,
     attaching: Boolean,
+    enterSend: Boolean,
     onChange: (String) -> Unit,
     onSend: () -> Unit,
     onTool: (String) -> Unit,
@@ -543,13 +555,22 @@ private fun Composer(
             value = value,
             onValueChange = onChange,
             enabled = enabled,
-            modifier = Modifier.weight(1f),
+            // Hardware keyboards: Enter sends (Shift+Enter is a new line), or with
+            // "Enter sends" off, Ctrl+Enter sends (student.html:1761).
+            modifier = Modifier.weight(1f).onPreviewKeyEvent { e ->
+                val sends = e.type == KeyEventType.KeyDown && e.key == Key.Enter &&
+                    (if (enterSend) !e.isShiftPressed else e.isCtrlPressed)
+                if (sends && canSend) onSend()
+                sends
+            },
             placeholder = {
                 Text("Ask about your course material", style = MaterialTheme.typography.bodyMedium)
             },
             maxLines = 5,
             shape = RectangleShape,
-            keyboardOptions = KeyboardOptions.Default,
+            // On-screen keyboards get a Send key instead of Enter while the setting is on.
+            keyboardOptions = if (enterSend) KeyboardOptions(imeAction = ImeAction.Send) else KeyboardOptions.Default,
+            keyboardActions = KeyboardActions(onSend = { if (canSend) onSend() }),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = extras.crimsonFill,
                 unfocusedBorderColor = extras.rule,

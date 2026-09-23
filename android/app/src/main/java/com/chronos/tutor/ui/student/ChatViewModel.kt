@@ -61,6 +61,9 @@ data class ChatUiState(
     val attaching: Boolean = false,
     /** Developer account with debug mode on. */
     val debug: Boolean = false,
+    val enterSend: Boolean = true,
+    /** "Join another course" from the drawer; closable, unlike [needsJoin]. */
+    val joinOpen: Boolean = false,
 ) {
     val activeClassName: String?
         get() = classes.firstOrNull { it.id == activeClassId }?.name
@@ -91,6 +94,7 @@ class ChatViewModel(
         boot()
         pollHealth()
         viewModelScope.launch { prefs.debug.collect { on -> _state.update { it.copy(debug = isDev && on) } } }
+        viewModelScope.launch { prefs.enterSend.collect { on -> _state.update { it.copy(enterSend = on) } } }
     }
 
     private fun boot() = viewModelScope.launch {
@@ -463,8 +467,10 @@ class ChatViewModel(
         }
         _state.update { it.copy(joining = true, joinError = null) }
         runCatching { classRepo.join(code) }.fold(
-            onSuccess = {
-                _state.update { s -> s.copy(joining = false, needsJoin = false) }
+            onSuccess = { joined ->
+                // Land in the course just joined, as the web does (student.html:2004).
+                if (joined.id.isNotEmpty()) prefs.setStudentClassId(joined.id)
+                _state.update { s -> s.copy(joining = false, needsJoin = false, joinOpen = false) }
                 boot()
             },
             onFailure = { e ->
@@ -478,6 +484,9 @@ class ChatViewModel(
             },
         )
     }
+
+    fun openJoin() = _state.update { it.copy(joinOpen = true, joinError = null) }
+    fun closeJoin() = _state.update { it.copy(joinOpen = false, joinError = null) }
 
     fun dismissError() = _state.update { it.copy(error = null) }
 

@@ -63,6 +63,7 @@ class SettingsViewModel(
     fun setTextSize(v: String) = viewModelScope.launch { prefsStore.setTextSize(v) }
     fun setReduceMotion(v: Boolean) = viewModelScope.launch { prefsStore.setReduceMotion(v) }
     fun setDebug(v: Boolean) = viewModelScope.launch { prefsStore.setDebug(v) }
+    fun setEnterSend(v: Boolean) = viewModelScope.launch { prefsStore.setEnterSend(v) }
 
     /** "Replay tour": the home screen shows it again when the user goes back. */
     fun replayTour(teacher: Boolean) = viewModelScope.launch {

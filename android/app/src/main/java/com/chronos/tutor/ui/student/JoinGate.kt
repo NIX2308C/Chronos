@@ -1,9 +1,11 @@
 package com.chronos.tutor.ui.student
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -11,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -34,9 +37,13 @@ fun JoinGate(
     onJoin: (String) -> Unit,
     onSignOut: () -> Unit,
     onTeacherPanel: (() -> Unit)? = null,
+    email: String? = null,
+    /** Set when there is a course to go back to: shows Close instead of sign-out (student.html:1970). */
+    onCancel: (() -> Unit)? = null,
 ) {
     val extras = LocalChronosColors.current
     var code by remember { mutableStateOf("") }
+    BackHandler(enabled = onCancel != null) { onCancel?.invoke() }
 
     Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         Column(
@@ -57,6 +64,11 @@ fun JoinGate(
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
+                if (onCancel != null) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        IconButton(onClick = onCancel) { Sym("close", size = 20.sp, tint = extras.muted) }
+                    }
+                }
                 Sym(if (isTeacher) "school" else "key", size = 30.sp, tint = extras.crimsonFill)
                 Spacer(Modifier.height(14.dp))
                 Text(
@@ -80,14 +92,19 @@ fun JoinGate(
                     Spacer(Modifier.height(20.dp))
                     OutlinedTextField(
                         value = code,
-                        onValueChange = { if (it.length <= 12) code = it.uppercase() },
+                        // Codes are pasted with spaces or dashes; keep letters and digits (student.html:1815).
+                        onValueChange = { v ->
+                            code = v.filter { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }.uppercase().take(14)
+                        },
                         enabled = !busy,
                         singleLine = true,
                         label = { Text("Course code") },
                         shape = RectangleShape,
                         keyboardOptions = KeyboardOptions(
                             capitalization = KeyboardCapitalization.Characters,
+                            imeAction = ImeAction.Go,
                         ),
+                        keyboardActions = KeyboardActions(onGo = { if (!busy && code.isNotBlank()) onJoin(code) }),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = extras.crimsonFill,
                             unfocusedBorderColor = extras.rule,
@@ -136,8 +153,14 @@ fun JoinGate(
                         Text("Teacher panel", style = MaterialTheme.typography.labelLarge, color = extras.crimsonFill)
                     }
                 }
-                TextButton(onClick = onSignOut, shape = RectangleShape, modifier = Modifier.fillMaxWidth()) {
-                    Text("Sign out", style = MaterialTheme.typography.labelLarge, color = extras.muted)
+                // Never next to Close, where it could be mistaken for it.
+                if (onCancel == null) {
+                    email?.let {
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = extras.muted, textAlign = TextAlign.Center)
+                    }
+                    TextButton(onClick = onSignOut, shape = RectangleShape, modifier = Modifier.fillMaxWidth()) {
+                        Text("Not you? Sign out", style = MaterialTheme.typography.labelLarge, color = extras.muted)
+                    }
                 }
             }
         }

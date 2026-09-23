@@ -7,7 +7,10 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -339,17 +342,20 @@ private fun Flashcards(tool: LearningTool.Flashcards) {
 
 // ---- concept map ------------------------------------------------------------
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun ConceptMap(tool: LearningTool.ConceptMap) {
     val extras = LocalChronosColors.current
+    val scope = rememberCoroutineScope()
+    // A chip scrolls its target node into view before pulsing it (student.html:1000).
+    val nodeViews = remember(tool) { tool.nodes.map { BringIntoViewRequester() } }
     var pulse by remember { mutableIntStateOf(NONE) }
     var pulseTick by remember { mutableIntStateOf(0) }
     LaunchedEffect(pulseTick) { if (pulse != NONE) { delay(900); pulse = NONE } }
     Header("Concept map", tool.title)
     tool.nodes.forEachIndexed { i, node ->
         val bg by animateColorAsState(if (pulse == i) extras.raised else Color.Transparent, label = "pulse")
-        Column(Modifier.fillMaxWidth().padding(bottom = 10.dp).background(bg).border(1.dp, extras.rule).padding(12.dp)) {
+        Column(Modifier.fillMaxWidth().bringIntoViewRequester(nodeViews[i]).padding(bottom = 10.dp).background(bg).border(1.dp, extras.rule).padding(12.dp)) {
             Text(buildString { append(node.label); if (node.detail.isNotBlank()) append(" — " + node.detail) },
                 style = MaterialTheme.typography.bodyMedium)
             val out = tool.links.filter { it.from == i }
@@ -361,7 +367,10 @@ private fun ConceptMap(tool: LearningTool.ConceptMap) {
                             "${l.label.ifBlank { "relates to" }} → ${tool.nodes[l.to].label}",
                             style = MaterialTheme.typography.labelSmall, color = extras.crimsonFill,
                             modifier = Modifier.border(1.dp, extras.crimsonFill)
-                                .clickable { pulse = l.to; pulseTick++ }.padding(horizontal = 8.dp, vertical = 4.dp),
+                                .clickable {
+                                    pulse = l.to; pulseTick++
+                                    scope.launch { nodeViews[l.to].bringIntoView() }
+                                }.padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
                 }

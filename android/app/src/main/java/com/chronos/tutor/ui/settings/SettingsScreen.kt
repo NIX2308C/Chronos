@@ -45,6 +45,7 @@ fun SettingsScreen(
     val textSize by vm.prefsStore.textSize.collectAsStateWithLifecycle("normal")
     val reduceMotion by vm.prefsStore.reduceMotion.collectAsStateWithLifecycle(false)
     val debug by vm.prefsStore.debug.collectAsStateWithLifecycle(false)
+    val enterSend by vm.prefsStore.enterSend.collectAsStateWithLifecycle(true)
     val snackbar = remember { SnackbarHostState() }
     var confirmClear by remember { mutableStateOf(false) }
     var flash by remember { mutableStateOf<String?>(null) }
@@ -123,6 +124,7 @@ fun SettingsScreen(
                 Label("Text size")
                 Seg(listOf("normal" to "Normal", "large" to "Large"), textSize) { vm.setTextSize(it) }
                 Toggle("Reduce motion", "Turns off animations.", reduceMotion) { vm.setReduceMotion(it) }
+                if (tutor) Toggle("Enter sends", "Off: Enter adds a new line, Ctrl+Enter sends.", enterSend) { vm.setEnterSend(it) }
             }
 
             Section("Account") {

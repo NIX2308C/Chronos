@@ -52,8 +52,11 @@ android {
         // core-library desugaring for java.time. Costs ~1% of devices.
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // The CI run number, which is also the release tag (android-vN), so
+        // every published APK is a newer version Android will upgrade to.
+        // Local builds are 1.
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionName = "1.0.$versionCode"
 
         buildConfigField("String", "API_BASE",    "\"https://$chronosHost\"")
         buildConfigField("String", "FB_API_KEY",  "\"$fbApiKey\"")
@@ -119,6 +122,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.coroutines.test)
 
     androidTestImplementation(libs.androidx.test.junit)
     androidTestImplementation(platform(libs.compose.bom))

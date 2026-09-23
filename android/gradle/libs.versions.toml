@@ -54,6 +54,7 @@ serialization-json    = { module = "org.jetbrains.kotlinx:kotlinx-serialization-
 firebase-bom          = { module = "com.google.firebase:firebase-bom",               version.ref = "firebaseBom" }
 firebase-auth         = { module = "com.google.firebase:firebase-auth-ktx" }
 coroutines-play       = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutinesPlay" }
+coroutines-test       = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test",  version.ref = "coroutinesPlay" }
 
 junit                 = { module = "junit:junit",                                    version.ref = "junit" }
 androidx-test-junit   = { module = "androidx.test.ext:junit",                        version.ref = "androidxTestJunit" }

@@ -1,0 +1,101 @@
+# Checks that run BEFORE code reaches main: every pull request, and every push
+# to a branch other than main/native-android (those run android.yml, which
+# tests, builds and publishes). Nothing here needs a secret or publishes
+# anything, so it is safe to run on any branch.
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main, native-android]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Same as android.yml: the runner ships the SDK; accept the licences and
+      # install what this build needs.
+      - name: Android SDK
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER=$(find "$SDK/cmdline-tools" -name sdkmanager -type f | sort | tail -1)
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          echo "ANDROID_HOME=$SDK"      >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK"  >> "$GITHUB_ENV"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Unit tests, then the real release build: R8 only runs there, so this
+      # is what catches a minification failure before it reaches main. With no
+      # keystore in the environment it is signed with the debug key.
+      - name: Unit tests and release build
+        working-directory: android
+        run: ./gradlew --no-daemon testDebugUnitTest assembleRelease
+
+      - name: Test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-report
+          path: android/app/build/reports/tests/
+          if-no-files-found: ignore
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # The tests stub every external service, but app.py still refuses to
+      # import without these. All throwaway values (see AGENTS.md); the
+      # service account key is generated fresh and never used for a call.
+      - name: Backend tests
+        env:
+          TEACHER_SIGNUP_CODE: ci-throwaway-code-123456
+          GEMINI_API_KEY: ci-dummy
+          PINECONE_API_KEY: ci-dummy
+        run: |
+          set -euo pipefail
+          export FIREBASE_CREDENTIALS_JSON="$(python - <<'EOF'
+          import json
+          from cryptography.hazmat.primitives import serialization
+          from cryptography.hazmat.primitives.asymmetric import rsa
+          key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+          pem = key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                  serialization.NoEncryption()).decode()
+          print(json.dumps({
+              "type": "service_account", "project_id": "ci-dummy", "private_key_id": "ci",
+              "private_key": pem, "client_email": "ci@ci-dummy.iam.gserviceaccount.com",
+              "client_id": "0", "token_uri": "https://oauth2.googleapis.com/token",
+          }))
+          EOF
+          )"
+          failed=0
+          for t in tests/test_*.py; do
+            echo "::group::$t"
+            python "$t" || { echo "::error file=$t::$t failed"; failed=1; }
+            echo "::endgroup::"
+          done
+          exit $failed

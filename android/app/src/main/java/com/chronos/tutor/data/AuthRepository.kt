@@ -33,6 +33,18 @@ sealed interface AuthState {
 }
 
 /**
+ * The part of [AuthRepository] that decides where the app opens. An interface
+ * so RootViewModel can be tested without Firebase.
+ */
+interface AuthSession {
+    /** Last known identity for the signed-in user, without the network; null if none. */
+    suspend fun cached(): Me?
+    /** Asks the server who the user is now. */
+    suspend fun resolve(): AuthState
+    suspend fun signOut()
+}
+
+/**
  * Identity. Ported from web/auth.js, whose signup-recovery logic is the most
  * safety-critical code in the project: an account left between "Firebase
  * account created" and "role assigned" cannot be signed into and cannot be
@@ -44,7 +56,7 @@ class AuthRepository(
     private val auth: FirebaseAuth,
     /** Persists the last identity so launch need not wait on /auth/me. Null in tests. */
     private val prefs: Prefs? = null,
-) {
+) : AuthSession {
     // In-memory only. The web caches the role in sessionStorage with a 60s TTL
     // because a page reload wipes JS state; an Android process doesn't reload
     // per screen, so process lifetime is both simpler and strictly fresher.
@@ -166,13 +178,13 @@ class AuthRepository(
      * Firebase user still signed in. Lets launch skip the network; the caller
      * must still [resolve] to confirm it.
      */
-    suspend fun cached(): Me? = withContext(Dispatchers.IO) {
+    override suspend fun cached(): Me? = withContext(Dispatchers.IO) {
         val user = auth.currentUser ?: return@withContext null
         prefs?.lastMe()?.takeIf { it.uid == user.uid }
     }
 
     /** Resolves what the nav graph should open on. */
-    suspend fun resolve(): AuthState = withContext(Dispatchers.IO) {
+    override suspend fun resolve(): AuthState = withContext(Dispatchers.IO) {
         if (auth.currentUser == null) return@withContext signedOut()
         try {
             me()?.let { AuthState.Ready(it) } ?: signedOut()
@@ -189,7 +201,7 @@ class AuthRepository(
         return AuthState.SignedOut
     }
 
-    suspend fun signOut() = withContext(Dispatchers.IO) {
+    override suspend fun signOut() = withContext(Dispatchers.IO) {
         clearRole()
         auth.signOut()
     }

@@ -4,8 +4,14 @@ import android.content.Context
 import android.media.MediaPlayer
 import com.chronos.tutor.R
 
+/** What the chat needs from [Sounds]; a seam so its ViewModel can run in plain JVM tests. */
+interface SoundPlayer {
+    fun play(kind: Sounds.Kind)
+    fun stop()
+}
+
 /** playSound() in web/student.html: one sound at a time, "using" quieter than the rest. */
-class Sounds(private val context: Context) {
+class Sounds(private val context: Context) : SoundPlayer {
     enum class Kind(val res: Int, val volume: Float) {
         USING(R.raw.toolkit_using, .18f),
         DONE(R.raw.toolkit_done, .24f),
@@ -18,7 +24,7 @@ class Sounds(private val context: Context) {
 
     private var current: MediaPlayer? = null
 
-    fun play(kind: Kind) {
+    override fun play(kind: Kind) {
         stop()
         current = runCatching {
             MediaPlayer.create(context, kind.res)?.apply {
@@ -29,7 +35,7 @@ class Sounds(private val context: Context) {
         }.getOrNull()
     }
 
-    fun stop() {
+    override fun stop() {
         current?.let { runCatching { it.stop() }; it.release() }
         current = null
     }

@@ -2,7 +2,7 @@ package com.chronos.tutor.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.chronos.tutor.data.AuthRepository
+import com.chronos.tutor.data.AuthSession
 import com.chronos.tutor.data.AuthState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
  * so the user never sees a login screen flash before being sent to the tutor.
  */
 class RootViewModel(
-    private val auth: AuthRepository?,
+    private val auth: AuthSession?,
     signedOutEvents: SharedFlow<Unit>,
     private val configError: String? = null,
 ) : ViewModel() {

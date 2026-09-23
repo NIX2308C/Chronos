@@ -17,6 +17,7 @@ import com.chronos.tutor.data.ToolRequest
 import com.chronos.tutor.data.ToolStatus
 import com.chronos.tutor.data.gapFrom
 import com.chronos.tutor.data.toolLabel
+import com.chronos.tutor.ui.common.SoundPlayer
 import com.chronos.tutor.ui.common.Sounds
 import com.chronos.tutor.ui.common.readFailureText
 import com.chronos.tutor.ui.common.readUri
@@ -77,7 +78,7 @@ class ChatViewModel(
     private val classRepo: ClassRepository,
     private val prefs: Prefs,
     private val isTeacher: Boolean,
-    private val sounds: Sounds,
+    private val sounds: SoundPlayer,
     private val isDev: Boolean = false,
 ) : ViewModel() {
 

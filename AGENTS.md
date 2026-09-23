@@ -4,7 +4,7 @@ Read this first, then open only the files relevant to the task. Source code is t
 
 ## Current app
 
-Chronos is a course grounded AI tutor. Teachers create courses, upload source material, set rules and options, and inspect student analytics. Students join by code and chat within a course. The Flask service owns authorization, storage, retrieval, model calls, and static web serving. The browser app is complete; the native Android app (Kotlin/Compose, no WebView) mirrors it for both roles: student chat, learning activities, attachments, teacher material/rules/toolkits/analytics, settings and status.
+Chronos is a course grounded AI tutor. Teachers create courses, upload source material, set rules and options, and inspect student analytics. Students join by code and chat within a course. The Flask service owns authorization, storage, retrieval, model calls, and static web serving. The browser app is complete; the native Android app (Kotlin/Compose, no WebView) mirrors it for both roles: student chat, learning activities, attachments, teacher material/rules/toolkits/analytics, settings and status. Deliberately not ported: desktop-only behaviour (hover, keyboard shortcuts for quiz options, the audio unlock gesture), per-chat scroll memory, chat prefetch, quiz progress dots, the large debug tools (composer strip, Copy JSON, client timings), and the developer extras in Settings (simulated slow network, clear caches, session JSON, deployment auto-refresh).
 
 ## Where to go
 

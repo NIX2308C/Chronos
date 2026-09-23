@@ -2,6 +2,7 @@ package com.chronos.tutor
 
 import com.chronos.tutor.ui.common.MdBlock
 import com.chronos.tutor.ui.common.parseMarkdown
+import com.chronos.tutor.ui.common.previewMarkdown
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -171,5 +172,18 @@ class MarkdownTest {
         assertTrue(b[2] is MdBlock.Bullets)
         assertTrue(b[3] is MdBlock.Quote)
         assertTrue(b[4] is MdBlock.Code)
+    }
+
+    @Test
+    fun `an unclosed fence previews as code while streaming`() {
+        val b = previewMarkdown("Try this:\n```kotlin\nval x = 1")
+        assertEquals(2, b.size)
+        assertEquals("val x = 1", (b[1] as MdBlock.Code).text)
+    }
+
+    @Test
+    fun `a closed fence previews the same as the final render`() {
+        val src = "Hi\n```\ncode\n```"
+        assertEquals(parseMarkdown(src), previewMarkdown(src))
     }
 }

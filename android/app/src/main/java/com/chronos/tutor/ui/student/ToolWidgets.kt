@@ -147,7 +147,7 @@ private fun Quiz(tool: LearningTool.Quiz, onSound: (Sounds.Kind) -> Unit, onRevi
         qs.forEachIndexed { i, q ->
             val ok = answers[i] == q.answer
             Row(Modifier.padding(vertical = 3.dp)) {
-                Text(if (ok) "✓" else "✗", color = if (ok) extras.gold else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                Text(if (ok) "✓" else "✗", color = if (ok) extras.correct else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.width(8.dp))
                 Text(q.prompt + if (!ok && tool.revealAnswers) " — " + q.options[q.answer] else "",
                     style = MaterialTheme.typography.bodySmall)
@@ -200,7 +200,7 @@ private fun Quiz(tool: LearningTool.Quiz, onSound: (Sounds.Kind) -> Unit, onRevi
             val chosen = answer == oi
             val showCorrect = answer != NONE && oi == q.answer && (chosen || tool.revealAnswers)
             val border = when {
-                showCorrect -> extras.gold
+                showCorrect -> extras.correct
                 chosen -> MaterialTheme.colorScheme.error
                 else -> extras.rule
             }
@@ -226,7 +226,7 @@ private fun Quiz(tool: LearningTool.Quiz, onSound: (Sounds.Kind) -> Unit, onRevi
                     tool.revealAnswers -> "Not quite. " + q.explanation.ifBlank { "Review this idea, then try a similar question." }
                     else -> "Not quite. You can review this concept with AI at the end."
                 },
-                color = if (right) extras.gold else MaterialTheme.colorScheme.error,
+                color = if (right) extras.correct else MaterialTheme.colorScheme.error,
                 style = MaterialTheme.typography.bodyMedium,
             )
         }

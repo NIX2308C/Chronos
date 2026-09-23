@@ -42,7 +42,8 @@ class Prefs(private val context: Context) {
     val textSize: Flow<String> = context.dataStore.data.map { it[Keys.TextSize] ?: "normal" }
     val reduceMotion: Flow<Boolean> = context.dataStore.data.map { it[Keys.ReduceMotion] ?: false }
     val debug: Flow<Boolean> = context.dataStore.data.map { it[Keys.Debug] ?: false }
-    val tutorialSeenStats: Flow<Boolean> = context.dataStore.data.map { it[Keys.TutStats] ?: false }
+    // Tours default to seen: on the web they open only from Help or Settings → Replay tour.
+    val tutorialSeenStats: Flow<Boolean> = context.dataStore.data.map { it[Keys.TutStats] ?: true }
 
     suspend fun setTextSize(value: String) = write(Keys.TextSize, value)
     suspend fun setReduceMotion(on: Boolean) = context.dataStore.edit { it[Keys.ReduceMotion] = on }
@@ -54,8 +55,8 @@ class Prefs(private val context: Context) {
     val theme: Flow<String> = context.dataStore.data.map { it[Keys.Theme] ?: "system" }
     val teacherTab: Flow<String> = context.dataStore.data.map { it[Keys.TeacherTab] ?: "material" }
     val statsRange: Flow<Int> = context.dataStore.data.map { it[Keys.StatsRange] ?: 0 }
-    val tutorialSeenStudent: Flow<Boolean> = context.dataStore.data.map { it[Keys.TutStudent] ?: false }
-    val tutorialSeenTeacher: Flow<Boolean> = context.dataStore.data.map { it[Keys.TutTeacher] ?: false }
+    val tutorialSeenStudent: Flow<Boolean> = context.dataStore.data.map { it[Keys.TutStudent] ?: true }
+    val tutorialSeenTeacher: Flow<Boolean> = context.dataStore.data.map { it[Keys.TutTeacher] ?: true }
 
     suspend fun setStudentClassId(id: String?) = write(Keys.StudentClass, id)
     suspend fun setTeacherClassId(id: String?) = write(Keys.TeacherClass, id)

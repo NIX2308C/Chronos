@@ -34,10 +34,10 @@ import com.chronos.tutor.ui.theme.LocalChronosColors
 import com.chronos.tutor.ui.theme.hardShadow
 import kotlinx.coroutines.launch
 
-/** The three starter prompts on an empty thread (web/student.html:604). */
+/** The three starter prompts on an empty thread (web/student.html:818). */
 private val STARTERS = listOf(
-    "Explain the main idea in simple terms",
-    "Give me an example from the material",
+    "What does this course cover so far?",
+    "Explain the main idea from the latest material.",
     "What should I revise first?",
 )
 
@@ -153,6 +153,7 @@ fun ChatScreen(
                     onStopTool = onStopTool,
                     onSound = onSound,
                     onReview = onReview,
+                    showDebug = state.debug,
                     modifier = Modifier.weight(1f),
                 )
                 Composer(
@@ -248,6 +249,7 @@ private fun MessageList(
     onStopTool: () -> Unit,
     onSound: (Sounds.Kind) -> Unit,
     onReview: suspend (String) -> Boolean,
+    showDebug: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -274,7 +276,7 @@ private fun MessageList(
             when {
                 m.toolStatus != null -> ToolStatusLine(m.toolStatus, onStopTool)
                 m.tool != null -> LearningToolCard(m.tool, onSound, onReview)
-                else -> MessageBubble(m)
+                else -> MessageBubble(m, showDebug)
             }
         }
     }
@@ -294,13 +296,6 @@ private fun EmptyThread(className: String?, onStarter: (String) -> Unit, modifie
             text = "Ask anything from ${className ?: "this course"}",
             style = MaterialTheme.typography.headlineMedium,
             color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "Answers come from your course material, with the source attached.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = extras.muted,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(26.dp))
@@ -328,7 +323,7 @@ private fun EmptyThread(className: String?, onStarter: (String) -> Unit, modifie
 }
 
 @Composable
-private fun MessageBubble(m: Message) {
+private fun MessageBubble(m: Message, showDebug: Boolean) {
     val extras = LocalChronosColors.current
 
     if (m.role == Message.Role.STUDENT) {
@@ -357,18 +352,22 @@ private fun MessageBubble(m: Message) {
                 style = MaterialTheme.typography.titleMedium,
                 color = extras.muted,
             )
+        } else if (m.blocked) {
+            // A refusal, set apart by a crimson rule and muted text (.bub-blocked, student.html:130).
+            Row(Modifier.height(IntrinsicSize.Min)) {
+                Box(Modifier.width(3.dp).fillMaxHeight().background(extras.crimsonFill))
+                Spacer(Modifier.width(14.dp))
+                MarkdownText(source = m.content, color = extras.muted)
+            }
         } else {
-            MarkdownText(
-                source = m.content,
-                modifier = if (m.blocked) Modifier.padding(start = 14.dp) else Modifier,
-            )
+            MarkdownText(source = m.content, streaming = m.streaming)
         }
 
         // Exactly one of blocked / gap shows; reviewed is independent and can
         // appear alongside. Order matches buildMsgEl (web/student.html:660-695).
         when {
             m.blocked -> Note("This message was flagged and wasn't answered.", extras.muted)
-            m.gap -> Note("Sent to your teacher as a gap in the course material.", extras.crimsonFill)
+            m.gap -> Note("Not in the course material yet. Your teacher can see this.", extras.crimsonFill)
         }
         if (m.reviewed) {
             Note("Based on the work you attached — your course material doesn't cover this.", extras.muted)
@@ -376,7 +375,8 @@ private fun MessageBubble(m: Message) {
         m.errorNote?.let { Note(it, MaterialTheme.colorScheme.error) }
 
         if (m.sources.isNotEmpty()) SourcesDisclosure(m.sources)
-        m.debug?.let { DebugStrip(it) }
+        // Only while debug mode is on, as on the web (student.html:896).
+        if (showDebug) m.debug?.let { DebugStrip(it) }
     }
 }
 

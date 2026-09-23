@@ -59,6 +59,8 @@ data class ChatUiState(
     val files: List<StudentFile> = emptyList(),
     val filesMax: Int = DEFAULT_FILES_MAX,
     val attaching: Boolean = false,
+    /** Developer account with debug mode on. */
+    val debug: Boolean = false,
 ) {
     val activeClassName: String?
         get() = classes.firstOrNull { it.id == activeClassId }?.name
@@ -88,6 +90,7 @@ class ChatViewModel(
     init {
         boot()
         pollHealth()
+        viewModelScope.launch { prefs.debug.collect { on -> _state.update { it.copy(debug = isDev && on) } } }
     }
 
     private fun boot() = viewModelScope.launch {
@@ -331,6 +334,8 @@ class ChatViewModel(
                     messages = current.messages.replaceLastTutor { final },
                 )
                 allChats = allChats.map { if (it.id == chat.id) adopted else it }
+                // A reply got through, so the server is up (student.html:1674).
+                _state.update { it.copy(status = ServerStatus.ONLINE) }
 
                 if (visible()) {
                     _state.update {

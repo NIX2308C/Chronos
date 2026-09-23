@@ -121,12 +121,15 @@ data class ChronosColors(
     val raised: Color,        // hover fills, chips, table stripes (--c-hi / --d-raised)
     val rule: Color,          // hairline borders (--c-rule / --d-edge)
     val muted: Color,         // secondary text (--c-sub / --d-muted)
+    val correct: Color,       // right answers and finished activities (#1E7A4E / #6FD5A0)
 )
 
 val ChronosColorsLight = ChronosColors(
     crimsonFill = Crimson, gold = Gold, raised = RaisedLight, rule = RuleLight, muted = SubLight,
+    correct = Color(0xFF1E7A4E),
 )
 
 val ChronosColorsDark = ChronosColors(
     crimsonFill = Crimson, gold = Gold, raised = RaisedDark, rule = EdgeDark, muted = MutedDark,
+    correct = Color(0xFF6FD5A0),
 )

@@ -2,6 +2,8 @@ package com.chronos.tutor.ui.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,14 +17,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.chronos.tutor.ui.theme.LocalChronosColors
 import com.chronos.tutor.ui.theme.Schibsted
 
@@ -34,9 +42,16 @@ import com.chronos.tutor.ui.theme.Schibsted
  * headings in the sans face rather than the serif the body uses.
  */
 @Composable
-fun MarkdownText(source: String, modifier: Modifier = Modifier) {
-    val blocks = remember(source) { parseMarkdown(source) }
+fun MarkdownText(
+    source: String,
+    modifier: Modifier = Modifier,
+    /** Still arriving: an unclosed ``` shows as code rather than literal backticks. */
+    streaming: Boolean = false,
+    color: Color = Color.Unspecified,
+) {
+    val blocks = remember(source, streaming) { if (streaming) previewMarkdown(source) else parseMarkdown(source) }
     val extras = LocalChronosColors.current
+    val ink = color.takeOrElse { MaterialTheme.colorScheme.onSurface }
 
     Column(modifier) {
         blocks.forEachIndexed { i, block ->
@@ -45,26 +60,25 @@ fun MarkdownText(source: String, modifier: Modifier = Modifier) {
                 is MdBlock.Paragraph -> Text(
                     text = block.spans.annotated(),
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = ink,
                 )
 
                 is MdBlock.Heading -> Text(
                     text = block.spans.annotated(),
-                    style = when (block.level) {
-                        1 -> MaterialTheme.typography.labelLarge
-                        2 -> MaterialTheme.typography.labelLarge
-                        else -> MaterialTheme.typography.labelLarge
-                    },
-                    color = MaterialTheme.colorScheme.onSurface,
+                    // 1.25rem / 1.1rem / 1rem, as .ai-prose h1-h3 (student.html:430).
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontSize = when (block.level) { 1 -> 20.sp; 2 -> 17.6.sp; else -> 16.sp },
+                    ),
+                    color = ink,
                     fontFamily = Schibsted,
                     fontWeight = FontWeight.SemiBold,
                 )
 
-                is MdBlock.Quote -> Row(Modifier.fillMaxWidth()) {
+                is MdBlock.Quote -> Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                     Spacer(
                         Modifier
                             .width(4.dp)
-                            .height(20.dp)
+                            .fillMaxHeight()
                             .background(extras.crimsonFill)
                     )
                     Spacer(Modifier.width(10.dp))
@@ -76,13 +90,13 @@ fun MarkdownText(source: String, modifier: Modifier = Modifier) {
                 }
 
                 is MdBlock.Bullets -> Column {
-                    block.items.forEach { item -> ListRow("▪", item) }
+                    block.items.forEach { item -> ListRow("▪", item, ink) }
                 }
 
                 is MdBlock.Numbered -> Column {
                     // The written number is dropped on the web too; lists always
                     // restart at 1.
-                    block.items.forEachIndexed { n, item -> ListRow("${n + 1}.", item) }
+                    block.items.forEachIndexed { n, item -> ListRow("${n + 1}.", item, ink) }
                 }
 
                 is MdBlock.Code -> Text(
@@ -102,7 +116,7 @@ fun MarkdownText(source: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ListRow(marker: String, spans: List<MdSpan>) {
+private fun ListRow(marker: String, spans: List<MdSpan>, ink: Color) {
     val extras = LocalChronosColors.current
     Row(Modifier.padding(bottom = 4.dp)) {
         Text(
@@ -114,7 +128,7 @@ private fun ListRow(marker: String, spans: List<MdSpan>) {
         Text(
             text = spans.annotated(),
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = ink,
         )
     }
 }
@@ -132,9 +146,14 @@ private fun List<MdSpan>.annotated(): AnnotatedString {
                 color = if (s.href != null) extras.crimsonFill else androidx.compose.ui.graphics.Color.Unspecified,
                 textDecoration = if (s.href != null) TextDecoration.Underline else null,
             )
-            pushStyle(style)
-            append(s.text)
-            pop()
+            if (s.href != null) {
+                // Tappable: Text opens LinkAnnotation.Url in the browser itself.
+                withLink(LinkAnnotation.Url(s.href, TextLinkStyles(style))) { append(s.text) }
+            } else {
+                pushStyle(style)
+                append(s.text)
+                pop()
+            }
         }
     }
 }

@@ -185,10 +185,16 @@ class TeacherViewModel(
         }
     }
 
-    /** One rule per line, as the web's bulk add. */
+    /** "Add": the whole box is one rule. */
+    fun addRule(text: String) = saveRules(
+        listOfNotNull(flat(text).takeIf { it.isNotEmpty() }?.let { CustomRule("", it) }),
+        done = "Rule added. Applies to new questions.",
+    )
+
+    /** "Add each line": one rule per line, as the web's bulk add. */
     fun addRules(text: String) = saveRules(
         text.lines().map(::flat).filter { it.isNotEmpty() }.map { CustomRule("", it) },
-        done = "Rule saved",
+        done = "Rule added. Applies to new questions.",
     )
 
     /** A rule is one line; unchanged text is not re-saved (ruleEditor on the web). */
@@ -202,7 +208,7 @@ class TeacherViewModel(
         val id = _state.value.activeClassId ?: return@launch
         if (rules.isEmpty()) return@launch
         runCatching { repo.saveRules(id, rules) }.fold(
-            onSuccess = { say(if (rules.size > 1) "${rules.size} rules saved" else done); loadMaterial() },
+            onSuccess = { say(if (rules.size > 1) "${rules.size} rules added. Applies to new questions." else done); loadMaterial() },
             onFailure = { say(it.text(), true) },
         )
     }

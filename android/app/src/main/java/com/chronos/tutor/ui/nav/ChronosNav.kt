@@ -3,6 +3,7 @@ package com.chronos.tutor.ui.nav
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -79,6 +80,7 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
         composable(Routes.LOGIN) {
             val unconfigured = state as? AuthState.Unconfigured
             val repo = container.authRepository
+            val online by produceState<Boolean?>(null) { value = container.chatRepository.health() }
 
             if (unconfigured != null || repo == null) {
                 // Firebase is unavailable, so there is no repository to drive a
@@ -98,6 +100,7 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                     onRole = {},
                     onTeacherCode = {},
                     onSubmit = {},
+                    online = online,
                 )
                 return@composable
             }
@@ -119,6 +122,7 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                 onRole = vm::setRole,
                 onTeacherCode = vm::setTeacherCode,
                 onSubmit = { vm.submit(onSuccess = root::onAuthenticated) },
+                online = online,
             )
         }
 
@@ -223,6 +227,8 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                     onSettings = { navController.navigate(Routes.settings(tutor = false)) },
                     onHelp = openTour,
                     onSignOut = root::signOut,
+                    email = me?.email,
+                    isDev = me?.isDev == true,
                 )
             }
         }

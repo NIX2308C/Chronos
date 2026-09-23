@@ -5,6 +5,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -27,6 +29,7 @@ import com.chronos.tutor.ui.common.DOC_MIME_TYPES
 import com.chronos.tutor.ui.common.MarkdownText
 import com.chronos.tutor.ui.common.Sym
 import com.chronos.tutor.ui.theme.LocalChronosColors
+import kotlinx.coroutines.delay
 import java.text.DateFormat
 import java.util.Date
 
@@ -74,13 +77,27 @@ private fun UploadCard(vm: TeacherViewModel, state: TeacherUiState) {
     val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) vm.upload(resolver, uri)
     }
+    // /upload has no progress events, so the stage just names the step the
+    // server is likely on by then (uploadFile() in teacherknowledge.html).
+    var stage by remember { mutableStateOf("Uploading") }
+    LaunchedEffect(state.uploading) {
+        if (state.uploading == null) return@LaunchedEffect
+        stage = "Uploading"; delay(1_500)
+        stage = "Reading through it"; delay(3_500)
+        stage = "Getting ready for questions"
+    }
     Card {
         Text("Add material", style = MaterialTheme.typography.titleMedium)
         Text("PDF, Word, text, Markdown or CSV, up to 10 MB. The tutor answers from what you add here.",
             style = MaterialTheme.typography.bodySmall, color = LocalChronosColors.current.muted)
         Spacer(Modifier.height(12.dp))
         if (state.uploading != null) {
-            Text("Reading and indexing \"${state.uploading}\"…", style = MaterialTheme.typography.bodyMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(state.uploading, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(12.dp))
+                Text(stage, style = MaterialTheme.typography.bodySmall, color = LocalChronosColors.current.muted)
+            }
             Spacer(Modifier.height(8.dp))
             LinearProgressIndicator(Modifier.fillMaxWidth(), color = LocalChronosColors.current.crimsonFill)
         } else {
@@ -133,8 +150,15 @@ private fun DocList(docs: List<CourseDoc>, truncated: Boolean, onDelete: (Course
             confirm = "Delete", onDismiss = { confirm = null }, onConfirm = { confirm = null; onDelete(d) },
         )
     }
-    val shown = if (query.isBlank()) docs else docs.filter { d ->
+    var sort by remember { mutableStateOf("new") }
+    val matched = if (query.isBlank()) docs else docs.filter { d ->
         (d.name + " " + d.summary.orEmpty() + " " + d.topics.joinToString(" ")).contains(query.trim(), ignoreCase = true)
+    }
+    val shown = when (sort) {
+        "old" -> matched.sortedBy { it.addedMs ?: 0L }
+        "name" -> matched.sortedWith(compareBy(NATURAL) { it.name })
+        "size" -> matched.sortedByDescending { it.chunks }
+        else -> matched   // already newest first
     }
     Card {
         Text("Documents (${docs.size})", style = MaterialTheme.typography.titleMedium)
@@ -143,6 +167,12 @@ private fun DocList(docs: List<CourseDoc>, truncated: Boolean, onDelete: (Course
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(query, { query = it }, label = { Text("Search documents") }, singleLine = true,
                 shape = RectangleShape, modifier = Modifier.fillMaxWidth())
+            Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 6.dp)) {
+                DOC_SORTS.forEach { (key, label) ->
+                    FilterChip(selected = sort == key, onClick = { sort = key }, label = { Text(label) },
+                        shape = RectangleShape, modifier = Modifier.padding(end = 6.dp))
+                }
+            }
         }
         if (truncated) {
             Text("Showing the first part of a very large course.", style = MaterialTheme.typography.bodySmall, color = extras.muted)
@@ -171,6 +201,21 @@ private fun DocList(docs: List<CourseDoc>, truncated: Boolean, onDelete: (Course
             }
         }
     }
+}
+
+private val DOC_SORTS = listOf("new" to "Newest", "old" to "Oldest", "name" to "Name", "size" to "Largest")
+
+/** localeCompare(..., {numeric: true}) on the web: "Week 2" before "Week 10". */
+private val NATURAL = Comparator<String> { a, b ->
+    val chunk = Regex("\\d+|\\D+")
+    val xs = chunk.findAll(a.lowercase()).map { it.value }.toList()
+    val ys = chunk.findAll(b.lowercase()).map { it.value }.toList()
+    for (i in 0 until minOf(xs.size, ys.size)) {
+        val x = xs[i]; val y = ys[i]
+        val c = if (x[0].isDigit() && y[0].isDigit()) x.toBigInteger().compareTo(y.toBigInteger()) else x.compareTo(y)
+        if (c != 0) return@Comparator c
+    }
+    xs.size - ys.size
 }
 
 private fun docIcon(name: String) = when (name.substringAfterLast('.', "").lowercase()) {
@@ -241,6 +286,7 @@ private fun HintStrength(s: CourseSettings, onPick: (String) -> Unit) {
 private fun CustomRules(vm: TeacherViewModel, state: TeacherUiState) {
     val extras = LocalChronosColors.current
     var draft by rememberSaveable(state.activeClassId) { mutableStateOf("") }
+    var ruleQuery by rememberSaveable(state.activeClassId) { mutableStateOf("") }
     var editing by remember { mutableStateOf<CustomRule?>(null) }
     var deleting by remember { mutableStateOf<CustomRule?>(null) }
     editing?.let { r ->
@@ -252,17 +298,30 @@ private fun CustomRules(vm: TeacherViewModel, state: TeacherUiState) {
     }
     Card {
         Text("Custom rules", style = MaterialTheme.typography.titleMedium)
-        Text("One rule per line to add several at once.", style = MaterialTheme.typography.bodySmall, color = extras.muted)
+        Text("Add each line saves one rule per line.", style = MaterialTheme.typography.bodySmall, color = extras.muted)
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(draft, { draft = it }, label = { Text("e.g. Always ask what the student has tried first") },
             minLines = 2, shape = RectangleShape, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
-        PrimaryButton("ADD", enabled = draft.isNotBlank()) { vm.addRules(draft); draft = "" }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PrimaryButton("ADD", enabled = draft.isNotBlank()) { vm.addRule(draft); draft = "" }
+            Spacer(Modifier.width(8.dp))
+            OutlinedButton(onClick = { vm.addRules(draft); draft = "" }, enabled = draft.isNotBlank(),
+                shape = RectangleShape, modifier = Modifier.height(46.dp)) { Text("ADD EACH LINE") }
+        }
         Spacer(Modifier.height(8.dp))
-        val rules = state.material?.rules
+        val all = state.material?.rules
+        // Search appears once there are enough rules to need it (RULE_SEARCH_MIN on the web).
+        if (all != null && (all.size >= 8 || ruleQuery.isNotBlank())) {
+            OutlinedTextField(ruleQuery, { ruleQuery = it }, label = { Text("Search rules") }, singleLine = true,
+                shape = RectangleShape, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(4.dp))
+        }
+        val rules = all?.filter { ruleQuery.isBlank() || it.text.contains(ruleQuery.trim(), ignoreCase = true) }
         when {
             rules == null -> Loading(state.materialLoading)
-            rules.isEmpty() -> Text("No custom rules yet.", color = extras.muted, style = MaterialTheme.typography.bodyMedium)
+            rules.isEmpty() -> Text(if (all.isNullOrEmpty()) "No custom rules yet." else "No matching rules.",
+                color = extras.muted, style = MaterialTheme.typography.bodyMedium)
             else -> rules.forEach { r ->
                 Row(Modifier.fillMaxWidth().clickable { editing = r }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(r.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))

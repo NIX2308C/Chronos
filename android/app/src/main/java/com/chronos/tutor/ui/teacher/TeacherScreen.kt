@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,8 @@ fun TeacherScreen(
     onSettings: () -> Unit,
     onHelp: () -> Unit,
     onSignOut: () -> Unit,
+    email: String? = null,
+    isDev: Boolean = false,
 ) {
     val extras = LocalChronosColors.current
     val drawer = rememberDrawerState(DrawerValue.Closed)
@@ -112,6 +115,8 @@ fun TeacherScreen(
                 onPreview = { scope.launch { drawer.close() }; onPreview() },
                 onSettings = { scope.launch { drawer.close() }; onSettings() },
                 onSignOut = onSignOut,
+                email = email,
+                isDev = isDev,
             )
         },
     ) {
@@ -164,6 +169,8 @@ private fun TeacherDrawer(
     onPreview: () -> Unit,
     onSettings: () -> Unit,
     onSignOut: () -> Unit,
+    email: String?,
+    isDev: Boolean,
 ) {
     val extras = LocalChronosColors.current
     val clipboard = LocalClipboardManager.current
@@ -218,6 +225,19 @@ private fun TeacherDrawer(
             }
 
             HorizontalDivider(color = extras.rule)
+            // Who is signed in, as the web's sidebar footer (teacherknowledge.html:166).
+            Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 18.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(30.dp).background(MaterialTheme.colorScheme.onSurface), contentAlignment = Alignment.Center) {
+                    Text((email ?: "Teacher").take(2).uppercase(), style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.surface)
+                }
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(email ?: "Teacher", style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("Teacher", style = MaterialTheme.typography.labelSmall, color = extras.muted)
+                    if (isDev) Text("DEV", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = extras.crimsonFill)
+                }
+            }
             NavRow("settings", "Settings", false, onSettings)
             NavRow("logout", "Sign out", false, onSignOut)
         }

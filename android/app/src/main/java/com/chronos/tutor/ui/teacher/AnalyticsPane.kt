@@ -103,8 +103,14 @@ fun AnalyticsPane(vm: TeacherViewModel, state: TeacherUiState) {
         }
         item {
             Section("Students") {
-                if (state.roster.isEmpty()) Text("No students have joined yet.", color = extras.muted)
-                state.roster.forEach { m ->
+                var rosterQuery by remember(state.activeClassId) { mutableStateOf("") }
+                if (state.roster.size >= 8 || rosterQuery.isNotBlank()) {
+                    OutlinedTextField(rosterQuery, { rosterQuery = it }, label = { Text("Search students") },
+                        singleLine = true, shape = RectangleShape, modifier = Modifier.fillMaxWidth())
+                }
+                if (state.roster.isEmpty()) Text("Nobody has joined this course yet.", color = extras.muted)
+                val q = rosterQuery.trim()
+                state.roster.filter { q.isEmpty() || it.email.ifBlank { it.uid }.contains(q, ignoreCase = true) }.forEach { m ->
                     Row(
                         Modifier.fillMaxWidth().clickable { vm.openProfile(m) }.padding(vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -189,13 +195,19 @@ private fun Topics(categories: List<Pair<String, Int>>) {
     val extras = LocalChronosColors.current
     if (categories.isEmpty()) { Text("No questions in this window yet.", color = extras.muted); return }
     val max = categories.maxOf { it.second }.coerceAtLeast(1)
-    categories.forEach { (name, n) ->
+    // Busiest topic crimson, quietest gold, the rest ink (topicColor() on the web).
+    fun barColor(i: Int) = when {
+        i == 0 -> extras.crimsonFill
+        i == categories.lastIndex && categories.size > 2 -> extras.gold
+        else -> extras.muted
+    }
+    categories.forEachIndexed { i, (name, n) ->
         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
             Text(name, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
             Text("$n", style = MaterialTheme.typography.bodySmall, color = extras.muted)
         }
         Box(Modifier.fillMaxWidth().height(6.dp).background(extras.raised)) {
-            Box(Modifier.fillMaxWidth(n / max.toFloat()).fillMaxHeight().background(extras.crimsonFill))
+            Box(Modifier.fillMaxWidth(n / max.toFloat()).fillMaxHeight().background(barColor(i)))
         }
     }
 }

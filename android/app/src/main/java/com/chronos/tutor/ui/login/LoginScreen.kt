@@ -40,6 +40,8 @@ fun LoginScreen(
     onRole: (String) -> Unit,
     onTeacherCode: (String) -> Unit,
     onSubmit: () -> Unit,
+    /** From /health: null while checking. */
+    online: Boolean? = null,
 ) {
     val extras = LocalChronosColors.current
 
@@ -78,6 +80,17 @@ fun LoginScreen(
                 style = MaterialTheme.typography.labelSmall,
                 color = extras.muted,
             )
+            Spacer(Modifier.height(6.dp))
+            // Server reachability, as the web's status line (login.html:312).
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(8.dp).background(if (online == false) extras.crimsonFill else extras.gold))
+                Spacer(Modifier.width(7.dp))
+                Text(
+                    text = when (online) { null -> "Connecting…"; true -> "System online"; false -> "Server offline" },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = extras.muted,
+                )
+            }
             Spacer(Modifier.height(8.dp))
             Text(
                 text = if (state.signUp) "Create your account" else "Sign in",

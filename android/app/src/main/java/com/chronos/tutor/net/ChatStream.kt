@@ -23,7 +23,8 @@ data class ChatDone(
     val reviewed: Boolean,
     val materialGap: Boolean,
     val sources: List<String>,
-    val toolkits: List<String>,
+    /** Null when the reply leaves the field out, which is not the same as an empty list. */
+    val toolkits: List<String>?,
     val toolRequest: ToolRequest?,
     val chatId: String?,
     val title: String?,
@@ -177,7 +178,7 @@ internal fun JsonObject.toChatDone(): ChatDone {
         // Empty for students at the API level (app.py:1952-1953), not merely
         // hidden — so there is no student-facing sources UI to build.
         sources = sourceLabels("rules_used"),
-        toolkits = (this["toolkits"] as? JsonArray)?.mapNotNull { it.stringOrNull() } ?: emptyList(),
+        toolkits = (this["toolkits"] as? JsonArray)?.mapNotNull { it.stringOrNull() },
         toolRequest = (this["tool_request"] as? JsonObject)?.let { tr ->
             val type = tr["type"]?.stringOrNull() ?: return@let null
             ToolRequest(type, tr["topic"]?.stringOrNull().orEmpty())

@@ -8,6 +8,7 @@ import com.chronos.tutor.data.Chat
 import com.chronos.tutor.data.ChatRepository
 import com.chronos.tutor.data.ClassRepository
 import com.chronos.tutor.data.CourseClass
+import com.chronos.tutor.data.DEFAULT_FILES_MAX
 import com.chronos.tutor.data.Message
 import com.chronos.tutor.data.Prefs
 import com.chronos.tutor.data.ServerStatus
@@ -19,7 +20,9 @@ import com.chronos.tutor.data.toolLabel
 import com.chronos.tutor.ui.common.Sounds
 import com.chronos.tutor.ui.common.readUri
 import com.chronos.tutor.net.ApiError
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.coroutines.delay
@@ -54,7 +57,7 @@ data class ChatUiState(
     val toolRunning: Boolean = false,
     /** The active chat's attachments. */
     val files: List<StudentFile> = emptyList(),
-    val filesMax: Int = 0,
+    val filesMax: Int = DEFAULT_FILES_MAX,
     val attaching: Boolean = false,
 ) {
     val activeClassName: String?
@@ -77,18 +80,10 @@ class ChatViewModel(
 
     /** Every chat across all classes; [ChatUiState.chats] is the filtered view. */
     private var allChats: List<Chat> = emptyList()
-    private var sendJob: Job? = null
     /** Attachments per chat, so switching back does not refetch. Unsaved chats start empty. */
     private val filesByChat = mutableMapOf<String, List<StudentFile>>()
     private var toolJob: Job? = null
     private var toolChatId: String? = null
-
-    /**
-     * Bumped whenever the visible conversation changes. A reply that lands
-     * after the user moved on must not write into the new view — the web uses
-     * VIEW_GEN for exactly this (student.html:994).
-     */
-    private var viewGen = 0
 
     init {
         boot()
@@ -172,8 +167,6 @@ class ChatViewModel(
 
     private suspend fun openChat(chatId: String) {
         stopTool()
-        viewGen++
-        sendJob?.cancel()
         val chat = allChats.firstOrNull { it.id == chatId } ?: return
 
         var loadError: String? = null
@@ -190,7 +183,8 @@ class ChatViewModel(
                 activeChatId = loaded.id,
                 messages = loaded.messages,
                 input = loaded.draft,
-                sending = false,
+                // A reply still streaming in the background keeps this chat busy.
+                sending = loaded.messages.lastOrNull()?.streaming == true,
                 error = loadError,
                 chats = allChats.filter { c -> c.classId == loaded.classId },
                 files = filesByChat[loaded.id].orEmpty(),
@@ -254,6 +248,15 @@ class ChatViewModel(
         if (_state.value.activeChatId == chatId) openClass(classId)
     }
 
+    /** After Settings deleted conversations: keep unsaved drafts, drop what the server no longer has. */
+    fun reloadChats() = viewModelScope.launch {
+        val fresh = runCatching { chatRepo.listChats() }.getOrElse { e ->
+            _state.update { it.copy(error = e.userText()) }; return@launch
+        }
+        allChats = allChats.filter { it.isNew } + fresh.map { f -> allChats.firstOrNull { it.id == f.id } ?: f }
+        _state.value.activeClassId?.let { openClass(it) }
+    }
+
     // ---- composing --------------------------------------------------------
 
     fun setInput(value: String) {
@@ -262,14 +265,14 @@ class ChatViewModel(
         allChats = allChats.map { if (it.id == id) it.copy(draft = value) else it }
     }
 
-    fun send() = send(requestedTool = null)
+    fun send() { send(requestedTool = null) }
 
-    private fun send(requestedTool: ToolRequest?) {
+    /** Null when nothing was sent; otherwise completes true once the reply has landed. */
+    private fun send(requestedTool: ToolRequest?): Deferred<Boolean>? {
         val s = _state.value
-        if (!s.canSend) return
-        val chat = allChats.firstOrNull { it.id == s.activeChatId } ?: return
+        if (!s.canSend) return null
+        val chat = allChats.firstOrNull { it.id == s.activeChatId } ?: return null
         val text = s.input.trim()
-        val gen = viewGen
 
         // Optimistic student bubble plus an empty tutor bubble to stream into.
         val withStudent = chat.messages +
@@ -287,13 +290,16 @@ class ChatViewModel(
                 chats = allChats.filter { c -> c.classId == chat.classId })
         }
 
-        sendJob = viewModelScope.launch {
+        return viewModelScope.async {
             val buffer = StringBuilder()
+            // The reply keeps going when the student switches chats, as on the
+            // web; it is only drawn while its chat is the one on screen.
+            fun visible() = _state.value.activeChatId == chat.id
             try {
                 val debug = isDev && prefs.debug.first()
                 val done = chatRepo.send(text, chat.classId, chat.id, debug) { delta ->
                     buffer.append(delta)
-                    if (gen == viewGen) {
+                    if (visible()) {
                         val snapshot = buffer.toString()
                         _state.update { st ->
                             st.copy(messages = st.messages.replaceLastTutor {
@@ -316,7 +322,7 @@ class ChatViewModel(
                     debug = done.debug?.let { PRETTY.encodeToString(JsonObject.serializer(), it) },
                 )
 
-                val current = allChats.firstOrNull { it.id == chat.id } ?: return@launch
+                val current = allChats.firstOrNull { it.id == chat.id } ?: return@async true
                 val adopted = current.copy(
                     id = if (current.isNew && done.chatId != null) done.chatId else current.id,
                     title = done.title ?: current.title,
@@ -326,19 +332,21 @@ class ChatViewModel(
                 )
                 allChats = allChats.map { if (it.id == chat.id) adopted else it }
 
-                if (gen == viewGen) {
+                if (visible()) {
                     _state.update {
                         it.copy(
                             sending = false,
                             activeChatId = adopted.id,
                             messages = adopted.messages,
                             chats = allChats.filter { c -> c.classId == adopted.classId },
-                            toolkits = done.toolkits,
+                            // Only a reply that carries the list changes it (student.html:1691).
+                            toolkits = done.toolkits ?: it.toolkits,
                         )
                     }
                     val tool = done.toolRequest ?: requestedTool?.takeIf { !done.blocked }
                     if (tool != null) runTool(tool, adopted.id, adopted.classId)
                 }
+                true
             } catch (e: Throwable) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 val note = (e as? ApiError)?.userMessage ?: e.message
@@ -352,13 +360,14 @@ class ChatViewModel(
                         it.copy(content = partial, streaming = false, errorNote = note)
                     })
                     allChats = allChats.map { if (it.id == chat.id) patched else it }
-                    if (gen == viewGen) {
+                    if (visible()) {
                         _state.update { it.copy(sending = false, messages = patched.messages) }
                     }
                 }
-                if (gen == viewGen && e is ApiError.Offline) {
+                if (visible() && e is ApiError.Offline) {
                     _state.update { it.copy(status = ServerStatus.OFFLINE) }
                 }
+                false
             }
         }
     }
@@ -383,11 +392,11 @@ class ChatViewModel(
         }
     }
 
-    /** "Review with AI" at the end of a quiz. */
-    fun sendText(text: String) {
-        if (_state.value.busy) return
+    /** "Review with AI" at the end of a quiz. True only once the review was actually answered. */
+    suspend fun sendText(text: String): Boolean {
+        if (_state.value.busy) return false
         setInput(text)
-        send()
+        return send(requestedTool = null)?.await() ?: false
     }
 
     private fun runTool(req: ToolRequest, chatId: String, classId: String) {

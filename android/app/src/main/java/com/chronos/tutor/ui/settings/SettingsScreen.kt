@@ -37,6 +37,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onStatus: () -> Unit,
     onSignOut: () -> Unit,
+    onChatsCleared: () -> Unit = {},
 ) {
     val extras = LocalChronosColors.current
     val ui by vm.state.collectAsStateWithLifecycle()
@@ -59,7 +60,7 @@ fun SettingsScreen(
         title = { Text("Delete every conversation?") },
         text = { Text("Every conversation in every course. This can't be undone.") },
         confirmButton = {
-            TextButton(onClick = { confirmClear = false; vm.deleteAllChats { flash = it } }) {
+            TextButton(onClick = { confirmClear = false; vm.deleteAllChats { flash = it; onChatsCleared() } }) {
                 Text("Delete all", color = MaterialTheme.colorScheme.error)
             }
         },

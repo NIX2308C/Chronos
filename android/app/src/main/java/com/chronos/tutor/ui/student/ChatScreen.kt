@@ -59,7 +59,7 @@ fun ChatScreen(
     onTool: (String) -> Unit,
     onStopTool: () -> Unit,
     onSound: (Sounds.Kind) -> Unit,
-    onReview: (String) -> Unit,
+    onReview: suspend (String) -> Boolean,
     onAttach: (Uri, String) -> Unit,
     onRemoveFile: (StudentFile) -> Unit,
     /** Non-null only for a teacher previewing the student view. */
@@ -247,7 +247,7 @@ private fun MessageList(
     onStarter: (String) -> Unit,
     onStopTool: () -> Unit,
     onSound: (Sounds.Kind) -> Unit,
-    onReview: (String) -> Unit,
+    onReview: suspend (String) -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()

@@ -38,6 +38,20 @@ fun StudentDrawer(
     onTeacherPanel: (() -> Unit)? = null,
 ) {
     val extras = LocalChronosColors.current
+    var pendingDelete by remember { mutableStateOf<String?>(null) }
+
+    pendingDelete?.let { id ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null }, shape = RectangleShape,
+            title = { Text("Delete this conversation?") },
+            confirmButton = {
+                TextButton(onClick = { pendingDelete = null; onDeleteChat(id) }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } },
+        )
+    }
 
     ModalDrawerSheet(
         drawerShape = RectangleShape,
@@ -106,7 +120,7 @@ fun StudentDrawer(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
                         )
-                        IconButton(onClick = { onDeleteChat(chat.id) }) {
+                        IconButton(onClick = { pendingDelete = chat.id }) {
                             // Always visible: on touch there is no hover to reveal it.
                             Sym("delete", size = 17.sp, tint = extras.muted)
                         }

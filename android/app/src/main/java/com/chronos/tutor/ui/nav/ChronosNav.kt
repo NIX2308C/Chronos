@@ -131,7 +131,7 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
             )
         }
 
-        composable(Routes.HOME) {
+        composable(Routes.HOME) { entry ->
             val me = (state as? AuthState.Ready)?.me
             val context = LocalContext.current
             val vm: ChatViewModel = viewModel(
@@ -152,6 +152,11 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                 },
             )
             val ui by vm.state.collectAsStateWithLifecycle()
+            // Settings → "Delete every conversation" reports back here.
+            val cleared by entry.savedStateHandle.getStateFlow(CHATS_CLEARED, false).collectAsStateWithLifecycle()
+            LaunchedEffect(cleared) {
+                if (cleared) { entry.savedStateHandle[CHATS_CLEARED] = false; vm.reloadChats() }
+            }
             val seen by container.prefs.tutorialSeenStudent.collectAsStateWithLifecycle(null)
             val scope = rememberCoroutineScope()
             TourHost(seen, STUDENT_TOUR, onSeen = { scope.launch { container.prefs.setTutorialSeenStudent(true) } }) { openTour ->
@@ -224,6 +229,8 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
             arguments = listOf(navArgument("tutor") { type = NavType.BoolType; defaultValue = false }),
         ) { entry ->
             val me = (state as? AuthState.Ready)?.me ?: return@composable
+            // Captured now: by the time the delete finishes the user may have left.
+            val caller = navController.previousBackStackEntry
             SettingsScreen(
                 vm = settingsVm(container),
                 me = me,
@@ -231,6 +238,7 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
                 onBack = { navController.popBackStack() },
                 onStatus = { navController.navigate(Routes.STATUS) },
                 onSignOut = root::signOut,
+                onChatsCleared = { caller?.savedStateHandle?.set(CHATS_CLEARED, true) },
             )
         }
 
@@ -239,6 +247,8 @@ fun ChronosNav(container: AppContainer, root: RootViewModel) {
         }
     }
 }
+
+private const val CHATS_CLEARED = "chatsCleared"
 
 @Composable
 private fun settingsVm(container: AppContainer): SettingsViewModel = viewModel(

@@ -19,6 +19,7 @@ import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import java.net.URLEncoder
 import kotlin.random.Random
 
 class ChatRepository(private val api: Api, private val stream: ChatStream) {
@@ -95,9 +96,9 @@ class ChatRepository(private val api: Api, private val stream: ChatStream) {
 
     /** Files attached to one conversation, and the per-chat cap. */
     suspend fun listFiles(classId: String, chatId: String): Pair<List<StudentFile>, Int> = withContext(Dispatchers.IO) {
-        val o = api.get("/student/files?class_id=$classId&chat_id=$chatId")
+        val o = api.get(filesPath(classId, chatId))
         val files = (o["files"] as? JsonArray)?.mapNotNull { (it as? JsonObject)?.toStudentFile() } ?: emptyList()
-        files to (o["max"]?.stringOrNull()?.toIntOrNull() ?: 0)
+        files to (o["max"]?.stringOrNull()?.toIntOrNull() ?: DEFAULT_FILES_MAX)
     }
 
     /** kind is "assignment" or "rubric". Returns the file and the server's truncation warning, if any. */
@@ -148,6 +149,13 @@ class ClassRepository(private val api: Api) {
         )
     }
 }
+
+/** The web's FILE_MAX (student.html:1892), used until the server says otherwise. */
+const val DEFAULT_FILES_MAX = 3
+
+internal fun filesPath(classId: String, chatId: String): String =
+    "/student/files?class_id=" + URLEncoder.encode(classId, "UTF-8") +
+        "&chat_id=" + URLEncoder.encode(chatId, "UTF-8")
 
 private fun JsonObject.toStudentFile(): StudentFile? {
     val id = this["id"]?.stringOrNull() ?: return null

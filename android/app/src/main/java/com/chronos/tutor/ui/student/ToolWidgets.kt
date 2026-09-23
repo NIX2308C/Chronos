@@ -30,6 +30,7 @@ import com.chronos.tutor.ui.common.Sym
 import com.chronos.tutor.ui.theme.LocalChronosColors
 import com.chronos.tutor.ui.theme.LocalReduceMotion
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val NONE = -1
 
@@ -55,7 +56,7 @@ fun ToolStatusLine(status: ToolStatus, onStop: () -> Unit) {
 }
 
 @Composable
-fun LearningToolCard(tool: LearningTool, onSound: (Sounds.Kind) -> Unit, onReview: (String) -> Unit) {
+fun LearningToolCard(tool: LearningTool, onSound: (Sounds.Kind) -> Unit, onReview: suspend (String) -> Boolean) {
     val extras = LocalChronosColors.current
     Column(
         Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow)
@@ -115,7 +116,7 @@ private fun ToolButton(text: String, primary: Boolean = false, enabled: Boolean 
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Quiz(tool: LearningTool.Quiz, onSound: (Sounds.Kind) -> Unit, onReview: (String) -> Unit) {
+private fun Quiz(tool: LearningTool.Quiz, onSound: (Sounds.Kind) -> Unit, onReview: suspend (String) -> Boolean) {
     val extras = LocalChronosColors.current
     val qs = tool.questions
     var order by rememberSaveable { mutableStateOf(IntArray(qs.size) { it }) }
@@ -123,6 +124,8 @@ private fun Quiz(tool: LearningTool.Quiz, onSound: (Sounds.Kind) -> Unit, onRevi
     var index by rememberSaveable { mutableIntStateOf(0) }
     var finished by rememberSaveable { mutableStateOf(false) }
     var reviewSent by rememberSaveable { mutableStateOf(false) }
+    var reviewing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     var readingUntil by remember { mutableLongStateOf(0L) }
 
     fun goNext() { if (index < order.size - 1) index++ else { finished = true } }
@@ -152,9 +155,13 @@ private fun Quiz(tool: LearningTool.Quiz, onSound: (Sounds.Kind) -> Unit, onRevi
         }
         Spacer(Modifier.height(12.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            ToolButton(if (reviewSent) "Sent to AI" else "Review with AI", primary = true, enabled = !reviewSent) {
-                reviewSent = true
-                onReview(quizSummary(tool, answers, score))
+            ToolButton(
+                when { reviewSent -> "Sent to AI"; reviewing -> "Sending to AI…"; else -> "Review with AI" },
+                primary = true, enabled = !reviewSent && !reviewing,
+            ) {
+                reviewing = true
+                // Flips to "Sent" only if the review really went; otherwise it can be tried again (student.html:1191).
+                scope.launch { reviewSent = onReview(quizSummary(tool, answers, score)); reviewing = false }
             }
             if (missed.isNotEmpty()) ToolButton("Retry missed (${missed.size})") {
                 order = missed.toIntArray()

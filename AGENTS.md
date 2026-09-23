@@ -4,7 +4,7 @@ Read this first, then open only the files relevant to the task. Source code is t
 
 ## Current app
 
-Chronos is a course grounded AI tutor. Teachers create courses, upload source material, set rules and options, and inspect student analytics. Students join by code and chat within a course. The Flask service owns authorization, storage, retrieval, model calls, and static web serving. The browser app is complete; the native Android app currently implements authentication and student chat, while teacher management stays on the web.
+Chronos is a course grounded AI tutor. Teachers create courses, upload source material, set rules and options, and inspect student analytics. Students join by code and chat within a course. The Flask service owns authorization, storage, retrieval, model calls, and static web serving. The browser app is complete; the native Android app (Kotlin/Compose, no WebView) mirrors it for both roles: student chat, learning activities, attachments, teacher material/rules/toolkits/analytics, settings and status.
 
 ## Where to go
 
@@ -21,7 +21,7 @@ Chronos is a course grounded AI tutor. Teachers create courses, upload source ma
 | Session hint, instant login redirect | `web/auth.js` (`chronos-hint` in localStorage, `Chronos.hint()`, `whenSignedIn`), head snippet in `web/login.html`; hint is never a grant, cleared on sign-out/bounce |
 | User preferences, personalities, dev accounts | `app.py`: `PERSONALITIES`, `normalize_preferences`, `preference_directive`, `/me/preferences`, `is_dev_user` (`DEV_EMAILS` env, default `test@gmail.com`, email match only), `/auth/me` returns `is_dev`; debug payload built in `chat` only when `is_dev_user` and `debug:true`; UI in `web/student.html` (`setDebug`, `buildDebugPanel`) and `web/settings.js` |
 | Course outline (knowledge-base awareness) | `app.py`: `summarize_document`, `save_manifest_entry`, `load_course_manifest`, `manifest_outline`, `rebuild_manifest`; stored at `Classes/{id}.manifest.docs`, built at `/upload`, backfilled from `/rules`, injected by `build_system_instruction` |
-| Native Android | `android/app/src/main/java/com/chronos/tutor/`: `ui/nav/ChronosNav.kt`, `ui/student/`, `ui/login/`, `data/`, `net/`; build config in `android/app/build.gradle.kts` |
+| Native Android | `android/app/src/main/java/com/chronos/tutor/`: `ui/nav/ChronosNav.kt` (routes), `ui/student/` (chat, `ToolWidgets.kt`), `ui/teacher/`, `ui/settings/`, `ui/login/`, `data/` (one repository per area, pure JSON parsers unit-tested in `src/test/`), `net/`; build config in `android/app/build.gradle.kts`. When a Flask response shape changes, update the matching `parse*` in `data/` too |
 | Tests and deployment | `tests/test_*.py`, Android `src/test/`; `Dockerfile`, `.github/workflows/android.yml`, `firestore.rules`; public `/status` and developer-only `/status/deployment` read Cloud Build/Run via runtime ADC |
 
 ## Data and trust boundaries

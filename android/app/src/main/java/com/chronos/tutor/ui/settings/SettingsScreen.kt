@@ -129,7 +129,7 @@ fun SettingsScreen(
                 Spacer(Modifier.height(6.dp))
                 Row { Text("Role", Modifier.weight(1f), color = extras.muted); Text(me.role) }
                 Spacer(Modifier.height(10.dp))
-                ActionRow("System status", "See the current availability of Chronos services.", "View status", onStatus)
+                ActionRow("System status", "See the current availability of Chronos services.", "View status", onClick = onStatus)
                 ActionRow("How it works", null, "Replay tour") { vm.replayTour(me.role == "teacher"); onBack() }
                 if (tutor) ActionRow("Conversations", null, if (ui.clearing) "Deleting…" else "Delete all", danger = true) {
                     if (!ui.clearing) confirmClear = true

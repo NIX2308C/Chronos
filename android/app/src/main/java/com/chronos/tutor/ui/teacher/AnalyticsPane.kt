@@ -40,8 +40,14 @@ fun AnalyticsPane(vm: TeacherViewModel, state: TeacherUiState) {
                         color = extras.muted,
                     )
                     else -> Column {
-                        Text(p.summary)
-                        Text("${p.messages} messages", style = MaterialTheme.typography.bodySmall, color = extras.muted)
+                        Text("${plural(p.messages, "message")} in this course", style = MaterialTheme.typography.bodySmall, color = extras.muted)
+                        Spacer(Modifier.height(10.dp))
+                        // The same text the tutor is given, one point per line (showProfile, teacherstats.html:503).
+                        p.summary.lines().map { it.removePrefix("- ") }.filter { it.isNotBlank() }.forEach {
+                            Text(it, Modifier.padding(bottom = 8.dp))
+                        }
+                        Text("How the tutor adapts to them in this course. Not an assessment.",
+                            style = MaterialTheme.typography.bodySmall, color = extras.muted)
                         if (p.stickingPoints.isNotEmpty()) {
                             Spacer(Modifier.height(10.dp))
                             Text("Sticking points", style = MaterialTheme.typography.labelSmall, color = extras.muted)

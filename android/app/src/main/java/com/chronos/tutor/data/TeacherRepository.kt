@@ -90,7 +90,7 @@ class TeacherRepository(private val api: Api) {
     suspend fun deleteCourse(classId: String) = io { api.delete("/classes/$classId"); Unit }
 
     suspend fun settings(classId: String): CourseSettings =
-        io { parseSettings(api.get("/course-settings?class_id=$classId")) }
+        io { parseSettings(api.get("/course-settings?class_id=" + java.net.URLEncoder.encode(classId, "UTF-8"))) }
 
     suspend fun saveSettings(classId: String, s: CourseSettings): CourseSettings = io {
         parseSettings(api.post("/course-settings", obj {
@@ -203,9 +203,11 @@ internal fun settingsJson(s: CourseSettings): JsonObject = buildJsonObject {
 internal fun parseMaterial(o: JsonObject): Material {
     val rows = (o["rules"] as? JsonArray).objects()
     val manifest = o["manifest"] as? JsonObject
+    // Pinecone returns rules in no stable order; the ms stamp in "rule_<ms>_<n>"
+    // puts the newest first, and hand-made ids with no stamp sort last (handRules() on the web).
     val rules = rows.filter { it["source"]?.stringOrNull() == null }.mapNotNull {
         CustomRule(it["id"]?.stringOrNull() ?: return@mapNotNull null, it["text"]?.stringOrNull().orEmpty())
-    }
+    }.sortedByDescending { it.id.split("_").getOrNull(1)?.toLongOrNull() ?: 0L }
     val docs = rows.mapNotNull { r -> r["source"]?.stringOrNull()?.let { it to r["id"]?.stringOrNull().orEmpty() } }
         .groupBy({ it.first }, { it.second })
         .map { (name, ids) ->

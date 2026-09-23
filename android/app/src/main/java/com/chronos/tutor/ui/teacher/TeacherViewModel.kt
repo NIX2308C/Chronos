@@ -18,6 +18,8 @@ import com.chronos.tutor.data.TeacherRepository
 import com.chronos.tutor.net.ApiError
 import com.chronos.tutor.net.ChatDone
 import com.chronos.tutor.ui.common.readUri
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,6 +66,10 @@ class TeacherViewModel(
 
     private val _state = MutableStateFlow(TeacherUiState())
     val state: StateFlow<TeacherUiState> = _state.asStateFlow()
+    private var settingsSave: Job? = null
+
+    /** A reply for a course the teacher has since left must not land in the new one (knowledgeGen on the web). */
+    private fun stillOn(classId: String) = _state.value.activeClassId == classId
 
     init { boot() }
 
@@ -148,37 +154,49 @@ class TeacherViewModel(
         val id = _state.value.activeClassId ?: return@launch
         _state.update { it.copy(materialLoading = true) }
         runCatching { repo.material(id) }.fold(
-            onSuccess = { m -> _state.update { it.copy(material = m, materialLoading = false) } },
-            onFailure = { e -> _state.update { it.copy(materialLoading = false) }; say(e.text(), true) },
+            onSuccess = { m -> if (stillOn(id)) _state.update { it.copy(material = m, materialLoading = false) } },
+            onFailure = { e -> if (stillOn(id)) { _state.update { it.copy(materialLoading = false) }; say(e.text(), true) } },
         )
     }
 
     private fun loadSettings() = viewModelScope.launch {
         val id = _state.value.activeClassId ?: return@launch
         runCatching { repo.settings(id) }.fold(
-            onSuccess = { s -> _state.update { it.copy(settings = s) } },
-            onFailure = { say(it.text(), true) },
+            onSuccess = { s -> if (stillOn(id)) _state.update { it.copy(settings = s) } },
+            onFailure = { if (stillOn(id)) say(it.text(), true) },
         )
     }
 
-    /** Optimistic: the switch moves at once and snaps back if the save fails. */
-    fun updateSettings(next: CourseSettings) = viewModelScope.launch {
-        val id = _state.value.activeClassId ?: return@launch
-        val before = _state.value.settings
+    /**
+     * Optimistic, and batched like autosave() on the web: a quick run of toggles
+     * is one save of the latest state, so replies can't land out of order. On
+     * failure the server's copy is reloaded.
+     */
+    fun updateSettings(next: CourseSettings) {
+        val id = _state.value.activeClassId ?: return
         _state.update { it.copy(settings = next) }
-        runCatching { repo.saveSettings(id, next) }.fold(
-            onSuccess = { saved -> _state.update { it.copy(settings = saved) } },
-            onFailure = { e -> _state.update { it.copy(settings = before) }; say(e.text(), true) },
-        )
+        settingsSave?.cancel()
+        settingsSave = viewModelScope.launch {
+            delay(300)
+            runCatching { repo.saveSettings(id, next) }.fold(
+                onSuccess = { saved -> if (stillOn(id)) _state.update { it.copy(settings = saved) } },
+                onFailure = { e -> say(e.text(), true); if (stillOn(id)) loadSettings() },
+            )
+        }
     }
 
     /** One rule per line, as the web's bulk add. */
     fun addRules(text: String) = saveRules(
-        text.lines().map { it.trim() }.filter { it.isNotEmpty() }.map { CustomRule("", it) },
+        text.lines().map(::flat).filter { it.isNotEmpty() }.map { CustomRule("", it) },
         done = "Rule saved",
     )
 
-    fun editRule(rule: CustomRule) = saveRules(listOf(rule), done = "Rule updated")
+    /** A rule is one line; unchanged text is not re-saved (ruleEditor on the web). */
+    fun editRule(rule: CustomRule, text: String) {
+        val t = flat(text)
+        if (t.isEmpty() || t == flat(rule.text)) return
+        saveRules(listOf(rule.copy(text = t)), done = "Rule updated")
+    }
 
     private fun saveRules(rules: List<CustomRule>, done: String) = viewModelScope.launch {
         val id = _state.value.activeClassId ?: return@launch
@@ -244,13 +262,16 @@ class TeacherViewModel(
 
     fun loadAnalytics() = viewModelScope.launch {
         val id = _state.value.activeClassId ?: return@launch
+        val days = _state.value.range
+        // Only the reply for what is on screen now counts; a quick range or course switch leaves older ones behind.
+        fun current() = stillOn(id) && _state.value.range == days
         _state.update { it.copy(statsLoading = true) }
         launch {
-            runCatching { repo.roster(id) }.onSuccess { r -> _state.update { it.copy(roster = r) } }
+            runCatching { repo.roster(id) }.onSuccess { r -> if (stillOn(id)) _state.update { it.copy(roster = r) } }
         }
-        runCatching { repo.stats(id, _state.value.range) }.fold(
-            onSuccess = { s -> _state.update { it.copy(stats = s, statsLoading = false) } },
-            onFailure = { e -> _state.update { it.copy(statsLoading = false) }; say(e.text(), true) },
+        runCatching { repo.stats(id, days) }.fold(
+            onSuccess = { s -> if (current()) _state.update { it.copy(stats = s, statsLoading = false) } },
+            onFailure = { e -> if (current()) { _state.update { it.copy(statsLoading = false) }; say(e.text(), true) } },
         )
     }
 
@@ -258,13 +279,15 @@ class TeacherViewModel(
         val id = _state.value.activeClassId ?: return@launch
         _state.update { it.copy(profileFor = m, profile = null) }
         runCatching { repo.profile(id, m.uid) }.fold(
-            onSuccess = { p -> _state.update { if (it.profileFor == m) it.copy(profile = p) else it } },
+            onSuccess = { p -> _state.update { if (it.profileFor == m && it.activeClassId == id) it.copy(profile = p) else it } },
             onFailure = { e -> _state.update { it.copy(profileFor = null) }; say(e.text(), true) },
         )
     }
 
     fun closeProfile() = _state.update { it.copy(profileFor = null, profile = null) }
 }
+
+private fun flat(s: String) = s.replace(Regex("\\s+"), " ").trim()
 
 internal fun Throwable.text(): String =
     (this as? ApiError)?.userMessage ?: message ?: "Something went wrong. Please try again."

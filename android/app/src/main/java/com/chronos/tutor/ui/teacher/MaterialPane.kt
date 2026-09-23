@@ -245,7 +245,7 @@ private fun CustomRules(vm: TeacherViewModel, state: TeacherUiState) {
     var deleting by remember { mutableStateOf<CustomRule?>(null) }
     editing?.let { r ->
         NameDialog("Edit rule", "Rule", "Save", initial = r.text, singleLine = false,
-            onDismiss = { editing = null }, onConfirm = { editing = null; vm.editRule(r.copy(text = it.trim())) })
+            onDismiss = { editing = null }, onConfirm = { editing = null; vm.editRule(r, it) })
     }
     deleting?.let { r ->
         ConfirmDialog("Delete this rule?", r.text, "Delete", { deleting = null }, { deleting = null; vm.deleteRule(r.id) })

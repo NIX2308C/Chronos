@@ -42,6 +42,15 @@ class TeacherParseTest {
     }
 
     @Test
+    fun `custom rules come newest first, unstamped ids last`() {
+        val m = parseMaterial(obj("""{"rules":[
+              {"id":"rule_100_0","text":"old"},
+              {"id":"custom_x","text":"hand"},
+              {"id":"rule_300_0","text":"new"}]}"""))
+        assertEquals(listOf("new", "old", "hand"), m.rules.map { it.text })
+    }
+
+    @Test
     fun `settings round-trip and missing keys take defaults`() {
         val s = parseSettings(obj("""{"settings":{"grounded_only":false,"hint_strength":"strong"}}"""))
         assertFalse(s.groundedOnly)

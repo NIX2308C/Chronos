@@ -42,6 +42,8 @@ sealed interface AuthState {
 class AuthRepository(
     private val api: Api,
     private val auth: FirebaseAuth,
+    /** Persists the last identity so launch need not wait on /auth/me. Null in tests. */
+    private val prefs: Prefs? = null,
 ) {
     // In-memory only. The web caches the role in sessionStorage with a 60s TTL
     // because a page reload wipes JS state; an Android process doesn't reload
@@ -123,7 +125,7 @@ class AuthRepository(
             }
             val data = api.post("/auth/register", body)
             val me = data.toMe() ?: throw ApiError.Malformed("/auth/register returned no role")
-            rememberRole(me.uid, me.role)
+            remember(me)
             return me
         } catch (e: Exception) {
             if (rollback) runCatching { user?.delete()?.await() }
@@ -155,22 +157,36 @@ class AuthRepository(
     private suspend fun fetchMe(): Me? {
         val user = auth.currentUser ?: return null
         val me = api.get("/auth/me").toMe() ?: return null
-        rememberRole(me.uid, me.role)
-        cachedDev = me.isDev
+        remember(me)
         return me
+    }
+
+    /**
+     * The identity saved by the last successful /auth/me, if it belongs to the
+     * Firebase user still signed in. Lets launch skip the network; the caller
+     * must still [resolve] to confirm it.
+     */
+    suspend fun cached(): Me? = withContext(Dispatchers.IO) {
+        val user = auth.currentUser ?: return@withContext null
+        prefs?.lastMe()?.takeIf { it.uid == user.uid }
     }
 
     /** Resolves what the nav graph should open on. */
     suspend fun resolve(): AuthState = withContext(Dispatchers.IO) {
-        if (auth.currentUser == null) return@withContext AuthState.SignedOut
+        if (auth.currentUser == null) return@withContext signedOut()
         try {
-            me()?.let { AuthState.Ready(it) } ?: AuthState.SignedOut
+            me()?.let { AuthState.Ready(it) } ?: signedOut()
         } catch (e: ApiError.Forbidden) {
             // "Finish creating your account first." — roleless, and recoverable.
-            if (e.needsRole) AuthState.NeedsRole else throw e
+            if (e.needsRole) { prefs?.setLastMe(null); AuthState.NeedsRole } else throw e
         } catch (e: ApiError.Unauthorized) {
-            AuthState.SignedOut
+            signedOut()
         }
+    }
+
+    private suspend fun signedOut(): AuthState {
+        prefs?.setLastMe(null)
+        return AuthState.SignedOut
     }
 
     suspend fun signOut() = withContext(Dispatchers.IO) {
@@ -178,12 +194,14 @@ class AuthRepository(
         auth.signOut()
     }
 
-    private fun rememberRole(uid: String, role: String) {
-        cachedUid = uid; cachedRole = role
+    private suspend fun remember(me: Me) {
+        cachedUid = me.uid; cachedRole = me.role; cachedDev = me.isDev
+        prefs?.setLastMe(me)
     }
 
-    private fun clearRole() {
+    private suspend fun clearRole() {
         cachedUid = null; cachedRole = null; cachedDev = false
+        prefs?.setLastMe(null)
     }
 
     private var cachedDev = false

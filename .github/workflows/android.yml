@@ -62,7 +62,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       # Release-sign when the keystore secret exists, otherwise fall back to a
-      # debug build so the workflow still works for anyone without it. The
+      # debug-signed release build so the workflow still works for anyone without it. The
       # keystore never lives in the repo: it is decoded to a temp file here and
       # the runner is destroyed afterwards.
       - name: Signing mode
@@ -167,18 +167,16 @@ jobs:
           ARGS="-PchronosHost=${{ steps.cfg.outputs.host }}"
           if [ -n "$FB_APP_ID" ]; then ARGS="$ARGS -PfbAppId=$FB_APP_ID"; fi
           echo "gradle args: $ARGS"
-          if [ "${{ steps.sign.outputs.mode }}" = "release" ]; then
-            ./gradlew --no-daemon assembleRelease $ARGS
-          else
-            ./gradlew --no-daemon assembleDebug $ARGS
-          fi
+          # Always a release (minified, non-debuggable) build; without the
+          # keystore secret build.gradle.kts signs it with the debug key.
+          ./gradlew --no-daemon assembleRelease $ARGS
 
       - name: Name the artefact
         id: apk
         run: |
           set -euo pipefail
           MODE="${{ steps.sign.outputs.mode }}"
-          SRC="android/app/build/outputs/apk/$MODE/app-$MODE.apk"
+          SRC="android/app/build/outputs/apk/release/app-release.apk"
           test -s "$SRC" || { echo "::error::no APK produced at $SRC"; exit 1; }
           OUT="chronos-${{ steps.cfg.outputs.slug }}-$MODE.apk"
           cp "$SRC" "$OUT"

@@ -99,11 +99,16 @@ class ChatViewModel(
 
     private fun boot() = viewModelScope.launch {
         _state.update { it.copy(booting = true, error = null) }
+        // Courses and chats are independent requests, so they go out together
+        // rather than costing two round trips back to back.
+        val chatsCall = async { runCatching { chatRepo.listChats() } }
         val classes = runCatching { classRepo.list() }.getOrElse { e ->
+            chatsCall.cancel()
             _state.update { it.copy(booting = false, error = e.userText()) }
             return@launch
         }
         if (classes.isEmpty()) {
+            chatsCall.cancel()
             _state.update { it.copy(booting = false, needsJoin = true, classes = emptyList()) }
             return@launch
         }
@@ -111,7 +116,7 @@ class ChatViewModel(
         val active = classes.firstOrNull { it.id == saved }?.id ?: classes.first().id
         prefs.setStudentClassId(active)
 
-        allChats = runCatching { chatRepo.listChats() }.getOrElse { e ->
+        allChats = chatsCall.await().getOrElse { e ->
             _state.update { it.copy(error = e.userText()) }
             emptyList()
         }
@@ -176,6 +181,9 @@ class ChatViewModel(
         stopTool()
         val chat = allChats.firstOrNull { it.id == chatId } ?: return
 
+        // Attachments load alongside the messages, not after them.
+        if (!chat.isNew && chat.id !in filesByChat) loadFiles(chat)
+
         var loadError: String? = null
         val loaded = if (chat.loaded || chat.isNew) chat else {
             // Not marked loaded on failure, so reopening the chat retries.
@@ -197,7 +205,6 @@ class ChatViewModel(
                 files = filesByChat[loaded.id].orEmpty(),
             )
         }
-        if (!loaded.isNew && loaded.id !in filesByChat) loadFiles(loaded)
     }
 
     // ---- attachments ------------------------------------------------------
@@ -205,7 +212,9 @@ class ChatViewModel(
     private fun loadFiles(chat: Chat) = viewModelScope.launch {
         runCatching { chatRepo.listFiles(chat.classId, chat.id) }.onSuccess { (files, max) ->
             filesByChat[chat.id] = files
-            if (_state.value.activeChatId == chat.id) _state.update { it.copy(files = files, filesMax = max) }
+            // This can land before openChat marks the chat active; openChat then
+            // reads filesByChat. The limit is not per chat, so it always applies.
+            _state.update { it.copy(filesMax = max, files = if (it.activeChatId == chat.id) files else it.files) }
         }
     }
 

@@ -8,7 +8,13 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import com.chronos.tutor.net.Api
+import com.chronos.tutor.net.stringOrNull
 
 private val Context.dataStore by preferencesDataStore(name = "chronos")
 
@@ -38,7 +44,16 @@ class Prefs(private val context: Context) {
         val ReduceMotion = booleanPreferencesKey("reduce_motion")
         val Debug        = booleanPreferencesKey("debug")          // honoured only for dev accounts
         val EnterSend    = booleanPreferencesKey("enter_send")
+        val LastMe       = stringPreferencesKey("last_me")        // see encodeMe
     }
+
+    /**
+     * Who was signed in last time, so a returning user skips the /auth/me wait
+     * on launch. A routing hint only, never a grant: the server re-checks the
+     * token and role on every call, and RootViewModel revalidates at once.
+     */
+    suspend fun lastMe(): Me? = decodeMe(context.dataStore.data.first()[Keys.LastMe])
+    suspend fun setLastMe(me: Me?) = write(Keys.LastMe, me?.let(::encodeMe))
 
     val textSize: Flow<String> = context.dataStore.data.map { it[Keys.TextSize] ?: "normal" }
     val reduceMotion: Flow<Boolean> = context.dataStore.data.map { it[Keys.ReduceMotion] ?: false }
@@ -79,3 +94,21 @@ class Prefs(private val context: Context) {
         }
     }
 }
+
+internal fun encodeMe(me: Me): String = buildJsonObject {
+    put("uid", JsonPrimitive(me.uid))
+    me.email?.let { put("email", JsonPrimitive(it)) }
+    put("role", JsonPrimitive(me.role))
+    put("is_dev", JsonPrimitive(me.isDev))
+}.toString()
+
+/** Null for anything missing or unreadable, so a bad value just means "ask the server". */
+internal fun decodeMe(raw: String?): Me? = runCatching {
+    val o = Api.json.parseToJsonElement(raw ?: return null).jsonObject
+    Me(
+        uid = o["uid"]?.stringOrNull() ?: return null,
+        email = o["email"]?.stringOrNull(),
+        role = o["role"]?.stringOrNull() ?: return null,
+        isDev = o["is_dev"]?.stringOrNull() == "true",
+    )
+}.getOrNull()

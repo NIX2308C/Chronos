@@ -42,8 +42,18 @@ class RootViewModel(
             return
         }
         viewModelScope.launch {
-            _state.value = runCatching { repo.resolve() }
-                .getOrElse { AuthState.SignedOut }
+            // A returning user opens on their last known identity at once, and
+            // the check below runs while their home screen is already loading.
+            // A hint only: every call is still authorised by the server.
+            val cached = runCatching { repo.cached() }.getOrNull()
+            if (cached != null) _state.value = AuthState.Ready(cached)
+
+            _state.value = runCatching { repo.resolve() }.getOrElse {
+                // Offline or a server hiccup: keep the cached identity rather than
+                // bouncing to login. A dead session still signs out through
+                // AuthInterceptor's onSignedOut on the next call.
+                if (cached != null) AuthState.Ready(cached) else AuthState.SignedOut
+            }
         }
     }
 

@@ -20,8 +20,10 @@ val fbAppId: String     = (project.findProperty("fbAppId")     ?: "") as String
 // Release signing comes from the environment, never from a file in the repo —
 // this is a public repository. CI writes the keystore to a temp path from a
 // GitHub Actions secret and exports these four vars. With any of them missing
-// the release config simply isn't created, and the build falls back to debug
-// rather than silently emitting an unsigned APK nobody can install.
+// the release config simply isn't created, and the release build is signed
+// with the debug key rather than emitted unsigned where nobody can install it.
+// It stays a release build either way: a debuggable, unminified APK runs
+// Compose several times slower, which is what made the app feel sluggish.
 val ksPath    = System.getenv("CHRONOS_KEYSTORE_PATH")
 val ksPass    = System.getenv("CHRONOS_KEYSTORE_PASSWORD")
 val ksAlias   = System.getenv("CHRONOS_KEY_ALIAS")
@@ -63,11 +65,12 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 is most of Compose's release-mode speed; shrinking resources
+            // also keeps the APK small. Libraries bring their own keep rules.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            if (canSignRelease) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            signingConfig = signingConfigs.getByName(if (canSignRelease) "release" else "debug")
         }
     }
 
@@ -88,6 +91,9 @@ android {
 dependencies {
     implementation(libs.core.ktx)
     implementation(libs.splashscreen)
+    // Installs the baseline profiles Compose and friends ship, so a sideloaded
+    // APK runs precompiled code from first launch instead of interpreting it.
+    implementation(libs.profileinstaller)
 
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)

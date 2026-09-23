@@ -34,10 +34,20 @@ jobs:
 
       - name: Resolve the target host
         id: cfg
+        # The input arrives through env rather than an expression pasted into
+        # the script, because it is free text that also becomes the signed
+        # app's backend. Only a bare hostname (optionally :port) gets through.
+        env:
+          INPUT_HOST: ${{ github.event.inputs.apiHost }}
         run: |
-          HOST="${{ github.event.inputs.apiHost || 'chronos.tevproject.com' }}"
+          set -euo pipefail
+          HOST="${INPUT_HOST:-chronos.tevproject.com}"
+          if ! printf '%s' "$HOST" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*(:[0-9]{1,5})?$'; then
+            echo "::error::apiHost must be a bare hostname such as chronos.tevproject.com"
+            exit 1
+          fi
           echo "host=$HOST" >> "$GITHUB_OUTPUT"
-          echo "slug=$(echo "$HOST" | tr '.' '-')" >> "$GITHUB_OUTPUT"
+          echo "slug=$(echo "$HOST" | tr '.:' '--')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v4
         with:
@@ -62,7 +72,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       # Release-sign when the keystore secret exists, otherwise fall back to a
-      # debug build so the workflow still works for anyone without it. The
+      # debug-signed release build so the workflow still works for anyone without it. The
       # keystore never lives in the repo: it is decoded to a temp file here and
       # the runner is destroyed afterwards.
       - name: Signing mode
@@ -167,18 +177,16 @@ jobs:
           ARGS="-PchronosHost=${{ steps.cfg.outputs.host }}"
           if [ -n "$FB_APP_ID" ]; then ARGS="$ARGS -PfbAppId=$FB_APP_ID"; fi
           echo "gradle args: $ARGS"
-          if [ "${{ steps.sign.outputs.mode }}" = "release" ]; then
-            ./gradlew --no-daemon assembleRelease $ARGS
-          else
-            ./gradlew --no-daemon assembleDebug $ARGS
-          fi
+          # Always a release (minified, non-debuggable) build; without the
+          # keystore secret build.gradle.kts signs it with the debug key.
+          ./gradlew --no-daemon assembleRelease $ARGS
 
       - name: Name the artefact
         id: apk
         run: |
           set -euo pipefail
           MODE="${{ steps.sign.outputs.mode }}"
-          SRC="android/app/build/outputs/apk/$MODE/app-$MODE.apk"
+          SRC="android/app/build/outputs/apk/release/app-release.apk"
           test -s "$SRC" || { echo "::error::no APK produced at $SRC"; exit 1; }
           OUT="chronos-${{ steps.cfg.outputs.slug }}-$MODE.apk"
           cp "$SRC" "$OUT"

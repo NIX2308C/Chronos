@@ -59,5 +59,5 @@ class AppContainer(context: Context, firebaseReady: Boolean) {
 
     /** Null when Firebase is unconfigured; the UI shows an unconfigured state. */
     val authRepository: AuthRepository? =
-        firebaseAuth?.let { AuthRepository(api, it) }
+        firebaseAuth?.let { AuthRepository(api, it, prefs) }
 }

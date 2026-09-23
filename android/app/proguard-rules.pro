@@ -1,3 +1,4 @@
-# Nothing app-specific to keep: this project has no source of its own, and the
-# release build does not minify. Present so the release buildType's
-# proguardFiles reference resolves.
+# The release build is minified with R8. No app-specific keep rules are needed:
+# there is no reflection and no @Serializable class (all JSON goes through
+# JsonObject), and OkHttp, Firebase, coroutines and kotlinx-serialization ship
+# their own consumer rules. Add rules here only for a concrete R8 failure.

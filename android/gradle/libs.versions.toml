@@ -11,6 +11,7 @@ lifecycle          = "2.8.7"
 navigation         = "2.8.5"
 datastore          = "1.1.1"
 splashscreen       = "1.0.1"
+profileinstaller   = "1.4.1"
 okhttp             = "4.12.0"
 serialization      = "1.7.3"
 firebaseBom        = "33.7.0"
@@ -21,6 +22,7 @@ androidxTestJunit  = "1.2.1"
 [libraries]
 core-ktx              = { module = "androidx.core:core-ktx",                         version.ref = "coreKtx" }
 splashscreen          = { module = "androidx.core:core-splashscreen",                version.ref = "splashscreen" }
+profileinstaller      = { module = "androidx.profileinstaller:profileinstaller",     version.ref = "profileinstaller" }
 
 # Compose: the BOM pins every compose artifact, so those carry no version.
 compose-bom           = { module = "androidx.compose:compose-bom",                   version.ref = "composeBom" }

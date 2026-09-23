@@ -29,7 +29,12 @@ class RootViewModel(
         refresh()
         viewModelScope.launch {
             signedOutEvents.collect {
-                if (auth != null) _state.value = AuthState.SignedOut
+                if (auth == null) return@collect
+                // The server rejected the session, so end it here too. Leaving
+                // the Firebase user and the cached identity behind would reopen
+                // the app as that user on the next launch, only to fail again.
+                runCatching { auth.signOut() }
+                _state.value = AuthState.SignedOut
             }
         }
     }

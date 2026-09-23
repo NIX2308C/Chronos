@@ -17,6 +17,7 @@ import com.chronos.tutor.data.StudentProfile
 import com.chronos.tutor.data.TeacherRepository
 import com.chronos.tutor.net.ApiError
 import com.chronos.tutor.net.ChatDone
+import com.chronos.tutor.ui.common.readFailureText
 import com.chronos.tutor.ui.common.readUri
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -232,8 +233,8 @@ class TeacherViewModel(
     fun upload(resolver: ContentResolver, uri: Uri) = viewModelScope.launch {
         val id = _state.value.activeClassId ?: return@launch
         if (_state.value.uploading != null) { say("One upload at a time.", true); return@launch }
-        val (name, mime, bytes) = runCatching { readUri(resolver, uri) }.getOrElse {
-            say("Couldn't read that file.", true); return@launch
+        val (name, mime, bytes) = runCatching { readUri(resolver, uri) }.getOrElse { e ->
+            say(e.readFailureText(), true); return@launch
         }
         _state.update { it.copy(uploading = name) }
         runCatching { repo.upload(id, name, mime, bytes) }.fold(

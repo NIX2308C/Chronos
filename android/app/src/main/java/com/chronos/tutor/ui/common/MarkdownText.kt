@@ -12,11 +12,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.text.AnnotatedString
@@ -53,18 +60,24 @@ fun MarkdownText(
     val extras = LocalChronosColors.current
     val ink = color.takeOrElse { MaterialTheme.colorScheme.onSurface }
 
+    // Replies are shaped by course material and by student attachments, so a
+    // link's text may not match where it goes. Show the real address first.
+    var pendingLink by remember { mutableStateOf<String?>(null) }
+    val onLink: (String) -> Unit = { pendingLink = it }
+    pendingLink?.let { url -> LinkConfirm(url, onDismiss = { pendingLink = null }) }
+
     Column(modifier) {
         blocks.forEachIndexed { i, block ->
             if (i > 0) Spacer(Modifier.height(10.dp))
             when (block) {
                 is MdBlock.Paragraph -> Text(
-                    text = block.spans.annotated(),
+                    text = block.spans.annotated(onLink),
                     style = MaterialTheme.typography.titleMedium,
                     color = ink,
                 )
 
                 is MdBlock.Heading -> Text(
-                    text = block.spans.annotated(),
+                    text = block.spans.annotated(onLink),
                     // 1.25rem / 1.1rem / 1rem, as .ai-prose h1-h3 (student.html:430).
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontSize = when (block.level) { 1 -> 20.sp; 2 -> 17.6.sp; else -> 16.sp },
@@ -83,20 +96,20 @@ fun MarkdownText(
                     )
                     Spacer(Modifier.width(10.dp))
                     Text(
-                        text = block.spans.annotated(),
+                        text = block.spans.annotated(onLink),
                         style = MaterialTheme.typography.titleMedium,
                         color = extras.muted,
                     )
                 }
 
                 is MdBlock.Bullets -> Column {
-                    block.items.forEach { item -> ListRow("▪", item, ink) }
+                    block.items.forEach { item -> ListRow("▪", item, ink, onLink) }
                 }
 
                 is MdBlock.Numbered -> Column {
                     // The written number is dropped on the web too; lists always
                     // restart at 1.
-                    block.items.forEachIndexed { n, item -> ListRow("${n + 1}.", item, ink) }
+                    block.items.forEachIndexed { n, item -> ListRow("${n + 1}.", item, ink, onLink) }
                 }
 
                 is MdBlock.Code -> Text(
@@ -116,7 +129,7 @@ fun MarkdownText(
 }
 
 @Composable
-private fun ListRow(marker: String, spans: List<MdSpan>, ink: Color) {
+private fun ListRow(marker: String, spans: List<MdSpan>, ink: Color, onLink: (String) -> Unit) {
     val extras = LocalChronosColors.current
     Row(Modifier.padding(bottom = 4.dp)) {
         Text(
@@ -126,7 +139,7 @@ private fun ListRow(marker: String, spans: List<MdSpan>, ink: Color) {
         )
         Spacer(Modifier.width(8.dp))
         Text(
-            text = spans.annotated(),
+            text = spans.annotated(onLink),
             style = MaterialTheme.typography.titleMedium,
             color = ink,
         )
@@ -134,7 +147,7 @@ private fun ListRow(marker: String, spans: List<MdSpan>, ink: Color) {
 }
 
 @Composable
-private fun List<MdSpan>.annotated(): AnnotatedString {
+private fun List<MdSpan>.annotated(onLink: (String) -> Unit): AnnotatedString {
     val extras = LocalChronosColors.current
     return buildAnnotatedString {
         this@annotated.forEach { s ->
@@ -147,8 +160,9 @@ private fun List<MdSpan>.annotated(): AnnotatedString {
                 textDecoration = if (s.href != null) TextDecoration.Underline else null,
             )
             if (s.href != null) {
-                // Tappable: Text opens LinkAnnotation.Url in the browser itself.
-                withLink(LinkAnnotation.Url(s.href, TextLinkStyles(style))) { append(s.text) }
+                // Tappable, but through LinkConfirm rather than straight to the browser.
+                val href = s.href
+                withLink(LinkAnnotation.Url(href, TextLinkStyles(style)) { onLink(href) }) { append(s.text) }
             } else {
                 pushStyle(style)
                 append(s.text)
@@ -156,4 +170,20 @@ private fun List<MdSpan>.annotated(): AnnotatedString {
             }
         }
     }
+}
+
+/** Names the host and full address before a reply's link leaves the app. */
+@Composable
+private fun LinkConfirm(url: String, onDismiss: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    val host = remember(url) { runCatching { java.net.URI(url).host }.getOrNull() ?: url }
+    AlertDialog(
+        onDismissRequest = onDismiss, shape = RectangleShape,
+        title = { Text("Open $host?") },
+        text = { Text(url, color = LocalChronosColors.current.muted) },
+        confirmButton = {
+            TextButton(onClick = { onDismiss(); runCatching { uriHandler.openUri(url) } }) { Text("Open") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

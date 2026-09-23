@@ -146,8 +146,10 @@
 
   function friendlyAuthError(e) {
     const c = (e && e.code) || "";
-    if (c.includes("wrong-password") || c.includes("invalid-credential")) return "Wrong email or password.";
-    if (c.includes("user-not-found")) return "No account found with that email.";
+    // user-not-found shares the wrong-password copy so sign-in never reveals
+    // whether an email is registered.
+    if (c.includes("wrong-password") || c.includes("invalid-credential") ||
+        c.includes("user-not-found")) return "Wrong email or password.";
     if (c.includes("email-already-in-use")) return "An account with that email already exists.";
     if (c.includes("weak-password")) return "Password must be at least 6 characters.";
     if (c.includes("invalid-email")) return "That doesn't look like a valid email.";

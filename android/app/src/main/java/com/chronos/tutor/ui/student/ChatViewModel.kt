@@ -18,6 +18,7 @@ import com.chronos.tutor.data.ToolStatus
 import com.chronos.tutor.data.gapFrom
 import com.chronos.tutor.data.toolLabel
 import com.chronos.tutor.ui.common.Sounds
+import com.chronos.tutor.ui.common.readFailureText
 import com.chronos.tutor.ui.common.readUri
 import com.chronos.tutor.net.ApiError
 import kotlinx.coroutines.Deferred
@@ -222,8 +223,8 @@ class ChatViewModel(
         val s = _state.value
         val chat = allChats.firstOrNull { it.id == s.activeChatId } ?: return@launch
         if (s.attaching) return@launch
-        val (name, mime, bytes) = runCatching { readUri(resolver, uri) }.getOrElse {
-            _state.update { it.copy(error = "Couldn't read that file.") }; return@launch
+        val (name, mime, bytes) = runCatching { readUri(resolver, uri) }.getOrElse { e ->
+            _state.update { it.copy(error = e.readFailureText()) }; return@launch
         }
         _state.update { it.copy(attaching = true) }
         runCatching { chatRepo.addFile(chat.classId, chat.id, kind, name, mime, bytes) }.fold(

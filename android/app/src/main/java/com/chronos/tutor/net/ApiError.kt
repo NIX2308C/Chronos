@@ -67,8 +67,10 @@ sealed class ApiError(val userMessage: String) : IOException(userMessage) {
 fun friendlyAuthError(code: String?, fallback: String?): String {
     val c = code?.lowercase()?.replace('_', '-') ?: return fallback ?: "Something went wrong."
     return when {
-        c.contains("wrong-password") || c.contains("invalid-credential") -> "Wrong email or password."
-        c.contains("user-not-found")       -> "No account found with that email."
+        // user-not-found gets the same copy: a distinct message would tell
+        // anyone which emails have an account.
+        c.contains("wrong-password") || c.contains("invalid-credential") ||
+            c.contains("user-not-found")   -> "Wrong email or password."
         c.contains("email-already-in-use") -> "An account with that email already exists."
         c.contains("weak-password")        -> "Password must be at least 6 characters."
         c.contains("invalid-email")        -> "That doesn't look like a valid email."

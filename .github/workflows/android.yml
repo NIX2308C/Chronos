@@ -34,10 +34,20 @@ jobs:
 
       - name: Resolve the target host
         id: cfg
+        # The input arrives through env rather than an expression pasted into
+        # the script, because it is free text that also becomes the signed
+        # app's backend. Only a bare hostname (optionally :port) gets through.
+        env:
+          INPUT_HOST: ${{ github.event.inputs.apiHost }}
         run: |
-          HOST="${{ github.event.inputs.apiHost || 'chronos.tevproject.com' }}"
+          set -euo pipefail
+          HOST="${INPUT_HOST:-chronos.tevproject.com}"
+          if ! printf '%s' "$HOST" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*(:[0-9]{1,5})?$'; then
+            echo "::error::apiHost must be a bare hostname such as chronos.tevproject.com"
+            exit 1
+          fi
           echo "host=$HOST" >> "$GITHUB_OUTPUT"
-          echo "slug=$(echo "$HOST" | tr '.' '-')" >> "$GITHUB_OUTPUT"
+          echo "slug=$(echo "$HOST" | tr '.:' '--')" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v4
         with:

@@ -14,9 +14,16 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- No backups: the app's storage holds the Firebase session (refresh
+         token) and the cached identity. adb backup on Android 11 and older
+         would copy them off an unlocked phone without root, and cloud backup
+         or device transfer would restore a signed-in session elsewhere.
+         allowBackup covers old releases, the rules file Android 12+. -->
     <application
         android:name=".ChronosApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"

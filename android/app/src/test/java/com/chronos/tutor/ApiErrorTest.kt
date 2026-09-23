@@ -148,7 +148,8 @@ class ApiErrorTest {
     fun `firebase auth codes map to the same copy as the web`() {
         assertEquals("Wrong email or password.", friendlyAuthError("ERROR_WRONG_PASSWORD", null))
         assertEquals("Wrong email or password.", friendlyAuthError("ERROR_INVALID_CREDENTIAL", null))
-        assertEquals("No account found with that email.", friendlyAuthError("ERROR_USER_NOT_FOUND", null))
+        // Same copy as a wrong password, so sign-in never reveals whether an email is registered.
+        assertEquals("Wrong email or password.", friendlyAuthError("ERROR_USER_NOT_FOUND", null))
         assertEquals("An account with that email already exists.", friendlyAuthError("ERROR_EMAIL_ALREADY_IN_USE", null))
         assertEquals("Password must be at least 6 characters.", friendlyAuthError("ERROR_WEAK_PASSWORD", null))
         assertEquals("That doesn't look like a valid email.", friendlyAuthError("ERROR_INVALID_EMAIL", null))

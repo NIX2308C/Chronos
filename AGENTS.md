@@ -11,8 +11,9 @@ Chronos is a course grounded AI tutor. Teachers create courses, upload source ma
 | Task | Start here |
 | --- | --- |
 | Routes, configuration, auth, API contracts | `app.py` (search `@app.route`); `web/auth.js`; `android/.../net/Api.kt` |
-| Tutor answer, retrieval, memory, streaming | `app.py`: `chat`, `build_system_instruction`, `load_history`, `load_class_memory`, `load_student_docs`; `web/student.html`: `send`, `readChatResponse`; `android/.../net/ChatStream.kt` |
-| Learning activities | `app.py`: `run_tool`, `_tool_prompt`, `_parse_tool_result`; `web/student.html`: `runTool`, `buildLearningTool` |
+| Model provider (Gemini or Ollama) | `llm.py`: `generate`, `stream`, `health`; `LLM_PROVIDER` = `gemini` (default) or `ollama`, `OLLAMA_URL`, `OLLAMA_API_KEY`, `OLLAMA_TIMEOUT_S`, `CHAT_MODEL`/`TOOL_MODEL`. Every generation call goes through it; `embed()` stays on Gemini. Tools are plain JSON-schema declarations; `json_schema` constrains output (Ollama `format`) |
+| Tutor answer, retrieval, memory, streaming | `app.py`: `chat`, `build_system_instruction` (`CHRONOS_CHARACTER`, `HINT_RULES`, fixed honesty/safety/format rules), `load_history`, `load_class_memory`, `load_student_docs`; `web/student.html`: `send`, `readChatResponse`; `android/.../net/ChatStream.kt` |
+| Learning activities | `app.py`: `run_tool`, `_tool_prompt`, `ACTIVITY_SCHEMAS` (schema-constrained output), `_parse_tool_result`, `activity_from_call`; `web/student.html`: `runTool`, `buildLearningTool` |
 | Teacher material and settings | `web/teacherknowledge.html`; `app.py`: `manage_course_settings`, `ingest`, `upload`, `list_rules`, `delete_rule` |
 | Teacher analytics | `web/teacherstats.html`; `app.py`: `stats`, `roster`, `student_profile_view`, `categorize_conversations` |
 | Student files and profile | `app.py`: `add_student_file`, `load_student_docs`; `student_profile.py` |
@@ -36,9 +37,9 @@ Chronos is a course grounded AI tutor. Teachers create courses, upload source ma
 ## Working locally
 
 - Python dependencies: `pip install -r requirements.txt`. The real `.env` secrets are in the cloud, so local end-to-end testing of `app.py` will not work. With cloud credentials, run `waitress-serve --port=5000 app:app`.
-- Offline Python checks are plain scripts: `python tests/test_profanity.py`, `test_security.py`, `test_stats_grouping.py`, `test_student_context.py`, `test_student_profile.py`, `test_quiz_answers.py`, `test_tutor_flow.py`. Backend import tests need a throwaway `TEACHER_SIGNUP_CODE` of at least 12 characters, dummy `GEMINI_API_KEY`/`PINECONE_API_KEY`, and a syntactically valid (fake) `FIREBASE_CREDENTIALS_JSON`; external services are stubbed. Other local tests should work. Run relevant scripts after edits.
+- Offline Python checks are plain scripts: `python tests/test_profanity.py`, `test_security.py`, `test_stats_grouping.py`, `test_student_context.py`, `test_student_profile.py`, `test_quiz_answers.py`, `test_tutor_flow.py`, `test_llm.py` (fake Ollama server). Backend import tests need a throwaway `TEACHER_SIGNUP_CODE` of at least 12 characters, dummy `GEMINI_API_KEY`/`PINECONE_API_KEY`, and a syntactically valid (fake) `FIREBASE_CREDENTIALS_JSON`; external services are stubbed. Other local tests should work. Run relevant scripts after edits.
 - Android uses Gradle Kotlin DSL and Compose. From `android/`, run `.\gradlew.bat testDebugUnitTest` for local unit tests. Firebase build properties `fbApiKey`, `fbProjectId`, `fbAppId` are supplied externally; backend host defaults to `chronos.tevproject.com` and can be overridden with `-PchronosHost=...`. See `android/app/build.gradle.kts`.
-- `docs/OLLAMA.md` and `docs/OLLAMA_TASK.md` are a proposed migration, not the current model implementation. `docs/ANDROID.md` and `docs/COMMIT_LOG.md` are historical context; inspect the current Android source for actual capabilities. README is useful for concepts and deployment but may lag the native app.
+- `docs/OLLAMA.md` describes the Ollama migration; its provider seam (`llm.py`) is built, hosting is still a deployment choice. `docs/OLLAMA_TASK.md` is historical. `docs/ANDROID.md` and `docs/COMMIT_LOG.md` are historical context; inspect the current Android source for actual capabilities. README is useful for concepts and deployment but may lag the native app.
 
 ## Efficient navigation
 

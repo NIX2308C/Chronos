@@ -1,7 +1,11 @@
 # Moving the tutor onto a local model (Ollama)
 
-Status: **plan only.** Nothing here is built. The blocker is a hosting decision
-(Phase 0), and until that is made, writing the code would be guessing.
+Status: **Phase 2 (the provider seam) is built** in `llm.py`; Gemini stays the
+default. Set `LLM_PROVIDER=ollama`, `OLLAMA_URL`, optionally `OLLAMA_API_KEY`
+(bearer header for an authenticated proxy) and `OLLAMA_TIMEOUT_S`; `CHAT_MODEL`
+defaults to `gemma4:e4b-it-qat` under Ollama. `/tools/run` and the other JSON
+calls pass a JSON Schema that Ollama enforces through `format`. The hosting
+decision (Phase 0) is still open.
 
 ## What this changes, and what it does not
 

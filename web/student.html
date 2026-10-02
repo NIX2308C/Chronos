@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html class="h-full" lang="en"><head>
+<html lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <script>try{var d=document.documentElement,t=localStorage.getItem("chronos-theme"),u=JSON.parse(localStorage.getItem("chronos-ui")||"{}");if(t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches))d.classList.add("dark");if(u.motion==="reduce")d.dataset.motion="reduce";if(u.text==="large")d.dataset.text="large";}catch(e){}</script>
 <title>Chronos | Tutor</title>
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&amp;display=swap" rel="stylesheet"/>
+<!-- Icons block rather than swap, so a slow font never shows its ligature names as text. -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&amp;display=block" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600&amp;family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet"/>
-<link href="transition.css" rel="stylesheet"/>
+<link href="transition.css?v=ink2" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
     // Token NAMES are Material-Design-shaped and are baked into class strings the
@@ -90,101 +91,10 @@
     @keyframes menu-in { from { opacity:0;transform:translateY(6px) scale(.98) } to { opacity:1;transform:none } }
     @keyframes chip-in { from { opacity:0;transform:scale(.92) } to { opacity:1;transform:none } }
 
-    body { font-family: 'Schibsted Grotesk', sans-serif; }
-    h1,h2,h3,h4 { font-family: 'Newsreader', serif; font-weight:400; letter-spacing: -.015em; }
-    ::selection { background: var(--crimson); color: #F7F4EC; }
-    :focus-visible { outline: 2px solid var(--crimson); outline-offset: 2px; }
-    .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
-    .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
-    .mono { font-family: 'Schibsted Grotesk', sans-serif; }
-    /* Custom classes below set `display`, which would beat Tailwind's .hidden on a
-       tie. Scope the fix to those classes — a blanket `.hidden{display:none!important}`
-       also outranks `md:flex`/`sm:inline`, which permanently hides every element that
-       is meant to appear only at a breakpoint (e.g. the sidebar). */
-    .hidden.kbtn, .hidden.ibtn, .hidden.chat-row { display:none; }
     .tagline { font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
 
-    .chat-scroll::-webkit-scrollbar { width: 8px; }
-    .chat-scroll::-webkit-scrollbar-track { background: transparent; }
-    .chat-scroll::-webkit-scrollbar-thumb { background-color: var(--c-edge); }
-
-    /* ---- shared shapes ---- */
-    .hard { border:1px solid var(--c-rule); }
-    /* Dialogs: a neutral edge and a soft shadow, not a red border. */
-    .cast-red { border-color:var(--c-rule) !important; box-shadow:0 20px 48px rgba(0,0,0,.2); }
-
-    /* ---- message bubbles ---- */
-    .bub-you { max-width:78%; background:var(--crimson); color:var(--on-accent); padding:12px 16px;
-        font-size:15.5px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere;
-        transform-origin:100% 100% }
-    /* The answer is the page, not a card in it: plain serif on the paper, no
-       chrome around it. Only the question gets a bubble. */
-    .bub-ai { color:var(--c-ink); font-family:'Newsreader',serif; font-size:19px; line-height:1.62;
-        overflow-wrap:anywhere }
-    /* A refusal, not an answer: same bubble, visibly set apart by the rule down
-       its edge so the thread reads differently at a glance. Existing tokens only. */
-    .bub-ai.bub-blocked { color:var(--c-sub); border-left:3px solid var(--crimson);
-        padding-left:14px }
     @keyframes pop { from{opacity:0;transform:translateY(10px) scale(.97)} to{opacity:1;transform:none} }
-    /* Entrance motion is opt-in per element (.enter) so that reopening a
-       conversation or re-rendering the list never replays it: only what is
-       genuinely new on screen moves. */
-    #messagesInner > .enter { animation:rise-in .22s var(--soft) both }
-    .enter .bub-you { animation:pop .26s var(--snap) both }
-    #chatList .chat-row.enter { animation:slide-in-left .18s var(--soft) both;animation-delay:calc(var(--i,0)*16ms) }
-    .starter { transition:color .15s var(--soft) }
-    .file-chip { animation:chip-in .25s var(--snap) both }
-    .composer-menu:not([hidden]) { animation:menu-in .18s var(--soft) both;transform-origin:0 100% }
-    .composer-menu button { transition:background-color .18s,color .18s,padding-left .18s var(--soft) }
-    .composer-menu button:hover { padding-left:13px }
-    #statusDot,[data-status-dot] { transition:background-color .35s ease }
 
-    /* ---- sidebar conversation rows ---- */
-    .chat-row { display:flex; align-items:center; border-left:3px solid transparent; color:var(--c-sub);
-        transition:background-color .18s ease,border-color .2s var(--snap),color .18s ease }
-    .chat-row:hover { background:var(--c-hi); color:var(--c-ink) }
-    .chat-row.on { background:var(--c-hi); border-left-color:var(--crimson); color:var(--c-ink) }
-    .chat-row:focus-within .chat-delete { opacity:1 }
-    @media (hover:none){ .chat-delete { opacity:1!important } }
-
-    /* ---- buttons ---- */
-    .kbtn { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
-        font-size:14px; font-weight:600; padding:.85rem 1rem; border:1px solid var(--crimson); background:var(--crimson);
-        color:var(--on-accent); cursor:pointer; transition:background-color .15s ease,border-color .15s ease,transform .15s ease }
-    .kbtn:hover:not(:disabled) { background:var(--accent-hover); border-color:var(--accent-hover); color:var(--on-accent); transform:translateY(-1px) }
-    .kbtn:active:not(:disabled) { transform:translateY(0) }
-    .kbtn:disabled { opacity:.55; cursor:default }
-    .kbtn-ghost { background:transparent; border-color:var(--c-rule); color:var(--c-ink) }
-    .kbtn-ghost:hover:not(:disabled) { color:var(--c-ink); border-color:var(--c-ink); background:transparent }
-
-    .ibtn { width:34px; height:34px; display:flex; align-items:center; justify-content:center;
-        border:1px solid transparent; color:var(--c-sub);
-        transition:background-color .15s,color .15s,border-color .15s }
-    .ibtn:hover { background:var(--crimson); border-color:var(--crimson); color:var(--on-accent) }
-
-    .slabel { font-size:12.5px; font-weight:600; color:var(--c-sub) }
-    .sendbtn { width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center;
-        background:var(--c-ink); color:var(--c-page); border:none; cursor:pointer; transition:background-color .15s ease,color .15s ease,transform .15s ease }
-    .sendbtn:hover:not(:disabled) { background:var(--crimson); color:var(--on-accent) }
-    .sendbtn:active:not(:disabled) { transform:scale(.94) }
-    .sendbtn:disabled { opacity:.4; cursor:default }
-
-    /* empty-state starter questions */
-    .starter { display:flex; align-items:center; justify-content:space-between; gap:1rem; width:100%;
-        text-align:left; background:transparent; border:none; border-bottom:1px solid var(--c-rule);
-        padding:15px 4px; font:inherit; font-size:15.5px; color:var(--c-ink); cursor:pointer;
-        transition:color .15s ease }
-    .starter:hover { color:var(--crimson) }
-
-    /* ---- input bar ---- */
-    .composer { background:var(--c-paper); border:1px solid var(--c-rule); transition:border-color .15s ease }
-    .composer:focus-within { border-color:var(--crimson) }
-    /* Debug mode (developer accounts): the chat box glows red. */
-    .composer.debug-on { border-color:var(--crimson); box-shadow:0 0 0 1px var(--crimson),0 0 18px color-mix(in srgb, var(--crimson) 38%, transparent) }
-    .dbg-strip { display:none; font:500 11.5px/1.4 ui-monospace,Consolas,monospace; color:var(--c-sub); padding:0 2px 6px;
-        white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-    .dbg-strip.on { display:block }
-    .dbg-strip b { color:var(--crimson); font-weight:600 }
     details.dbg { margin-top:10px; width:100%; max-width:100%; font:12px/1.5 ui-monospace,Consolas,monospace; color:var(--c-sub);
         border-left:2px solid var(--crimson); padding-left:10px }
     details.dbg > summary { cursor:pointer; list-style:none; user-select:none }
@@ -203,34 +113,6 @@
     .dbg-actions { display:flex; gap:8px }
     .dbg-actions button { font:inherit; color:var(--c-ink); background:transparent; border:1px solid var(--c-rule); padding:3px 9px; cursor:pointer }
     .dbg-actions button:hover { border-color:var(--crimson); color:var(--crimson) }
-    .chat-skel { display:grid; gap:10px; padding:10px 12px }
-
-    /* ---- compact composer actions ---- */
-    .composer-action { width:36px;height:36px;flex:none;display:grid;place-items:center;
-        border:1px solid var(--c-rule);background:transparent;color:var(--c-sub);cursor:pointer;
-        transition:color .16s ease,border-color .16s ease,background-color .16s ease,transform .16s ease; }
-    .composer-action:hover:not(:disabled),.composer-action:focus-visible,.composer-action[aria-expanded="true"] { color:var(--crimson);border-color:var(--crimson); }
-    .composer-action:active:not(:disabled) { transform:scale(.94); }
-    .composer-action:disabled { opacity:.45;cursor:default; }
-    .composer-menu { position:absolute;bottom:calc(100% + 10px);left:0;z-index:10;
-        width:min(250px,calc(100vw - 48px));padding:6px;background:var(--c-paper);
-        border:1px solid var(--c-rule);box-shadow:0 12px 28px rgba(0,0,0,.14); }
-    .composer-menu[hidden],.composer-action[hidden] { display:none; }
-    .composer-menu button { width:100%;display:flex;align-items:center;gap:10px;padding:10px 11px;
-        border:0;background:transparent;color:var(--c-ink);text-align:left;font:inherit;font-size:13px;cursor:pointer; }
-    .composer-menu button:hover,.composer-menu button:focus-visible { background:var(--c-hi);color:var(--crimson); }
-    .composer-menu .menu-hint { display:block;padding:7px 11px 4px;color:var(--c-sub);font-size:12px;line-height:1.35; }
-    #fileBar[hidden] { display:none; }
-    .file-chip { display:inline-flex; align-items:center; gap:6px; padding:4px 6px 4px 9px;
-        font-size:12.5px; background:var(--c-hi); color:var(--c-ink); max-width:15rem }
-    .file-chip .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-    .file-chip button { background:none; border:none; padding:0; cursor:pointer; color:var(--c-sub);
-        display:flex; align-items:center }
-    .file-chip button:hover { color:var(--crimson) }
-
-    .fld { background:var(--c-paper); border:1px solid var(--c-rule); color:var(--c-ink); border-radius:0;
-        transition:border-color .15s }
-    .fld:focus { outline:none; border-color:var(--crimson) }
 
     /* ---- compact source disclosure ---- */
     .src-drop { width:fit-content;max-width:min(100%,560px);margin-top:12px;color:var(--c-sub); }
@@ -278,9 +160,6 @@
     @keyframes tool-out { from { opacity:1;transform:none;max-height:34px;margin-top:14px; } to { opacity:0;transform:translateY(-8px);max-height:0;margin-top:0;padding-top:0;padding-bottom:0; } }
     @keyframes toolkit-arrive { 0% { opacity:0;transform:translateY(12px); } 100% { opacity:1;transform:none; } }
     .stream-tail { overflow-wrap:anywhere;min-height:1lh; }
-    /* Thinking indicator: a solid crimson block cursor, blinking. */
-    .typing-indicator { display:inline-block;width:.55em;height:1.05em;background:var(--crimson);vertical-align:text-bottom;animation:cursor-blink 1.05s steps(1,end) infinite; }
-    @keyframes cursor-blink { 0%,55% { opacity:1; } 56%,100% { opacity:0; } }
     .tool-heading { font-family:'Newsreader',serif;font-size:22px;line-height:1.15;margin:0;color:var(--c-ink); }
     .tool-topline { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px; }
     .tool-count { color:var(--c-sub);font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap; }
@@ -430,17 +309,11 @@
     .ai-prose pre code { background:none; border:none; padding:0; font-size:.8rem; line-height:1.55; display:block; color:var(--c-ink); }
     .ai-prose blockquote { border-left:4px solid var(--crimson); padding-left:.75rem; margin:.6rem 0; color:var(--c-sub); }
 
-    /* The shell is sized off h-full, i.e. 100% of a viewport that on a phone
-       ignores the browser chrome — the same trap as 100vh, and what pushes the
-       composer under the URL bar. The .h-full in the selector is there to
-       outrank Tailwind's own .h-full, whose injection order we don't control. */
-    html.h-full, body.h-full { height:100vh; height:100dvh }
-
     @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
-<link href="theme.css" rel="stylesheet"/>
-<link href="settings.css" rel="stylesheet"/>
-<link href="mobile.css" rel="stylesheet"/>
+<link href="theme.css?v=ink2" rel="stylesheet"/>
+<link href="settings.css?v=ink2" rel="stylesheet"/>
+<link href="mobile.css?v=ink2" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
 <!-- The manifest carries one theme_color; these two let a browser follow the
      page's own light/dark tokens (--c-paper, and its html.dark value). A TWA
@@ -450,163 +323,147 @@
 <link href="icons/favicon.ico" rel="icon" sizes="16x16 32x32 48x48"/>
 <link href="icons/icon-192.png" rel="icon" type="image/png" sizes="192x192"/>
 <link href="icons/apple-touch-icon-180.png" rel="apple-touch-icon"/>
-<link href="ink.css" rel="stylesheet"/>
-<script src="ink.js" defer></script>
+<link href="ink.css?v=ink2" rel="stylesheet"/>
+<script src="ink.js?v=ink2" defer></script>
 </head>
-<body class="bg-background text-on-background h-full antialiased overflow-hidden flex">
-
+<body>
 
 <!-- Join-a-course dialog. With no courses yet it is the whole app (no close button);
      opened from the sidebar it is a normal dialog with an explicit Close. -->
-<div class="hidden fixed inset-0 z-40 flex items-center justify-center p-margin-mobile" style="background:rgba(11,11,12,.55)" id="joinGate" role="dialog" aria-modal="true" aria-labelledby="joinTitle">
-<div class="w-full max-w-sm bg-surface-container-lowest hard cast-red p-stack-lg" id="joinCard">
-<div class="flex items-start justify-between gap-3 mb-stack-md">
-<h1 class="font-headline-md text-headline-md text-on-background" id="joinTitle">Join a course</h1>
-<button class="ibtn -mt-1 -mr-1 flex-shrink-0" id="joinCancelBtn" aria-label="Close" title="Close"><span class="material-symbols-outlined text-[20px]">close</span></button>
+<div class="gate hidden" id="joinGate" role="dialog" aria-modal="true" aria-labelledby="joinTitle">
+<div class="gate-card" id="joinCard">
+<div class="gate-head">
+<h1 id="joinTitle">Join a course</h1>
+<button class="ibtn" id="joinCancelBtn" type="button" aria-label="Close" title="Close"><span class="material-symbols-outlined">close</span></button>
 </div>
-<input class="fld w-full mono px-4 py-3 text-center tracking-[.25em] uppercase text-[15px]" id="joinCodeInput" maxlength="14" placeholder="Course code" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Course code" type="text"/>
-<p class="hidden mt-stack-md font-label-sm text-label-sm text-on-error-container bg-error-container border border-error px-3 py-2" id="joinErr" role="alert"></p>
-<button class="kbtn w-full mt-stack-md" id="joinBtn"><span>Join</span></button>
-<p class="hidden mt-stack-md text-center text-[12.5px] text-on-surface-variant" id="joinFoot"><span id="joinEmail"></span> &middot; <button class="underline hover:text-primary transition-colors" id="joinLogoutBtn">Not you? Sign out</button></p>
+<p>Enter the code your teacher shared. It's on their Course material page.</p>
+<input class="fld" id="joinCodeInput" maxlength="14" placeholder="Course code" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Course code" type="text"/>
+<p class="gate-err hidden" id="joinErr" role="alert"></p>
+<button class="kbtn" id="joinBtn" type="button"><span>Join course</span></button>
+<p class="gate-foot hidden" id="joinFoot"><span id="joinEmail"></span> &middot; <button class="linkbtn" id="joinLogoutBtn" type="button">Not you? Sign out</button></p>
 </div>
 </div>
 
 <!-- Teacher with no course yet -->
-<div class="hidden fixed inset-0 z-40 flex items-center justify-center p-margin-mobile" style="background:rgba(11,11,12,.55)" id="teacherGate" role="dialog" aria-modal="true" aria-labelledby="teacherGateTitle">
-<div class="w-full max-w-sm bg-surface-container-lowest hard cast-red p-stack-lg">
-<h1 class="font-headline-md text-headline-md text-on-background mb-2" id="teacherGateTitle">Make a course first</h1>
-<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Create one in Course Material, then try the tutor on it.</p>
-<a class="kbtn w-full" href="/teacher"><span>Go to Course Material</span></a>
-<p class="mt-stack-md text-center text-[12.5px] text-on-surface-variant"><span id="teacherGateEmail"></span> &middot; <button class="underline hover:text-primary transition-colors" id="teacherGateLogout">Not you? Sign out</button></p>
+<div class="gate hidden" id="teacherGate" role="dialog" aria-modal="true" aria-labelledby="teacherGateTitle">
+<div class="gate-card">
+<div class="gate-head"><h1 id="teacherGateTitle">Make a course first</h1></div>
+<p>Create one in Course material, then try the tutor on it.</p>
+<a class="kbtn" href="/teacher"><span>Go to Course material</span></a>
+<p class="gate-foot"><span id="teacherGateEmail"></span> &middot; <button class="linkbtn" id="teacherGateLogout" type="button">Not you? Sign out</button></p>
 </div>
 </div>
 
-<!-- Sidebar. Below 768px this is the off-canvas drawer: mobile.css slides it
-     on a transform rather than hiding it, because everything a student needs
-     to switch course, reopen a conversation or sign out lives in here. -->
-<nav id="sideNav" data-drawer="sm" aria-label="Course and conversations" class="side flex h-full w-72 fixed left-0 top-0 flex-col z-[35]">
-<a class="side-brand" href="/login" aria-label="Chronos home">
-<span class="brand-mark material-symbols-outlined" aria-hidden="true">hourglass_empty</span><span class="brand-word">Chronos<span class="brand-dot">.</span></span>
+<div class="app">
+
+<!-- Sidebar: the same shell as the teacher pages. Below 900px it is the
+     drawer (mobile.css), since course, history and sign-out all live here. -->
+<nav id="sideNav" class="side" data-drawer="sm" aria-label="Course and conversations">
+<a class="brand" href="/student" aria-label="Chronos home">
+<svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 3h13M5.5 21h13"/><path d="M7.5 3v2.6c0 2.3 4.5 4 4.5 6.4s-4.5 4.1-4.5 6.4V21M16.5 3v2.6c0 2.3-4.5 4-4.5 6.4s4.5 4.1 4.5 6.4V21"/><path d="M9.6 19.2 12 17l2.4 2.2z" fill="currentColor" stroke="none"/></svg>
+<span class="brand-word">Chronos.</span>
 </a>
 <!-- Course card: which course's tutor you're talking to -->
 <div class="course-card">
-<span class="side-eyebrow">Your course</span>
+<div class="course-head"><span class="eyebrow">Your course</span></div>
 <div class="course-row">
-<span class="material-symbols-outlined course-ico" aria-hidden="true">school</span>
-<div class="relative flex-1 min-w-0">
-<select class="course-select appearance-none w-full min-w-0 outline-none cursor-pointer" id="classSwitcher" data-drawer-close title="Active course" aria-label="Active course"></select>
+<div class="course-pick">
+<select class="course-select" id="classSwitcher" data-drawer-close title="Active course" aria-label="Active course"></select>
 <span class="material-symbols-outlined course-chev" aria-hidden="true">unfold_more</span>
 </div>
-<button class="course-add" id="joinAnotherBtn" data-drawer-close title="Join another course" aria-label="Join another course">
-<span class="material-symbols-outlined">add</span>
-</button>
+<button class="course-add" id="joinAnotherBtn" type="button" data-drawer-close title="Join another course" aria-label="Join another course"><span class="material-symbols-outlined">add</span></button>
 </div>
 </div>
-<div class="px-4 pt-3">
-<button class="kbtn kbtn-light w-full" id="newChatBtn" data-drawer-close>
-<span class="material-symbols-outlined">add</span><span>New conversation</span>
-</button>
-<a class="hidden w-full mt-2 items-center gap-3 px-4 py-2.5 hard text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="/teacher" id="teacherBackLink">
-<span class="material-symbols-outlined text-[18px]">arrow_back</span> Teacher panel
-</a>
+<!-- Teachers trying the tutor get the same navigation as their own pages. -->
+<div class="side-nav hidden" id="teacherNav" aria-label="Teacher sections">
+<a class="nav-link" href="/teacher" data-drawer-close><span class="material-symbols-outlined">folder_open</span>Course material</a>
+<a class="nav-link" href="/teacher-stats" data-drawer-close><span class="material-symbols-outlined">insights</span>Analytics</a>
+<a class="nav-link on" href="/student" aria-current="page" data-drawer-close><span class="material-symbols-outlined">chat</span>Preview as student</a>
 </div>
-<p class="side-eyebrow px-6 pt-5 pb-2">Conversations</p>
-<div class="hidden px-4 pb-2" id="chatSearchWrap"><input class="fld w-full px-3 py-2 text-[13px]" id="chatSearch" type="search" placeholder="Search conversations" aria-label="Search conversations" autocomplete="off"/></div>
-<div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-3 pb-3" id="chatList" data-drawer-close>
+<div class="side-cta">
+<button class="kbtn" id="newChatBtn" type="button" data-drawer-close><span class="material-symbols-outlined">add</span><span>New conversation</span></button>
+</div>
+<div class="side-label"><span class="eyebrow">Conversations</span></div>
+<div class="chat-search hidden" id="chatSearchWrap"><input class="fld" id="chatSearch" type="search" placeholder="Search conversations" aria-label="Search conversations" autocomplete="off"/></div>
+<div class="side-list chat-scroll" id="chatList" data-drawer-close>
 <div class="chat-skel" id="chatSkel" aria-hidden="true"><i class="skeleton" style="height:14px;width:82%"></i><i class="skeleton" style="height:14px;width:64%"></i><i class="skeleton" style="height:14px;width:74%"></i></div>
 </div>
 <div class="side-foot">
-<div class="flex items-center gap-3">
-<span class="avatar" id="userInitials"></span>
-<span class="min-w-0 flex-1">
-<span class="slabel block truncate" id="userEmail" title="" style="color:var(--c-ink)"></span>
-<span class="slabel block" style="font-weight:400" id="roleLabel"></span>
-</span>
-</div>
 <div class="side-tools">
-<button aria-label="Settings" class="ibtn" id="settingsBtn" data-drawer-close title="Settings"><span class="material-symbols-outlined">settings</span></button>
-<button class="ibtn" data-theme-toggle="" title="Switch to dark mode" aria-label="Toggle theme"><span class="material-symbols-outlined">dark_mode</span></button>
-<button class="ibtn" id="logoutBtn" title="Sign out" aria-label="Sign out"><span class="material-symbols-outlined">logout</span></button>
+<button aria-label="Settings" class="ibtn" id="settingsBtn" type="button" data-drawer-close title="Settings"><span class="material-symbols-outlined">settings</span></button>
+<button class="ibtn" type="button" data-theme-toggle title="Switch to dark mode" aria-label="Toggle theme"><span class="material-symbols-outlined">dark_mode</span></button>
+</div>
+<div class="side-user">
+<span class="avatar" id="userInitials" aria-hidden="true"></span>
+<span class="side-who">
+<span class="side-email trunc" id="userEmail" title=""></span>
+<span class="side-role" id="roleLabel"></span>
+</span>
+<button class="ibtn" id="logoutBtn" type="button" title="Sign out" aria-label="Sign out"><span class="material-symbols-outlined">logout</span></button>
 </div>
 </div>
 </nav>
 <div data-drawer-scrim="sm" aria-hidden="true"></div>
 
-<!-- Main -->
-<main class="flex-1 flex flex-col min-w-0 md:ml-72 h-full bg-surface-container-lowest">
-<!-- Mobile header -->
-<header data-mobile-header class="md:hidden fixed top-0 w-full bg-surface-container-lowest flex items-center gap-3 px-margin-mobile z-20" style="border-bottom:1px solid var(--c-rule)">
-<button data-drawer-toggle="sm" class="text-on-surface-variant -ml-2.5" aria-label="Open menu" title="Menu">
-<span class="material-symbols-outlined text-[22px]">menu</span>
-</button>
-<span class="min-w-0 flex-1">
-<span class="block truncate font-label-md text-[15px] leading-tight text-on-background" data-thread-title>New chat</span>
-<span class="block truncate font-body-md text-[12px] text-on-surface-variant" data-thread-class></span>
-</span>
-<span class="w-2 h-2 block flex-none bg-outline" data-status-dot title="Checking…"></span>
-<button class="w-11 h-11 flex-none flex items-center justify-center bg-primary text-on-primary" id="newChatBtnMobile">
-<span class="material-symbols-outlined text-lg">add</span>
-</button>
-</header>
-
-<!-- Desktop header: which conversation, which class, and whether we're online -->
-<header class="hidden md:flex flex-none items-center justify-between gap-5 px-8 py-3.5" style="border-bottom:1px solid var(--c-rule)">
-<div class="min-w-0">
-<div class="font-label-md text-[16px] leading-tight text-on-background truncate" id="threadTitle" data-thread-title>New chat</div>
-<div class="font-body-md text-[13px] text-on-surface-variant mt-0.5 truncate" id="threadClass" data-thread-class></div>
+<main class="main">
+<!-- One header at every width: which course, which conversation, and whether
+     the server is reachable. -->
+<header class="topbar chat-top">
+<button data-drawer-toggle="sm" type="button" aria-label="Open menu" title="Menu"><span class="material-symbols-outlined">menu</span></button>
+<div class="crumbs">
+<span class="crumb-course" data-thread-class></span><span class="crumb-sep" aria-hidden="true">/</span><span class="crumb-now" id="threadTitle" data-thread-title>New chat</span>
 </div>
-<span class="flex items-center gap-2 flex-none font-body-md text-[13px] text-on-surface-variant">
-<span class="w-2 h-2 block bg-outline" id="statusDot" data-status-dot></span>
-<span id="statusText" data-status-text></span>
-</span>
+<span class="server-state"><span id="statusDot" data-status-dot title="Checking…"></span><span id="statusText" data-status-text></span></span>
+<button class="ibtn mobile-only" id="newChatBtnMobile" type="button" aria-label="New conversation" title="New conversation"><span class="material-symbols-outlined">edit_square</span></button>
 </header>
 
 <!-- Chat column -->
-<section data-chat-col class="flex-1 flex flex-col min-h-0 pt-16 md:pt-0 w-full">
-<div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-6 md:px-8 pt-8 pb-6" id="messages" data-transition-content>
-<div class="max-w-[720px] mx-auto" id="messagesInner"></div>
+<section data-chat-col class="chat-col">
+<div class="thread chat-scroll" id="messages" data-transition-content>
+<div class="thread-inner" id="messagesInner"></div>
 </div>
 <!-- Input -->
-<div data-composer class="flex-none px-6 md:px-8 pt-4 pb-3.5" style="border-top:1px solid var(--c-rule)">
-<div class="max-w-[720px] mx-auto">
+<div data-composer class="composer-wrap">
+<button class="to-latest" id="toLatest" type="button" aria-label="Scroll to latest message" hidden><span class="material-symbols-outlined">arrow_downward</span>Latest</button>
+<div class="composer-inner">
 <!-- The student's own work stays in this conversation. -->
-<div class="flex items-center flex-wrap gap-2 mb-2" id="fileBar" hidden>
-<span class="flex items-center flex-wrap gap-2" id="fileChips"></span>
-<span class="font-label-sm text-label-sm text-on-surface-variant normal-case tracking-normal" id="fileErr"></span>
+<div class="file-bar" id="fileBar" hidden>
+<span class="file-bar" style="margin:0" id="fileChips"></span>
+<span id="fileErr"></span>
 <input accept=".pdf,.docx,.txt,.md,.csv" class="hidden" id="fileInput" type="file"/>
 </div>
 <div class="dbg-strip" id="dbgStrip" aria-live="polite"></div>
-<div class="composer relative p-2 flex items-end gap-2" id="composerBox">
-<div class="relative flex items-end gap-1.5 flex-none">
-<button type="button" class="composer-action" id="addFileBtn" aria-label="Add to conversation" aria-haspopup="menu" aria-expanded="false" title="Add to conversation"><span class="material-symbols-outlined text-[21px]">add</span></button>
-<button type="button" class="composer-action" id="toolBtn" aria-label="Create learning activity" aria-haspopup="menu" aria-expanded="false" title="Create learning activity" hidden><span class="material-symbols-outlined text-[19px]">auto_awesome</span></button>
+<div class="composer" id="composerBox">
+<div class="composer-tools">
+<button type="button" class="composer-action" id="addFileBtn" aria-label="Add to conversation" aria-haspopup="menu" aria-expanded="false" title="Add to conversation"><span class="material-symbols-outlined">add</span></button>
+<button type="button" class="composer-action" id="toolBtn" aria-label="Create learning activity" aria-haspopup="menu" aria-expanded="false" title="Create learning activity" hidden><span class="material-symbols-outlined">widgets</span></button>
 <div class="composer-menu" id="addFileMenu" role="menu" hidden>
-<button type="button" role="menuitem" data-add-kind="assignment"><span class="material-symbols-outlined text-[18px]">upload_file</span>Add assignment</button>
-<button type="button" role="menuitem" data-add-kind="rubric"><span class="material-symbols-outlined text-[18px]">checklist</span>Add rubric</button>
-<button type="button" role="menuitem" data-add-kind="file"><span class="material-symbols-outlined text-[18px]">attach_file</span>Add file</button>
+<button type="button" role="menuitem" data-add-kind="assignment"><span class="material-symbols-outlined">upload_file</span>Add assignment</button>
+<button type="button" role="menuitem" data-add-kind="rubric"><span class="material-symbols-outlined">checklist</span>Add rubric</button>
+<button type="button" role="menuitem" data-add-kind="file"><span class="material-symbols-outlined">attach_file</span>Add file</button>
 </div>
 <div class="composer-menu" id="toolMenu" role="menu" hidden></div>
 </div>
-<textarea aria-label="Message" class="w-full bg-transparent border-none focus:ring-0 resize-none max-h-32 min-h-[44px] py-2 px-0 font-body-md text-[15.5px] text-on-surface placeholder:text-on-surface-variant" id="input" placeholder="Ask a question…" rows="1"></textarea>
-<button class="sendbtn" id="sendBtn" title="Send" aria-label="Send message">
-<span class="material-symbols-outlined fill text-[19px]">arrow_upward</span>
+<textarea aria-label="Message" class="composer-input" id="input" placeholder="What would you like to understand?" rows="1"></textarea>
+<button class="sendbtn" id="sendBtn" type="button" title="Send" aria-label="Send message">
+<span class="material-symbols-outlined">arrow_upward</span>
 </button>
 </div>
-<div class="composer-foot" aria-hidden="false"><span><span class="material-symbols-outlined">verified_user</span>Grounded in your course material.</span><span class="hint-keys">Enter to send <kbd>&crarr;</kbd></span></div>
+<div class="composer-foot"><span><span class="material-symbols-outlined">verified_user</span>Grounded in your course material.</span><span class="hint-keys">Enter to send <kbd>&crarr;</kbd></span></div>
 </div>
 </div>
-<button class="to-latest" id="toLatest" type="button" aria-label="Scroll to latest message" hidden><span class="material-symbols-outlined">arrow_downward</span>Latest</button>
 </section>
 
 </main>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
-<script src="theme.js"></script>
-<script src="mobile.js"></script>
-<script src="transition.js"></script>
-<script src="settings.js"></script>
+<script src="theme.js?v=ink2"></script>
+<script src="mobile.js?v=ink2"></script>
+<script src="transition.js?v=ink2"></script>
+<script src="settings.js?v=ink2"></script>
 <script>
   // Backend base (same-origin in deployment; dev server via Live Server/file://).
   // Chronos.BASE comes from auth.js and uses the same detection.
@@ -781,16 +638,16 @@
     const q=chatFilter.trim().toLowerCase();
     const shown=q?chats.filter(c=>c.id===activeChatId||(c.title||"").toLowerCase().includes(q)):chats;
     if(q&&shown.length===0){
-      const p=document.createElement("p");p.className="px-3 py-2 text-[13px] text-on-surface-variant";
+      const p=document.createElement("p");p.className="chat-empty";
       p.textContent="No matches";els.chatList.appendChild(p);
     }
     shown.forEach((c,i)=>{
       const on=c.id===activeChatId;
       const row=document.createElement("div");
-      row.className="group chat-row"+(on?" on":"")+(animate?" enter":"");
+      row.className="chat-row"+(on?" on":"")+(animate?" enter":"");
       row.style.setProperty("--i",Math.min(i,10));
       const it=document.createElement("button");
-      it.className="flex-1 min-w-0 text-left px-3 py-2.5 font-label-md text-label-md truncate";
+      it.className="chat-open";it.type="button";it.title=c.title;
       it.textContent=c.title;
       it.onclick=()=>selectChat(c.id);
       const warm=()=>warmChat(c);
@@ -798,10 +655,10 @@
       it.addEventListener("focus",warm);
       row.addEventListener("touchstart",warm,{passive:true});
       const del=document.createElement("button");
-      del.className="chat-delete px-2 opacity-0 group-hover:opacity-100 transition-opacity hover:text-error flex-shrink-0";
+      del.className="chat-delete";del.type="button";del.setAttribute("aria-label","Delete conversation: "+c.title);
       del.dataset.drawerKeep="1";   // deleting a conversation shouldn't shut the drawer
       del.title="Delete conversation";
-      del.innerHTML='<span class="material-symbols-outlined text-[18px]">delete</span>';
+      del.innerHTML='<span class="material-symbols-outlined" style="font-size:18px">delete</span>';
       del.onclick=(e)=>{e.stopPropagation();deleteChat(c.id);};
       row.appendChild(it);row.appendChild(del);
       els.chatList.appendChild(row);
@@ -833,7 +690,11 @@
     const c=activeChat();
     els.messagesInner.innerHTML="";
     paintHeader();
-    if(!c||c.messages.length===0){
+    const empty=!c||c.messages.length===0;
+    // The empty conversation is laid out differently (centred, composer under
+    // the starters on wide screens); see .chat-col.is-empty in ink.css.
+    document.querySelector("[data-chat-col]").classList.toggle("is-empty",empty);
+    if(empty){
       const e=document.createElement("div");
       e.className="empty-state";
       const h=document.createElement("h2");
@@ -853,7 +714,8 @@
       STARTERS.forEach((t,i)=>{
         const b=document.createElement("button");
         b.className="starter";
-        b.innerHTML='<span class="starter-top"><span class="material-symbols-outlined">'+t.icon+'</span><span class="starter-n"></span></span><strong></strong><span class="starter-sub"></span>';
+        b.type="button";
+        b.innerHTML='<span class="starter-top"><span class="material-symbols-outlined">'+t.icon+'</span><span class="starter-n"></span></span><span class="starter-text"><strong></strong><span class="starter-sub"></span></span>';
         b.querySelector(".starter-n").textContent="0"+(i+1);
         b.querySelector("strong").textContent=t.title;
         b.querySelector(".starter-sub").textContent=t.hint;
@@ -1742,16 +1604,14 @@
   }
   function setSending(on){sending=on;updateComposer();if(!on&&!navigationBusy)els.input.focus();}
 
-  const STATUS={online:["bg-secondary","Online"],waking:["bg-secondary","Waking server…"],offline:["bg-error","Offline"]};
+  const STATUS={online:"Online",waking:"Waking server…",offline:"Offline"};
 
   function setStatus(state){
-    const [tone,label]=STATUS[state]||STATUS.offline;
-    // Toggling only the colour, rather than reassigning className, so the mobile
-    // dot keeps the layout classes it needs inside a flex header.
+    if(!STATUS[state])state="offline";
+    const label=STATUS[state];
+    // The colour comes from ink.css, keyed on data-state.
     document.querySelectorAll("[data-status-dot]").forEach(el=>{
-      el.classList.remove("bg-outline","bg-secondary","bg-error","animate-pulse");
-      el.classList.add(tone);
-      if(state==="waking")el.classList.add("animate-pulse");
+      el.dataset.state=state;
       el.title=label;
     });
     // "Online" needs no words: the dot says it. Only a problem gets a label.
@@ -1798,6 +1658,8 @@
     activeChatId=null;
     await applyClassFilter();
   }
+  // The full prompt wraps onto two lines in a phone-width composer.
+  if(matchMedia("(max-width:900px)").matches)els.input.placeholder="Ask a question…";
   els.input.addEventListener("input",()=>{if(activeChat())activeChat().draft=els.input.value;els.input.style.height="auto";els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";});
 
   // The on-screen keyboard doesn't resize the layout viewport, so the composer
@@ -2036,8 +1898,10 @@
     // A teacher trying the tutor isn't a student.
     $s("roleLabel").textContent=role==="teacher"?"Teacher":"Student";
     // Show a way back to the teacher panels when a teacher is using the tutor.
-    $s("teacherBackLink").classList.toggle("hidden",role!=="teacher");
-    $s("teacherBackLink").classList.toggle("flex",role==="teacher");
+    // and the same navigation they have on their own pages. Teachers own
+    // courses rather than joining them, so the join button is for students.
+    $s("teacherNav").classList.toggle("hidden",role!=="teacher");
+    $s("joinAnotherBtn").classList.toggle("hidden",role==="teacher");
   }
   function applyDebugUi(){
     $s("composerBox").classList.toggle("debug-on",DEBUG);
@@ -2046,7 +1910,7 @@
   }
   function showPageError(message){
     const wrap=document.createElement("p");
-    wrap.className="font-body-md text-body-md text-error text-center px-6 py-10";
+    wrap.className="row-empty";wrap.style.cssText="text-align:center;padding:40px 0;color:var(--bad)";
     wrap.textContent=message||"Sign-in required";   // textContent: this string comes off the wire
     els.messagesInner.replaceChildren(wrap);
     const skel=$s("chatSkel");if(skel)skel.remove();
@@ -2084,16 +1948,16 @@
   }).catch(e=>showPageError((e&&e.message)||"Something went wrong. Please refresh."));
 </script>
 
-<!-- How-it-works tutorial -->
-<div class="hidden fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile" style="background:rgba(11,11,12,.72)" id="tut">
-<div class="w-full max-w-md bg-surface-container-lowest hard cast-red p-stack-lg max-h-[85dvh] overflow-y-auto">
-<div class="flex items-start justify-between gap-3 mb-stack-md">
-<h2 class="font-headline-md text-headline-md text-on-background" id="tutTitle"></h2>
-<button class="ibtn flex-shrink-0" id="tutClose"><span class="material-symbols-outlined">close</span></button>
+<!-- How-it-works tour: Settings → Account → Replay tour. -->
+<div id="tut" class="gate hidden" role="dialog" aria-modal="true" aria-labelledby="tutTitle">
+<div class="gate-card">
+<div class="gate-head">
+<h2 id="tutTitle"></h2>
+<button id="tutClose" class="ibtn" type="button" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
 </div>
-<div class="space-y-stack-md" id="tutBody"></div>
-<div class="flex items-center justify-center gap-1.5 mt-stack-md" id="tutDots"></div>
-<button class="kbtn w-full mt-stack-lg" id="tutDone"><span>Continue</span></button>
+<div id="tutBody" style="margin-top:14px"></div>
+<div id="tutDots" class="tut-dots"></div>
+<button id="tutDone" class="kbtn" type="button">Continue</button>
 </div>
 </div>
 <script>
@@ -2101,9 +1965,9 @@
     const TITLE="Quick tour";
     const KEY="chronos_tut_student_v2";
     const STEPS=[
-      {icon:"school",title:"Pick your course",text:"The menu on the left sets which course the tutor answers from."},
+      {icon:"school",title:"Pick your course",text:"The course card in the sidebar sets which course the tutor answers from."},
       {icon:"forum",title:"Just ask",text:"Type a question and press Enter. Attach an assignment or rubric with + to get feedback on your own work."},
-      {icon:"auto_awesome",title:"Practice",text:"When your teacher turns them on, quizzes and flashcards are in the sparkle menu."},
+      {icon:"widgets",title:"Practice",text:"When your teacher turns them on, quizzes, flashcards and more are in the activities menu next to +."},
     ];
     let idx=0;
     const body=document.getElementById("tutBody");
@@ -2113,27 +1977,27 @@
 
     function render(){
       const s=STEPS[idx];
-      body.innerHTML='<div class="flex items-start gap-3">'+
-        '<span class="w-10 h-10 flex-shrink-0 bg-primary text-on-primary flex items-center justify-center"><span class="material-symbols-outlined text-[20px]">'+s.icon+'</span></span>'+
-        '<div><h3 class="font-label-md text-label-md text-on-surface mb-0.5" style="font-family:\'Schibsted Grotesk\',sans-serif;text-transform:none">'+s.title+'</h3>'+
-        '<p class="font-body-md text-body-md text-on-surface-variant leading-snug">'+s.text+'</p></div></div>';
+      body.innerHTML='<div class="tut-step"><span class="tut-ico"><span class="material-symbols-outlined"></span></span><div><h3></h3><p></p></div></div>';
+      body.querySelector(".tut-ico span").textContent=s.icon;
+      body.querySelector("h3").textContent=s.title;
+      body.querySelector("p").textContent=s.text;
       dots.innerHTML="";
       STEPS.forEach((_,i)=>{
         const d=document.createElement("span");
-        d.className="h-2 transition-all "+(i===idx?"w-6 bg-primary":"w-2 bg-outline");
+        if(i===idx)d.className="on";
         dots.appendChild(d);
       });
-      doneBtn.querySelector("span").textContent = idx===STEPS.length-1 ? "Got it" : "Continue";
+      doneBtn.textContent = idx===STEPS.length-1 ? "Got it" : "Continue";
     }
 
     const modal=document.getElementById("tut");
-    const open=()=>{idx=0;render();modal.classList.remove("hidden");};
+    const open=()=>{idx=0;render();modal.classList.remove("hidden");doneBtn.focus();};
     const close=()=>{modal.classList.add("hidden");try{localStorage.setItem(KEY,"1");}catch(e){}};
     document.getElementById("tutClose").onclick=close;
+    document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!modal.classList.contains("hidden"))close();});
     // Each click only ever advances one step — no skipping ahead, and no
     // dismissing by clicking the backdrop, so the steps actually get read.
     doneBtn.onclick=()=>{ if(idx<STEPS.length-1){idx++;render();} else {close();} };
-    const help=document.getElementById("tutHelp");if(help)help.onclick=open;
     // Opt-in: Settings → Account → Replay tour. It no longer opens by itself.
     window.__tutOpen=open;
   })();

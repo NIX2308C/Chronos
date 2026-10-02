@@ -5,308 +5,233 @@
 <script>try{var d=document.documentElement,t=localStorage.getItem("chronos-theme"),u=JSON.parse(localStorage.getItem("chronos-ui")||"{}");if(t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches))d.classList.add("dark");if(u.motion==="reduce")d.dataset.motion="reduce";if(u.text==="large")d.dataset.text="large";}catch(e){}</script>
 <title>Chronos | Course material</title>
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
-<link href="transition.css" rel="stylesheet"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
-<style>
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--page);color:var(--ink);font-family:"Schibsted Grotesk",sans-serif;
-       -webkit-font-smoothing:antialiased;overflow:hidden}
-  h1,h2,h3{font-family:Newsreader,serif;font-weight:400;letter-spacing:-.018em}
-  ::selection{background:var(--crimson);color:var(--on-accent)}
-  :focus-visible{outline:2px solid var(--crimson);outline-offset:2px}
-  input,textarea,button{font-family:inherit}
-  a{color:inherit}
-  .hidden{display:none!important}
-  .msym{font-family:'Material Symbols Outlined';font-size:19px;line-height:1;flex:none}
-  .lbl{font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--sub)}
-  .col-lbl{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
-  .trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-  [data-scroll]{scrollbar-width:thin;scrollbar-color:var(--field-b) transparent}
-  [data-scroll]::-webkit-scrollbar{width:9px}
-  [data-scroll]::-webkit-scrollbar-thumb{background:var(--field-b)}
-
-  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-  @keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
-  .code-chip{display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--field-b);
-    color:var(--ink);padding:8px 12px;font:600 14px/1 ui-monospace,Consolas,monospace;letter-spacing:.08em;cursor:pointer;
-    transition:border-color .15s,color .15s}
-  .code-chip:hover{border-color:var(--ink)}
-  .code-chip .msym{font-size:16px;color:var(--sub);letter-spacing:0}
-  .list-tools{display:flex;gap:8px;padding:10px 18px;border-bottom:1px solid var(--rule2)}
-  .list-tools .fld{height:36px;padding:0 10px;font-size:13.5px}
-  .more-btn{display:block;width:100%;padding:12px;background:transparent;border:0;border-top:1px solid var(--rule2);
-    font:600 13.5px inherit;color:var(--sub);cursor:pointer}
-  .more-btn:hover{color:var(--ink)}
-  .doc-tags{display:block;font-size:12px;color:var(--faint);margin-top:3px}
-
-  /* sidebar */
-  .class-row{width:100%;display:flex;align-items:center;text-align:left;background:transparent;border:none;
-    border-left:3px solid transparent;padding:11px 12px;font:inherit;cursor:pointer;transition:background-color .15s ease}
-  .class-row:hover:not(.on){background:var(--hi)}
-  .class-row.on{background:var(--hi);border-left-color:var(--crimson)}
-  .class-row.on .cr-name{font-weight:600}
-  .cr-name{display:block;font-size:14.5px;color:var(--ink)}
-  .cr-meta{display:block;font-size:12px;color:var(--faint);margin-top:3px}
-  .side-link{display:flex;align-items:center;gap:10px;padding:11px 12px;font-size:14.5px;color:var(--ink);
-    text-decoration:none;transition:color .15s ease}
-  .side-link:hover{color:var(--crimson-d)}
-  .side-link.on{background:var(--hi);font-weight:600}
-
-  /* buttons */
-  .kbtn{display:inline-flex;align-items:center;gap:7px;background:var(--crimson);color:var(--on-accent);
-    border:1px solid var(--crimson);padding:11px 17px;font-size:14px;font-weight:600;cursor:pointer;
-    transition:background-color .15s,border-color .15s,transform .15s}
-  .kbtn:hover:not(:disabled){background:var(--crimson-d);border-color:var(--crimson-d);color:var(--on-accent);transform:translateY(-1px)}
-  .kbtn:active:not(:disabled){transform:translateY(0) scale(.98)}
-  .kbtn:disabled{opacity:.5;cursor:default}
-  .kbtn-ghost{background:transparent;border-color:var(--field-b);color:var(--ink);padding:10px 15px}
-  .kbtn-ghost:hover:not(:disabled){background:transparent;border-color:var(--ink);color:var(--ink)}
-  .kbtn-dark{background:var(--ink);border-color:var(--ink);color:var(--page)}
-  .kbtn-dark:hover:not(:disabled){background:var(--crimson);border-color:var(--crimson);color:var(--on-accent)}
-  .ibtn{width:32px;height:32px;display:grid;place-items:center;background:transparent;border:none;
-    color:var(--dim);cursor:pointer;transition:color .15s}
-  .ibtn:hover{color:var(--crimson-d)}
-  .linkbtn{background:none;border:none;padding:0;font:inherit;color:var(--crimson-d);cursor:pointer;
-    text-decoration:underline;font-weight:600}
-  .setting-row{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:13px 0;border-bottom:1px solid var(--rule2)}
-  .setting-row:last-child{border-bottom:none}
-  .switch{position:relative;width:40px;height:22px;flex:none;margin-top:1px}
-  .switch input{position:absolute;opacity:0;pointer-events:none}
-  .switch span{position:absolute;inset:0;background:var(--field-b);transition:background-color .18s}
-  .switch span:after{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:var(--field);transition:transform .18s}
-  .switch input:checked+span{background:var(--crimson)}
-  .switch input:checked+span:after{transform:translateX(18px)}
-
-  /* fields */
-  .fld{background:var(--field);border:1px solid var(--field-b);color:var(--ink);transition:border-color .15s}
-  .fld:focus{outline:none;border-color:var(--crimson)}
-  .fld::placeholder{color:var(--faint)}
-
-  .card{border:1px solid var(--field-b);background:var(--field)}
-  .panel{display:flex;flex-direction:column;min-width:0;min-height:0}
-  .panel-hd{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
-    padding:14px 18px;border-bottom:1px solid var(--rule2)}
-  .panel-body{padding:0 18px;overflow-y:auto;min-height:0}
-  .panel-note{margin:0 18px 16px;padding:9px 11px;font-size:12.5px;line-height:1.5;color:var(--sub);
-    border:1px solid var(--rule2);border-left:3px solid var(--gold)}
-
-  /* list rows: the trailing rule is dropped so the panel's own border ends the list */
-  .doc-row{display:grid;grid-template-columns:minmax(0,1fr) 78px 32px;gap:12px;align-items:center;
-    border-bottom:1px solid var(--rule2);padding:13px 0}
-  .rule-row{display:grid;grid-template-columns:minmax(0,1fr) 32px 32px;gap:4px;align-items:center;
-    border-bottom:1px solid var(--rule2);padding:11px 0;cursor:pointer}
-  .doc-row:last-child,.rule-row:last-child{border-bottom:none}
-  .doc-row .ibtn,.rule-row .ibtn{opacity:0;transition:opacity .15s,color .15s}
-  .doc-row:hover .ibtn,.doc-row .ibtn:focus-visible,
-  .rule-row:hover .ibtn,.rule-row .ibtn:focus-visible{opacity:1}
-  .teacher-tabs{display:flex;gap:6px;border-bottom:1px solid var(--rule2);margin:0 0 24px;padding-bottom:10px}
-  .teacher-tab{background:transparent;border:1px solid transparent;color:var(--sub);padding:8px 11px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;transition:color .15s,background .15s}
-  .teacher-tab:hover,.teacher-tab.on{color:var(--ink);background:var(--hi);border-color:var(--field-b)}
-  [data-teacher-pane].hidden{display:none!important}
-  [data-panels].single-pane{grid-template-columns:minmax(0,1fr)!important}
-
-  @media (max-width:980px){
-    [data-shell]{grid-template-columns:minmax(0,1fr)!important}
-    [data-panels]{grid-template-columns:minmax(0,1fr)!important}
-  }
-</style>
-<link href="theme.css" rel="stylesheet"/>
-<link href="settings.css" rel="stylesheet"/>
-<link href="mobile.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
+<!-- Icons block rather than swap, so a slow font never shows its ligature names as text. -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet"/>
+<link href="transition.css?v=ink2" rel="stylesheet"/>
+<link href="theme.css?v=ink2" rel="stylesheet"/>
+<link href="settings.css?v=ink2" rel="stylesheet"/>
+<link href="mobile.css?v=ink2" rel="stylesheet"/>
+<link href="ink.css?v=ink2" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
 <!-- The manifest carries one theme_color; these two let a browser follow the
-     page's own light/dark tokens (--c-paper, and its html.dark value). A TWA
-     reads the manifest, so its status bar stays the light one. -->
+     page's own light/dark tokens. A TWA reads the manifest, so its status bar
+     stays the light one. -->
 <meta content="#F5F4EF" media="(prefers-color-scheme: light)" name="theme-color"/>
 <meta content="#16171A" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <link href="icons/favicon.ico" rel="icon" sizes="16x16 32x32 48x48"/>
 <link href="icons/icon-192.png" rel="icon" type="image/png" sizes="192x192"/>
 <link href="icons/apple-touch-icon-180.png" rel="apple-touch-icon"/>
-<link href="ink.css" rel="stylesheet"/>
-<script src="ink.js" defer></script>
+<script src="ink.js?v=ink2" defer></script>
 </head>
 <body>
 
+<div id="app" class="app">
 
-<div id="app" data-shell style="display:grid;grid-template-columns:264px minmax(0,1fr);height:100vh;height:100dvh">
+  <!-- Sidebar: the same shell as the analytics page and the tutor. -->
+  <aside id="sideNav" class="side" data-side data-drawer="md" aria-label="Teacher navigation">
+    <a class="brand" href="/teacher" aria-label="Chronos home">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 3h13M5.5 21h13"/><path d="M7.5 3v2.6c0 2.3 4.5 4 4.5 6.4s-4.5 4.1-4.5 6.4V21M16.5 3v2.6c0 2.3-4.5 4-4.5 6.4s4.5 4.1 4.5 6.4V21"/><path d="M9.6 19.2 12 17l2.4 2.2z" fill="currentColor" stroke="none"/></svg>
+      <span class="brand-word">Chronos.</span>
+    </a>
+    <div class="side-scroll" data-scroll>
+      <div class="course-card">
+        <div class="course-head">
+          <span class="eyebrow">Your course</span>
+          <button id="deleteClassBtn" class="ibtn hidden" type="button" title="Delete this course" aria-label="Delete this course"><span class="msym">delete</span></button>
+        </div>
+        <div class="course-row">
+          <div class="course-pick">
+            <select id="classSelect" class="course-select" aria-label="Course" data-drawer-close disabled><option>Loading…</option></select>
+            <span class="msym course-chev" aria-hidden="true">unfold_more</span>
+          </div>
+          <button id="newClassBtn" class="course-add" type="button" title="Create a course" aria-label="Create a course"><span class="msym">add</span></button>
+        </div>
+      </div>
 
-  <aside id="sideNav" data-side data-drawer="md" style="background:var(--side);border-right:1px solid var(--rule);display:flex;flex-direction:column;min-height:0">
-    <div style="padding:18px 20px 16px;border-bottom:1px solid var(--rule)">
-      <a href="/login" style="font-family:Newsreader,serif;font-size:24px;line-height:1;text-decoration:none;letter-spacing:-.015em">Chronos<span style="color:var(--crimson)">.</span></a>
+      <nav class="side-nav" aria-label="Sections">
+        <a class="nav-link on" href="/teacher" aria-current="page" data-drawer-close><span class="msym">folder_open</span>Course material</a>
+        <a class="nav-link" href="/teacher-stats" data-drawer-close><span class="msym">insights</span>Analytics</a>
+        <a class="nav-link" href="/student" data-drawer-close><span class="msym">chat</span>Preview as student</a>
+      </nav>
     </div>
 
-    <div data-scroll style="padding:16px 12px 8px;overflow-y:auto;min-height:0">
-      <div id="classList" data-drawer-close><i class="skeleton" style="height:14px;width:70%;margin:14px 12px"></i><i class="skeleton" style="height:14px;width:55%;margin:14px 12px"></i></div>
-      <div style="display:flex;align-items:center;gap:4px;margin-top:4px">
-        <button id="newClassBtn" style="flex:1;display:flex;align-items:center;gap:7px;background:transparent;border:none;padding:12px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer" title="Create a course">
-          <span class="msym" style="font-size:18px">add</span>New course
-        </button>
-        <button id="deleteClassBtn" class="ibtn hidden" title="Delete this course"><span class="msym" style="font-size:18px">delete</span></button>
+    <div class="side-foot">
+      <div class="side-tools">
+        <button id="settingsBtn" class="ibtn" type="button" aria-label="Settings" title="Settings"><span class="msym">settings</span></button>
+        <button class="ibtn" type="button" data-theme-toggle title="Switch to dark mode"><span class="msym">dark_mode</span></button>
       </div>
-    </div>
-
-    <nav style="margin-top:8px;padding:12px;border-top:1px solid var(--rule);display:flex;flex-direction:column">
-      <span class="side-link on"><span class="msym" style="font-variation-settings:'FILL' 1">folder_open</span>Course material</span>
-      <a class="side-link" data-drawer-close href="/teacher-stats"><span class="msym">insights</span>Analytics</a>
-      <a class="side-link" data-drawer-close href="/student"><span class="msym">chat</span>Preview as student</a>
-    </nav>
-
-    <div style="margin-top:auto;border-top:1px solid var(--rule);padding:10px 14px 14px">
-      <div style="display:flex;gap:2px;margin-bottom:6px">
-        <button id="settingsBtn" class="ibtn" aria-label="Settings" title="Settings"><span class="msym">settings</span></button>
-        <button class="ibtn" data-theme-toggle title="Switch to dark mode"><span class="msym">dark_mode</span></button>
-      </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <span id="userAvatar" style="width:30px;height:30px;background:var(--ink);color:var(--page);display:grid;place-items:center;font-size:12.5px;font-weight:600;flex:none"></span>
-        <span style="min-width:0">
-          <span id="userEmail" class="trunc" style="display:block;font-size:13.5px;font-weight:600"></span>
-          <span style="display:block;font-size:12px;color:var(--faint)">Teacher</span>
-          <span id="devBadge" class="hidden" style="display:block;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--crimson-d)">DEV</span>
+      <div class="side-user">
+        <span id="userAvatar" class="avatar" aria-hidden="true"></span>
+        <span class="side-who">
+          <span id="userEmail" class="side-email trunc"></span>
+          <span class="side-role">Teacher<span id="devBadge" class="dev-badge hidden">DEV</span></span>
         </span>
-        <button id="lockBtn" class="ibtn" style="margin-left:auto" aria-label="Sign out" title="Sign out"><span class="msym">logout</span></button>
+        <button id="lockBtn" class="ibtn" type="button" aria-label="Sign out" title="Sign out"><span class="msym">logout</span></button>
       </div>
     </div>
   </aside>
   <div data-drawer-scrim="md" aria-hidden="true"></div>
 
-  <main id="mainPane" data-scroll style="min-width:0;min-height:0;overflow-y:auto">
-    <header style="border-bottom:1px solid var(--rule);padding:22px 36px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
-      <div style="display:flex;align-items:center;gap:10px;min-width:0">
-        <button data-drawer-toggle="md" aria-label="Open menu" title="Menu" style="color:var(--sub)"><span class="msym" style="font-size:22px">menu</span></button>
-        <div style="min-width:0">
-          <span class="eyebrow">Course material</span>
-          <h1 id="className" style="margin:0;font-size:27px;line-height:1.1">&nbsp;</h1>
-          <p id="classMeta" class="hidden" style="margin:5px 0 0;font-size:14px;color:var(--mid)"></p>
-        </div>
+  <main id="mainPane" class="main">
+    <header class="topbar">
+      <button data-drawer-toggle="md" type="button" aria-label="Open menu" title="Menu"><span class="msym">menu</span></button>
+      <div class="topbar-main">
+        <span class="eyebrow">Course material</span>
+        <h1 id="className" class="topbar-title trunc">&nbsp;</h1>
+        <p id="classMeta" class="topbar-meta hidden"></p>
       </div>
-      <div style="display:flex;align-items:center;gap:10px">
-        <button id="copyBtn" class="code-chip hidden" title="Copy join code" aria-label="Copy join code"><span id="codeText"></span><span class="msym">content_copy</span></button>
-        <button id="addBtn" class="kbtn"><span class="msym" style="font-size:18px">upload_file</span>Add material</button>
+      <div class="topbar-actions wrap-mobile">
+        <button id="copyBtn" class="code-chip hidden" type="button" title="Copy join code" aria-label="Copy join code"><span class="code-lbl">Join code</span><span id="codeText"></span><span class="msym">content_copy</span></button>
+        <button id="addBtn" class="kbtn" type="button"><span class="msym">upload_file</span>Add material</button>
       </div>
     </header>
 
-    <div data-transition-content style="padding:32px 36px 56px;max-width:1080px">
+    <div id="page" class="page" data-scroll>
+    <div class="page-inner" data-transition-content>
 
-      <div id="uploadCard" class="card hidden" style="padding:18px 20px;margin-bottom:28px;animation:pop .3s ease both">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:12px">
-          <span id="uploadName" class="trunc" style="font-size:14.5px;font-weight:600"></span>
-          <span id="uploadStage" style="font-size:13.5px;color:var(--mid);flex:none"></span>
-        </div>
-        <div style="height:4px;background:var(--bar);overflow:hidden">
-          <div id="uploadBar" style="height:100%;width:100%;background:var(--crimson);animation:sweep 1.1s ease-in-out infinite"></div>
-        </div>
+      <div class="seg teacher-tabs" role="tablist" aria-label="Course material sections">
+        <button type="button" role="tab" data-teacher-tab="material" aria-selected="true">Material</button>
+        <button type="button" role="tab" data-teacher-tab="rules" aria-selected="false">Tutor rules</button>
+        <button type="button" role="tab" data-teacher-tab="tools" aria-selected="false">Toolkits</button>
       </div>
 
-      <div class="teacher-tabs" role="tablist" aria-label="Course material sections">
-        <button class="teacher-tab on" type="button" data-teacher-tab="material">Course material</button>
-        <button class="teacher-tab" type="button" data-teacher-tab="rules">Tutor rules</button>
-        <button class="teacher-tab" type="button" data-teacher-tab="tools">Toolkits</button>
-      </div>
-
-      <section class="card hidden" data-teacher-pane="rules" style="padding:18px 20px;margin-bottom:28px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:6px">
-          <h2 class="lbl" style="margin:0;font-family:inherit">Base rules</h2>
-          <span id="savedRules" class="saved-pill" role="status" aria-live="polite"></span>
+      <!-- Material -->
+      <div class="stack" data-teacher-pane="material">
+        <div id="dropzone" class="dropzone">
+          <span class="dropzone-ico" aria-hidden="true"><span class="msym">cloud_upload</span></span>
+          <span class="dropzone-text">
+            <strong>Drop files here to add them to this course</strong>
+            <span>PDF, Word, text, Markdown or CSV. Chronos answers students from what you add.</span>
+          </span>
+          <button id="browseBtn" class="kbtn kbtn-ghost" type="button">Browse files</button>
         </div>
-        <div data-settings>
-          <div class="setting-row"><span><strong>Only use my course material</strong><small style="display:block;color:var(--sub);margin-top:3px">Facts come from your material. The tutor still chats and points students to what is covered.</small></span><label class="switch"><input id="setGrounded" type="checkbox" aria-label="Only use my course material"><span></span></label></div>
-          <div id="groundingWarning" class="hidden" style="margin:10px 0;padding:10px 12px;border-left:3px solid var(--crimson);background:var(--hi);font-size:13px;line-height:1.5">Chronos may now use general knowledge and will label it as outside the course material.</div>
-          <div class="setting-row"><span><strong>Guide, don't complete work</strong></span><label class="switch"><input id="setGuide" type="checkbox" aria-label="Guide, don't complete work"><span></span></label></div>
-          <div class="setting-row"><span><strong>Say when unsure</strong></span><label class="switch"><input id="setUncertainty" type="checkbox" aria-label="Say when unsure"><span></span></label></div>
-          <div class="setting-row"><span><strong>Reveal final answers</strong></span><label class="switch"><input id="setAnswers" type="checkbox" aria-label="Reveal final answers"><span></span></label></div>
-          <div class="setting-row"><span><strong>Allow worked examples</strong></span><label class="switch"><input id="setExamples" type="checkbox" aria-label="Allow worked examples"><span></span></label></div>
-          <div class="setting-row" style="align-items:center"><span><strong>Hint strength</strong></span><select id="setHints" class="fld" aria-label="Hint strength" style="padding:8px 10px;min-width:140px"><option value="light">Light</option><option value="progressive">Progressive</option><option value="strong">Strong</option></select></div>
-        </div>
-      </section>
 
-      <section class="card hidden" data-teacher-pane="tools" style="padding:18px 20px;margin-bottom:28px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:6px">
-          <h2 class="lbl" style="margin:0;font-family:inherit">Toolkits</h2>
-          <span id="savedTools" class="saved-pill" role="status" aria-live="polite"></span>
+        <div id="uploadCard" class="card upload-card hidden" role="status" aria-live="polite">
+          <div class="upload-top"><span id="uploadName" class="trunc"></span><span id="uploadStage"></span></div>
+          <div class="upload-track"><div id="uploadBar"></div></div>
         </div>
-        <div data-settings>
-        <div class="setting-row"><span><strong>Practice</strong><small style="display:block;color:var(--sub);margin-top:3px">Quizzes and flashcards</small></span><label class="switch"><input id="setPractice" type="checkbox" aria-label="Practice"><span></span></label></div>
-        <div class="setting-row"><span><strong>Visual</strong><small style="display:block;color:var(--sub);margin-top:3px">Concept maps</small></span><label class="switch"><input id="setVisual" type="checkbox" aria-label="Visual"><span></span></label></div>
-        <div class="setting-row"><span><strong>Study</strong><small style="display:block;color:var(--sub);margin-top:3px">Review sheets</small></span><label class="switch"><input id="setStudy" type="checkbox" aria-label="Study"><span></span></label></div>
-        </div>
-      </section>
 
-      <div data-panels style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;margin-bottom:44px;align-items:start">
-
-        <section class="card panel hidden" data-teacher-pane="rules">
-          <div class="panel-hd">
-            <h2 class="lbl" style="margin:0;font-family:inherit">Custom teacher rules</h2>
-            <span id="ruleCount" style="font-size:13.5px;color:var(--mid)"></span>
+        <section class="card">
+          <div class="card-hd">
+            <h2 class="card-title">Documents</h2>
+            <span id="docCount" class="card-count"></span>
           </div>
-          <div style="padding:16px 18px;border-bottom:1px solid var(--rule2)">
-            <textarea id="ruleText" rows="3" aria-label="Custom teacher rule" class="fld" style="width:100%;padding:11px 12px;font-size:14.5px;line-height:1.6;resize:vertical" placeholder="Ask students to show their reasoning before offering another hint."></textarea>
-            <div style="display:flex;align-items:center;gap:10px;margin-top:11px;flex-wrap:wrap">
-              <button id="addRuleBtn" class="kbtn kbtn-dark" style="padding:10px 16px"><span class="msym" style="font-size:18px">add</span>Add</button>
-              <button id="bulkRuleBtn" class="kbtn kbtn-ghost" style="padding:9px 14px" title="One rule per line">Add each line</button>
+          <div id="docTools" class="list-tools hidden">
+            <input id="docSearch" class="fld" type="search" placeholder="Search documents" aria-label="Search documents"/>
+            <select id="docSort" class="fld" aria-label="Sort documents"><option value="new">Newest</option><option value="old">Oldest</option><option value="name">Name</option><option value="size">Largest</option></select>
+          </div>
+          <div class="card-body">
+            <div id="docsList" class="rows"></div>
+            <button id="docsMore" class="more-btn hidden" type="button"></button>
+            <p id="docsEmpty" class="row-empty hidden">No documents yet.</p>
+            <p id="docsNote" class="notice hidden">This course has more chunks than the list can fetch, so the counts above are partial.</p>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-hd">
+            <div>
+              <h2 class="card-title">Try a question</h2>
+              <p class="card-sub">Ask what a student might, and see the answer they would get from this course.</p>
             </div>
           </div>
-          <div id="ruleTools" class="list-tools hidden"><input id="ruleSearch" class="fld" type="search" placeholder="Search rules" aria-label="Search rules" style="flex:1;min-width:0"/></div>
-          <div id="rulesList" class="panel-body" data-scroll style="max-height:340px"></div>
-          <p id="rulesEmpty" class="hidden" style="margin:0;padding:20px 18px;font-size:14.5px;line-height:1.6;color:var(--mid)">No rules yet.</p>
-          <p id="rulesNote" class="hidden panel-note">Showing the first <span data-cap></span> rules only.</p>
-        </section>
-
-        <section class="card panel" data-teacher-pane="material">
-          <div class="panel-hd">
-            <h2 class="lbl" style="margin:0;font-family:inherit">Documents</h2>
-            <span id="docCount" style="font-size:13.5px;color:var(--mid)"></span>
+          <div class="card-body">
+            <form id="probeForm" class="probe-form">
+              <label for="probeInput" class="sr-only-ink">Ask a question as a student would</label>
+              <input id="probeInput" type="text" class="fld" placeholder="Ask a question&hellip;" autocomplete="off"/>
+              <button id="probeBtn" type="submit" class="sendbtn" aria-label="Ask"><span class="msym fill">arrow_upward</span></button>
+            </form>
+            <div id="probeResult" class="probe-result hidden" aria-live="polite"></div>
           </div>
-          <!-- Column header for .doc-row. It repeats that grid as an inline style, so it
-               has to move whenever .doc-row does; mobile.css stacks the row below 980px
-               and hides this by the data-doc-head hook rather than restacking it too. -->
-          <div id="docTools" class="list-tools hidden">
-            <input id="docSearch" class="fld" type="search" placeholder="Search documents" aria-label="Search documents" style="flex:1;min-width:0"/>
-            <select id="docSort" class="fld" aria-label="Sort documents" style="width:auto;padding:0 8px"><option value="new">Newest</option><option value="old">Oldest</option><option value="name">Name</option><option value="size">Largest</option></select>
-          </div>
-          <div data-doc-head style="display:grid;grid-template-columns:minmax(0,1fr) 78px 32px;gap:12px;padding:9px 18px 8px;border-bottom:1px solid var(--rule2)">
-            <span class="col-lbl">Document</span>
-            <span class="col-lbl">Chunks</span>
-            <span></span>
-          </div>
-          <div id="docsList" class="panel-body" data-scroll style="max-height:560px"></div>
-          <button id="docsMore" class="more-btn hidden" type="button"></button>
-          <p id="docsEmpty" class="hidden" style="margin:0;padding:20px 18px;font-size:14.5px;line-height:1.6;color:var(--mid)">No documents yet.</p>
-          <p id="docsNote" class="hidden panel-note">This course has more chunks than the list can fetch, so the counts above are partial.</p>
         </section>
       </div>
 
-      <section>
-        <h2 class="lbl" style="margin:0 0 12px;font-family:inherit;font-size:14px">Try a question</h2>
-        <form id="probeForm" style="display:flex;gap:10px;margin-bottom:18px;max-width:640px">
-          <label for="probeInput" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap">Ask a question as a student would</label>
-          <input id="probeInput" type="text" class="fld" placeholder="Ask a question&hellip;" style="flex:1;min-width:0;height:44px;padding:0 13px;font-size:14.5px"/>
-          <button id="probeBtn" type="submit" class="kbtn kbtn-dark" aria-label="Ask" style="width:44px;height:44px;padding:0;justify-content:center"><span class="msym">arrow_upward</span></button>
-        </form>
-        <div id="probeResult" class="card hidden" style="padding:18px 20px;max-width:640px;animation:pop .3s ease both"></div>
-      </section>
+      <!-- Tutor rules -->
+      <div class="stack hidden" data-teacher-pane="rules">
+        <section class="card">
+          <div class="card-hd">
+            <div>
+              <h2 class="card-title">Base rules</h2>
+              <p class="card-sub">How the tutor behaves in this course. Changes save as you make them.</p>
+            </div>
+            <span id="savedRules" class="saved-pill" role="status" aria-live="polite"></span>
+          </div>
+          <div class="card-body" data-settings>
+            <div class="setting-row"><span><strong>Only use my course material</strong><small>Facts come from your material. The tutor still chats and points students to what is covered.</small></span><label class="switch"><input id="setGrounded" type="checkbox" aria-label="Only use my course material"><span></span></label></div>
+            <div id="groundingWarning" class="notice hidden">Chronos may now use general knowledge and will label it as outside the course material.</div>
+            <div class="setting-row"><span><strong>Guide, don't complete work</strong><small>Hints and questions instead of finished answers to assignments.</small></span><label class="switch"><input id="setGuide" type="checkbox" aria-label="Guide, don't complete work"><span></span></label></div>
+            <div class="setting-row"><span><strong>Say when unsure</strong><small>The tutor admits uncertainty rather than guessing.</small></span><label class="switch"><input id="setUncertainty" type="checkbox" aria-label="Say when unsure"><span></span></label></div>
+            <div class="setting-row"><span><strong>Reveal final answers</strong><small>Allow the tutor to state the final answer when asked.</small></span><label class="switch"><input id="setAnswers" type="checkbox" aria-label="Reveal final answers"><span></span></label></div>
+            <div class="setting-row"><span><strong>Allow worked examples</strong><small>Step-by-step examples on similar problems.</small></span><label class="switch"><input id="setExamples" type="checkbox" aria-label="Allow worked examples"><span></span></label></div>
+            <div class="setting-row"><span><strong>Hint strength</strong><small>How much each hint gives away.</small></span><select id="setHints" class="fld" aria-label="Hint strength"><option value="light">Light</option><option value="progressive">Progressive</option><option value="strong">Strong</option></select></div>
+          </div>
+        </section>
 
+        <section class="card">
+          <div class="card-hd">
+            <div>
+              <h2 class="card-title">Your own rules</h2>
+              <p class="card-sub">Short instructions the tutor follows on every answer in this course.</p>
+            </div>
+            <span id="ruleCount" class="card-count"></span>
+          </div>
+          <div class="rule-add">
+            <textarea id="ruleText" rows="3" aria-label="New rule" class="fld" placeholder="Ask students to show their reasoning before offering another hint."></textarea>
+            <div class="rule-add-bar">
+              <button id="addRuleBtn" class="kbtn kbtn-sm" type="button"><span class="msym">add</span>Add rule</button>
+              <button id="bulkRuleBtn" class="kbtn kbtn-ghost kbtn-sm" type="button" title="One rule per line">Add each line</button>
+            </div>
+          </div>
+          <div id="ruleTools" class="list-tools hidden"><input id="ruleSearch" class="fld" type="search" placeholder="Search rules" aria-label="Search rules"/></div>
+          <div class="card-body">
+            <div id="rulesList" class="rows"></div>
+            <p id="rulesEmpty" class="row-empty hidden">No rules yet.</p>
+            <p id="rulesNote" class="notice hidden">Showing the first <span data-cap></span> rules only.</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- Toolkits -->
+      <div class="stack hidden" data-teacher-pane="tools">
+        <section class="card">
+          <div class="card-hd">
+            <div>
+              <h2 class="card-title">Toolkits</h2>
+              <p class="card-sub">Learning activities students can create from your material.</p>
+            </div>
+            <span id="savedTools" class="saved-pill" role="status" aria-live="polite"></span>
+          </div>
+          <div class="card-body" data-settings>
+            <div class="setting-row"><span><strong>Practice</strong><small>Quizzes and flashcards</small></span><label class="switch"><input id="setPractice" type="checkbox" aria-label="Practice"><span></span></label></div>
+            <div class="setting-row"><span><strong>Visual</strong><small>Concept maps</small></span><label class="switch"><input id="setVisual" type="checkbox" aria-label="Visual"><span></span></label></div>
+            <div class="setting-row"><span><strong>Study</strong><small>Review sheets</small></span><label class="switch"><input id="setStudy" type="checkbox" aria-label="Study"><span></span></label></div>
+          </div>
+        </section>
+      </div>
+
+    </div>
     </div>
   </main>
 
 </div>
 
 <input id="fileInput" type="file" accept=".pdf,.docx,.txt,.md,.csv" class="hidden"/>
-<div id="toast" class="hidden"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
-<script src="theme.js"></script>
-<script src="mobile.js"></script>
-<script src="transition.js"></script>
-<script src="settings.js"></script>
+<script src="theme.js?v=ink2"></script>
+<script src="mobile.js?v=ink2"></script>
+<script src="transition.js?v=ink2"></script>
+<script src="settings.js?v=ink2"></script>
 <script>
   let RULES=[],CLASSES=[],ACTIVE_CLASS=null,SETTINGS=null,uploading=false;
   let knowledgeGen=0;
-  let EDITING=null;   // id of the rule currently open in the inline editor, if any
+  let EDITING=null;
+  let RULES_LOADED=false;   // the header summary waits for the first /rules answer   // id of the rule currently open in the inline editor, if any
   // /rules caps how much it fetches per kind and says so; the panels admit it
   // rather than quietly showing a short list.
   let TRUNC={rules:false,docs:false};
@@ -347,28 +272,23 @@
   }
 
   // ---------- classes ----------
+  // The course card's picker. Same control, same place, as the analytics page
+  // and the tutor, so switching course works the same everywhere.
   function renderClasses(){
-    const list=$("classList");
-    list.innerHTML="";
+    const sel=$("classSelect");
+    sel.textContent="";
+    sel.disabled=!CLASSES.length;
     if(!CLASSES.length){
-      const p=document.createElement("p");
-      p.style.cssText="margin:0;padding:4px 12px 8px;font-size:13px;color:var(--faint)";
-      p.textContent="No courses yet.";
-      list.appendChild(p);
+      const o=document.createElement("option");o.textContent="No courses yet";sel.appendChild(o);
       return;
     }
     CLASSES.forEach(c=>{
-      const b=document.createElement("button");
-      b.type="button";
-      b.className="class-row"+(c.id===ACTIVE_CLASS?" on":"");
-      const inner=document.createElement("span");
-      inner.style.minWidth="0";
-      const n=document.createElement("span"); n.className="cr-name trunc"; n.textContent=c.name; n.title=c.name;
-      inner.appendChild(n);
-      b.appendChild(inner);
-      b.onclick=()=>pickClass(c.id);
-      list.appendChild(b);
+      const o=document.createElement("option");
+      o.value=c.id;o.textContent=c.name;   // textContent: the name is teacher-supplied
+      sel.appendChild(o);
     });
+    if(ACTIVE_CLASS)sel.value=ACTIVE_CLASS;
+    sel.title=(activeClassObj()||{}).name||"";
   }
 
   function paintHeader(){
@@ -379,6 +299,12 @@
     if(!c){$("className").textContent="No course yet";return;}
     $("className").textContent=c.name;
     $("codeText").textContent=c.join_code||"";
+    // A one-line summary of what is in the course, once it is loaded.
+    if(ACTIVE_CLASS&&RULES_LOADED){
+      const docs=computeDocs().length,rules=handRules().length;
+      $("classMeta").textContent=docs+" document"+(docs===1?"":"s")+" · "+rules+" rule"+(rules===1?"":"s");
+      $("classMeta").classList.remove("hidden");
+    }
   }
 
   async function pickClass(id){
@@ -392,7 +318,7 @@
         knowledgeGen++;
         ACTIVE_CLASS=id;localStorage.setItem(CLASS_KEY,id);
         EDITING=null;$("ruleText").value="";$("probeResult").classList.add("hidden");
-        RULES=material.rules||[];MANIFEST=material.manifest||{};
+        RULES=material.rules||[];MANIFEST=material.manifest||{};RULES_LOADED=true;
         TRUNC={rules:!!material.rules_truncated,docs:!!material.docs_truncated};
         SETTINGS=settings.settings||{};
         DOC_SHOWN=DOC_PAGE;$("docSearch").value="";$("ruleSearch").value="";
@@ -458,10 +384,10 @@
   $("setHints").addEventListener("change",()=>autosave("hint_strength",$("setHints").value,"savedRules"));
 
   let TEACHER_TAB=localStorage.getItem("chronos-teacher-tab")||"material";
+  if(!["material","rules","tools"].includes(TEACHER_TAB))TEACHER_TAB="material";
   function paintTeacherTab(){
     document.querySelectorAll("[data-teacher-pane]").forEach(el=>el.classList.toggle("hidden",el.dataset.teacherPane!==TEACHER_TAB));
-    document.querySelectorAll("[data-teacher-tab]").forEach(el=>el.classList.toggle("on",el.dataset.teacherTab===TEACHER_TAB));
-    const panels=document.querySelector("[data-panels]");if(panels)panels.classList.add("single-pane");
+    document.querySelectorAll("[data-teacher-tab]").forEach(el=>el.setAttribute("aria-selected",String(el.dataset.teacherTab===TEACHER_TAB)));
   }
   document.querySelectorAll("[data-teacher-tab]").forEach(btn=>btn.onclick=()=>{TEACHER_TAB=btn.dataset.teacherTab;localStorage.setItem("chronos-teacher-tab",TEACHER_TAB);paintTeacherTab();});
 
@@ -507,25 +433,25 @@
 
   async function loadRules(){
     if(!ACTIVE_CLASS){
-      RULES=[];EDITING=null;TRUNC={rules:false,docs:false};
+      RULES=[];EDITING=null;TRUNC={rules:false,docs:false};RULES_LOADED=false;
       renderRules();renderDocs();paintHeader();return;
     }
     const generation=knowledgeGen,classId=ACTIVE_CLASS;
     $("ruleCount").textContent="Loading…";$("docCount").textContent="Loading…";
     $("rulesEmpty").classList.add("hidden");$("docsEmpty").classList.add("hidden");
-    const skel='<div style="padding:16px 0;display:grid;gap:14px"><i class="skeleton" style="height:14px;width:70%"></i><i class="skeleton" style="height:14px;width:50%"></i><i class="skeleton" style="height:14px;width:62%"></i></div>';
+    const skel='<div style="padding:16px 0;display:grid;gap:14px;border-top:1px solid var(--rule)"><i class="skeleton" style="height:14px;width:70%"></i><i class="skeleton" style="height:14px;width:50%"></i><i class="skeleton" style="height:14px;width:62%"></i></div>';
     $("rulesList").innerHTML=skel;
     $("docsList").innerHTML=skel;
     try{
       const d=await api("/rules",{class_id:classId});
       if(generation!==knowledgeGen||classId!==ACTIVE_CLASS)return;
-      RULES=d.rules||[];MANIFEST=d.manifest||{};
+      RULES=d.rules||[];MANIFEST=d.manifest||{};RULES_LOADED=true;
       TRUNC={rules:!!d.rules_truncated,docs:!!d.docs_truncated};
     }catch(e){
       if(generation!==knowledgeGen||classId!==ACTIVE_CLASS)return;
       $("ruleCount").textContent="Unavailable";$("docCount").textContent="Unavailable";
-      $("rulesList").innerHTML='<p style="color:var(--crimson-d);font-size:13px;padding:16px 0">Could not load rules.</p>';
-      $("docsList").innerHTML='<p style="color:var(--crimson-d);font-size:13px;padding:16px 0">Could not load documents.</p>';
+      $("rulesList").innerHTML='<p class="row-empty" style="color:var(--bad)">Could not load rules.</p>';
+      $("docsList").innerHTML='<p class="row-empty" style="color:var(--bad)">Could not load documents.</p>';
       showToast(e.message,false);return;
     }
     // A rule deleted in another tab would otherwise leave the editor open on
@@ -557,24 +483,24 @@
     const row=document.createElement("div"); row.className="rule-row";
 
     const left=document.createElement("div");
-    left.style.cssText="min-width:0;display:flex;align-items:center;gap:11px";
-    const ico=document.createElement("span"); ico.className="msym";
-    ico.style.cssText="font-size:18px;color:var(--crimson)"; ico.textContent="gavel";
+    left.className="rule-main";
+    const ico=document.createElement("span"); ico.className="msym"; ico.textContent="gavel";
+    ico.setAttribute("aria-hidden","true");
     const txt=document.createElement("span"); txt.className="trunc";
-    txt.style.cssText="font-size:14.5px;line-height:1.5"; txt.textContent=r.text; txt.title=r.text;
+    txt.textContent=r.text; txt.title=r.text;
     left.appendChild(ico); left.appendChild(txt);
 
     const label=flat(r.text).slice(0,60);
     const edit=document.createElement("button");
     edit.type="button"; edit.className="ibtn"; edit.title="Edit";
     edit.setAttribute("aria-label","Edit rule: "+label);
-    edit.innerHTML='<span class="msym" style="font-size:18px">edit</span>';
+    edit.innerHTML='<span class="msym">edit</span>';
     edit.onclick=e=>{e.stopPropagation();openEditor(r.id);};
 
     const del=document.createElement("button");
-    del.type="button"; del.className="ibtn"; del.title="Delete";
+    del.type="button"; del.className="ibtn del"; del.title="Delete";
     del.setAttribute("aria-label","Delete rule: "+label);
-    del.innerHTML='<span class="msym" style="font-size:18px">delete</span>';
+    del.innerHTML='<span class="msym">delete</span>';
     del.onclick=e=>{e.stopPropagation();removeRule(r);};
 
     row.appendChild(left); row.appendChild(edit); row.appendChild(del);
@@ -592,23 +518,22 @@
   // a rule is one line, and a stray newline would split it in the list.
   function ruleEditor(r){
     const box=document.createElement("div");
-    box.style.cssText="padding:11px 0;border-bottom:1px solid var(--rule2)";
+    box.className="rule-edit";
 
     const ta=document.createElement("textarea");
     ta.className="fld"; ta.rows=3; ta.value=r.text||"";
     ta.setAttribute("aria-label","Edit rule");
-    ta.style.cssText="width:100%;padding:10px 12px;font-size:14.5px;line-height:1.6;resize:vertical";
+
 
     const bar=document.createElement("div");
-    bar.style.cssText="display:flex;align-items:center;gap:9px;margin-top:9px;flex-wrap:wrap";
+    bar.className="rule-edit-bar";
     const save=document.createElement("button");
-    save.type="button"; save.className="kbtn kbtn-dark"; save.style.padding="9px 15px";
+    save.type="button"; save.className="kbtn kbtn-sm";
     save.textContent="Save";
     const cancel=document.createElement("button");
-    cancel.type="button"; cancel.className="kbtn kbtn-ghost"; cancel.style.padding="8px 13px";
+    cancel.type="button"; cancel.className="kbtn kbtn-ghost kbtn-sm";
     cancel.textContent="Cancel";
     const hint=document.createElement("span");
-    hint.style.cssText="font-size:12.5px;color:var(--faint)";
     hint.textContent="Enter saves · Esc cancels";
     bar.appendChild(save); bar.appendChild(cancel); bar.appendChild(hint);
 
@@ -733,7 +658,7 @@
     list.innerHTML="";
     $("docCount").textContent=all.length;
     $("docsEmpty").classList.toggle("hidden",docs.length>0);
-    $("docsEmpty").textContent=all.length?"No matching documents.":"No documents yet.";
+    $("docsEmpty").textContent=all.length?"No matching documents.":"No documents yet. Add a syllabus, notes or readings and the tutor will answer from them.";
     $("docsNote").classList.toggle("hidden",!TRUNC.docs);
     const more=$("docsMore");
     more.classList.toggle("hidden",docs.length<=DOC_SHOWN);
@@ -742,16 +667,15 @@
       const row=document.createElement("div"); row.className="doc-row";
 
       const left=document.createElement("div");
-      left.style.cssText="min-width:0;display:flex;align-items:center;gap:12px";
-      const ico=document.createElement("span"); ico.className="msym";
-      ico.style.cssText="font-size:21px;color:var(--faint)"; ico.textContent=docIcon(d.name);
+      left.className="doc-main";
+      const ico=document.createElement("span"); ico.className="doc-ico";
+      ico.innerHTML='<span class="msym"></span>'; ico.firstChild.textContent=docIcon(d.name);
       const meta=document.createElement("span"); meta.style.minWidth="0";
-      const nm=document.createElement("span"); nm.className="trunc";
-      nm.style.cssText="display:block;font-size:15px;font-weight:500"; nm.textContent=d.name; nm.title=d.name;
+      const nm=document.createElement("span"); nm.className="doc-name trunc";
+      nm.textContent=d.name; nm.title=d.name;
       const info=MANIFEST[d.base]||{};
       const sub=document.createElement("span");
-      sub.className="trunc";
-      sub.style.cssText="display:block;font-size:13px;color:var(--faint);margin-top:2px";
+      sub.className="doc-sub trunc";
       sub.textContent=info.summary||fmtWhen(d.ts);
       sub.title=info.summary||"";
       meta.appendChild(nm); meta.appendChild(sub);
@@ -763,13 +687,13 @@
       left.appendChild(ico); left.appendChild(meta);
 
       const chunks=document.createElement("span");
-      chunks.style.cssText="font-size:13.5px;color:var(--sub)";
+      chunks.className="doc-n";
       chunks.textContent=d.ids.length+" chunk"+(d.ids.length===1?"":"s");
 
       const del=document.createElement("button");
       del.type="button"; del.className="ibtn"; del.title="Remove"; del.setAttribute("aria-label","Remove "+d.name);
       del.style.justifySelf="end";
-      del.innerHTML='<span class="msym" style="font-size:19px">delete</span>';
+      del.innerHTML='<span class="msym">delete</span>';
       del.onclick=()=>removeDoc(d);
 
       row.appendChild(left); row.appendChild(chunks); row.appendChild(del);
@@ -807,7 +731,7 @@
     $("uploadName").textContent=file.name;
     uploadStage("Uploading");
     const bar=$("uploadBar");
-    bar.style.animation="sweep 1.1s ease-in-out infinite";
+    bar.style.animation="";
     $("uploadCard").classList.remove("hidden");
     const t1=setTimeout(()=>uploadStage("Reading through it"),1500);
     const t2=setTimeout(()=>uploadStage("Getting ready for questions"),5000);
@@ -847,7 +771,7 @@
     if(!q)return;
     btn.disabled=true;
     box.classList.remove("hidden");
-    box.textContent="Thinking…";
+    box.innerHTML='<span class="probe-thinking"><span class="ink-dots" aria-hidden="true"><i></i><i></i><i></i></span>Thinking…</span>';
     try{
       // ponytail: reuses the real /chat endpoint as the preview mechanism instead of
       // a separate no-persist route — a teacher passes /chat's user_in_class check on
@@ -857,24 +781,23 @@
       const d=await api("/chat",{class_id:ACTIVE_CLASS,message:q});
       box.textContent="";
       const ans=document.createElement("p");
-      ans.style.cssText="margin:0;font-family:Newsreader,serif;font-size:18px;line-height:1.62";
+      ans.className="probe-answer";
       ans.textContent=d.response||"";
       box.appendChild(ans);
       const used=d.rules_used||[];
       if(used.length){
         const src=document.createElement("div");
-        src.style.cssText="margin-top:14px;border-top:1px solid var(--rule2);padding-top:12px";
+        src.className="probe-src";
         used.forEach(u=>{
           const line=document.createElement("div");
           line.className="trunc";
-          line.style.cssText="font-size:13.5px;line-height:1.7;color:var(--mid)";
           line.textContent=u; line.title=u;
           src.appendChild(line);
         });
         box.appendChild(src);
       }else{
         const gap=document.createElement("p");
-        gap.style.cssText="margin:14px 0 0;font-size:13.5px;line-height:1.6;color:var(--crimson-d)";
+        gap.className="probe-gap";
         gap.textContent="Not in your material. Recorded as a gap.";
         if(d.material_gap)box.appendChild(gap);
       }
@@ -890,6 +813,9 @@
   // ---------- wiring ----------
   $("lockBtn").onclick=lock;
   $("newClassBtn").onclick=newClass;
+  $("classSelect").addEventListener("change",e=>pickClass(e.target.value));
+  $("browseBtn").onclick=()=>{ if(ensureClass())$("fileInput").click(); };
+  $("dropzone").addEventListener("click",e=>{ if(!e.target.closest("button")&&ensureClass())$("fileInput").click(); });
   $("deleteClassBtn").onclick=removeClass;
   $("setGrounded").addEventListener("change",()=>$("groundingWarning").classList.toggle("hidden",$("setGrounded").checked));
   $("docSearch").addEventListener("input",()=>{DOC_SHOWN=DOC_PAGE;renderDocs();});
@@ -916,14 +842,20 @@
       $("copyBtn")._t=setTimeout(()=>{icon.textContent="content_copy";},1600);
     }
   };
-  // Drop a file anywhere on the main pane to upload it — the design has no
-  // dropzone, so this is the invisible version of one.
-  const pane=$("mainPane");
+  // Drop a file anywhere on the page to upload it; the drop zone lights up
+  // while a file is held over the page.
+  const pane=$("mainPane"),pageEl=$("page");
+  let dragDepth=0;
+  pane.addEventListener("dragenter",e=>{if(e.dataTransfer&&[...e.dataTransfer.types].includes("Files")){dragDepth++;pageEl.classList.add("drag");}});
+  pane.addEventListener("dragleave",()=>{dragDepth=Math.max(0,dragDepth-1);if(!dragDepth)pageEl.classList.remove("drag");});
   pane.addEventListener("dragover",e=>e.preventDefault());
   pane.addEventListener("drop",e=>{
-    e.preventDefault();
+    e.preventDefault();dragDepth=0;pageEl.classList.remove("drag");
     const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];
-    if(f)uploadFile(f);
+    if(f){
+      if(TEACHER_TAB!=="material"){TEACHER_TAB="material";localStorage.setItem("chronos-teacher-tab",TEACHER_TAB);paintTeacherTab();}
+      uploadFile(f);
+    }
   });
   ["dragover","drop"].forEach(ev=>window.addEventListener(ev,e=>e.preventDefault()));
 
@@ -945,21 +877,21 @@
     if(!ACTIVE_CLASS)showToast("Make your first course to start adding material.",true);
     await Promise.all([loadRules(),loadSettings()]);
   }).catch(e=>{
-    $("classList").textContent="";
+    $("classSelect").textContent="";
     showToast((e&&e.message)||"Something went wrong. Please refresh.",false);
   });
 </script>
 
-<!-- How-it-works tutorial -->
-<div id="tut" class="hidden" style="position:fixed;inset:0;z-index:60;align-items:center;justify-content:center;padding:16px;background:rgba(11,11,12,.72)">
-<div class="card" style="width:100%;max-width:28rem;padding:24px;max-height:85dvh;overflow-y:auto">
-<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px">
-<h2 id="tutTitle" style="margin:0;font-size:22px;line-height:1"></h2>
-<button id="tutClose" class="ibtn" aria-label="Close"><span class="msym">close</span></button>
+<!-- How-it-works tour: Settings → Account → Replay tour. -->
+<div id="tut" class="gate hidden" role="dialog" aria-modal="true" aria-labelledby="tutTitle">
+<div class="gate-card">
+<div class="gate-head">
+<h2 id="tutTitle"></h2>
+<button id="tutClose" class="ibtn" type="button" aria-label="Close"><span class="msym">close</span></button>
 </div>
-<div id="tutBody"></div>
-<div id="tutDots" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:20px"></div>
-<button id="tutDone" class="kbtn" style="width:100%;justify-content:center;margin-top:24px">Continue</button>
+<div id="tutBody" style="margin-top:14px"></div>
+<div id="tutDots" class="tut-dots"></div>
+<button id="tutDone" class="kbtn" type="button">Continue</button>
 </div>
 </div>
 <script>
@@ -967,7 +899,7 @@
     const TITLE="Getting your course going";
     const KEY="chronos_tut_knowledge_v2";
     const STEPS=[
-      {icon:"add",title:"Make a course",text:"Create one, then share its join code (top right) with your students."},
+      {icon:"add",title:"Make a course",text:"Create one with + in the sidebar, then share its join code (top right) with your students."},
       {icon:"description",title:"Add material",text:"Upload PDFs, Word docs or notes. Chronos reads them and builds an outline of what the course covers."},
       {icon:"gavel",title:"Set the rules",text:"Base rules and your own rules shape every answer. Changes save as you make them."},
     ];
@@ -979,24 +911,24 @@
 
     function render(){
       const s=STEPS[idx];
-      body.innerHTML='<div style="display:flex;align-items:flex-start;gap:12px">'+
-        '<span style="width:40px;height:40px;flex:none;background:var(--crimson);color:var(--on-accent);display:grid;place-items:center">'+
-        '<span class="msym" style="font-size:20px">'+s.icon+'</span></span>'+
-        '<div><h3 style="margin:0 0 2px;font-family:inherit;font-size:14px;font-weight:700">'+s.title+'</h3>'+
-        '<p style="margin:0;font-size:14px;line-height:1.45;color:var(--sub)">'+s.text+'</p></div></div>';
+      body.innerHTML='<div class="tut-step"><span class="tut-ico"><span class="msym"></span></span><div><h3></h3><p></p></div></div>';
+      body.querySelector(".tut-ico span").textContent=s.icon;
+      body.querySelector("h3").textContent=s.title;
+      body.querySelector("p").textContent=s.text;
       dots.innerHTML="";
       STEPS.forEach((_,i)=>{
         const d=document.createElement("span");
-        d.style.cssText="height:8px;width:"+(i===idx?"24px":"8px")+";background:"+(i===idx?"var(--crimson)":"var(--hi)")+";transition:width .2s";
+        if(i===idx)d.className="on";
         dots.appendChild(d);
       });
       doneBtn.textContent = idx===STEPS.length-1 ? "Got it" : "Continue";
     }
 
     const modal=document.getElementById("tut");
-    const open=()=>{idx=0;render();modal.classList.remove("hidden");modal.style.display="flex";};
+    const open=()=>{idx=0;render();modal.classList.remove("hidden");doneBtn.focus();};
     const close=()=>{modal.classList.add("hidden");try{localStorage.setItem(KEY,"1");}catch(e){}};
     document.getElementById("tutClose").onclick=close;
+    document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!modal.classList.contains("hidden"))close();});
     // Each click only ever advances one step — no skipping ahead, and no
     // dismissing by clicking the backdrop, so the steps actually get read.
     doneBtn.onclick=()=>{ if(idx<STEPS.length-1){idx++;render();} else {close();} };

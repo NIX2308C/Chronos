@@ -1,8 +1,8 @@
-"""Self-check for llm.py: the Ollama backend against a fake Ollama server, and
+"""Self-check for llm.py: the OpenAI-compatible backend against a fake server, and
 /chat and /tools/run running end to end through it.
 
 Run:  python test_llm.py
-A local HTTP server stands in for Ollama; Firestore, Pinecone and embeddings are
+A local HTTP server stands in for the endpoint; Firestore, Pinecone and embeddings are
 stubbed, so this runs offline.
 """
 import json
@@ -20,7 +20,7 @@ requests = []      # every body the fake server received
 replies = []       # queue of (status, body-or-lines) the server answers with
 
 
-class _Ollama(BaseHTTPRequestHandler):
+class _Server(BaseHTTPRequestHandler):
     def log_message(self, *_a):
         pass
 
@@ -29,106 +29,123 @@ class _Ollama(BaseHTTPRequestHandler):
         requests.append({"path": self.path, "body": body, "auth": self.headers.get("Authorization")})
         status, payload = replies.pop(0)
         self.send_response(status)
-        self.send_header("Content-Type", "application/x-ndjson")
+        self.send_header("Content-Type", "application/json")
         self.end_headers()
         if isinstance(payload, list):           # a stream: one JSON object per line
             for line in payload:
-                self.wfile.write((json.dumps(line) + "\n").encode())
+                self.wfile.write(("data: " + json.dumps(line) + "\n\n").encode())
+            self.wfile.write(b"data: [DONE]\n\n")
         else:
             self.wfile.write(json.dumps(payload).encode())
 
 
-server = HTTPServer(("127.0.0.1", 0), _Ollama)
+server = HTTPServer(("127.0.0.1", 0), _Server)
 threading.Thread(target=server.serve_forever, daemon=True).start()
-llm.PROVIDER = "ollama"
-llm.OLLAMA_URL = "http://127.0.0.1:%d" % server.server_port
-llm.OLLAMA_API_KEY = "sekrit"
-llm.OLLAMA_TIMEOUT_S = 5
+llm.BASE_URL = "http://127.0.0.1:%d/v1" % server.server_port
+llm.API_KEY = "sekrit"
+llm.TIMEOUT_S = 5
 
 TOOL = A.practice_activity_tool(dict(A.course_settings(), practice_tools=True))
 
 
+def _reply(content="", tool_calls=None, usage=None):
+    msg = {"role": "assistant", "content": content}
+    if tool_calls:
+        msg["tool_calls"] = tool_calls
+    out = {"choices": [{"message": msg}]}
+    if usage:
+        out["usage"] = usage
+    return out
+
+
+def _call(args):
+    return [{"id": "c1", "type": "function", "function": {"name": A.TOOL_FUNCTION_NAME, "arguments": args}}]
+
+
 def test_generate_text_and_request_shape():
     requests.clear()
-    replies.append((200, {"message": {"role": "assistant", "content": " Hello \n"},
-                          "done": True, "prompt_eval_count": 7, "eval_count": 3}))
+    replies.append((200, _reply(" Hello \n", usage={"prompt_tokens": 7, "completion_tokens": 3, "total_tokens": 10})))
     contents = [{"role": "user", "parts": [{"text": "hi"}]}, {"role": "model", "parts": [{"text": "yo"}]},
                 {"role": "user", "parts": [{"text": "again"}]}]
-    r = llm.generate("gemma", contents, system="SYS", tools=[TOOL], temperature=0.3)
+    r = llm.generate("m", contents, system="SYS", tools=[TOOL], temperature=0.3)
     assert r.text == "Hello" and r.tool_call is None, r
     assert r.usage == {"prompt": 7, "reply": 3, "total": 10}, r.usage
     sent = requests[-1]
-    assert sent["path"] == "/api/chat" and sent["auth"] == "Bearer sekrit"
+    assert sent["path"] == "/v1/chat/completions" and sent["auth"] == "Bearer sekrit"
     b = sent["body"]
     assert [m["role"] for m in b["messages"]] == ["system", "user", "assistant", "user"], b["messages"]
     assert b["messages"][0]["content"] == "SYS" and b["stream"] is False
-    assert b["options"] == {"temperature": 0.3}
+    assert b["temperature"] == 0.3
     assert b["tools"][0]["function"]["name"] == A.TOOL_FUNCTION_NAME
     assert b["tools"][0]["function"]["parameters"]["properties"]["type"]["enum"] == ["quiz", "flashcards"]
-    assert "format" not in b
-    print("ok - Ollama request carries system, roles, tools, temperature and auth")
+    assert "response_format" not in b
+    print("ok - request carries system, roles, tools, temperature and auth")
 
 
 def test_tool_call_and_string_arguments():
+    want = {"name": A.TOOL_FUNCTION_NAME, "args": {"type": "quiz", "topic": "osmosis"}}
     for args in ({"type": "quiz", "topic": "osmosis"}, json.dumps({"type": "quiz", "topic": "osmosis"})):
-        replies.append((200, {"message": {"role": "assistant", "content": "",
-                                          "tool_calls": [{"function": {"name": A.TOOL_FUNCTION_NAME,
-                                                                       "arguments": args}}]}, "done": True}))
-        r = llm.generate("gemma", "quiz me", tools=[TOOL])
-        assert r.tool_call == {"name": A.TOOL_FUNCTION_NAME, "args": {"type": "quiz", "topic": "osmosis"}}, r
+        replies.append((200, _reply("", _call(args))))
+        assert llm.generate("m", "quiz me", tools=[TOOL]).tool_call == want
     print("ok - tool calls parse whether arguments arrive as an object or a JSON string")
 
 
-def test_json_schema_becomes_format():
-    replies.append((200, {"message": {"content": "{}"}, "done": True}))
-    llm.generate("gemma", "p", json_schema=A.ACTIVITY_SCHEMAS["quiz"])
-    assert requests[-1]["body"]["format"] == A.ACTIVITY_SCHEMAS["quiz"]
-    replies.append((200, {"message": {"content": "{}"}, "done": True}))
-    llm.generate("gemma", "p", json_schema={})
-    assert requests[-1]["body"]["format"] == "json"
-    print("ok - a JSON schema constrains Ollama decoding via `format`")
+def test_json_schema_becomes_response_format():
+    replies.append((200, _reply("{}")))
+    llm.generate("m", "p", json_schema=A.ACTIVITY_SCHEMAS["quiz"])
+    assert requests[-1]["body"]["response_format"]["json_schema"]["schema"] == A.ACTIVITY_SCHEMAS["quiz"]
+    replies.append((200, _reply("{}")))
+    llm.generate("m", "p", json_schema={})
+    assert requests[-1]["body"]["response_format"] == {"type": "json_object"}
+    print("ok - a JSON schema constrains decoding via response_format")
 
 
 def test_stream():
+    d = lambda **kw: {"choices": [{"delta": kw}]}
     replies.append((200, [
-        {"message": {"content": "Hel"}, "done": False},
-        {"message": {"content": "lo"}, "done": False},
-        {"message": {"content": "", "tool_calls": [{"function": {"name": A.TOOL_FUNCTION_NAME,
-                                                                 "arguments": {"type": "flashcards", "topic": "cells"}}}]},
-         "done": False},
-        {"message": {"content": ""}, "done": True, "prompt_eval_count": 4, "eval_count": 2},
+        d(content="Hel"), d(content="lo"),
+        d(tool_calls=[{"index": 0, "function": {"name": A.TOOL_FUNCTION_NAME, "arguments": '{"type": "flash'}}]),
+        d(tool_calls=[{"index": 0, "function": {"arguments": 'cards", "topic": "cells"}'}}]),
+        {"choices": [], "usage": {"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6}},
     ]))
-    chunks = list(llm.stream("gemma", "hi", tools=[TOOL]))
+    chunks = list(llm.stream("m", "hi", tools=[TOOL]))
     assert "".join(c.text for c in chunks) == "Hello"
     assert [c.tool_call for c in chunks if c.tool_call] == [
         {"name": A.TOOL_FUNCTION_NAME, "args": {"type": "flashcards", "topic": "cells"}}]
     assert chunks[-1].usage == {"prompt": 4, "reply": 2, "total": 6}
     assert requests[-1]["body"]["stream"] is True
-    print("ok - streaming yields text deltas, the tool call and final usage")
+    print("ok - streaming yields text deltas, the assembled tool call and final usage")
+
+
+def test_embeddings():
+    replies.append((200, {"data": [{"index": 1, "embedding": [2.0]}, {"index": 0, "embedding": [1.0]}]}))
+    assert llm.embed_batch(["a", "b"]) == [[1.0], [2.0]]
+    assert requests[-1]["path"] == "/v1/embeddings" and requests[-1]["body"]["input"] == ["a", "b"]
+    replies.append((200, {"data": [{"index": 0, "embedding": [3.0]}]}))
+    assert llm.embed("x") == [3.0]
+    print("ok - embeddings are returned in input order")
 
 
 def test_errors_raise():
-    replies.append((404, {"error": "model 'gemma' not found"}))
+    replies.append((404, {"error": {"message": "model 'm' not found"}}))
     try:
-        llm.generate("gemma", "hi")
+        llm.generate("m", "hi")
         raise AssertionError("an HTTP error was swallowed")
     except llm.LLMError as e:
         assert "404" in str(e) and "not found" in str(e), e
-    saved = llm.OLLAMA_URL
-    llm.OLLAMA_URL = "http://127.0.0.1:9"      # nothing listens here
+    saved = llm.BASE_URL
+    llm.BASE_URL = "http://127.0.0.1:9/v1"      # nothing listens here
     try:
-        llm.generate("gemma", "hi")
+        llm.generate("m", "hi")
         raise AssertionError("an unreachable host was swallowed")
     except llm.LLMError:
         pass
     finally:
-        llm.OLLAMA_URL = saved
-    replies.append((200, {"model": "gemma"}))
-    assert llm.health("gemma") and requests[-1]["path"] == "/api/show"
-    print("ok - HTTP and connection failures raise LLMError; health uses /api/show")
+        llm.BASE_URL = saved
+    print("ok - HTTP and connection failures raise LLMError")
 
 
-# ---------- the routes, end to end through the Ollama backend ----------
+# ---------- the routes, end to end through the endpoint ----------
 
 def _route_fakes(settings):
     A.verify_user = lambda: {"uid": "stu", "email": "s@example.test"}
@@ -161,16 +178,13 @@ def _route_fakes(settings):
     A._user_chats = lambda _uid: type("_C", (), {"document": lambda s, *_a: _Doc()})()
 
 
-def test_chat_and_tool_routes_on_ollama():
+def test_chat_and_tool_routes_on_endpoint():
     A._rate_hits.clear()
     settings = dict(A.course_settings(), practice_tools=True)
     _route_fakes(settings)
     c = A.app.test_client()
 
-    replies.append((200, {"message": {"content": "Let's check what you know.",
-                                      "tool_calls": [{"function": {"name": A.TOOL_FUNCTION_NAME,
-                                                                   "arguments": {"type": "quiz", "topic": "Osmosis"}}}]},
-                          "done": True}))
+    replies.append((200, _reply("Let's check what you know.", _call({"type": "quiz", "topic": "Osmosis"}))))
     r = c.post("/chat", json={"message": "can you test me on osmosis", "class_id": "c1", "chat_id": "chat1"})
     assert r.status_code == 200, r.get_json()
     body = r.get_json()
@@ -182,30 +196,28 @@ def test_chat_and_tool_routes_on_ollama():
     quiz = {"type": "quiz", "title": "Osmosis", "questions": [
         {"prompt": "Osmosis moves", "options": ["water", "salt", "sugar", "air"], "answer": 0,
          "explanation": "Water crosses the membrane."}] * 3}
-    replies.append((200, {"message": {"content": json.dumps(quiz)}, "done": True}))
+    replies.append((200, _reply(json.dumps(quiz))))
     r = c.post("/tools/run", json={"class_id": "c1", "chat_id": "chat1",
                                    "tool_request": {"type": "quiz", "topic": "Osmosis"}})
     assert r.status_code == 200, r.get_json()
     assert len(r.get_json()["tool"]["questions"]) == 3
-    assert requests[-1]["body"]["format"] == A.ACTIVITY_SCHEMAS["quiz"]
+    assert requests[-1]["body"]["response_format"]["json_schema"]["schema"] == A.ACTIVITY_SCHEMAS["quiz"]
 
     # A tool the course has switched off is dropped even if the model calls it.
-    replies.append((200, {"message": {"content": "Here you go.",
-                                      "tool_calls": [{"function": {"name": A.TOOL_FUNCTION_NAME,
-                                                                   "arguments": {"type": "concept_map", "topic": "x"}}}]},
-                          "done": True}))
+    replies.append((200, _reply("Here you go.", _call({"type": "concept_map", "topic": "x"}))))
     r = c.post("/chat", json={"message": "map osmosis for me", "class_id": "c1", "chat_id": "chat1"})
     assert r.get_json()["tool_request"] is None
-    print("ok - /chat and /tools/run work end to end on the Ollama backend")
+    print("ok - /chat and /tools/run work end to end through the endpoint")
 
 
 if __name__ == "__main__":
     try:
         test_generate_text_and_request_shape()
         test_tool_call_and_string_arguments()
-        test_json_schema_becomes_format()
+        test_json_schema_becomes_response_format()
+        test_embeddings()
         test_stream()
         test_errors_raise()
-        test_chat_and_tool_routes_on_ollama()
+        test_chat_and_tool_routes_on_endpoint()
     finally:
         server.shutdown()

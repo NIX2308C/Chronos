@@ -12,14 +12,14 @@
      [data-drawer-close]            a container whose clicks dismiss it
      [data-drawer-keep]             ...except inside one of these
 
-   The token ("sm" 767px, "md" 980px) has to match mobile.css, which is
-   why it is read back here rather than hardcoded.
+   Every page now switches at 900px (mobile.css and ink.css); the token
+   is still read so a page could opt into its own width later.
 
    Exposes window.ChronosDrawer = {open, close, toggle, isOpen}.
    ============================================================ */
 (function () {
   var OPEN = "drawer-open";
-  var WIDTHS = { sm: 767, md: 980 };
+  var WIDTHS = { sm: 900, md: 900 };
 
   var drawer = document.querySelector("[data-drawer]");
   if (!drawer) return;
@@ -49,20 +49,17 @@
     }
   }
 
-  function firstFocusable() {
-    return drawer.querySelector(
-      'a[href], button:not([disabled]), select:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
-    );
-  }
-
   function open(fromToggle) {
     if (!mq.matches || isOpen()) return;
     lastToggle = fromToggle || null;
     document.documentElement.classList.add(OPEN);
     syncInert();
     syncToggles();
-    var target = firstFocusable();
-    if (target) target.focus();
+    // Focus the panel itself rather than its first link: screen readers land
+    // inside it and Tab continues from there, without a focus ring flashing
+    // on the logo after a tap.
+    if (!drawer.hasAttribute("tabindex")) drawer.setAttribute("tabindex", "-1");
+    try { drawer.focus({ preventScroll: true }); } catch (e) { drawer.focus(); }
   }
 
   function close() {

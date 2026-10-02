@@ -8,150 +8,52 @@
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
-<link href="transition.css" rel="stylesheet"/>
-<style>
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--page);color:var(--ink);font-family:"Schibsted Grotesk",sans-serif;
-       -webkit-font-smoothing:antialiased;overflow-x:hidden;
-       min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
-       padding-bottom:env(safe-area-inset-bottom)}
-  ::selection{background:var(--crimson);color:var(--on-accent)}
-  :focus-visible{outline:2px solid var(--crimson);outline-offset:3px}
-  a{color:var(--crimson-d);text-decoration:none}
-  a:hover{color:var(--ink)}
-  input,button{font-family:inherit}
-  .hidden{display:none!important}
-  .msym{font-family:'Material Symbols Outlined';font-weight:400;line-height:1;display:inline-block;white-space:nowrap;direction:ltr}
-  .dsp{font-family:Newsreader,serif;font-weight:400;letter-spacing:-.015em}
-
-  @keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
-  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  @keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-4px)}20%,40%,60%,80%{transform:translateX(4px)}}
-  .spin{display:inline-block;animation:spin .7s linear infinite}
-  .shake{animation:shake .4s ease both}
-
-  .wrap{max-width:1280px;margin:0 auto;padding:0 28px}
-  .navtab{display:block;color:var(--ink);padding:10px 16px;border-bottom:3px solid transparent;white-space:nowrap}
-  .navtab:hover{border-bottom-color:var(--edge);color:var(--ink)}
-  .navtab.on{border-bottom-color:var(--crimson)}
-
-  .rolebtn{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;height:48px;
-    font-size:14.5px;font-weight:600;cursor:pointer;background:var(--field);color:var(--ink);
-    border:1px solid var(--edge);transition:background-color .18s,color .18s,border-color .18s}
-  .rolebtn:hover{border-color:var(--ink)}
-  .rolebtn[aria-pressed="true"]{background:var(--crimson);border-color:var(--crimson);color:var(--on-accent)}
-
-  .fieldwrap{position:relative}
-  .fieldwrap>.msym{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:20px;
-    color:var(--faint);pointer-events:none}
-  .field{width:100%;height:50px;background:var(--field);border:1px solid var(--edge);color:var(--ink);
-    font-size:15px;padding:0 14px 0 42px;transition:border-color .15s,box-shadow .15s}
-  .field::placeholder{color:var(--faint)}
-  .field:focus{outline:none;border-color:var(--crimson);box-shadow:0 0 0 3px color-mix(in srgb, var(--crimson) 12%, transparent)}
-  .flabel{display:block;font-size:13.5px;font-weight:600;color:var(--sub);margin-bottom:7px}
-
-  .pbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;margin-top:4px;
-    background:var(--crimson);color:var(--on-accent);border:1px solid var(--crimson);font-size:15.5px;font-weight:600;
-    cursor:pointer;transition:background-color .15s,border-color .15s}
-  .pbtn:hover:not(:disabled){background:var(--accent-hover);border-color:var(--accent-hover);color:var(--on-accent);transform:translateY(-1px)}
-  .pbtn:disabled{opacity:.65;cursor:default}
-  html.dark .pbtn:hover:not(:disabled){color:var(--page)}
-  .ico-btn{width:34px;height:34px;display:grid;place-items:center;background:transparent;border:none;
-    color:var(--faint);cursor:pointer;transition:color .15s}
-  .ico-btn:hover{color:var(--crimson)}
-
-  /* The utility bar holds the server status, and it is hidden below 1000px —
-     so the header shows it instead at exactly those widths. */
-  [data-status-mobile]{display:none}
-
-  @media (max-width:1000px){
-    [data-status-mobile]{display:flex}
-    [data-split]{grid-template-columns:minmax(0,1fr)!important}
-    [data-showcase]{display:none!important}
-    [data-navlinks]{display:none!important}
-    [data-util]{display:none!important}
-  }
-  @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
-</style>
-<link href="theme.css" rel="stylesheet"/>
-<link href="mobile.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
+<!-- Icons block rather than swap, so a slow font never shows its ligature names as text. -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet"/>
+<link href="transition.css?v=ink2" rel="stylesheet"/>
+<link href="theme.css?v=ink2" rel="stylesheet"/>
+<link href="mobile.css?v=ink2" rel="stylesheet"/>
+<link href="ink.css?v=ink2" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
-<!-- The manifest carries one theme_color; these two let a browser follow the
-     page's own light/dark tokens (--c-paper, and its html.dark value). A TWA
-     reads the manifest, so its status bar stays the light one. -->
 <meta content="#F5F4EF" media="(prefers-color-scheme: light)" name="theme-color"/>
 <meta content="#16171A" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <link href="icons/favicon.ico" rel="icon" sizes="16x16 32x32 48x48"/>
 <link href="icons/icon-192.png" rel="icon" type="image/png" sizes="192x192"/>
 <link href="icons/apple-touch-icon-180.png" rel="apple-touch-icon"/>
-<link href="ink.css" rel="stylesheet"/>
-<script src="ink.js" defer></script>
+<script src="ink.js?v=ink2" defer></script>
 </head>
 <body>
+<div class="auth">
 
-
-<div data-util style="background:var(--side);color:var(--sub);font-size:12.5px;line-height:1.5">
-  <div class="wrap" style="padding-top:9px;padding-bottom:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <span class="msym" style="font-size:16px;color:var(--gold)">verified_user</span>
-    <span style="color:var(--ink)">A tutor bound to your own course material.</span>
-    <span style="color:var(--faint)">It answers only from the documents a teacher uploads.</span>
-    <span style="margin-left:auto;display:flex;align-items:center;gap:18px">
-      <span style="display:flex;align-items:center;gap:7px">
-        <span id="statusDot" data-status-dot style="width:8px;height:8px;background:var(--gold);display:inline-block"></span>
-        <span id="statusText" data-status-text style="color:var(--faint)">Connecting&hellip;</span>
-      </span>
-      <span style="color:var(--faint)">Sign in to begin</span>
-    </span>
-  </div>
-</div>
-
-<header style="background:var(--page);border-bottom:1px solid var(--rule)">
-  <div class="wrap" style="padding-top:18px;padding-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap">
-    <span style="color:var(--ink);display:flex;align-items:baseline;gap:12px">
-      <span class="dsp" style="font-size:30px;line-height:1">Chronos<span style="color:var(--crimson)">.</span></span>
-      <span style="font-size:12.5px;color:var(--sub)">An AI tutor for schools</span>
-    </span>
-    <span style="display:flex;align-items:center;gap:14px">
-      <span data-status-mobile style="align-items:center;gap:7px;font-size:12.5px;color:var(--sub)">
-        <span data-status-dot style="width:8px;height:8px;background:var(--gold);display:inline-block"></span>
-        <span data-status-text>Connecting&hellip;</span>
-      </span>
-      <button class="ico-btn" data-theme-toggle title="Switch to dark mode"><span class="msym" style="font-size:19px">dark_mode</span></button>
-    </span>
-  </div>
-  <div class="wrap">
-    <nav data-navlinks style="display:flex;gap:2px;font-size:14.5px;font-weight:600">
-      <span class="navtab on">Sign in</span>
-    </nav>
-  </div>
+<header class="auth-top">
+  <span class="brand" aria-label="Chronos">
+    <svg class="brand-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 3h13M5.5 21h13"/><path d="M7.5 3v2.6c0 2.3 4.5 4 4.5 6.4s-4.5 4.1-4.5 6.4V21M16.5 3v2.6c0 2.3-4.5 4-4.5 6.4s4.5 4.1 4.5 6.4V21"/><path d="M9.6 19.2 12 17l2.4 2.2z" fill="currentColor" stroke="none"/></svg>
+    <span class="brand-word">Chronos.</span>
+  </span>
+  <span class="auth-top-right">
+    <span class="auth-tag">An AI tutor bound to your course material</span>
+    <span class="server-state"><span id="statusDot" data-status-dot></span><span id="statusText" data-status-text>Connecting&hellip;</span></span>
+    <button class="ibtn" type="button" data-theme-toggle title="Switch to dark mode"><span class="msym">dark_mode</span></button>
+  </span>
 </header>
 
-<!-- flex:1 rather than calc(100vh - 104px): that 104 was the utility bar plus the
-     header, and the utility bar is hidden below 1000px, so on a phone it was wrong
-     in both directions and pushed the footer off screen. -->
-<main data-split style="display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr);flex:1">
+<!-- flex:1 rather than a calc against the header, so the footer never gets
+     pushed off a short phone screen. -->
+<main class="auth-split">
 
-  <section style="display:flex;align-items:center;justify-content:center;padding:56px 28px 72px">
-    <div id="formCard" style="width:100%;max-width:440px">
-      <p id="eyebrow" style="margin:0 0 12px;font-size:14px;font-weight:600;color:var(--crimson-d)">Sign in</p>
-      <h1 id="title" class="dsp ink-title" style="margin:0 0 28px;font-size:clamp(1.9rem,3.4vw,2.5rem);line-height:1.08;letter-spacing:-.02em">Welcome back</h1>
-      <p id="subtitle" class="hidden" style="margin:-14px 0 28px;font-size:15px;line-height:1.55;color:var(--sub)"></p>
+  <section class="auth-form">
+    <div id="formCard" class="auth-card">
+      <span id="eyebrow" class="eyebrow">Sign in</span>
+      <h1 id="title">Welcome back</h1>
+      <p id="subtitle" class="auth-lead">Pick up where you left off.</p>
 
-      <div style="margin-bottom:26px">
-        <div style="font-size:13.5px;font-weight:600;color:var(--sub);margin-bottom:9px">I am a</div>
-        <div style="display:flex;gap:10px">
-          <button type="button" class="rolebtn" id="roleStudent" data-role="student" aria-pressed="true">
-            <span class="msym" style="font-size:19px">school</span>Student
-          </button>
-          <button type="button" class="rolebtn" id="roleTeacher" data-role="teacher" aria-pressed="false">
-            <span class="msym" style="font-size:19px">science</span>Teacher
-          </button>
-        </div>
+      <div class="rolepick" role="group" aria-label="I am a">
+        <button type="button" class="rolebtn" id="roleStudent" data-role="student" aria-pressed="true"><span class="msym">school</span>Student</button>
+        <button type="button" class="rolebtn" id="roleTeacher" data-role="teacher" aria-pressed="false"><span class="msym">co_present</span>Teacher</button>
       </div>
 
-      <form id="loginForm" style="display:flex;flex-direction:column;gap:18px">
+      <form id="loginForm" style="display:flex;flex-direction:column;gap:16px">
         <div>
           <label class="flabel" for="email">Email address</label>
           <div class="fieldwrap">
@@ -163,68 +65,58 @@
           <label class="flabel" for="password">Password</label>
           <div class="fieldwrap">
             <span class="msym">lock</span>
-            <input class="field" id="password" name="password" type="password" autocomplete="current-password" placeholder="••••••••" style="padding-right:46px"/>
-            <button type="button" id="pwToggle" aria-label="Show password" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);width:34px;height:34px;display:grid;place-items:center;background:transparent;border:none;cursor:pointer;color:var(--faint)">
-              <span class="msym" id="visibility-icon" style="font-size:20px">visibility_off</span>
-            </button>
+            <input class="field" id="password" name="password" type="password" autocomplete="current-password" placeholder="Your password" style="padding-right:50px"/>
+            <button type="button" id="pwToggle" class="pw-toggle" aria-label="Show password"><span class="msym" id="visibility-icon">visibility_off</span></button>
           </div>
         </div>
 
-        <div id="codeWrap" class="hidden" style="animation:pop .28s ease both">
+        <div id="codeWrap" class="hidden" style="animation:ink-rise .28s var(--ease) both">
           <label class="flabel" for="teacherCode">Teacher access code</label>
           <div class="fieldwrap">
             <span class="msym">vpn_key</span>
             <input class="field" id="teacherCode" type="password" placeholder="Code from your admin"/>
           </div>
-          <p style="margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--mid)">Your school admin has this. Teacher accounts need it.</p>
+          <p style="margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--sub)">Your school admin has this. Teacher accounts need it.</p>
         </div>
 
-        <p id="err" class="hidden" style="margin:0;align-items:center;gap:8px;font-size:13.5px;font-weight:500;color:var(--err-fg);background:var(--err-bg);border:1px solid var(--crimson);padding:11px 13px">
-          <span class="msym" style="font-size:17px">error</span><span id="errText"></span>
-        </p>
+        <p id="err" class="auth-err hidden" role="alert"><span class="msym" style="font-size:18px">error</span><span id="errText"></span></p>
 
         <button class="pbtn" id="submitBtn" type="submit">
           <span id="submitLabel">Sign in</span><span class="msym" id="submitIcon" style="font-size:19px">arrow_forward</span>
         </button>
       </form>
 
-      <div style="margin-top:28px;padding-top:22px;border-top:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
-        <p style="margin:0;font-size:15px;color:var(--sub)"><span id="toggleText">New here?</span>
-          <button type="button" id="toggleMode" style="background:none;border:none;padding:0;font:inherit;font-weight:600;color:var(--crimson-d);cursor:pointer;border-bottom:1px solid var(--crimson-d)">Create an account</button>
-        </p>
-      </div>
+      <p class="auth-switch"><span id="toggleText">New here?</span>
+        <button type="button" id="toggleMode" class="linkbtn">Create an account</button>
+      </p>
     </div>
   </section>
 
-  <section data-showcase style="color:var(--ink);display:flex;flex-direction:column;justify-content:center;padding:56px 44px 64px">
-    <div style="max-width:440px">
-      <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
-        <div id="demoQ" class="hidden" style="max-width:82%;background:var(--accent-soft);color:var(--ink);padding:12px 15px;font-size:14.5px;line-height:1.55;animation:pop .32s ease both"></div>
+  <section class="auth-show" data-showcase aria-hidden="true">
+    <div class="demo">
+      <div class="demo-top"><span>Introduction to Literature</span><span>/</span><b>New chat</b></div>
+      <div class="demo-body">
+        <div id="demoQ" class="demo-q hidden"></div>
+        <p class="demo-a"><span id="demoA"></span><span id="demoCaret" class="demo-caret hidden"></span></p>
+        <div id="demoSrc" class="demo-src hidden"></div>
       </div>
-      <p style="margin:0 0 22px;font-size:16.5px;line-height:1.7;color:var(--ink)"><span id="demoA"></span><span id="demoCaret" class="hidden" style="width:8px;height:17px;background:var(--crimson);margin-left:2px;vertical-align:text-bottom;animation:blink 1s steps(2) infinite;display:inline-block"></span></p>
-      <div id="demoSrc" class="hidden" style="border-top:1px solid var(--rule);padding-top:12px;animation:pop .3s ease both"></div>
+      <div class="demo-input">Ask a question&hellip;<i><span class="msym" style="font-size:17px">arrow_upward</span></i></div>
     </div>
   </section>
 
 </main>
 
-<footer style="border-top:1px solid var(--rule);color:var(--sub);padding:22px 0">
-  <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap;font-size:12.5px">
-    <div style="display:flex;align-items:center;gap:16px">
-      <span class="dsp" style="font-size:18px;line-height:1;color:var(--ink)">Chronos<span style="color:var(--crimson)">.</span></span>
-      <span>&copy; 2026 Chronos. All rights reserved.</span>
-    </div>
-    <div style="display:flex;gap:20px">
-      <span>United States / English</span>
-    </div>
-  </div>
+<footer class="auth-foot">
+  <span>&copy; 2026 Chronos</span>
+  <a href="/status" style="color:inherit;text-decoration:none">System status</a>
 </footer>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="auth.js"></script>
-<script src="theme.js"></script>
-<script src="transition.js"></script>
+<script src="theme.js?v=ink2"></script>
+<script src="transition.js?v=ink2"></script>
 <script>
   const $ = (id) => document.getElementById(id);
   const params = new URLSearchParams(location.search);
@@ -241,7 +133,6 @@
   function showErr(msg){
     $("errText").textContent = msg || "";
     $("err").classList.toggle("hidden", !msg);
-    $("err").style.display = msg ? "flex" : "";
     if(msg){ const c=$("formCard"); c.classList.remove("shake"); void c.offsetWidth; c.classList.add("shake"); }
   }
 
@@ -251,8 +142,9 @@
     $("roleTeacher").setAttribute("aria-pressed", String(role === "teacher"));
     $("eyebrow").textContent = isUp ? "New account" : "Sign in";
     $("title").textContent = isUp ? "Create your account" : "Welcome back";
-    $("subtitle").textContent = isUp && role === "teacher" ? "Teacher accounts need the signup code." : "";
-    $("subtitle").classList.toggle("hidden", !$("subtitle").textContent);
+    $("subtitle").textContent = isUp
+      ? (role === "teacher" ? "Teacher accounts need the access code from your school admin." : "Join your class with the code your teacher gives you.")
+      : "Pick up where you left off.";
     $("submitLabel").textContent = isUp ? "Create account" : "Sign in";
     $("password").autocomplete = isUp ? "new-password" : "current-password";
     $("toggleText").textContent = isUp ? "Already have an account?" : "New here?";
@@ -304,19 +196,18 @@
   if(params.get("denied")) showErr("That page needs a different account. Sign in with the right one.");
   paintMode();
 
-  // Reflect server reachability. Two copies carry it — the utility bar at desktop
-  // widths, the header below 1000px — so write every match rather than one id.
-  function setStatus(text, dot){
+  // Reflect server reachability in the header.
+  function setStatus(text, state){
     document.querySelectorAll("[data-status-text]").forEach(el=>{el.textContent=text;});
-    if(dot)document.querySelectorAll("[data-status-dot]").forEach(el=>{el.style.background=dot;});
+    document.querySelectorAll("[data-status-dot]").forEach(el=>{el.dataset.state=state;});
   }
 
   (async()=>{
     try{
       const r = await fetch(Chronos.BASE + "/health", {cache:"no-store"});
-      if(r.ok){ setStatus("System online"); return; }
+      if(r.ok){ setStatus("System online", "online"); return; }
     }catch(e){}
-    setStatus("Server offline", "var(--crimson)");
+    setStatus("Server offline", "offline");
   })();
 
   // Already signed in? Skip the form and go where they belong.
@@ -347,10 +238,10 @@
     const DEMOS = [
       { q: "What's the difference between metaphor and simile?",
         a: "A simile says one thing is like another and keeps the comparison visible. A metaphor says it simply is, and asks you to accept the substitution. Your handout calls that the difference between comparing and claiming.",
-        s: ["From Poetry Terms handout, page 2", "From Class Notes, week 3"] },
+        s: ["Poetry Terms handout, p. 2", "Class notes, week 3"] },
       { q: "What is enjambment?",
         a: "A line that breaks before its sentence finishes, so the meaning spills into the next line. Your notes ask you to read the hesitation as part of the meaning, not just the layout.",
-        s: ["From Poetry Terms handout, page 5", "From Annotated Poems packet, page 8"] }
+        s: ["Poetry Terms handout, p. 5", "Annotated Poems packet, p. 8"] }
     ];
     const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
     const qEl=$("demoQ"), aEl=$("demoA"), caret=$("demoCaret"), srcEl=$("demoSrc");
@@ -360,8 +251,7 @@
     function sources(list){
       srcEl.textContent = "";
       list.forEach(s => {
-        const d = document.createElement("div");
-        d.style.cssText = "font-size:13.5px;line-height:1.7;color:var(--faint)";
+        const d = document.createElement("span");
         d.textContent = s;
         srcEl.appendChild(d);
       });

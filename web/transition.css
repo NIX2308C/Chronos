@@ -9,8 +9,8 @@
 @view-transition { navigation: auto; }
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: .14s;
-  animation-timing-function: ease-out;
+  animation-duration: .22s;
+  animation-timing-function: var(--ease);
 }
 
 /* Views that swap content in place (chats, courses, ranges). */
@@ -26,20 +26,20 @@
   pointer-events: none;
 }
 .chronos-view-loading[hidden] { display: none; }
+.chronos-view-loading { border-radius: 2px; }
 .chronos-view-loading::before {
   content: "";
   position: absolute;
   inset: 0 auto 0 0;
   width: 38%;
-  background: var(--crimson, #E2001A);
+  background: var(--accent);
   animation: chronos-view-slide 1s ease-in-out infinite;
 }
 @keyframes chronos-view-slide {
   from { transform: translateX(-100%); }
   to { transform: translateX(270%); }
 }
-.chronos-view-reveal [data-transition-content] { animation: chronos-view-fade .14s ease-out both; }
-@keyframes chronos-view-fade { from { opacity: .6; } to { opacity: 1; } }
+.chronos-view-reveal [data-transition-content] { animation: ink-bleed .3s var(--ease) both; }
 
 .chronos-sr {
   position: absolute;

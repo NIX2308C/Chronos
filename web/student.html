@@ -5,55 +5,55 @@
 <script>try{var d=document.documentElement,t=localStorage.getItem("chronos-theme"),u=JSON.parse(localStorage.getItem("chronos-ui")||"{}");if(t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches))d.classList.add("dark");if(u.motion==="reduce")d.dataset.motion="reduce";if(u.text==="large")d.dataset.text="large";}catch(e){}</script>
 <title>Chronos | Tutor</title>
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600&amp;family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet"/>
 <link href="transition.css" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script id="tailwind-config">
     // Token NAMES are Material-Design-shaped and are baked into class strings the
     // page's JS builds at runtime — so a restyle remaps the VALUES here and never
-    // renames the tokens. Dark-mode repoints for these live in theme.css.
+    // renames the tokens. Colours are CSS-variable channels from theme.css, so dark mode is automatic.
     tailwind.config = {
         darkMode: "class",
         theme: {
             extend: {
                 "colors": {
-                    "primary-container": "#F6D9D5",
-                    "error-container": "#F6D9D5",
-                    "surface-container-low": "#F7F4EC",
-                    "surface-dim": "#E4DECD",
-                    "surface-bright": "#FFFFFF",
-                    "background": "#E9E4D6",
-                    "on-tertiary": "#F7F4EC",
-                    "surface-container": "#EFEADC",
-                    "surface-container-highest": "#DED8C6",
-                    "on-error": "#F7F4EC",
-                    "on-secondary": "#0B0B0C",
-                    "on-primary-container": "#8E0011",
-                    "tertiary-container": "#F6D9D5",
-                    "on-error-container": "#8E0011",
-                    "surface-container-high": "#E4DECD",
-                    "on-tertiary-container": "#8E0011",
-                    "surface": "#E9E4D6",
-                    "on-background": "#141311",
-                    "surface-tint": "#E2001A",
-                    "outline": "#B9B09A",
-                    "primary": "#E2001A",
-                    "tertiary-fixed-dim": "#E2001A",
-                    "on-primary": "#F7F4EC",
-                    "on-secondary-container": "#6B5410",
-                    "on-surface": "#141311",
-                    "secondary": "#C9A227",
-                    "error": "#E2001A",
-                    "outline-variant": "#1C1A16",
-                    "secondary-container": "#F2E7C4",
-                    "surface-variant": "#E4DECD",
-                    "on-surface-variant": "#4B4A46",
-                    "tertiary": "#E2001A",
-                    "surface-container-lowest": "#F7F4EC"
+                    // Ink palette: channels live in theme.css, so dark mode needs no overrides.
+                    "background": "rgb(var(--k-page) / <alpha-value>)",
+                    "surface": "rgb(var(--k-page) / <alpha-value>)",
+                    "surface-bright": "rgb(var(--k-paper) / <alpha-value>)",
+                    "surface-container-lowest": "rgb(var(--k-page) / <alpha-value>)",
+                    "surface-container-low": "rgb(var(--k-paper) / <alpha-value>)",
+                    "surface-container": "rgb(var(--k-side) / <alpha-value>)",
+                    "surface-container-high": "rgb(var(--k-hi) / <alpha-value>)",
+                    "surface-container-highest": "rgb(var(--k-hi2) / <alpha-value>)",
+                    "surface-variant": "rgb(var(--k-hi) / <alpha-value>)",
+                    "surface-dim": "rgb(var(--k-hi) / <alpha-value>)",
+                    "surface-tint": "rgb(var(--k-accent) / <alpha-value>)",
+                    "on-background": "rgb(var(--k-ink) / <alpha-value>)",
+                    "on-surface": "rgb(var(--k-ink) / <alpha-value>)",
+                    "on-surface-variant": "rgb(var(--k-sub) / <alpha-value>)",
+                    "outline": "rgb(var(--k-edge) / <alpha-value>)",
+                    "outline-variant": "rgb(var(--k-rule) / <alpha-value>)",
+                    "primary": "rgb(var(--k-accent) / <alpha-value>)",
+                    "on-primary": "rgb(var(--k-on-accent) / <alpha-value>)",
+                    "primary-container": "rgb(var(--k-accent-soft) / <alpha-value>)",
+                    "on-primary-container": "rgb(var(--k-accent-d) / <alpha-value>)",
+                    "tertiary": "rgb(var(--k-accent) / <alpha-value>)",
+                    "tertiary-fixed-dim": "rgb(var(--k-accent) / <alpha-value>)",
+                    "on-tertiary": "rgb(var(--k-on-accent) / <alpha-value>)",
+                    "tertiary-container": "rgb(var(--k-accent-soft) / <alpha-value>)",
+                    "on-tertiary-container": "rgb(var(--k-accent-d) / <alpha-value>)",
+                    "secondary": "rgb(var(--k-gold) / <alpha-value>)",
+                    "on-secondary": "rgb(var(--k-on-accent) / <alpha-value>)",
+                    "secondary-container": "rgb(var(--k-gold-soft) / <alpha-value>)",
+                    "on-secondary-container": "rgb(var(--k-gold) / <alpha-value>)",
+                    "error": "rgb(var(--k-danger) / <alpha-value>)",
+                    "on-error": "rgb(var(--k-on-accent) / <alpha-value>)",
+                    "error-container": "rgb(var(--k-danger-soft) / <alpha-value>)",
+                    "on-error-container": "rgb(var(--k-danger) / <alpha-value>)"
                 },
-                // Sharp corners everywhere: the design system has no rounding.
-                "borderRadius": { "DEFAULT": "0", "sm": "0", "lg": "0", "xl": "0", "2xl": "0", "3xl": "0", "full": "0" },
+                "borderRadius": { "DEFAULT": "8px", "sm": "6px", "md": "8px", "lg": "12px", "xl": "16px", "2xl": "20px", "3xl": "24px", "full": "9999px" },
                 "spacing": {
                     "stack-sm": "0.5rem", "gutter": "1.5rem", "margin-mobile": "1rem",
                     "margin-desktop": "2rem", "stack-lg": "2rem", "stack-md": "1rem", "container-max": "1280px"
@@ -80,9 +80,7 @@
 <style>
     /* Custom components use these vars so they follow the theme on their own;
        theme.css only has to repoint the Tailwind-generated utility classes. */
-    :root{--c-page:#E9E4D6;--c-paper:#F7F4EC;--c-ink:#141311;--c-sub:#5D5B55;--c-edge:#1C1A16;
-          --c-hi:#E4DECD;--c-rule:#DED8C6;--crimson:#E2001A;--gold:#C9A227;
-          --snap:cubic-bezier(.22,1,.36,1);--soft:cubic-bezier(.22,1,.36,1)}
+    :root{--snap:cubic-bezier(.22,1,.36,1);--soft:cubic-bezier(.22,1,.36,1)}
     /* One shared, gentler curve for every Tailwind colour/transform transition. */
     html .transition-colors,html .transition-transform,html .transition-opacity,html .transition-all { transition-duration:.22s; transition-timing-function:var(--soft) }
     html { scroll-behavior:smooth }
@@ -91,14 +89,12 @@
     @keyframes fade-in { from { opacity:0 } to { opacity:1 } }
     @keyframes menu-in { from { opacity:0;transform:translateY(6px) scale(.98) } to { opacity:1;transform:none } }
     @keyframes chip-in { from { opacity:0;transform:scale(.92) } to { opacity:1;transform:none } }
-    html.dark{--c-page:#0D0D10;--c-paper:#16161B;--c-ink:#F7F4EC;--c-sub:#B3AEA3;--c-edge:#3D3D46;
-              --c-hi:#212128;--c-rule:#303038;color-scheme:dark}
 
     body { font-family: 'Schibsted Grotesk', sans-serif; }
     h1,h2,h3,h4 { font-family: 'Newsreader', serif; font-weight:400; letter-spacing: -.015em; }
     ::selection { background: var(--crimson); color: #F7F4EC; }
     :focus-visible { outline: 2px solid var(--crimson); outline-offset: 2px; }
-    .material-symbols-outlined { font-family: 'Material Symbols Sharp'; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24; }
     .material-symbols-outlined.fill { font-variation-settings: 'FILL' 1; }
     .mono { font-family: 'Schibsted Grotesk', sans-serif; }
     /* Custom classes below set `display`, which would beat Tailwind's .hidden on a
@@ -118,7 +114,7 @@
     .cast-red { border-color:var(--c-rule) !important; box-shadow:0 20px 48px rgba(0,0,0,.2); }
 
     /* ---- message bubbles ---- */
-    .bub-you { max-width:78%; background:var(--crimson); color:#F7F4EC; padding:12px 16px;
+    .bub-you { max-width:78%; background:var(--crimson); color:var(--on-accent); padding:12px 16px;
         font-size:15.5px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere;
         transform-origin:100% 100% }
     /* The answer is the page, not a card in it: plain serif on the paper, no
@@ -154,8 +150,8 @@
     /* ---- buttons ---- */
     .kbtn { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:.5rem;
         font-size:14px; font-weight:600; padding:.85rem 1rem; border:1px solid var(--crimson); background:var(--crimson);
-        color:#F7F4EC; cursor:pointer; transition:background-color .15s ease,border-color .15s ease,transform .15s ease }
-    .kbtn:hover:not(:disabled) { background:#B90015; border-color:#B90015; color:#F7F4EC; transform:translateY(-1px) }
+        color:var(--on-accent); cursor:pointer; transition:background-color .15s ease,border-color .15s ease,transform .15s ease }
+    .kbtn:hover:not(:disabled) { background:var(--accent-hover); border-color:var(--accent-hover); color:var(--on-accent); transform:translateY(-1px) }
     .kbtn:active:not(:disabled) { transform:translateY(0) }
     .kbtn:disabled { opacity:.55; cursor:default }
     .kbtn-ghost { background:transparent; border-color:var(--c-rule); color:var(--c-ink) }
@@ -164,12 +160,12 @@
     .ibtn { width:34px; height:34px; display:flex; align-items:center; justify-content:center;
         border:1px solid transparent; color:var(--c-sub);
         transition:background-color .15s,color .15s,border-color .15s }
-    .ibtn:hover { background:var(--crimson); border-color:var(--crimson); color:#F7F4EC }
+    .ibtn:hover { background:var(--crimson); border-color:var(--crimson); color:var(--on-accent) }
 
     .slabel { font-size:12.5px; font-weight:600; color:var(--c-sub) }
     .sendbtn { width:40px; height:40px; flex:none; display:flex; align-items:center; justify-content:center;
         background:var(--c-ink); color:var(--c-page); border:none; cursor:pointer; transition:background-color .15s ease,color .15s ease,transform .15s ease }
-    .sendbtn:hover:not(:disabled) { background:var(--crimson); color:#F7F4EC }
+    .sendbtn:hover:not(:disabled) { background:var(--crimson); color:var(--on-accent) }
     .sendbtn:active:not(:disabled) { transform:scale(.94) }
     .sendbtn:disabled { opacity:.4; cursor:default }
 
@@ -184,7 +180,7 @@
     .composer { background:var(--c-paper); border:1px solid var(--c-rule); transition:border-color .15s ease }
     .composer:focus-within { border-color:var(--crimson) }
     /* Debug mode (developer accounts): the chat box glows red. */
-    .composer.debug-on { border-color:var(--crimson); box-shadow:0 0 0 1px var(--crimson),0 0 18px rgba(226,0,26,.38) }
+    .composer.debug-on { border-color:var(--crimson); box-shadow:0 0 0 1px var(--crimson),0 0 18px color-mix(in srgb, var(--crimson) 38%, transparent) }
     .dbg-strip { display:none; font:500 11.5px/1.4 ui-monospace,Consolas,monospace; color:var(--c-sub); padding:0 2px 6px;
         white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
     .dbg-strip.on { display:block }
@@ -264,10 +260,10 @@
     .tool-status .tool-text { position:relative;display:inline-block; }
     .tool-status.using { color:var(--c-sub); }
     .tool-status.using .tool-text::after { content:attr(data-text);position:absolute;left:0;top:0;white-space:nowrap;color:transparent;pointer-events:none;
-        background:radial-gradient(40px 13px at var(--gx) var(--gy),#FF3B52 0%,rgba(226,0,26,.8) 38%,transparent 75%);
-        -webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 0 3px rgba(226,0,26,.5));
+        background:radial-gradient(40px 13px at var(--gx) var(--gy),#FF3B52 0%,color-mix(in srgb, var(--crimson) 80%, transparent) 38%,transparent 75%);
+        -webkit-background-clip:text;background-clip:text;filter:drop-shadow(0 0 3px color-mix(in srgb, var(--crimson) 50%, transparent));
         animation:glow-x 2.4s ease-in-out infinite alternate,glow-y 1.2s ease-in-out -.6s infinite alternate; }
-    .tool-status.done { color:#1E7A4E;animation:tool-finish .45s var(--soft) both; }
+    .tool-status.done { color:var(--good);animation:tool-finish .45s var(--soft) both; }
     .tool-status.failed { color:var(--crimson); }
     .tool-status.canceled { color:var(--c-sub);opacity:.8; }
     html.dark .tool-status.done { color:#6FD5A0; }
@@ -294,11 +290,11 @@
     .quiz-option { width:100%;display:flex;align-items:flex-start;gap:10px;text-align:left;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);padding:11px 12px;font:inherit;font-size:14px;line-height:1.4;transition:background-color .16s,color .16s,border-color .16s,transform .16s; }
     .quiz-option:hover:not(:disabled),.quiz-option:focus-visible { border-color:var(--crimson);transform:translateY(-1px); }
     .quiz-option .quiz-letter { flex:none;display:grid;place-items:center;width:21px;height:21px;border:1px solid currentColor;border-radius:50%;font-size:11px;font-weight:700; }
-    .quiz-option.correct { background:#1E7A4E;border-color:#1E7A4E;color:#fff; }
+    .quiz-option.correct { background:var(--good);border-color:var(--good);color:#fff; }
     .quiz-option.wrong { background:var(--c-hi);border-color:var(--crimson);color:var(--c-ink); }
     .quiz-option:disabled { cursor:default; }
     .quiz-feedback { min-height:42px;margin:14px 0 0;padding:10px 12px;border-left:3px solid var(--c-rule);background:var(--c-hi);font-size:13px;color:var(--c-sub);line-height:1.45; }
-    .quiz-feedback.good { border-color:#1E7A4E;color:var(--c-ink); }
+    .quiz-feedback.good { border-color:var(--good);color:var(--c-ink); }
     .quiz-feedback.missed { border-color:var(--crimson); }
     .tool-nav { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--c-rule); }
     .tool-nav button,.tool-review { min-height:36px;padding:8px 11px;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer; }
@@ -334,7 +330,7 @@
     @keyframes stage-prev { from { opacity:0;transform:translateX(-14px); } to { opacity:1;transform:none; } }
     .tool-stage:not(.still) .quiz-option { animation:rise-in .3s var(--soft) both;animation-delay:calc(var(--i,0)*40ms + 60ms); }
     .quiz-option { transition:background-color .2s var(--soft),color .2s var(--soft),border-color .2s var(--soft),transform .2s var(--soft),box-shadow .2s var(--soft); }
-    .quiz-option:hover:not(:disabled),.quiz-option:focus-visible { box-shadow:0 4px 10px rgba(226,0,26,.08);transform:translateX(2px); }
+    .quiz-option:hover:not(:disabled),.quiz-option:focus-visible { box-shadow:0 4px 10px color-mix(in srgb, var(--crimson) 8%, transparent);transform:translateX(2px); }
     .quiz-option:active:not(:disabled) { transform:scale(.99); }
     .quiz-option .quiz-letter { transition:background-color .2s,color .2s; }
     .quiz-option:hover:not(:disabled) .quiz-letter { background:var(--crimson);border-color:var(--crimson);color:#fff; }
@@ -348,16 +344,16 @@
     .tool-nav button:hover:not(:disabled),.tool-review:hover { transform:translateY(-1px); }
     .tool-nav button:active:not(:disabled),.tool-review:active { transform:scale(.97); }
     .tool-nav button.primary,.tool-review.primary { background:var(--crimson);border-color:var(--crimson);color:#fff; }
-    .tool-nav button.primary:hover:not(:disabled) { background:#B90015;border-color:#B90015;color:#fff; }
+    .tool-nav button.primary:hover:not(:disabled) { background:var(--accent-hover);border-color:var(--accent-hover);color:#fff; }
     .tool-progress-dots span { transition:width .35s var(--soft),background-color .3s; }
     .tool-actions { display:flex;flex-wrap:wrap;gap:8px; }
     .tool-review { transition:border-color .18s,color .18s,transform .18s var(--soft); }
     .tool-score { font-variant-numeric:tabular-nums; }
     .quiz-recap { list-style:none;margin:0 0 18px;padding:0;display:grid;gap:6px; }
     .quiz-recap li { display:flex;gap:10px;align-items:flex-start;padding:8px 10px;background:var(--c-hi);border-left:3px solid var(--crimson);font-size:13px;line-height:1.4;color:var(--c-ink);animation:rise-in .3s var(--soft) both;animation-delay:calc(var(--i,0)*45ms + 150ms); }
-    .quiz-recap li.ok { border-left-color:#1E7A4E; }
+    .quiz-recap li.ok { border-left-color:var(--good); }
     .quiz-recap .mark { flex:none;font-weight:700;width:14px; }
-    .quiz-recap li.ok .mark { color:#1E7A4E; }
+    .quiz-recap li.ok .mark { color:var(--good); }
     .quiz-recap li:not(.ok) .mark { color:var(--crimson); }
     /* flashcards */
     .tool-stage > .flashcard-shell { animation-name:stage-next; }
@@ -372,7 +368,7 @@
     .flash-rate button { flex:1;min-height:36px;border:1px solid var(--c-rule);background:transparent;color:var(--c-ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:border-color .18s,color .18s,background-color .18s,transform .18s var(--soft); }
     .flash-rate button:hover { transform:translateY(-1px); }
     .flash-rate button.again:hover { border-color:var(--crimson);color:var(--crimson); }
-    .flash-rate button.got:hover { border-color:#1E7A4E;color:#1E7A4E; }
+    .flash-rate button.got:hover { border-color:var(--good);color:var(--good); }
     .flash-rate button:active { transform:scale(.97); }
     .flash-tally { display:flex;gap:12px;font-size:12px;font-weight:600;color:var(--c-sub);margin-top:10px; }
     .flash-tally b { color:var(--c-ink);font-variant-numeric:tabular-nums; }
@@ -385,7 +381,7 @@
     .map-node { margin-top:0;transition:background-color .2s,transform .25s var(--soft),box-shadow .25s var(--soft); }
     .map-group:hover .map-node { transform:translateX(2px); }
     .map-group.pulse .map-node { animation:map-pulse .8s var(--soft); }
-    @keyframes map-pulse { 0%,100% { box-shadow:0 0 0 0 rgba(201,162,39,0); } 30% { box-shadow:0 0 0 3px rgba(201,162,39,.4);background:var(--c-paper); } }
+    @keyframes map-pulse { 0%,100% { box-shadow:0 0 0 0 color-mix(in srgb, var(--gold) 0%, transparent); } 30% { box-shadow:0 0 0 3px color-mix(in srgb, var(--gold) 40%, transparent);background:var(--c-paper); } }
     .map-links { display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 0; }
     .map-chip { border:1px solid var(--c-rule);background:transparent;color:var(--c-sub);font:inherit;font-size:12px;padding:3px 9px;cursor:pointer;transition:border-color .25s,color .25s,transform .25s var(--soft); }
     .map-chip:hover { border-color:var(--gold);color:var(--c-ink);transform:translateY(-1px); }
@@ -403,7 +399,7 @@
     .review-pt .box::after { content:"";width:8px;height:4px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) scale(0);margin-top:-2px;transition:transform .35s var(--snap); }
     .review-pt.done { opacity:.55; }
     .review-pt.done .txt { text-decoration:line-through; }
-    .review-pt.done .box { background:#1E7A4E;border-color:#1E7A4E; }
+    .review-pt.done .box { background:var(--good);border-color:var(--good); }
     .review-pt.done .box::after { transform:rotate(-45deg) scale(1); }
     .review-tools { display:flex;justify-content:space-between;align-items:center;margin:0 0 10px;font-size:12px;color:var(--c-sub); }
     .review-tools button { border:0;background:transparent;color:var(--c-sub);font:inherit;font-size:12px;text-decoration:underline;text-underline-offset:3px;cursor:pointer; }
@@ -411,7 +407,7 @@
     @media (hover:none){ .flashcard:not(.is-flipped):hover,.flashcard.is-flipped:hover { box-shadow:0 10px 24px rgba(11,11,12,.08); } .flashcard:not(.is-flipped):hover { transform:none; } .flashcard.is-flipped:hover { transform:rotateY(180deg); } }
     html.dark .learning-tool { box-shadow:0 12px 28px rgba(0,0,0,.26); }
     html.dark .quiz-option.correct { background:#238457;border-color:#36A46E;color:#fff; }
-    html.dark .quiz-option.wrong { background:rgba(226,0,26,.16); }
+    html.dark .quiz-option.wrong { background:color-mix(in srgb, var(--crimson) 16%, transparent); }
     html.dark .flash-face.back { background:var(--c-hi); }
     @media (prefers-reduced-motion:reduce){ .flashcard,.quiz-option,.composer-action,.sendbtn { transition:none; } .tool-status,.tool-status::before,.tool-status .material-symbols-outlined,.learning-tool,.tool-stage > *,.typing-indicator,.typing-indicator i { animation:none; } }
 
@@ -449,11 +445,13 @@
 <!-- The manifest carries one theme_color; these two let a browser follow the
      page's own light/dark tokens (--c-paper, and its html.dark value). A TWA
      reads the manifest, so its status bar stays the light one. -->
-<meta content="#F7F4EC" media="(prefers-color-scheme: light)" name="theme-color"/>
-<meta content="#16161B" media="(prefers-color-scheme: dark)" name="theme-color"/>
+<meta content="#F5F4EF" media="(prefers-color-scheme: light)" name="theme-color"/>
+<meta content="#16171A" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <link href="icons/favicon.ico" rel="icon" sizes="16x16 32x32 48x48"/>
 <link href="icons/icon-192.png" rel="icon" type="image/png" sizes="192x192"/>
 <link href="icons/apple-touch-icon-180.png" rel="apple-touch-icon"/>
+<link href="ink.css" rel="stylesheet"/>
+<script src="ink.js" defer></script>
 </head>
 <body class="bg-background text-on-background h-full antialiased overflow-hidden flex">
 
@@ -486,60 +484,56 @@
 <!-- Sidebar. Below 768px this is the off-canvas drawer: mobile.css slides it
      on a transform rather than hiding it, because everything a student needs
      to switch course, reopen a conversation or sign out lives in here. -->
-<nav id="sideNav" data-drawer="sm" class="flex h-full w-64 fixed left-0 top-0 bg-surface-container flex-col z-[35]" style="border-right:1px solid var(--c-rule)">
-<a class="block px-5 pt-4 pb-3.5" href="/login" style="border-bottom:1px solid var(--c-rule)">
-<h1 class="font-headline-md text-headline-md text-on-background leading-none">Chronos<span class="text-primary">.</span></h1>
+<nav id="sideNav" data-drawer="sm" aria-label="Course and conversations" class="side flex h-full w-72 fixed left-0 top-0 flex-col z-[35]">
+<a class="side-brand" href="/login" aria-label="Chronos home">
+<span class="brand-mark material-symbols-outlined" aria-hidden="true">hourglass_empty</span><span class="brand-word">Chronos<span class="brand-dot">.</span></span>
 </a>
-<!-- Class switcher: which class's tutor you're talking to -->
-<div class="px-5 py-4" style="border-bottom:1px solid var(--c-rule)">
-<div class="flex gap-1.5">
+<!-- Course card: which course's tutor you're talking to -->
+<div class="course-card">
+<span class="side-eyebrow">Your course</span>
+<div class="course-row">
+<span class="material-symbols-outlined course-ico" aria-hidden="true">school</span>
 <div class="relative flex-1 min-w-0">
-<select class="fld appearance-none w-full min-w-0 font-label-md text-label-md pl-3 pr-8 py-2.5 outline-none cursor-pointer" id="classSwitcher" data-drawer-close title="Active course"></select>
-<span class="material-symbols-outlined text-[18px] text-on-surface-variant absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">unfold_more</span>
+<select class="course-select appearance-none w-full min-w-0 outline-none cursor-pointer" id="classSwitcher" data-drawer-close title="Active course" aria-label="Active course"></select>
+<span class="material-symbols-outlined course-chev" aria-hidden="true">unfold_more</span>
 </div>
-<button class="flex-shrink-0 w-10 flex items-center justify-center hard text-on-surface-variant hover:bg-primary hover:text-on-primary hover:border-primary transition-colors" id="joinAnotherBtn" data-drawer-close title="Join another course">
-<span class="material-symbols-outlined text-[18px]">add</span>
+<button class="course-add" id="joinAnotherBtn" data-drawer-close title="Join another course" aria-label="Join another course">
+<span class="material-symbols-outlined">add</span>
 </button>
 </div>
 </div>
-<div class="px-5 pt-4">
-<button class="kbtn w-full" id="newChatBtn" data-drawer-close>
-<span><span class="material-symbols-outlined text-lg align-middle">add</span> New chat</span>
+<div class="px-4 pt-3">
+<button class="kbtn kbtn-light w-full" id="newChatBtn" data-drawer-close>
+<span class="material-symbols-outlined">add</span><span>New conversation</span>
 </button>
 <a class="hidden w-full mt-2 items-center gap-3 px-4 py-2.5 hard text-on-surface-variant hover:bg-surface-container-high transition-colors font-label-md text-label-md" href="/teacher" id="teacherBackLink">
 <span class="material-symbols-outlined text-[18px]">arrow_back</span> Teacher panel
 </a>
 </div>
-<p class="slabel px-5 pt-4 pb-2">Recent</p>
-<div class="hidden px-3 pb-2" id="chatSearchWrap"><input class="fld w-full px-3 py-2 text-[13px]" id="chatSearch" type="search" placeholder="Filter conversations" aria-label="Filter conversations" autocomplete="off"/></div>
-<div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-2 pb-3" id="chatList" data-drawer-close>
+<p class="side-eyebrow px-6 pt-5 pb-2">Conversations</p>
+<div class="hidden px-4 pb-2" id="chatSearchWrap"><input class="fld w-full px-3 py-2 text-[13px]" id="chatSearch" type="search" placeholder="Search conversations" aria-label="Search conversations" autocomplete="off"/></div>
+<div class="flex-1 min-h-0 overflow-y-auto chat-scroll px-3 pb-3" id="chatList" data-drawer-close>
 <div class="chat-skel" id="chatSkel" aria-hidden="true"><i class="skeleton" style="height:14px;width:82%"></i><i class="skeleton" style="height:14px;width:64%"></i><i class="skeleton" style="height:14px;width:74%"></i></div>
 </div>
-<div class="px-5 py-3.5" style="border-top:1px solid var(--c-rule)">
-<div class="flex items-center gap-2.5">
-<span class="w-[30px] h-[30px] flex-shrink-0 grid place-items-center text-[12.5px] font-semibold" style="background:var(--c-ink);color:var(--c-page)" id="userInitials"></span>
+<div class="side-foot">
+<div class="flex items-center gap-3">
+<span class="avatar" id="userInitials"></span>
 <span class="min-w-0 flex-1">
-<span class="slabel block truncate" id="userEmail" title=""></span>
+<span class="slabel block truncate" id="userEmail" title="" style="color:var(--c-ink)"></span>
 <span class="slabel block" style="font-weight:400" id="roleLabel"></span>
 </span>
-<span class="flex items-center gap-0.5 flex-shrink-0">
-<button aria-label="Settings" class="ibtn" id="settingsBtn" data-drawer-close title="Settings">
-<span class="material-symbols-outlined text-[18px]">settings</span>
-</button>
-<button class="ibtn" data-theme-toggle="" title="Switch to dark mode">
-<span class="material-symbols-outlined text-[18px]">dark_mode</span>
-</button>
-<button class="ibtn" id="logoutBtn" title="Sign out">
-<span class="material-symbols-outlined text-[18px]">logout</span>
-</button>
-</span>
+</div>
+<div class="side-tools">
+<button aria-label="Settings" class="ibtn" id="settingsBtn" data-drawer-close title="Settings"><span class="material-symbols-outlined">settings</span></button>
+<button class="ibtn" data-theme-toggle="" title="Switch to dark mode" aria-label="Toggle theme"><span class="material-symbols-outlined">dark_mode</span></button>
+<button class="ibtn" id="logoutBtn" title="Sign out" aria-label="Sign out"><span class="material-symbols-outlined">logout</span></button>
 </div>
 </div>
 </nav>
 <div data-drawer-scrim="sm" aria-hidden="true"></div>
 
 <!-- Main -->
-<main class="flex-1 flex flex-col min-w-0 md:ml-64 h-full bg-surface-container-lowest">
+<main class="flex-1 flex flex-col min-w-0 md:ml-72 h-full bg-surface-container-lowest">
 <!-- Mobile header -->
 <header data-mobile-header class="md:hidden fixed top-0 w-full bg-surface-container-lowest flex items-center gap-3 px-margin-mobile z-20" style="border-bottom:1px solid var(--c-rule)">
 <button data-drawer-toggle="sm" class="text-on-surface-variant -ml-2.5" aria-label="Open menu" title="Menu">
@@ -593,13 +587,15 @@
 </div>
 <div class="composer-menu" id="toolMenu" role="menu" hidden></div>
 </div>
-<textarea class="w-full bg-transparent border-none focus:ring-0 resize-none max-h-32 min-h-[44px] py-2 px-0 font-body-md text-[15.5px] text-on-surface placeholder:text-on-surface-variant" id="input" placeholder="Ask a question…" rows="1"></textarea>
-<button class="sendbtn" id="sendBtn" title="Send">
+<textarea aria-label="Message" class="w-full bg-transparent border-none focus:ring-0 resize-none max-h-32 min-h-[44px] py-2 px-0 font-body-md text-[15.5px] text-on-surface placeholder:text-on-surface-variant" id="input" placeholder="Ask a question…" rows="1"></textarea>
+<button class="sendbtn" id="sendBtn" title="Send" aria-label="Send message">
 <span class="material-symbols-outlined fill text-[19px]">arrow_upward</span>
 </button>
 </div>
+<div class="composer-foot" aria-hidden="false"><span><span class="material-symbols-outlined">verified_user</span>Grounded in your course material.</span><span class="hint-keys">Enter to send <kbd>&crarr;</kbd></span></div>
 </div>
 </div>
+<button class="to-latest" id="toLatest" type="button" aria-label="Scroll to latest message" hidden><span class="material-symbols-outlined">arrow_downward</span>Latest</button>
 </section>
 
 </main>
@@ -753,7 +749,7 @@
   async function deleteChat(id){
     const c=chats.find(x=>x.id===id);if(!c)return;
     if(!c.isNew){
-      if(!confirm("Delete this conversation?"))return;
+      if(!await chronosConfirm("Delete this conversation?"))return;
       try{await Chronos.apiJson("/chats/"+encodeURIComponent(id),undefined,"DELETE");}
       catch(e){setStatus("offline");return;}
     }else if(id===activeChatId&&FILES.length){
@@ -815,7 +811,10 @@
 
   // Class-agnostic openers — the server has no notion of suggested questions, so
   // these work against any class's material rather than inventing topics.
-  const STARTERS=["What does this course cover so far?","Explain the main idea from the latest material.","What should I revise first?"];
+  const STARTERS=[
+    {icon:"menu_book",title:"See the big picture",hint:"Explore what your course covers.",ask:"What does this course cover so far?"},
+    {icon:"lightbulb",title:"Untangle an idea",hint:"Break down the latest material.",ask:"Explain the main idea from the latest material."},
+    {icon:"route",title:"Find your next step",hint:"Decide what to revise first.",ask:"What should I revise first?"}];
 
   function className(){const c=CLASSES.find(x=>x.id===ACTIVE_CLASS);return c?c.name:"";}
 
@@ -836,22 +835,32 @@
     paintHeader();
     if(!c||c.messages.length===0){
       const e=document.createElement("div");
-      e.className="pt-10 pb-2 empty-state";
+      e.className="empty-state";
       const h=document.createElement("h2");
-      h.className="font-headline-lg text-headline-lg text-on-background mb-6";
+      h.className="empty-title";
       // textContent, not innerHTML: the class name is teacher-supplied.
-      h.textContent="Ask anything from "+(className()||"this course");
-      const list=document.createElement("div");
-      list.style.borderTop="1px solid var(--c-rule)";
+      const l1=document.createElement("span");l1.textContent="What are you";
+      const l2=document.createElement("em");l2.className="ink-underline";l2.textContent="curious about?";
+      h.append(l1,document.createElement("br"),l2);
+      const sub=document.createElement("p");sub.className="empty-sub";
+      sub.textContent="Ask a question, work through an idea, or pick up where you left off"+(className()?" in "+className():"")+".";
+      const art=document.createElement("div");art.className="empty-art";art.setAttribute("aria-hidden","true");
+      art.innerHTML='<svg viewBox="0 0 120 100" width="120" height="100" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"><path d="M12 38 60 18l48 20-48 20z"/><path d="M12 54l48 20 48-20"/><path d="M12 70l48 20 48-20"/><path d="M40 8l-6-6M62 6V0M84 8l6-6" stroke-linecap="round"/></svg>';
+      const head=document.createElement("div");head.className="empty-head";
+      const ht=document.createElement("div");ht.append(h,sub);head.append(ht,art);
+      const label=document.createElement("p");label.className="empty-label";label.textContent="A place to start";
+      const list=document.createElement("div");list.className="starters";
       STARTERS.forEach((t,i)=>{
         const b=document.createElement("button");
         b.className="starter";
-        b.innerHTML='<span></span><span class="material-symbols-outlined text-[19px] text-on-surface-variant flex-shrink-0">arrow_forward</span>';
-        b.firstChild.textContent=t;
-        b.onclick=()=>{els.input.value=t;send();};
+        b.innerHTML='<span class="starter-top"><span class="material-symbols-outlined">'+t.icon+'</span><span class="starter-n"></span></span><strong></strong><span class="starter-sub"></span>';
+        b.querySelector(".starter-n").textContent="0"+(i+1);
+        b.querySelector("strong").textContent=t.title;
+        b.querySelector(".starter-sub").textContent=t.hint;
+        b.onclick=()=>{els.input.value=t.ask;send();};
         list.appendChild(b);
       });
-      e.appendChild(h);e.appendChild(list);
+      e.append(head,label,list);
       els.messagesInner.appendChild(e);
       return;
     }
@@ -1307,6 +1316,15 @@
     });
   }
   function scrollBottom(){els.messages.scrollTop=els.messages.scrollHeight;}
+  // "Latest" pill: appears once the reader has scrolled away from the bottom.
+  (function(){
+    const pill=document.getElementById("toLatest"),box=document.getElementById("messages");
+    if(!pill||!box)return;
+    const sync=()=>{pill.hidden=box.scrollHeight-box.scrollTop-box.clientHeight<160;};
+    box.addEventListener("scroll",sync,{passive:true});
+    new MutationObserver(sync).observe(document.getElementById("messagesInner"),{childList:true,subtree:true});
+    pill.addEventListener("click",()=>box.scrollTo({top:box.scrollHeight,behavior:"smooth"}));
+  })();
 
   const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
   // Keep this list in sync with app.py's /audio allowlist. `thinking.mp3` is
@@ -1333,7 +1351,7 @@
   // later chunks cannot change their wrapping or discard their text nodes.
   function createReplyStream(node){
     node.replaceChildren();
-    const pending=document.createElement("span");pending.className="typing-indicator";pending.setAttribute("role","status");pending.setAttribute("aria-label","Chronos is typing");
+    const pending=document.createElement("span");pending.className="typing-indicator ink-dots";pending.innerHTML="<i></i><i></i><i></i>";pending.setAttribute("role","status");pending.setAttribute("aria-label","Chronos is typing");
     
     const tail=document.createElement("div");tail.className="stream-tail";
     tail.hidden=true;node.append(pending,tail);

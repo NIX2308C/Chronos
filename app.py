@@ -1916,6 +1916,16 @@ def legacy_stats():
     return legacy_page_redirect('/teacher-stats')
 
 
+@app.route('/ink.css')
+def ink_css():
+    return send_from_directory(WEB_DIR, 'ink.css', max_age=3600)
+
+
+@app.route('/ink.js')
+def ink_js():
+    return send_from_directory(WEB_DIR, 'ink.js', max_age=3600)
+
+
 @app.route('/theme.css')
 def theme_css():
     return send_from_directory(WEB_DIR, 'theme.css', max_age=3600)

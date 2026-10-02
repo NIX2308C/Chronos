@@ -8,26 +8,21 @@
 <link href="https://www.gstatic.com" rel="preconnect" crossorigin/>
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
 <link href="transition.css" rel="stylesheet"/>
 <style>
-  :root{--page:#F7F4EC;--field:#FFFDF7;--ink:#141311;--sub:#5D5B55;--mid:#7A7871;--faint:#8C8880;
-        --edge:#C9C2AC;--rule:#E0DACA;--crimson:#E2001A;--crimson-d:#B10014;--gold:#C9A227;
-        --err-bg:#F6D9D5;--err-fg:#8E0011}
-  html.dark{--page:#0D0D10;--field:#16161B;--ink:#F7F4EC;--sub:#B3AEA3;--mid:#A9A499;--faint:#8C8880;
-        --edge:#3D3D46;--rule:#303038;--crimson-d:#FF5262;--err-bg:#321014;--err-fg:#FF9A91;color-scheme:dark}
   *{box-sizing:border-box}
   body{margin:0;background:var(--page);color:var(--ink);font-family:"Schibsted Grotesk",sans-serif;
        -webkit-font-smoothing:antialiased;overflow-x:hidden;
        min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
        padding-bottom:env(safe-area-inset-bottom)}
-  ::selection{background:var(--crimson);color:#F7F4EC}
+  ::selection{background:var(--crimson);color:var(--on-accent)}
   :focus-visible{outline:2px solid var(--crimson);outline-offset:3px}
   a{color:var(--crimson-d);text-decoration:none}
   a:hover{color:var(--ink)}
   input,button{font-family:inherit}
   .hidden{display:none!important}
-  .msym{font-family:'Material Symbols Sharp';font-weight:400;line-height:1;display:inline-block;white-space:nowrap;direction:ltr}
+  .msym{font-family:'Material Symbols Outlined';font-weight:400;line-height:1;display:inline-block;white-space:nowrap;direction:ltr}
   .dsp{font-family:Newsreader,serif;font-weight:400;letter-spacing:-.015em}
 
   @keyframes blink{0%,50%{opacity:1}50.01%,100%{opacity:0}}
@@ -46,7 +41,7 @@
     font-size:14.5px;font-weight:600;cursor:pointer;background:var(--field);color:var(--ink);
     border:1px solid var(--edge);transition:background-color .18s,color .18s,border-color .18s}
   .rolebtn:hover{border-color:var(--ink)}
-  .rolebtn[aria-pressed="true"]{background:var(--crimson);border-color:var(--crimson);color:#F7F4EC}
+  .rolebtn[aria-pressed="true"]{background:var(--crimson);border-color:var(--crimson);color:var(--on-accent)}
 
   .fieldwrap{position:relative}
   .fieldwrap>.msym{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:20px;
@@ -54,13 +49,13 @@
   .field{width:100%;height:50px;background:var(--field);border:1px solid var(--edge);color:var(--ink);
     font-size:15px;padding:0 14px 0 42px;transition:border-color .15s,box-shadow .15s}
   .field::placeholder{color:var(--faint)}
-  .field:focus{outline:none;border-color:var(--crimson);box-shadow:0 0 0 3px rgba(226,0,26,.12)}
+  .field:focus{outline:none;border-color:var(--crimson);box-shadow:0 0 0 3px color-mix(in srgb, var(--crimson) 12%, transparent)}
   .flabel{display:block;font-size:13.5px;font-weight:600;color:var(--sub);margin-bottom:7px}
 
   .pbtn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;margin-top:4px;
-    background:var(--crimson);color:#F7F4EC;border:1px solid var(--crimson);font-size:15.5px;font-weight:600;
+    background:var(--crimson);color:var(--on-accent);border:1px solid var(--crimson);font-size:15.5px;font-weight:600;
     cursor:pointer;transition:background-color .15s,border-color .15s}
-  .pbtn:hover:not(:disabled){background:#B90015;border-color:#B90015;color:#F7F4EC;transform:translateY(-1px)}
+  .pbtn:hover:not(:disabled){background:var(--accent-hover);border-color:var(--accent-hover);color:var(--on-accent);transform:translateY(-1px)}
   .pbtn:disabled{opacity:.65;cursor:default}
   html.dark .pbtn:hover:not(:disabled){color:var(--page)}
   .ico-btn{width:34px;height:34px;display:grid;place-items:center;background:transparent;border:none;
@@ -86,31 +81,33 @@
 <!-- The manifest carries one theme_color; these two let a browser follow the
      page's own light/dark tokens (--c-paper, and its html.dark value). A TWA
      reads the manifest, so its status bar stays the light one. -->
-<meta content="#F7F4EC" media="(prefers-color-scheme: light)" name="theme-color"/>
-<meta content="#16161B" media="(prefers-color-scheme: dark)" name="theme-color"/>
+<meta content="#F5F4EF" media="(prefers-color-scheme: light)" name="theme-color"/>
+<meta content="#16171A" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <link href="icons/favicon.ico" rel="icon" sizes="16x16 32x32 48x48"/>
 <link href="icons/icon-192.png" rel="icon" type="image/png" sizes="192x192"/>
 <link href="icons/apple-touch-icon-180.png" rel="apple-touch-icon"/>
+<link href="ink.css" rel="stylesheet"/>
+<script src="ink.js" defer></script>
 </head>
 <body>
 
 
-<div data-util style="background:#141311;color:#B5B0A5;font-size:12.5px;line-height:1.5">
+<div data-util style="background:var(--side);color:var(--sub);font-size:12.5px;line-height:1.5">
   <div class="wrap" style="padding-top:9px;padding-bottom:9px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <span class="msym" style="font-size:16px;color:#C9A227">verified_user</span>
-    <span style="color:#E8E3D6">A tutor bound to your own course material.</span>
-    <span style="color:#8C8880">It answers only from the documents a teacher uploads.</span>
+    <span class="msym" style="font-size:16px;color:var(--gold)">verified_user</span>
+    <span style="color:var(--ink)">A tutor bound to your own course material.</span>
+    <span style="color:var(--faint)">It answers only from the documents a teacher uploads.</span>
     <span style="margin-left:auto;display:flex;align-items:center;gap:18px">
       <span style="display:flex;align-items:center;gap:7px">
-        <span id="statusDot" data-status-dot style="width:8px;height:8px;background:#C9A227;display:inline-block"></span>
-        <span id="statusText" data-status-text style="color:#8C8880">Connecting&hellip;</span>
+        <span id="statusDot" data-status-dot style="width:8px;height:8px;background:var(--gold);display:inline-block"></span>
+        <span id="statusText" data-status-text style="color:var(--faint)">Connecting&hellip;</span>
       </span>
-      <span style="color:#8C8880">Sign in to begin</span>
+      <span style="color:var(--faint)">Sign in to begin</span>
     </span>
   </div>
 </div>
 
-<header style="background:var(--page);border-bottom:3px solid var(--ink)">
+<header style="background:var(--page);border-bottom:1px solid var(--rule)">
   <div class="wrap" style="padding-top:18px;padding-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:28px;flex-wrap:wrap">
     <span style="color:var(--ink);display:flex;align-items:baseline;gap:12px">
       <span class="dsp" style="font-size:30px;line-height:1">Chronos<span style="color:var(--crimson)">.</span></span>
@@ -118,7 +115,7 @@
     </span>
     <span style="display:flex;align-items:center;gap:14px">
       <span data-status-mobile style="align-items:center;gap:7px;font-size:12.5px;color:var(--sub)">
-        <span data-status-dot style="width:8px;height:8px;background:#C9A227;display:inline-block"></span>
+        <span data-status-dot style="width:8px;height:8px;background:var(--gold);display:inline-block"></span>
         <span data-status-text>Connecting&hellip;</span>
       </span>
       <button class="ico-btn" data-theme-toggle title="Switch to dark mode"><span class="msym" style="font-size:19px">dark_mode</span></button>
@@ -139,7 +136,7 @@
   <section style="display:flex;align-items:center;justify-content:center;padding:56px 28px 72px">
     <div id="formCard" style="width:100%;max-width:440px">
       <p id="eyebrow" style="margin:0 0 12px;font-size:14px;font-weight:600;color:var(--crimson-d)">Sign in</p>
-      <h1 id="title" class="dsp" style="margin:0 0 28px;font-size:clamp(1.9rem,3.4vw,2.5rem);line-height:1.08;letter-spacing:-.02em">Welcome back</h1>
+      <h1 id="title" class="dsp ink-title" style="margin:0 0 28px;font-size:clamp(1.9rem,3.4vw,2.5rem);line-height:1.08;letter-spacing:-.02em">Welcome back</h1>
       <p id="subtitle" class="hidden" style="margin:-14px 0 28px;font-size:15px;line-height:1.55;color:var(--sub)"></p>
 
       <div style="margin-bottom:26px">
@@ -199,22 +196,22 @@
     </div>
   </section>
 
-  <section data-showcase style="background:#0B0B0C;color:#F7F4EC;display:flex;flex-direction:column;justify-content:center;padding:56px 44px 64px">
+  <section data-showcase style="color:var(--ink);display:flex;flex-direction:column;justify-content:center;padding:56px 44px 64px">
     <div style="max-width:440px">
       <div style="display:flex;justify-content:flex-end;margin-bottom:20px">
-        <div id="demoQ" class="hidden" style="max-width:82%;background:#242327;color:#E8E3D6;padding:12px 15px;font-size:14.5px;line-height:1.55;animation:pop .32s ease both"></div>
+        <div id="demoQ" class="hidden" style="max-width:82%;background:var(--accent-soft);color:var(--ink);padding:12px 15px;font-size:14.5px;line-height:1.55;animation:pop .32s ease both"></div>
       </div>
-      <p style="margin:0 0 22px;font-size:16.5px;line-height:1.7;color:#E8E3D6"><span id="demoA"></span><span id="demoCaret" class="hidden" style="width:8px;height:17px;background:#E2001A;margin-left:2px;vertical-align:text-bottom;animation:blink 1s steps(2) infinite;display:inline-block"></span></p>
-      <div id="demoSrc" class="hidden" style="border-top:1px solid #2A2A2C;padding-top:12px;animation:pop .3s ease both"></div>
+      <p style="margin:0 0 22px;font-size:16.5px;line-height:1.7;color:var(--ink)"><span id="demoA"></span><span id="demoCaret" class="hidden" style="width:8px;height:17px;background:var(--crimson);margin-left:2px;vertical-align:text-bottom;animation:blink 1s steps(2) infinite;display:inline-block"></span></p>
+      <div id="demoSrc" class="hidden" style="border-top:1px solid var(--rule);padding-top:12px;animation:pop .3s ease both"></div>
     </div>
   </section>
 
 </main>
 
-<footer style="background:#141311;color:#B5B0A5;padding:22px 0">
+<footer style="border-top:1px solid var(--rule);color:var(--sub);padding:22px 0">
   <div class="wrap" style="display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap;font-size:12.5px">
     <div style="display:flex;align-items:center;gap:16px">
-      <span class="dsp" style="font-size:18px;line-height:1;color:#F7F4EC">Chronos<span style="color:#E2001A">.</span></span>
+      <span class="dsp" style="font-size:18px;line-height:1;color:var(--ink)">Chronos<span style="color:var(--crimson)">.</span></span>
       <span>&copy; 2026 Chronos. All rights reserved.</span>
     </div>
     <div style="display:flex;gap:20px">
@@ -319,7 +316,7 @@
       const r = await fetch(Chronos.BASE + "/health", {cache:"no-store"});
       if(r.ok){ setStatus("System online"); return; }
     }catch(e){}
-    setStatus("Server offline", "#E2001A");
+    setStatus("Server offline", "var(--crimson)");
   })();
 
   // Already signed in? Skip the form and go where they belong.
@@ -364,7 +361,7 @@
       srcEl.textContent = "";
       list.forEach(s => {
         const d = document.createElement("div");
-        d.style.cssText = "font-size:13.5px;line-height:1.7;color:#8C8880";
+        d.style.cssText = "font-size:13.5px;line-height:1.7;color:var(--faint)";
         d.textContent = s;
         srcEl.appendChild(d);
       });

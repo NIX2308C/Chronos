@@ -4,7 +4,7 @@ An AI tutor that answers students only from material the teacher provides. Teach
 
 ## How it works
 
-Teachers sign in, create one or more courses, and add course material to each (PDFs, Word docs, or text files). Each course is an isolated knowledge base: its material is embedded and stored in its own Pinecone **namespace**, so courses never bleed into each other. Custom teacher rules are stored as direct prompt policy instead of vectors. A student joins a course with its code, and when they ask something, Chronos pulls the most relevant pieces of *that course's* knowledge and hands them to Gemini, which writes an answer grounded only in those pieces. Every exchange is saved per student, and teachers see per-course analytics.
+Teachers sign in, create one or more courses, and add course material to each (PDFs, Word docs, or text files). Each course is an isolated knowledge base: its material is embedded and stored in its own Pinecone **namespace**, so courses never bleed into each other. Custom teacher rules are stored as direct prompt policy instead of vectors. A student joins a course with its code, and when they ask something, Chronos pulls the most relevant pieces of *that course's* knowledge and hands them to the model, which writes an answer grounded only in those pieces. Every exchange is saved per student, and teachers see per-course analytics.
 
 ## Accounts and courses
 
@@ -17,8 +17,8 @@ Teachers sign in, create one or more courses, and add course material to each (P
 ## Stack
 
 - Flask backend (`app.py`), served with Waitress
-- Gemini for answers and embeddings (see `docs/OLLAMA.md` for the plan to move
-  answers onto a local model; embeddings stay where they are)
+- Any OpenAI-compatible endpoint for answers and embeddings (OpenAI, Ollama,
+  LM Studio, vLLM, …) via `llm.py` — see [Connecting a model](#connecting-a-model)
 - `profanity.py` for moderation and `student_profile.py` for per-student
   recollection — both deterministic, neither costs a second model call
 - Pinecone for vector search (one namespace per course)
@@ -70,7 +70,8 @@ Add a `.env` file with your keys:
 
 ```env
 TEACHER_SIGNUP_CODE=your-strong-code     # required: gates teacher registration; the app won't start without it
-GEMINI_API_KEY=...
+LLM_BASE_URL=http://localhost:11434/v1   # placeholder: your OpenAI-compatible endpoint
+LLM_API_KEY=                              # empty for local servers
 PINECONE_API_KEY=...
 FIREBASE_WEB_API_KEY=...                  # Firebase console > Project settings > Web app > apiKey
 FIREBASE_PROJECT_ID=your-project-id
@@ -83,7 +84,7 @@ The Pinecone index name is set in `app.py` (`INDEX_NAME`), so the API key is all
 
 Audit note: before the current separation, Pinecone contained teacher-entered rules as well as teacher uploads. Student assignments/rubrics were kept in Firestore and injected whole, but they were scoped only to a course, so they followed the student into every conversation in that course. Long chats replayed the latest 20 messages and had no rolling summary; the older cross-chat “memory” held only opening topics and retrieval misses. The behavior below removes prompt policy from retrieval and replaces those weak spots.
 
-- **Teacher course knowledge** is the only content embedded into Pinecone: teacher-uploaded document chunks use the course's namespace; retrieval sends at most the configured top matches and character budget to Gemini. Existing legacy typed-rule vectors are moved to custom policy and deleted from the namespace the next time a teacher opens that course.
+- **Teacher course knowledge** is the only content embedded into Pinecone: teacher-uploaded document chunks use the course's namespace; retrieval sends at most the configured top matches and character budget to the model. Existing legacy typed-rule vectors are moved to custom policy and deleted from the namespace the next time a teacher opens that course.
 - **Student files** never touch Pinecone. Assignment and rubric text is stored under that student's Firestore account, scoped to one course and one conversation, and supplied only as non-authoritative review context until the student removes it or deletes the conversation. The kind a student picks is checked against the file: one cheap classification call on the first `STUDENT_DOC_CHECK_CHARS` (default 2,500) characters refuses anything that reads as teaching material rather than their own work or its marking criteria, so a textbook chapter cannot enter the course as an "assignment". It runs last, after the rate limit and the per-conversation cap, and a refusal stores nothing; if the call itself fails the upload is accepted, because a model outage must not stop a student attaching the essay they are being marked on.
 - **Current conversation** replays only the latest `HISTORY_TURNS` messages. Before older turns fall out, Chronos maintains a bounded tutoring-state summary on the chat document. It tracks progress, confusion, learning gaps, open questions, and unfinished work, but is explicitly forbidden as a source of facts.
 - **Cross-conversation memory** is a bounded, course-scoped list of prior topics and explicit learning signals derived from chat metadata. It is never written to Pinecone.
@@ -100,7 +101,7 @@ Audit note: before the current separation, Pinecone contained teacher-entered ru
   describes how to explain something — never what the student is. Set
   `PROFILE_ENABLED=0` to turn the whole thing off.
 - **System and teacher policy** comes from compact Base Rules and custom teacher rules. Custom rules are always added to the tutor prompt, never retrieved as facts. Prompt secrecy and jailbreak resistance are permanent system protections, not teacher toggles. Optional practice, visual and study-material tools are disabled by default. Course material itself is never optional: retrieved excerpts go to teachers only, with no course setting that can loosen it, so a student gets the answer and the "grounded" signal but never the material behind them.
-- **Interactive tools** use two stages. A student can ask for one directly — practice chips sit under the newest answer, showing only the activities the course has enabled — or the tutor can request one itself by calling the `create_practice_activity` function declared on the chat request. Either way the client then shows a short “Creating…” card while a separate constrained Gemini call receives the relevant course material only and returns validated JSON for the quiz, flashcards, concept map, or review sheet. The server re-checks the requested type against the course settings on the way in, so the chips cannot reach a disabled toolkit.
+- **Interactive tools** use two stages. A student can ask for one directly — practice chips sit under the newest answer, showing only the activities the course has enabled — or the tutor can request one itself by calling the `create_practice_activity` function declared on the chat request. Either way the client then shows a short “Creating…” card while a separate constrained model call receives the relevant course material only and returns validated JSON for the quiz, flashcards, concept map, or review sheet. The server re-checks the requested type against the course settings on the way in, so the chips cannot reach a disabled toolkit.
 - **Profanity** is caught before any of the above happens. `profanity.py`
   normalizes a message (accents, leetspeak, padding, letters spaced out) and
   then matches stems, so `f*ck`, `sh1t`, `fuuuck`, `f u c k` and `motherfucker`
@@ -130,7 +131,7 @@ A few optional overrides exist too:
 - `MAX_MESSAGES_RETURNED` (cap on messages returned for one conversation, default 500)
 - `ROLE_CACHE_TTL` (seconds a user's role is cached in-process, default 60)
 - `TRUST_PROXY_HOPS` (default 0; set to 1 on Cloud Run so client IPs in the logs are real)
-- `CHAT_MODEL` (the Gemini model, default `gemini-2.5-flash-lite`)
+- `CHAT_MODEL` (the chat model name your endpoint serves, default `llama3.1`)
 - `TOOL_MODEL` (the model that builds learning activities; defaults to `CHAT_MODEL`)
 - `FLASK_DEBUG`
 
@@ -155,7 +156,7 @@ python tests/test_student_profile.py && python tests/test_quiz_answers.py
 ```
 
 Six plain-`assert` scripts, no test runner. They stub every collaborator that
-would reach Firestore, Pinecone or Gemini, so they run offline in about a second
+would reach Firestore, Pinecone or the model, so they run offline in about a second
 and need no real keys — but `app.py` still refuses to import without a valid
 `TEACHER_SIGNUP_CODE`, so a `.env` with a throwaway one (and dummy values for the
 rest) has to exist. They cover the auth gate, the teacher signup code and the
@@ -178,17 +179,83 @@ no excuse not to.
 
 ## Planning documents
 
-Three things are written down but not built. Each says what it is waiting on:
+Written down but not built:
 
-- `docs/ANDROID.md` — shipping the app on Android as a Trusted Web Activity. Phase A
-  (making the pages usable on a phone) is the blocker and is pure web work.
-- `docs/OLLAMA.md` — moving answer generation to a local model. The decision record:
-  what can move, what cannot, and the hosting choice that blocks the rest.
-- `docs/OLLAMA_TASK.md` — the implementation brief for whoever (or whatever) does
-  that work: exact call sites, the traps, and what "done" means. Written for an
-  AI coding agent picking it up cold. Read `docs/OLLAMA.md` first.
+- `docs/ANDROID.md` — shipping the app on Android as a Trusted Web Activity.
+- `docs/OLLAMA.md` / `docs/OLLAMA_TASK.md` — historical; superseded by
+  [Connecting a model](#connecting-a-model).
 
 `docs/COMMIT_LOG.md` is the informal running history of what changed and why.
+
+## Connecting a model
+
+Chronos talks to **one OpenAI-compatible endpoint** for chat, learning activities
+and embeddings (`llm.py`). Nothing in the code is provider-specific: to switch
+models or hosts, change environment variables only.
+
+| Variable | Default (placeholder) | Meaning |
+| --- | --- | --- |
+| `LLM_BASE_URL` | `http://localhost:11434/v1` | Endpoint root, **including `/v1`** |
+| `LLM_API_KEY` | empty | Bearer token; leave empty for servers without auth |
+| `CHAT_MODEL` | `llama3.1` | Model for tutoring replies |
+| `TOOL_MODEL` | = `CHAT_MODEL` | Model for quizzes/flashcards/etc. (must follow JSON schemas) |
+| `EMBED_MODEL` | `nomic-embed-text` | Embedding model |
+| `EMBED_DIMENSIONS` | unset | Sent as `dimensions` if set (OpenAI v3 embedding models only) |
+| `LLM_TIMEOUT_S` | `120` | Per-request timeout |
+
+### Recipes
+
+**OpenAI**
+```env
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_API_KEY=sk-...
+CHAT_MODEL=gpt-4o-mini
+EMBED_MODEL=text-embedding-3-small
+EMBED_DIMENSIONS=768
+```
+
+**Ollama on the same machine**
+```bash
+ollama pull llama3.1 && ollama pull nomic-embed-text
+```
+```env
+LLM_BASE_URL=http://localhost:11434/v1
+CHAT_MODEL=llama3.1
+EMBED_MODEL=nomic-embed-text
+```
+
+**Ollama on another device** (e.g. a GPU box at home). Either bind Ollama to the
+network and forward the port, or tunnel it:
+```bash
+# on the GPU box: listen on all interfaces (firewall it / put it behind auth!)
+OLLAMA_HOST=0.0.0.0 ollama serve
+
+# or, safer, from the machine running Chronos: an SSH tunnel
+ssh -N -L 11434:localhost:11434 user@gpu-box
+```
+```env
+LLM_BASE_URL=http://gpu-box.local:11434/v1     # or http://localhost:11434/v1 via the tunnel
+```
+An Ollama port reachable from the internet is an open LLM: put it behind a
+reverse proxy that checks a bearer token and set `LLM_API_KEY` to match.
+
+**LM Studio / vLLM / llama.cpp server** — same shape, e.g.
+`LLM_BASE_URL=http://localhost:1234/v1` (LM Studio) or `http://host:8000/v1` (vLLM).
+
+### Embeddings and Pinecone
+Course material is embedded with `EMBED_MODEL` and stored in the Pinecone index
+(`INDEX_NAME`, **768 dimensions**). Vectors from different models are not
+comparable, so after changing `EMBED_MODEL` teachers must re-upload their
+material. If your embedding model is not 768-d (and cannot be truncated via
+`EMBED_DIMENSIONS`), create a new index with that dimension and update
+`INDEX_NAME`/`EMBED_DIM` in `app.py`. `RETRIEVAL_MIN_SCORE` (default 0.5) was
+tuned for another model; if answers report "no material matched", lower it.
+
+### Troubleshooting
+The public `/status` page shows whether the endpoint is reachable. Errors are
+logged server-side as `Could not reach the model endpoint at …` or
+`Model endpoint returned HTTP …`. Tool calls and JSON-schema output need a model
+that supports them (Llama 3.1+, Qwen 2.5+, GPT-4-class).
 
 ## Deploying
 
@@ -196,7 +263,7 @@ Chronos runs on **Google Cloud Run**, built from the `Dockerfile` in this repo a
 
 Configuration goes in the Cloud Run service, not in the repo:
 
-- **Secrets** — `TEACHER_SIGNUP_CODE`, `GEMINI_API_KEY`, `PINECONE_API_KEY`, `FIREBASE_CREDENTIALS_JSON` (the full contents of `firebase_credentials.json`). Use Secret Manager and expose them to the service as environment variables rather than plain env vars, so they aren't readable from the service description.
+- **Secrets** — `TEACHER_SIGNUP_CODE`, `LLM_API_KEY`, `PINECONE_API_KEY`, `FIREBASE_CREDENTIALS_JSON` (the full contents of `firebase_credentials.json`). Use Secret Manager and expose them to the service as environment variables rather than plain env vars, so they aren't readable from the service description.
 - **Plain env vars** — `FLASK_DEBUG=0`, `TRUST_PROXY_HOPS=1` (Cloud Run puts exactly one proxy in front of you, so trusting that single hop gives real client IPs without letting anyone forge `X-Forwarded-For`), `ALLOWED_ORIGINS` set to your real front-end origin, and the `FIREBASE_*` web config values.
 
 ### Status page deployment access

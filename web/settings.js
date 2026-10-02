@@ -136,7 +136,7 @@
     if (opts.onClearChats) {
       var clear = h("button", { type: "button", class: "cs-btn danger", text: "Delete all" });
       clear.addEventListener("click", async function () {
-        if (!confirm("Delete every conversation in every course? This can't be undone.")) return;
+        if (!(await chronosConfirm("Delete every conversation in every course? This can't be undone."))) return;
         clear.disabled = true; flash("Deleting…");
         try { await opts.onClearChats(); flash("Deleted"); } catch (e) { flash("Couldn't delete everything", true); }
         clear.disabled = false;

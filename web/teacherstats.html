@@ -8,23 +8,17 @@
 <link href="transition.css" rel="stylesheet"/>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Sharp:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500&family=Schibsted+Grotesk:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet"/>
 <style>
-  :root{--page:#F7F4EC;--side:#EFEADC;--field:#FFFDF7;--ink:#141311;--sub:#5D5B55;--mid:#7A7871;
-        --faint:#8C8880;--dim:#A9A499;--rule:#DED8C6;--rule2:#E0DACA;--field-b:#C9C2AC;--hi:#E4DECD;
-        --bar:#E9E4D6;--barmid:#1C1A16;--crimson:#E2001A;--crimson-d:#B10014;--gold:#C9A227;--snap:cubic-bezier(.2,1.45,.35,1)}
-  html.dark{--page:#0D0D10;--side:#131318;--field:#19191F;--ink:#F7F4EC;--sub:#B3AEA3;--mid:#A9A499;
-        --faint:#8C8880;--dim:#77736C;--rule:#303038;--rule2:#303038;--field-b:#3D3D46;--hi:#222229;
-        --bar:#222229;--barmid:#77736C;--crimson-d:#FF5262;color-scheme:dark}
   *{box-sizing:border-box}
   body{margin:0;background:var(--page);color:var(--ink);font-family:"Schibsted Grotesk",sans-serif;
        -webkit-font-smoothing:antialiased;overflow:hidden}
   h1,h2,h3{font-family:Newsreader,serif;font-weight:400;letter-spacing:-.018em}
-  ::selection{background:var(--crimson);color:#F7F4EC}
+  ::selection{background:var(--crimson);color:var(--on-accent)}
   :focus-visible{outline:2px solid var(--crimson);outline-offset:2px}
   a{color:var(--crimson-d)}
   .hidden{display:none!important}
-  .msym{font-family:'Material Symbols Sharp';font-size:19px;line-height:1;flex:none}
+  .msym{font-family:'Material Symbols Outlined';font-size:19px;line-height:1;flex:none}
   .lbl{font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--sub);
        font-family:"Schibsted Grotesk",sans-serif}
   .trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -78,11 +72,13 @@
 <!-- The manifest carries one theme_color; these two let a browser follow the
      page's own light/dark tokens (--c-paper, and its html.dark value). A TWA
      reads the manifest, so its status bar stays the light one. -->
-<meta content="#F7F4EC" media="(prefers-color-scheme: light)" name="theme-color"/>
-<meta content="#16161B" media="(prefers-color-scheme: dark)" name="theme-color"/>
+<meta content="#F5F4EF" media="(prefers-color-scheme: light)" name="theme-color"/>
+<meta content="#16171A" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <link href="icons/favicon.ico" rel="icon" sizes="16x16 32x32 48x48"/>
 <link href="icons/icon-192.png" rel="icon" type="image/png" sizes="192x192"/>
 <link href="icons/apple-touch-icon-180.png" rel="apple-touch-icon"/>
+<link href="ink.css" rel="stylesheet"/>
+<script src="ink.js" defer></script>
 </head>
 <body>
 
@@ -130,11 +126,12 @@
     <div style="display:flex;align-items:center;gap:10px;min-width:0">
       <button data-drawer-toggle="md" aria-label="Open menu" title="Menu" style="color:var(--sub)"><span class="msym" style="font-size:22px">menu</span></button>
       <div style="min-width:0">
+        <span class="eyebrow">Course analytics</span>
         <h1 id="className" style="margin:0;font-size:27px;line-height:1.1">&nbsp;</h1>
         <p id="classMeta" style="margin:5px 0 0;font-size:14px;color:var(--mid)"></p>
       </div>
     </div>
-    <div id="ranges" style="display:flex;gap:1px;border:1px solid var(--field-b)">
+    <div id="ranges" class="seg" role="group" aria-label="Time range">
       <button type="button" class="rangebtn" data-days="7">7 days</button>
       <button type="button" class="rangebtn" data-days="30">30 days</button>
       <button type="button" class="rangebtn on" data-days="0">This term</button>
@@ -145,6 +142,11 @@
   <!-- Only for errors and the no-course message. Loading is shown by the thin progress line. -->
   <div id="statsLoading" class="hidden" style="padding:56px 36px;color:var(--mid);display:flex;align-items:center;gap:10px"></div>
   <div id="statsContent" class="hidden" data-transition-content style="padding:32px 36px 60px;max-width:1120px">
+
+    <div class="hero">
+      <h2 class="hero-title">See where <em class="ink-underline">learning happens.</em></h2>
+      <p class="hero-sub">Understand your class. Give the next lesson a little more focus.</p>
+    </div>
 
     <div data-kpis style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:36px;padding-bottom:30px;border-bottom:1px solid var(--rule2);margin-bottom:38px">
       <div>
@@ -239,16 +241,7 @@
   const RANGE_KEY="chronos_stats_range";
   const RANGE_WORDS={7:"the last seven days",30:"the last thirty days",0:"this term"};
 
-  function showToast(msg,ok){
-    const t=$("toast");
-    t.textContent=msg;
-    t.className="";
-    t.style.cssText="position:fixed;bottom:24px;right:24px;z-index:60;max-width:24rem;padding:12px 16px;"+
-      "font-size:14px;font-weight:500;background:var(--field);color:var(--ink);border:1px solid "+
-      (ok?"var(--gold)":"var(--crimson)")+";border-left-width:4px";
-    clearTimeout(showToast._t);
-    showToast._t=setTimeout(()=>{t.className="hidden";t.style.cssText="";},4000);
-  }
+  function showToast(msg,ok){ window.chronosToast(msg,ok?"ok":"err"); }
 
   async function api(path,body){ return Chronos.apiJson(path,body||{}); }
   async function lock(){ try{await Chronos.logout();}catch(e){} ChronosNav.go("/login?role=teacher",true); }
@@ -617,7 +610,7 @@
 </div>
 <div id="tutBody"></div>
 <div id="tutDots" style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:20px"></div>
-<button id="tutDone" style="width:100%;margin-top:24px;display:flex;align-items:center;justify-content:center;background:var(--crimson);color:#F7F4EC;border:1px solid var(--crimson);padding:11px 17px;font:inherit;font-size:14px;font-weight:600;cursor:pointer">Continue</button>
+<button id="tutDone" style="width:100%;margin-top:24px;display:flex;align-items:center;justify-content:center;background:var(--crimson);color:var(--on-accent);border:1px solid var(--crimson);padding:11px 17px;font:inherit;font-size:14px;font-weight:600;cursor:pointer">Continue</button>
 </div>
 </div>
 <script>
@@ -638,7 +631,7 @@
     function render(){
       const s=STEPS[idx];
       body.innerHTML='<div style="display:flex;align-items:flex-start;gap:12px">'+
-        '<span style="width:40px;height:40px;flex:none;background:var(--crimson);color:#F7F4EC;display:grid;place-items:center">'+
+        '<span style="width:40px;height:40px;flex:none;background:var(--crimson);color:var(--on-accent);display:grid;place-items:center">'+
         '<span class="msym" style="font-size:20px">'+s.icon+'</span></span>'+
         '<div><h3 style="margin:0 0 2px;font-family:inherit;font-size:14px;font-weight:700">'+s.title+'</h3>'+
         '<p style="margin:0;font-size:14px;line-height:1.45;color:var(--sub)">'+s.text+'</p></div></div>';

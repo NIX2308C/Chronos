@@ -11,6 +11,8 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import app as A
+import _llm_shim
+_llm_shim.install(A)
 
 c = A.app.test_client()
 

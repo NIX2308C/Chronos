@@ -1,174 +1,203 @@
 /* ============================================================
-   Chronos theme — dark-mode overrides.
+   Chronos "ink" theme — the single source of colour, shape and motion.
 
-   All five pages now share ONE token vocabulary and ONE palette
-   (paper / void / crimson / gold / ink / steel). Light is what
-   each page's tailwind.config bakes in, so light needs no rules
-   here at all — this file only exists to repoint dark mode.
+   Every page, and the Tailwind config in student.html, reads these
+   tokens. Light is warm paper under dark-green ink; dark is charcoal
+   under pale sage ink. Nothing else defines a palette.
 
-   Two kinds of styling live in the pages, and only one of them
-   needs this file:
-
-     1. Custom component classes (.panel, .kbtn, .bub-ai, .fld …)
-        are written against CSS variables (--paper, --ink, --edge,
-        --hi …) that each page redefines under `html.dark`. Those
-        follow the theme on their own — nothing to do here.
-
-     2. Tailwind utility classes generated from tailwind.config
-        bake a static light hex at load time. Those are what the
-        rules below repoint, and they are the only reason this
-        file is still needed.
-
-   student.html keeps Material-Design-shaped token names because
-   its JS builds class strings from them at runtime; the teacher
-   pages keep a few legacy names (`surface`, `background-dark`,
-   `text-main` …) for the same reason. Different names, same
-   values — so they can be repointed together below.
-
+   Channels (--k-*) are space-separated RGB so Tailwind can compose
+   alpha (`bg-primary/10`); the named vars below wrap them for plain CSS.
+   Old names (--page, --crimson, --c-ink …) are kept as aliases because
+   the pages and their runtime-built class strings still use them:
+   --crimson is simply "the accent" now.
    ============================================================ */
 
+:root {
+  --k-page: 245 244 239;      /* page                                  */
+  --k-side: 238 237 230;      /* sidebar / recessed                    */
+  --k-paper: 251 250 246;     /* cards, composer, menus                */
+  --k-hi: 232 232 223;        /* hover fills, chips                    */
+  --k-hi2: 222 222 211;       /* pressed / strongest fill              */
+  --k-ink: 31 33 28;          /* text                                  */
+  --k-sub: 94 98 88;          /* secondary text                        */
+  --k-faint: 126 130 120;     /* tertiary text (>= 4.5:1 on page)      */
+  --k-rule: 221 221 210;      /* hairlines                             */
+  --k-edge: 196 197 184;      /* control borders                       */
+  --k-accent: 74 93 67;       /* deep ink green                        */
+  --k-accent-d: 52 69 47;     /* accent as text / hover                */
+  --k-on-accent: 251 250 246;
+  --k-accent-soft: 225 232 218;
+  --k-gold: 150 114 24;
+  --k-gold-soft: 240 232 204;
+  --k-danger: 168 50 42;
+  --k-danger-soft: 245 224 220;
+  --k-good: 40 120 78;
+  --k-warn: 168 104 20;
+  --ink-shadow: 31 33 28;
+  color-scheme: light;
+}
 html.dark {
-  --d-page:    #0D0D10;   /* page background — near black          */
-  --d-paper:   #16161B;   /* cards, sidebars, bubbles, input bar    */
-  --d-raised:  #212128;   /* hover fills, chips, table stripes      */
-  --d-text:    #F7F4EC;   /* primary text                           */
-  --d-muted:   #B3AEA3;   /* secondary text                         */
-  --d-edge:    #3D3D46;   /* borders                                */
-  --d-crimson: #FF3B4E;   /* crimson lightened for TEXT on near-black
-                             (fills keep the true brand #E2001A)    */
+  --k-page: 22 23 26;
+  --k-side: 27 28 32;
+  --k-paper: 31 33 37;
+  --k-hi: 40 42 47;
+  --k-hi2: 52 55 60;
+  --k-ink: 233 232 226;
+  --k-sub: 160 162 155;
+  --k-faint: 124 127 120;
+  --k-rule: 46 48 53;
+  --k-edge: 66 69 75;
+  --k-accent: 169 191 151;
+  --k-accent-d: 190 210 173;
+  --k-on-accent: 22 23 26;
+  --k-accent-soft: 42 52 40;
+  --k-gold: 214 184 96;
+  --k-gold-soft: 58 50 24;
+  --k-danger: 236 126 114;
+  --k-danger-soft: 62 30 28;
+  --k-good: 126 210 164;
+  --k-warn: 232 172 88;
+  --ink-shadow: 0 0 0;
   color-scheme: dark;
 }
 
-/* ---------- shared Chronos tokens (all app pages) ---------- */
-html.dark .bg-page   { background-color: var(--d-page) !important; }
-html.dark .bg-paper  { background-color: var(--d-paper) !important; }
-html.dark .bg-hi     { background-color: var(--d-raised) !important; }
-html.dark .hover\:bg-hi:hover { background-color: var(--d-raised) !important; }
-html.dark .text-ink  { color: var(--d-text) !important; }
-html.dark .text-steel{ color: var(--d-muted) !important; }
-html.dark .text-paper{ color: var(--d-text) !important; }
-html.dark .border-edge { border-color: var(--d-edge) !important; }
-html.dark .bg-edge   { background-color: var(--d-edge) !important; }
-
-/* Crimson as TEXT needs lifting on near-black; as a fill it stays
-   the true brand red (bg-crimson / bg-primary are left alone). */
-html.dark .text-crimson,
-html.dark .text-primary,
-html.dark .text-error,
-html.dark .text-terminal-red { color: var(--d-crimson) !important; }
-html.dark .hover\:text-crimson:hover { color: var(--d-crimson) !important; }
-
-/* ===========================================================
-   Teacher panels — legacy token names still emitted by their
-   runtime-built class strings (same values as the shared set).
-   =========================================================== */
-html.dark .bg-background-dark  { background-color: var(--d-page) !important; }
-html.dark .bg-background-deep  { background-color: var(--d-page) !important; }
-html.dark .bg-surface          { background-color: var(--d-paper) !important; }
-html.dark .bg-surface-glass    { background-color: var(--d-paper) !important; }
-html.dark .bg-surface-solid    { background-color: var(--d-paper) !important; }
-html.dark .text-text-main      { color: var(--d-text) !important; }
-html.dark .text-text-muted     { color: var(--d-muted) !important; }
-html.dark .text-muted          { color: var(--d-muted) !important; }
-html.dark .text-accent,
-html.dark .text-accent-teal    { color: #D9B84A !important; }  /* gold, lifted */
-html.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--d-edge) !important; }
-
-/* ===========================================================
-   Student tutor — Material-Design-shaped token names.
-   =========================================================== */
-html.dark .bg-background                 { background-color: var(--d-page) !important; }
-html.dark .bg-surface-container-lowest   { background-color: var(--d-paper) !important; }
-html.dark .bg-surface-container-low      { background-color: var(--d-paper) !important; }
-html.dark .bg-surface-container          { background-color: var(--d-raised) !important; }
-html.dark .bg-surface-container-high     { background-color: var(--d-raised) !important; }
-html.dark .bg-surface-container-highest  { background-color: var(--d-raised) !important; }
-html.dark .bg-surface-variant            { background-color: var(--d-raised) !important; }
-html.dark .hover\:bg-surface-container-high:hover { background-color: var(--d-raised) !important; }
-html.dark .text-on-background            { color: var(--d-text) !important; }
-html.dark .text-on-surface               { color: var(--d-text) !important; }
-html.dark .text-on-surface-variant       { color: var(--d-muted) !important; }
-html.dark .border-outline-variant        { border-color: var(--d-edge) !important; }
-html.dark .border-outline                { border-color: var(--d-edge) !important; }
-html.dark .bg-outline                    { background-color: var(--d-edge) !important; }
-html.dark .bg-outline-variant            { background-color: var(--d-edge) !important; }
-html.dark .chat-scroll::-webkit-scrollbar-thumb { background-color: var(--d-edge) !important; }
-
-/* Keep filled actions readable when utility hover classes swap their surface. */
-html.dark .bg-primary,
-html.dark .hover\:bg-primary:hover { color: #FFF9F1 !important; }
-html.dark .hover\:text-on-primary:hover { color: #FFF9F1 !important; }
-html.dark button:disabled { filter: saturate(.7); }
-
-/* gold "grounded" chip: darken the fill, lift the text off it */
-html.dark .bg-secondary        { background-color: #D9B84A !important; }
-html.dark .text-on-secondary   { color: #0B0B0C !important; }
-html.dark .bg-secondary-container    { background-color: #3A2F0E !important; }
-html.dark .text-on-secondary-container { color: #E8D48A !important; }
-
-/* error banner on the join card */
-html.dark .bg-error-container       { background-color: #3A0A0A !important; }
-html.dark .text-on-error-container  { color: #FF8A80 !important; }
-
-/* the chat input fades into the page background; repoint the
-   gradient stops to the dark page color */
-html.dark .from-background {
-  --tw-gradient-from: #0D0D10 var(--tw-gradient-from-position) !important;
-  --tw-gradient-to: rgb(13 13 16 / 0) var(--tw-gradient-to-position) !important;
-}
-html.dark .via-background {
-  --tw-gradient-stops: var(--tw-gradient-from), #0D0D10 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
-}
-
-/* Give dark controls and overlays a little more depth while retaining the
-   app's square, print-inspired visual language. */
-html.dark input,
-html.dark textarea,
-html.dark select { caret-color: var(--d-crimson); }
-html.dark input::placeholder,
-html.dark textarea::placeholder { color: #85817A !important; opacity: 1; }
-
-/* ===========================================================
-   Shared primitives (all app pages): one spinner, one skeleton,
-   one "saved" pill, and light/dark-aware motion tokens.
-   =========================================================== */
 :root {
-  --ease: cubic-bezier(.2, .8, .2, 1);
+  /* teacher / login / status pages */
+  --page: rgb(var(--k-page));
+  --side: rgb(var(--k-side));
+  --field: rgb(var(--k-paper));
+  --ink: rgb(var(--k-ink));
+  --sub: rgb(var(--k-sub));
+  --mid: rgb(var(--k-sub));
+  --faint: rgb(var(--k-faint));
+  --dim: rgb(var(--k-faint));
+  --rule: rgb(var(--k-rule));
+  --rule2: rgb(var(--k-rule));
+  --field-b: rgb(var(--k-edge));
+  --edge: rgb(var(--k-edge));
+  --hi: rgb(var(--k-hi));
+  --bar: rgb(var(--k-hi));
+  --barmid: rgb(var(--k-faint));
+  --crimson: rgb(var(--k-accent));
+  --crimson-d: rgb(var(--k-accent-d));
+  --accent: rgb(var(--k-accent));
+  --accent-hover: rgb(var(--k-accent-d));
+  --accent-soft: rgb(var(--k-accent-soft));
+  --on-accent: rgb(var(--k-on-accent));
+  --gold: rgb(var(--k-gold));
+  --good: rgb(var(--k-good));
+  --warn: rgb(var(--k-warn));
+  --bad: rgb(var(--k-danger));
+  --err-bg: rgb(var(--k-danger-soft));
+  --err-fg: rgb(var(--k-danger));
+  /* student page */
+  --c-page: rgb(var(--k-page));
+  --c-paper: rgb(var(--k-paper));
+  --c-ink: rgb(var(--k-ink));
+  --c-sub: rgb(var(--k-sub));
+  --c-edge: rgb(var(--k-edge));
+  --c-hi: rgb(var(--k-hi));
+  --c-rule: rgb(var(--k-rule));
+
+  /* shape */
+  --r-sm: 8px;
+  --r: 12px;
+  --r-lg: 18px;
+  --shadow-sm: 0 1px 2px rgb(var(--ink-shadow) / .06);
+  --shadow: 0 8px 28px rgb(var(--ink-shadow) / .10), 0 1px 2px rgb(var(--ink-shadow) / .06);
+  --shadow-lg: 0 24px 64px rgb(var(--ink-shadow) / .22);
+  --tap: 44px;
+
+  /* motion */
+  --ease: cubic-bezier(.22, 1, .36, 1);
+  --ease-in: cubic-bezier(.5, 0, .75, 0);
   --dur-fast: .12s;
-  --dur: .18s;
+  --dur: .2s;
+  --dur-slow: .5s;
+}
+
+/* ---------- base ---------- */
+html { -webkit-text-size-adjust: 100%; }
+body { text-rendering: optimizeLegibility; }
+::selection { background: rgb(var(--k-accent) / .35); color: var(--ink); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+html[data-text="large"] { font-size: 112.5%; }
+
+/* Ink-wash backdrop: two soft pools of pigment fixed behind the page. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60rem 40rem at 105% -10%, rgb(var(--k-accent) / .08), transparent 60%),
+    radial-gradient(48rem 36rem at -10% 110%, rgb(var(--k-accent) / .06), transparent 60%);
+}
+
+/* Display headings get a hand-drawn rule that "dips" in once. */
+.ink-underline {
+  position: relative; display: inline-block; padding-bottom: .12em;
+  background: linear-gradient(var(--accent), var(--accent)) left bottom / 100% 1.5px no-repeat;
+  animation: ink-draw .9s var(--ease) .15s both;
+}
+@keyframes ink-draw { from { background-size: 0 1.5px; } to { background-size: 100% 1.5px; } }
+
+/* ---------- motion vocabulary ---------- */
+@keyframes ink-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes ink-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ink-pop { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes ink-bleed {           /* pigment spreading into paper */
+  from { opacity: 0; filter: blur(6px); transform: scale(.985); }
+  to { opacity: 1; filter: blur(0); transform: none; }
+}
+@keyframes ink-sheet { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes ink-drop {            /* typing / waiting: three ink drops */
+  0%, 80%, 100% { transform: translateY(0); opacity: .35; }
+  40% { transform: translateY(-4px); opacity: 1; }
 }
 @keyframes chronos-spin { to { transform: rotate(360deg); } }
-.spin { display: inline-block; animation: chronos-spin .7s linear infinite; }
-
 @keyframes chronos-shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes ink-shake { 0%, 100% { transform: none; } 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+@keyframes ink-sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+.spin { display: inline-block; animation: chronos-spin .7s linear infinite; }
+.ink-dots { display: inline-flex; gap: 4px; align-items: center; height: 1em; }
+.ink-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: ink-drop 1.2s ease-in-out infinite; }
+.ink-dots i:nth-child(2) { animation-delay: .15s; }
+.ink-dots i:nth-child(3) { animation-delay: .3s; }
+
 .skeleton {
-  display: block;
-  border-radius: 2px;
-  background: linear-gradient(90deg, rgba(128,124,116,.12) 25%, rgba(128,124,116,.24) 50%, rgba(128,124,116,.12) 75%);
-  background-size: 200% 100%;
-  animation: chronos-shimmer 1.4s linear infinite;
+  display: block; border-radius: 6px;
+  background: linear-gradient(90deg, rgb(var(--k-ink) / .06) 25%, rgb(var(--k-ink) / .12) 50%, rgb(var(--k-ink) / .06) 75%);
+  background-size: 200% 100%; animation: chronos-shimmer 1.4s linear infinite;
 }
 
-/* Autosave confirmation. Toggle .on; it fades itself out. */
-.saved-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font: 500 12px 'Schibsted Grotesk', sans-serif;
-  color: #5D5B55;
-  opacity: 0;
-  transition: opacity .25s ease;
-}
+/* ---------- shared controls ---------- */
+.saved-pill { display: inline-flex; align-items: center; gap: 4px; font: 500 12px 'Schibsted Grotesk', sans-serif;
+  color: var(--sub); opacity: 0; transition: opacity .25s ease; }
 .saved-pill.on { opacity: 1; }
-.saved-pill.err { color: #B10014; opacity: 1; }
-html.dark .saved-pill { color: var(--d-muted); }
-html.dark .saved-pill.err { color: var(--d-crimson); }
+.saved-pill.err { color: var(--bad); opacity: 1; }
 
+/* Segmented control (range picker, tab switchers) */
+.seg { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--rule); border-radius: 999px; background: var(--field); }
+.seg > button { border: 0; background: transparent; color: var(--sub); font: 500 13.5px/1 inherit; padding: 9px 14px;
+  border-radius: 999px; cursor: pointer; min-height: 36px; transition: background-color var(--dur), color var(--dur); }
+.seg > button:hover { color: var(--ink); }
+.seg > button.on, .seg > button[aria-pressed="true"], .seg > button[aria-selected="true"] { background: var(--accent-soft); color: var(--ink); }
+
+/* Toasts (replace alert()): window.chronosToast(msg, kind) in ink.js */
+.ink-toasts { position: fixed; z-index: 90; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  display: grid; gap: 8px; width: min(420px, calc(100vw - 32px)); pointer-events: none; }
+.ink-toast { pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--r);
+  background: var(--ink); color: var(--page); font-size: 14px; box-shadow: var(--shadow); animation: ink-pop .25s var(--ease) both; }
+.ink-toast.err { background: var(--bad); color: rgb(var(--k-on-accent)); }
+.ink-toast.leaving { opacity: 0; transform: translateY(6px); transition: opacity .25s, transform .25s; }
+
+/* Visually hidden but readable */
+.sr-only-ink { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- user preferences (Settings → Appearance) ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .spin, .skeleton { animation: none; }
+  .spin, .skeleton, .ink-dots i, .ink-underline { animation: none; }
+  .ink-underline { background-size: 100% 1.5px; }
 }
-
-/* Per-device preferences from Settings → Appearance. */
 html[data-motion="reduce"] *,
 html[data-motion="reduce"] *::before,
 html[data-motion="reduce"] *::after {
@@ -179,4 +208,3 @@ html[data-motion="reduce"] *::after {
 html[data-motion="reduce"]::view-transition-group(*),
 html[data-motion="reduce"]::view-transition-old(*),
 html[data-motion="reduce"]::view-transition-new(*) { animation: none !important; }
-html[data-text="large"] { font-size: 112.5%; }

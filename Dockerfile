@@ -25,7 +25,7 @@ USER chronos
 ENV PORT=8080
 # Waitress defaults to 4 threads, but Cloud Run sends up to 80 concurrent
 # requests per instance and nearly every request here is IO-bound (waiting on
-# Gemini, Pinecone, or Firestore rather than burning CPU). More threads means
+# the model, Pinecone, or Firestore rather than burning CPU). More threads means
 # more of that waiting overlaps. Override with WAITRESS_THREADS if you change
 # the instance size or the concurrency setting.
 ENV WAITRESS_THREADS=16

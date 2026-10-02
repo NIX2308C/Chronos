@@ -1,3 +1,5 @@
+> **Superseded.** Gemini and the Ollama-native path were removed; Chronos now uses a single OpenAI-compatible endpoint (including Ollama's `/v1`). See README "Connecting a model". Kept for history.
+
 # Moving the tutor onto a local model (Ollama)
 
 Status: **Phase 2 (the provider seam) is built** in `llm.py`; Gemini stays the

@@ -17,8 +17,6 @@ from dotenv import load_dotenv
 from flask import Flask, Response, request, jsonify, send_from_directory, redirect, stream_with_context
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
-from google import genai
-from google.genai import types
 import firebase_admin
 from firebase_admin import credentials, firestore, auth as fb_auth
 import llm
@@ -45,7 +43,6 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("teacherai")
 
-GEMINI_KEY = os.getenv("GEMINI_API_KEY")
 PINE_KEY = os.getenv("PINECONE_API_KEY")
 
 # Secret code someone must enter to register a *teacher* account. Replaces the
@@ -123,7 +120,7 @@ JOIN_RATE_WINDOW = int(os.getenv("JOIN_RATE_WINDOW", "300"))  # seconds
 # behind one school NAT joins on the same afternoon, and locking them out is a
 # worse outcome than a spray that still needs millions of years at this rate.
 JOIN_IP_RATE_LIMIT = int(os.getenv("JOIN_IP_RATE_LIMIT", "60"))   # requests per window
-# Teacher writes cost money on every call (Gemini embeddings, and a Gemini
+# Teacher writes cost money on every call (embeddings, and a model
 # generation per /stats). Nothing here is reachable without a teacher account, so
 # this is an abuse ceiling on a compromised or careless teacher, not a gate.
 TEACHER_RATE_LIMIT = int(os.getenv("TEACHER_RATE_LIMIT", "60"))     # requests
@@ -218,7 +215,7 @@ TOOL_MODEL = os.getenv("TOOL_MODEL", CHAT_MODEL)
 # is a cosine-similarity floor: chunks below it are dropped as not-really-related,
 # so an off-topic question ends up with empty context and a truthful "not in my
 # knowledge base" answer instead of being force-fed the least-bad matches. The
-# index uses cosine; with Gemini embeddings on-topic chunks score ~0.52+ and
+# index uses cosine; with embeddings on-topic chunks score ~0.52+ and
 # unrelated ones ~0.48–0.51, so 0.5 is a sensible default. Tune per your material.
 RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "5"))
 RETRIEVAL_MIN_SCORE = float(os.getenv("RETRIEVAL_MIN_SCORE", "0.5"))
@@ -306,8 +303,7 @@ def _run_status_checks():
     """Run bounded, low-cost dependency checks. Errors stay in server logs only."""
     checks = {
         "chronos": lambda: True,
-        # Fetching model metadata validates the configured API key (or that the
-        # Ollama host has the model pulled) without generating any text.
+        # Lists models on the configured endpoint without generating any text.
         "ai": lambda: llm.health(CHAT_MODEL),
         "data": lambda: list(db.collection("Classes").limit(1).stream()),
         "materials": lambda: pinecone_index.describe_index_stats(),
@@ -600,20 +596,6 @@ def security_headers(resp):
     return resp
 
 
-# Bound every Gemini call. Left unset, google-genai passes timeout=None straight
-# to httpx, which means *no* timeout: one hung upstream request holds a Waitress
-# thread forever, and 16 of those (see WAITRESS_THREADS) is the whole instance
-# wedged for every class on it. Pinecone already defaults to 30s and the
-# Firestore client to 60s per RPC, so Gemini was the only unbounded caller.
-GEMINI_TIMEOUT_MS = int(os.getenv("GEMINI_TIMEOUT_MS", "60000"))
-client = genai.Client(
-    api_key=GEMINI_KEY,
-    http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_MS),
-)
-# Generation goes through llm.py (Gemini or Ollama, per LLM_PROVIDER); embeddings
-# stay here on Gemini. Looked up per call so tests can swap `client` out.
-llm.use_gemini_client(lambda: client)
-
 pc = Pinecone(api_key=PINE_KEY)
 
 
@@ -685,12 +667,7 @@ def chunk_text(text, size=900, overlap=150):
 
 def embed(text):
     """Return a 768-dim embedding for the given text."""
-    result = client.models.embed_content(
-        model="models/gemini-embedding-001",
-        contents=text,
-        config={"output_dimensionality": EMBED_DIM},
-    )
-    return result.embeddings[0].values
+    return llm.embed(text)
 
 
 def embed_batch(texts):
@@ -700,12 +677,7 @@ def embed_batch(texts):
     for a real document, slow enough that the host could kill the request (a 503).
     Batching collapses that into a handful of calls, so even large files finish
     quickly."""
-    result = client.models.embed_content(
-        model="models/gemini-embedding-001",
-        contents=texts,
-        config={"output_dimensionality": EMBED_DIM},
-    )
-    return [e.values for e in result.embeddings]
+    return llm.embed_batch(texts)
 
 
 def valid_doc_id(doc_id):
@@ -1197,11 +1169,11 @@ def migrate_default_rules_to(class_id):
 
 
 def load_history(chat_ref, limit=HISTORY_TURNS):
-    """Return the most recent stored messages as Gemini 'contents' turns
+    """Return the most recent stored messages as model 'contents' turns
     (oldest first) so the model can see the conversation so far.
 
     Roles map student->'user', teacher->'model'. Any leading model turns are
-    dropped because Gemini expects the conversation to start with a user turn.
+    dropped because chat models expect the conversation to start with a user turn.
     """
     try:
         docs = list(
@@ -1609,7 +1581,7 @@ def practice_activity_tool(settings):
     of phrasings for two of the four activity types. A declared function is part
     of the request contract rather than a request to remember something.
 
-    Plain JSON Schema, so llm.py hands the same declaration to Gemini or Ollama.
+    Plain JSON Schema, so llm.py hands the same declaration to the endpoint.
     The call only names the activity; /tools/run builds it in a second, small
     request whose output is schema-constrained (see ACTIVITY_SCHEMAS).
     """
@@ -1942,6 +1914,16 @@ def page_stats():
 @app.route('/teacherstats.html')
 def legacy_stats():
     return legacy_page_redirect('/teacher-stats')
+
+
+@app.route('/ink.css')
+def ink_css():
+    return send_from_directory(WEB_DIR, 'ink.css', max_age=3600)
+
+
+@app.route('/ink.js')
+def ink_js():
+    return send_from_directory(WEB_DIR, 'ink.js', max_age=3600)
 
 
 @app.route('/theme.css')
@@ -2765,8 +2747,8 @@ def _str_list(lo, hi):
 
 
 # The same contracts _parse_tool_result enforces, handed to the model as a JSON
-# Schema so decoding itself is constrained (Ollama `format`, Gemini
-# response_json_schema). The parser stays the final gate either way.
+# Schema so decoding itself is constrained (`response_format`;
+# the endpoint). The parser stays the final gate either way.
 ACTIVITY_SCHEMAS = {
     "quiz": _obj({
         "type": {"type": "string", "enum": ["quiz"]},
@@ -3419,7 +3401,7 @@ def summarize_exchange(prev, is_new, question, answer, rules):
 
     # Abuse is recorded under `concerns` below and nowhere else. `opening` and
     # `context` are what /stats turns into Recent questions, Most repeated and
-    # the Gemini-generated topic list, and what the tutor recalls in later
+    # the model-generated topic list, and what the tutor recalls in later
     # prompts — none of which should ever echo a slur back at anyone.
     if issue != "behavioral":
         if is_new:
@@ -3584,7 +3566,7 @@ def stats():
     each member's conversations for this class. This keeps a teacher's analytics
     to their own class (no cross-teacher leakage) and needs no special index.
     """
-    # Every call here is a Gemini generation plus a walk of the class's chats —
+    # Every call here is a model generation plus a walk of the class's chats —
     # the most expensive thing a teacher account can trigger in a loop.
     if rate_limited(f"teach:{request.uid}", TEACHER_RATE_LIMIT, TEACHER_RATE_WINDOW):
         return jsonify({"error": "Too many requests. Please slow down and try again shortly."}), 429

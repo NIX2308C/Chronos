@@ -48,7 +48,7 @@ _SUBSTRING_ROOTS = {
     "nigg": "severe", "faggot": "severe", "retard": "severe",
     "wanker": "severe", "twat": "severe", "bollock": "severe",
     "motherf": "severe",
-    "piss": "mild", "crap": "mild", "aupvibes": "mild",
+    "piss": "mild", "crap": "mild", "aupvibes": "severe",
 }
 
 # Roots that ARE innocent English inside other words. `ass` lives in class, pass,

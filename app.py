@@ -3098,6 +3098,30 @@ def _parse_tool_result(text, requested_type):
     return result
 
 
+def tool_failure(tool, raw_error, status):
+    """Hand a failed activity build back to the model to explain to the student.
+
+    The raw reason goes in; a short plain-language message comes out and is shown
+    where the error used to be. If the model is unreachable too, a generic line stands in.
+    """
+    fallback = "Sorry, I couldn't make that %s right now. Please try again in a moment." % (
+        tool["type"].replace("_", " "))
+    prompt = (
+        "You are Chronos, a school course tutor. A student asked you to build a %s on \"%s\", "
+        "but building it failed.\nRaw error: %s\n\n"
+        "Tell the student in one or two short, friendly sentences what went wrong and what they "
+        "can do, starting with \"Sorry\". Put it in everyday words (for example: the course "
+        "material didn't cover that topic, the tutor's model is busy or offline, or the result "
+        "came out malformed). Never mention URLs, keys, file paths, code or stack traces."
+        % (tool["type"].replace("_", " "), str(tool["topic"])[:120], str(raw_error)[:300]))
+    try:
+        text = llm.generate(CHAT_MODEL, prompt, temperature=0.4, max_tokens=120).text.strip()
+    except Exception:
+        logger.exception("Could not get the model to explain a failed activity.")
+        text = ""
+    return jsonify({"error": text[:400] or fallback, "failed": True}), status
+
+
 @app.route('/tools/run', methods=['POST'])
 @require_auth
 def run_tool():
@@ -3155,13 +3179,15 @@ def run_tool():
             context_block = "\n".join("[Course rule %d]\n%s" % (i, r)
                                       for i, r in enumerate(custom_rules, 1))
         if not context_block and settings["grounded_only"]:
-            return jsonify({"error": "I couldn't find enough course material to build that yet."}), 422
+            return tool_failure(tool, "No course material matched the topic \"%s\" and the course only "
+                                      "allows answers from teacher material." % tool["topic"], 422)
         text = llm.generate(TOOL_MODEL, _tool_prompt(tool, context_block, custom_rules),
                             temperature=0.2, json_schema=ACTIVITY_SCHEMAS[tool["type"]],
                             max_tokens=3072).text
         result = _parse_tool_result(text, tool["type"])
         if not result:
-            return jsonify({"error": "I couldn't make that learning activity. Please try again."}), 502
+            return tool_failure(tool, "The model's output did not match the required %s format "
+                                      "(missing or unusable fields)." % tool["type"], 502)
         if tool["type"] == "quiz":
             result["reveal_final_answers"] = bool(settings["reveal_final_answers"])
         kind_label = tool["type"].replace("_", " ")
@@ -3181,7 +3207,8 @@ def run_tool():
     except llm.EmbeddingsUnavailable as e:
         return retrieval_unavailable(e)
     except Exception as e:
-        return server_error("Could not create that learning activity.", e)
+        logger.exception("Could not create that learning activity.")
+        return tool_failure(tool, "%s: %s" % (type(e).__name__, e), 500)
 
 
 # ---------- teacher: knowledge management ----------

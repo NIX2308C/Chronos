@@ -84,7 +84,7 @@ def test_generate_text_and_request_shape():
     assert A.TOOL_FUNCTION_NAME in b["messages"][0]["content"] and "tools" not in b
     assert b["stream"] is False and b["temperature"] == 0.3
     assert (b["top_p"], b["top_k"], b["max_tokens"]) == (0.95, 64, 1500)
-    assert "response_format" not in b
+    assert "response_format" not in b and b["chat_template_kwargs"] == {"enable_thinking": False}
     print("ok - request carries system+tool prompt, roles, sampling and auth")
 
 
@@ -295,6 +295,21 @@ def test_chat_and_tool_routes_on_endpoint():
     assert r.status_code == 200, r.get_json()
     assert len(r.get_json()["tool"]["questions"]) == 3
     assert requests[-1]["body"]["response_format"]["json_schema"]["schema"] == A.ACTIVITY_SCHEMAS["quiz"]
+
+    # A failed build goes back to the model, which explains the raw error to the student.
+    replies.append((200, _reply("not json at all")))
+    replies.append((200, _reply("Sorry, the quiz came out garbled. Please try again.")))
+    r = c.post("/tools/run", json={"class_id": "c1", "chat_id": "chat1",
+                                   "tool_request": {"type": "quiz", "topic": "Osmosis"}})
+    assert r.status_code == 502 and r.get_json()["error"] == "Sorry, the quiz came out garbled. Please try again."
+    assert "did not match the required quiz format" in requests[-1]["body"]["messages"][-1]["content"]
+    replies.append((200, _reply("not json at all")))
+    replies.append((500, {"error": "boom"}))
+    replies.append((500, {"error": "boom"}))
+    replies.append((500, {"error": "boom"}))    # the explainer is down too: generic fallback
+    r = c.post("/tools/run", json={"class_id": "c1", "chat_id": "chat1",
+                                   "tool_request": {"type": "quiz", "topic": "Osmosis"}})
+    assert r.get_json()["error"].startswith("Sorry, I couldn't make that quiz")
 
     # A tool the course has switched off is dropped even if the model calls it.
     replies.append((200, _reply("Here you go." + _call({"type": "concept_map", "topic": "x"}))))

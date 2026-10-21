@@ -1218,6 +1218,7 @@
     const tail=document.createElement("div");tail.className="stream-tail";
     tail.hidden=true;node.append(pending,tail);
     let source="",typed="",committed=0,typingTimer=null,finishResolve=null,finishRequested=false;
+    const TYPE_TICK_MS=24;
     function preview(src){
       const fences=src.match(/```/g)||[];
       if(fences.length%2===0)return renderMarkdown(src);
@@ -1247,23 +1248,36 @@
       }
       if(node.isConnected)scrollBottom();
     }
+    // Typing speed follows the stream. Once chunks start arriving, arrivalCps tracks how
+    // fast text comes in (smoothed), and the reveal runs a little faster than that plus
+    // enough to drain any backlog in under a second. A slow model therefore types slowly
+    // and steadily instead of in fast bursts with stalls, and a fast one is never held back.
+    let arrivalCps=0,lastPushAt=0,carry=0;
+    function typingCps(backlog){
+      const base=arrivalCps>0?arrivalCps*1.1:60;
+      return Math.min(500,Math.max(12,base+backlog*1.5));
+    }
     function typeNext(){
       typingTimer=null;
       const backlog=source.length-typed.length;
       if(backlog>0){
-        // A couple of characters per beat with a little randomness so it reads
-        // as typing; speeds up only when the text is arriving faster than this.
-        let count=reduceMotion?backlog:Math.max(1+Math.floor(Math.random()*3),Math.ceil(backlog/90));
-        count=Math.min(count,backlog);
-        const end=typed.length+count,code=source.charCodeAt(end-1);
-        if(code>=0xD800&&code<=0xDBFF&&end<source.length)count++;
-        pending.remove();
-        typed+=source.slice(typed.length,typed.length+count);
-        flush(false);
+        let count;
+        if(reduceMotion)count=backlog;
+        else{
+          carry+=typingCps(backlog)*TYPE_TICK_MS/1000;
+          count=Math.min(Math.floor(carry),backlog);carry-=count;
+        }
+        if(count>0){
+          const end=typed.length+count,code=source.charCodeAt(end-1);
+          if(code>=0xD800&&code<=0xDBFF&&end<source.length)count++;
+          pending.remove();
+          typed+=source.slice(typed.length,typed.length+count);
+          flush(false);
+        }
       }
       if(source.length>typed.length){
-        let delay=reduceMotion?0:9+Math.random()*13;
-        if(!reduceMotion&&source.length-typed.length<160){
+        let delay=reduceMotion?0:TYPE_TICK_MS;
+        if(!reduceMotion&&source.length-typed.length<40){
           const last=typed.charAt(typed.length-1);
           if(/[.!?]/.test(last)&&Math.random()<.5)delay+=45;
           else if(/[,;:]/.test(last)&&Math.random()<.35)delay+=20;
@@ -1274,7 +1288,15 @@
     }
     function scheduleTyping(){if(!typingTimer)typeNext();}
     return {
-      push(chunk){if(chunk){source+=chunk;scheduleTyping();}},
+      push(chunk){
+        if(!chunk)return;
+        const now=performance.now();
+        if(lastPushAt){
+          const inst=Math.min(800,chunk.length*1000/Math.max(now-lastPushAt,30));
+          arrivalCps=arrivalCps?arrivalCps*.7+inst*.3:inst;
+        }
+        lastPushAt=now;source+=chunk;scheduleTyping();
+      },
       finish(text){
         if(text!==source){
           source=text;

@@ -70,6 +70,9 @@ MAX_TOKENS = 1500
 PROMPT_TOKENS = int(os.getenv("LLM_PROMPT_TOKENS", "12000"))
 MESSAGE_OVERHEAD_TOKENS = 50      # chat-template overhead per message
 
+# Cloudflare rejects urllib's default "Python-urllib/x.y" agent with a 403 (error 1010).
+USER_AGENT = "Chronos/1.0"
+
 TOOL_MARKER = "TOOL_CALL"
 THOUGHT_OPEN, THOUGHT_CLOSE = "<|channel>", "<channel|>"
 
@@ -226,7 +229,7 @@ def _open(path, body, base=None, tries=None):
         raise LLMError("LLM_API_KEY is not set")
     base = base or BASE_URL
     tries = tries or TRIES
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT}
     if API_KEY:
         headers["Authorization"] = "Bearer " + API_KEY
     data = json.dumps(body).encode("utf-8")
@@ -238,12 +241,13 @@ def _open(path, body, base=None, tries=None):
             if e.code >= 500 and attempt < tries:      # 502/524/530: tunnel or host down
                 time.sleep(2 ** (attempt - 1))
                 continue
-            detail = ""
+            detail, raw = "", ""
             try:
-                err = json.loads(e.read().decode("utf-8", "replace")).get("error")
+                raw = e.read().decode("utf-8", "replace")
+                err = json.loads(raw).get("error")
                 detail = (err.get("message") if isinstance(err, dict) else err) or ""
             except Exception:
-                pass
+                detail = " ".join(raw.split())[:200]      # e.g. a Cloudflare HTML block page
             if e.code == 400 and any(w in detail.lower() for w in ("context", "exceed", "too long", "n_ctx")):
                 raise ContextTooLong("Model endpoint: %s" % detail) from e
             raise LLMError("Model endpoint returned HTTP %s %s" % (e.code, detail)) from e
@@ -271,7 +275,8 @@ def health(model=None):
     """Raise unless the endpoint is reachable and the key is accepted. Generates nothing."""
     if not API_KEY:
         raise LLMError("LLM_API_KEY is not set")
-    req = urllib.request.Request(BASE_URL + "/models", headers={"Authorization": "Bearer " + API_KEY})
+    req = urllib.request.Request(BASE_URL + "/models", headers={"Authorization": "Bearer " + API_KEY,
+                                                                    "User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(req, timeout=min(TIMEOUT_S, 10)) as resp:
             resp.read()
@@ -359,7 +364,8 @@ def embed_model():
     global _embed_model
     if _embed_model:
         return _embed_model
-    req = urllib.request.Request(EMBED_BASE_URL + "/models", headers={"Authorization": "Bearer " + API_KEY})
+    req = urllib.request.Request(EMBED_BASE_URL + "/models", headers={"Authorization": "Bearer " + API_KEY,
+                                                                          "User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(req, timeout=min(TIMEOUT_S, 10)) as resp:
             _embed_model = str(json.loads(resp.read().decode("utf-8"))["data"][0]["id"])

@@ -24,6 +24,13 @@ class _Server(BaseHTTPRequestHandler):
     def log_message(self, *_a):
         pass
 
+    def do_GET(self):
+        requests.append({"path": self.path, "body": None, "auth": self.headers.get("Authorization")})
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"data": [{"id": "embeddinggemma-q8"}]}).encode())
+
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         requests.append({"path": self.path, "body": body, "auth": self.headers.get("Authorization")})
@@ -42,6 +49,7 @@ class _Server(BaseHTTPRequestHandler):
 server = HTTPServer(("127.0.0.1", 0), _Server)
 threading.Thread(target=server.serve_forever, daemon=True).start()
 llm.BASE_URL = "http://127.0.0.1:%d/v1" % server.server_port
+llm.EMBED_BASE_URL = llm.BASE_URL
 llm.API_KEY = "sekrit"
 llm.TIMEOUT_S = 5
 llm.time.sleep = lambda _s: None
@@ -75,7 +83,7 @@ def test_generate_text_and_request_shape():
     assert b["messages"][0]["content"].startswith("SYS") and "TOOL_CALL" in b["messages"][0]["content"]
     assert A.TOOL_FUNCTION_NAME in b["messages"][0]["content"] and "tools" not in b
     assert b["stream"] is False and b["temperature"] == 0.3
-    assert (b["top_p"], b["top_k"], b["max_tokens"]) == (0.95, 64, 1024)
+    assert (b["top_p"], b["top_k"], b["max_tokens"]) == (0.95, 64, 1500)
     assert "response_format" not in b
     print("ok - request carries system+tool prompt, roles, sampling and auth")
 
@@ -129,17 +137,64 @@ def test_history_trim():
     replies.append((200, _reply("ok")))
     llm.generate("m", contents)
     msgs = requests[-1]["body"]["messages"]
-    assert len(msgs) < 5 and msgs[-1]["role"] == "user" and msgs[0]["role"] == "user", [m["role"] for m in msgs]
+    assert sum(len(m["content"]) for m in msgs) <= 36000 and len(msgs) < 5 and msgs[-1]["role"] == "user" and msgs[0]["role"] == "user", [m["role"] for m in msgs]
     print("ok - oldest turns are dropped to fit the context window")
 
 
 def test_embeddings():
-    replies.append((200, {"data": [{"index": 1, "embedding": [2.0]}, {"index": 0, "embedding": [1.0]}]}))
-    assert llm.embed_batch(["a", "b"]) == [[1.0], [2.0]]
-    assert requests[-1]["path"] == "/v1/embeddings" and requests[-1]["body"]["input"] == ["a", "b"]
-    replies.append((200, {"data": [{"index": 0, "embedding": [3.0]}]}))
-    assert llm.embed("x") == [3.0]
-    print("ok - embeddings are returned in input order")
+    saved = llm.EMBED_DIM
+    llm.EMBED_DIM = 1
+    try:
+        replies.append((200, {"data": [{"index": 1, "embedding": [2.0]}, {"index": 0, "embedding": [1.0]}]}))
+        assert llm.embed_documents(["a", "b"], "Cells.pdf") == [[1.0], [2.0]]
+        sent = requests[-1]
+        assert sent["path"] == "/v1/embeddings" and sent["auth"] == "Bearer sekrit"
+        assert sent["body"]["model"] == "embeddinggemma-q8"      # the id GET /models returned
+        assert sent["body"]["input"] == ["title: Cells.pdf | text: a", "title: Cells.pdf | text: b"]
+        replies.append((200, {"data": [{"index": 0, "embedding": [3.0]}]}))
+        assert llm.embed("x") == [3.0]
+        assert requests[-1]["body"]["input"] == ["task: search result | query: x"]
+        # more than one request's worth is split, never sent in one go
+        for _ in range(2):
+            replies.append((200, {"data": [{"index": i, "embedding": [0.0]} for i in range(16)]}))
+        assert len(llm.embed_documents(["t"] * 32)) == 32
+        assert [len(r["body"]["input"]) for r in requests[-2:]] == [16, 16]
+        # a wrong-size vector is refused, never stored or searched with
+        replies.append((200, {"data": [{"index": 0, "embedding": [1.0, 2.0]}]}))
+        try:
+            llm.embed("x")
+            raise AssertionError("a 2-d vector was accepted")
+        except llm.EmbeddingsUnavailable:
+            pass
+        replies.append((200, {"data": [{"index": 0, "embedding": [1.0]}]}))
+        assert llm.verify_embeddings() == ("embeddinggemma-q8", 1)
+    finally:
+        llm.EMBED_DIM = saved
+    print("ok - embeddings use the reported model, task formats, 16-input batches and a dimension check")
+
+
+def test_embeddings_down():
+    saved = llm.EMBED_BASE_URL
+    llm.EMBED_BASE_URL = "http://127.0.0.1:9/v1"
+    llm._embed_model = None
+    try:
+        llm.embed("x")
+        raise AssertionError("an offline embedding server was swallowed")
+    except llm.EmbeddingsUnavailable as e:
+        assert "temporarily unavailable" in str(e)
+    finally:
+        llm.EMBED_BASE_URL = saved
+    print("ok - an offline embedding server raises a clear error")
+
+
+def test_context_too_long():
+    replies.append((400, {"error": {"message": "the request exceeds the available context size"}}))
+    try:
+        llm.generate("m", "hi")
+        raise AssertionError("HTTP 400 was swallowed")
+    except llm.ContextTooLong:
+        pass
+    print("ok - a context overflow is its own error")
 
 
 def test_errors_raise():
@@ -211,7 +266,25 @@ def test_chat_and_tool_routes_on_endpoint():
     assert body["response"] == "Let's check what you know."
     assert body["tool_request"] == {"type": "quiz", "topic": "Osmosis"}, body
     sent = requests[-1]["body"]
-    assert sent["model"] == A.CHAT_MODEL and "Osmosis is the movement" in sent["messages"][0]["content"]
+    assert sent["model"] == A.CHAT_MODEL
+    assert "Osmosis is the movement" not in sent["messages"][0]["content"]       # system prompt stays stable
+    assert sent["messages"][-1]["content"].startswith("Teacher material for this message:")
+    assert "Osmosis is the movement" in sent["messages"][-1]["content"]
+    assert sent["messages"][-1]["content"].endswith("can you test me on osmosis")
+
+    # HTTP 400 (context exceeded): one retry with less, then the normal answer.
+    replies.append((400, {"error": {"message": "request exceeds the available context size"}}))
+    replies.append((200, _reply("Retried fine.")))
+    r = c.post("/chat", json={"message": "what is osmosis", "class_id": "c1", "chat_id": "chat1"})
+    assert r.status_code == 200 and r.get_json()["response"] == "Retried fine."
+
+    # Embedding server offline: a clear 503, never a silent answer without retrieval.
+    saved_embed = A.embed
+    def _down(_t): raise llm.EmbeddingsUnavailable(llm.EMBED_UNAVAILABLE)
+    A.embed = _down
+    r = c.post("/chat", json={"message": "what is osmosis", "class_id": "c1", "chat_id": "chat1"})
+    assert r.status_code == 503 and r.get_json()["code"] == "retrieval_unavailable", r.get_json()
+    A.embed = saved_embed
 
     quiz = {"type": "quiz", "title": "Osmosis", "questions": [
         {"prompt": "Osmosis moves", "options": ["water", "salt", "sugar", "air"], "answer": 0,
@@ -238,6 +311,8 @@ if __name__ == "__main__":
         test_history_trim()
         test_json_schema_becomes_response_format()
         test_embeddings()
+        test_embeddings_down()
+        test_context_too_long()
         test_stream()
         test_errors_raise()
         test_chat_and_tool_routes_on_endpoint()

@@ -7,7 +7,8 @@ reaches browser or Android code.
     LLM_BASE_URL   endpoint root including /v1   (default https://chronos-llm.tevproject.com/v1)
     LLM_API_KEY    bearer token, required, read from the environment only
     CHAT_MODEL / TOOL_MODEL   model name sent (default gemma4-e4b)
-    EMBED_MODEL    embeddings model (the chat server's brief does not cover /embeddings)
+    EMBED_BASE_URL embeddings server (default https://chronos-embed.tevproject.com/v1),
+                   same bearer key. EmbeddingGemma 300M, 768-d, L2-normalized.
     LLM_TIMEOUT_S  read timeout, at least 120
 
 The request shape app.py builds: `contents` is a string or a list of
@@ -46,16 +47,23 @@ TIMEOUT_S = max(float(os.getenv("LLM_TIMEOUT_S", "120")), 120.0)
 TRIES = 3
 
 DEFAULT_CHAT_MODEL = "gemma4-e4b"
-EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
-# Must equal the Pinecone index dimension. Sent as `dimensions` only when set.
-EMBED_DIMENSIONS = os.getenv("EMBED_DIMENSIONS", "").strip()
+EMBED_BASE_URL = os.getenv("EMBED_BASE_URL", "https://chronos-embed.tevproject.com/v1").strip().rstrip("/")
+# Used only if GET /models on the embedding server cannot be read; normally the id it returns wins.
+EMBED_MODEL = "embeddinggemma"
+# Must equal the Pinecone index dimension. Vectors from different models never share an index.
+EMBED_DIM = 768
+EMBED_BATCH = 16                  # inputs per /embeddings request (16-32 is safe)
+EMBED_UNAVAILABLE = ("Course search is temporarily unavailable (the embedding server is "
+                     "unreachable). Please try again in a few minutes.")
+_embed_model = None
 
 # Recommended Gemma sampling; the caller's temperature overrides.
 SAMPLING = {"temperature": 1.0, "top_p": 0.95, "top_k": 64}
-MAX_TOKENS = 1024
-# The 16,384-token window covers prompt + output. About 3 characters a token with
-# headroom for the reply; the oldest turns go first.
-MAX_PROMPT_CHARS = int(os.getenv("LLM_MAX_PROMPT_CHARS", "36000"))
+MAX_TOKENS = 1500
+# The 16,384-token window covers prompt + output: prompt <= ~12,000 tokens and
+# ~1,500 for the reply. Tokens are estimated as chars/3; the oldest turns go first.
+PROMPT_TOKENS = int(os.getenv("LLM_PROMPT_TOKENS", "12000"))
+MESSAGE_OVERHEAD_TOKENS = 50      # chat-template overhead per message
 
 TOOL_MARKER = "TOOL_CALL"
 THOUGHT_OPEN, THOUGHT_CLOSE = "<|channel>", "<channel|>"
@@ -66,6 +74,18 @@ Chunk = namedtuple("Chunk", "text tool_call usage")
 
 class LLMError(RuntimeError):
     """The endpoint failed or returned something unusable."""
+
+
+class ContextTooLong(LLMError):
+    """HTTP 400: prompt + reply do not fit the context window."""
+
+
+class EmbeddingsUnavailable(LLMError):
+    """The embedding server is down, or returned vectors we must not store or search with."""
+
+
+def estimate_tokens(text):
+    return len(text or "") // 3 + 1
 
 
 # ---------- prompt building ----------
@@ -100,11 +120,12 @@ def _messages(contents, system, tools=None):
         text = "".join(str(p.get("text") or "") for p in (turn.get("parts") or []) if isinstance(p, dict))
         role = "assistant" if turn.get("role") in ("model", "assistant") else "user"
         turns.append({"role": role, "content": text})
-    size = sum(len(m["content"]) for m in head + turns)
-    while size > MAX_PROMPT_CHARS and len(turns) > 1:
+    cost = lambda ms: sum(estimate_tokens(m["content"]) + MESSAGE_OVERHEAD_TOKENS for m in ms)
+    size = cost(head + turns)
+    while size > PROMPT_TOKENS and len(turns) > 1:
         dropped = turns[:2] if len(turns) > 2 and turns[1]["role"] == "assistant" else turns[:1]
         turns = turns[len(dropped):]
-        size -= sum(len(m["content"]) for m in dropped)
+        size -= cost(dropped)
     return head + turns
 
 
@@ -195,19 +216,21 @@ def _usage(data):
 
 # ---------- transport ----------
 
-def _open(path, body, key_required=True):
-    if key_required and not API_KEY:
+def _open(path, body, base=None, tries=None):
+    if not API_KEY:
         raise LLMError("LLM_API_KEY is not set")
+    base = base or BASE_URL
+    tries = tries or TRIES
     headers = {"Content-Type": "application/json"}
     if API_KEY:
         headers["Authorization"] = "Bearer " + API_KEY
     data = json.dumps(body).encode("utf-8")
-    for attempt in range(1, TRIES + 1):
-        req = urllib.request.Request(BASE_URL + path, data=data, headers=headers, method="POST")
+    for attempt in range(1, tries + 1):
+        req = urllib.request.Request(base + path, data=data, headers=headers, method="POST")
         try:
             return urllib.request.urlopen(req, timeout=TIMEOUT_S)
         except urllib.error.HTTPError as e:
-            if e.code >= 500 and attempt < TRIES:      # 502/524/530: tunnel or host down
+            if e.code >= 500 and attempt < tries:      # 502/524/530: tunnel or host down
                 time.sleep(2 ** (attempt - 1))
                 continue
             detail = ""
@@ -216,12 +239,14 @@ def _open(path, body, key_required=True):
                 detail = (err.get("message") if isinstance(err, dict) else err) or ""
             except Exception:
                 pass
+            if e.code == 400 and any(w in detail.lower() for w in ("context", "exceed", "too long", "n_ctx")):
+                raise ContextTooLong("Model endpoint: %s" % detail) from e
             raise LLMError("Model endpoint returned HTTP %s %s" % (e.code, detail)) from e
         except (urllib.error.URLError, OSError) as e:
-            if attempt < TRIES:
+            if attempt < tries:
                 time.sleep(2 ** (attempt - 1))
                 continue
-            raise LLMError("Could not reach the model endpoint at %s: %s" % (BASE_URL, e)) from e
+            raise LLMError("Could not reach the model endpoint at %s: %s" % (base, e)) from e
 
 
 def _read_json(resp):
@@ -302,18 +327,79 @@ def stream(model, contents, system=None, tools=None, temperature=None, max_token
     yield Chunk("", call, usage)
 
 
-def embed_batch(texts):
-    """Vectors for many texts in one request, in order."""
-    body = {"model": EMBED_MODEL, "input": list(texts)}
-    if EMBED_DIMENSIONS:
-        body["dimensions"] = int(EMBED_DIMENSIONS)
-    with _open("/embeddings", body) as resp:
-        data = _read_json(resp)
-    rows = sorted(data.get("data") or [], key=lambda r: r.get("index", 0))
-    if len(rows) != len(texts):
-        raise LLMError("The embeddings endpoint returned %d vectors for %d inputs" % (len(rows), len(texts)))
-    return [r["embedding"] for r in rows]
+def count_tokens(text):
+    """Exact prompt tokens via the chat server's POST /tokenize; the estimate if it can't answer."""
+    try:
+        with _open("/tokenize", {"content": text}, base=BASE_URL[:-3] if BASE_URL.endswith("/v1") else BASE_URL,
+                   tries=1) as resp:
+            return len(_read_json(resp).get("tokens") or [])
+    except Exception:
+        return estimate_tokens(text)
+
+
+# ---------- embeddings ----------
+# EmbeddingGemma wants a task prefix on every input, different for questions and
+# for the text being searched.
+
+def query_text(text):
+    return "task: search result | query: %s" % text
+
+
+def document_text(content, title=None):
+    return "title: %s | text: %s" % (title or "none", content)
+
+
+def embed_model():
+    """The model id the embedding server reports (GET /models), cached."""
+    global _embed_model
+    if _embed_model:
+        return _embed_model
+    req = urllib.request.Request(EMBED_BASE_URL + "/models", headers={"Authorization": "Bearer " + API_KEY})
+    try:
+        with urllib.request.urlopen(req, timeout=min(TIMEOUT_S, 10)) as resp:
+            _embed_model = str(json.loads(resp.read().decode("utf-8"))["data"][0]["id"])
+    except Exception as e:
+        raise EmbeddingsUnavailable(EMBED_UNAVAILABLE) from e
+    return _embed_model
+
+
+def _embed_raw(inputs):
+    """Vectors for already-formatted inputs, in order. Raises EmbeddingsUnavailable on any failure."""
+    out = []
+    try:
+        model = embed_model()
+        for start in range(0, len(inputs), EMBED_BATCH):
+            group = inputs[start:start + EMBED_BATCH]
+            with _open("/embeddings", {"model": model, "input": group}, base=EMBED_BASE_URL) as resp:
+                data = _read_json(resp)
+            rows = sorted(data.get("data") or [], key=lambda r: r.get("index", 0))
+            if len(rows) != len(group):
+                raise LLMError("The embeddings endpoint returned %d vectors for %d inputs" % (len(rows), len(group)))
+            out.extend(r["embedding"] for r in rows)
+    except EmbeddingsUnavailable:
+        raise
+    except LLMError as e:
+        logger.error("Embedding request failed: %s", e)
+        raise EmbeddingsUnavailable(EMBED_UNAVAILABLE) from e
+    for v in out:
+        if len(v) != EMBED_DIM:
+            logger.critical("Embedding server returned a %d-d vector; the index is %d-d. Refusing to use it.",
+                            len(v), EMBED_DIM)
+            raise EmbeddingsUnavailable("Course search is misconfigured (embedding size mismatch).")
+    return out
 
 
 def embed(text):
-    return embed_batch([text])[0]
+    """A search-query vector."""
+    return _embed_raw([query_text(text)])[0]
+
+
+def embed_documents(chunks, title=None):
+    """Vectors for document chunks to store, in order."""
+    return _embed_raw([document_text(c, title) for c in chunks])
+
+
+def verify_embeddings():
+    """Embed one test string and require EMBED_DIM floats. Returns (model, dimension)."""
+    vec = _embed_raw([query_text("startup check")])[0]
+    return embed_model(), len(vec)

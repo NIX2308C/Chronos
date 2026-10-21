@@ -199,10 +199,9 @@ models or hosts, change environment variables only.
 | `LLM_API_KEY` | none (required) | Bearer token for the chat server |
 | `CHAT_MODEL` | `gemma4-e4b` | Model for tutoring replies |
 | `TOOL_MODEL` | = `CHAT_MODEL` | Model for quizzes/flashcards/etc. (must follow JSON schemas) |
-| `EMBED_MODEL` | `nomic-embed-text` | Embedding model |
-| `EMBED_DIMENSIONS` | unset | Sent as `dimensions` if set (OpenAI v3 embedding models only) |
+| `EMBED_BASE_URL` | `https://chronos-embed.tevproject.com/v1` | Embedding server (uses `LLM_API_KEY`) |
 | `LLM_TIMEOUT_S` | `120` | Read timeout (never below 120) |
-| `LLM_MAX_PROMPT_CHARS` | `36000` | History is trimmed past this size to fit the 16k-token window |
+| `LLM_PROMPT_TOKENS` | `12000` | Oldest turns are dropped past this estimated size |
 
 ### Chat model
 Chat runs on a llama.cpp `llama-server` (Gemma 4 E4B, model name `gemma4-e4b`) at
@@ -215,13 +214,26 @@ the system prompt and parses `TOOL_CALL {...}` from the reply. Thinking text is 
 `LLM_API_KEY` is required and is only ever read on the server.
 
 ### Embeddings and Pinecone
-Course material is embedded with `EMBED_MODEL` and stored in the Pinecone index
-(`INDEX_NAME`, **768 dimensions**). Vectors from different models are not
-comparable, so after changing `EMBED_MODEL` teachers must re-upload their
-material. If your embedding model is not 768-d (and cannot be truncated via
-`EMBED_DIMENSIONS`), create a new index with that dimension and update
-`INDEX_NAME`/`EMBED_DIM` in `app.py`. `RETRIEVAL_MIN_SCORE` (default 0.5) was
-tuned for another model; if answers report "no material matched", lower it.
+Course material is embedded by EmbeddingGemma 300M on `EMBED_BASE_URL`
+(`https://chronos-embed.tevproject.com/v1`, same `LLM_API_KEY`): 768-d,
+L2-normalized. The model id comes from `GET /v1/models`. Questions are sent as
+`task: search result | query: …` and chunks as `title: <file> | text: …`, at most 16
+inputs per request. At startup one test string is embedded and the vector length must
+be 768 (a mismatch stops the app); the model, dimension and index are recorded in
+Firestore `Meta/embedding`, and a different model against the same index refuses to
+start. Vectors from different models are never mixed, so **material embedded with the
+old model must be re-uploaded**. If the embedding server (a home PC) is offline, `/chat`,
+`/tools/run` and `/upload` answer 503 "Course search is temporarily unavailable"
+instead of answering without retrieval. `RETRIEVAL_MIN_SCORE` (default 0.5) was tuned for
+another model; re-tune it against EmbeddingGemma scores (the dev debug panel shows them).
+
+### Context budget (16,384 tokens, prompt + reply)
+About 12,000 prompt tokens and a 1,500-token reply (chars ≈ 3 tokens). Student
+documents: 3,500 characters each, 9,000 together; a longer set is replaced by the short
+summary stored at upload. Retrieved excerpts go at the top of the current user message only,
+so the system prompt is identical every turn (prompt cache). History is capped at 12,000
+characters (`HISTORY_CHARS`). On HTTP 400 `/chat` retries once with half the excerpts and
+half the history. `llm.count_tokens` uses the chat server's `/tokenize` for exact counts.
 
 ### Troubleshooting
 The public `/status` page shows whether the endpoint is reachable. Errors are

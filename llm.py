@@ -37,6 +37,11 @@ import urllib.error
 import urllib.request
 from collections import namedtuple
 
+from dotenv import load_dotenv
+
+# app.py imports this module before its own load_dotenv(), and the settings below are read at import.
+load_dotenv()
+
 logger = logging.getLogger(__name__)
 
 BASE_URL = os.getenv("LLM_BASE_URL", "https://chronos-llm.tevproject.com/v1").strip().rstrip("/")

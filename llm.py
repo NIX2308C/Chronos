@@ -65,6 +65,9 @@ _embed_model = None
 # Recommended Gemma sampling; the caller's temperature overrides.
 SAMPLING = {"temperature": 1.0, "top_p": 0.95, "top_k": 64}
 MAX_TOKENS = 1500
+# Gemma's thinking mode is off: it costs latency and context for a tutor that answers directly.
+# Sent as a chat-template argument; LLM_THINKING=1 turns it back on.
+THINKING = os.getenv("LLM_THINKING", "").strip().lower() in ("1", "true", "yes")
 # The 16,384-token window covers prompt + output: prompt <= ~12,000 tokens and
 # ~1,500 for the reply. Tokens are estimated as chars/3; the oldest turns go first.
 PROMPT_TOKENS = int(os.getenv("LLM_PROMPT_TOKENS", "12000"))
@@ -140,6 +143,7 @@ def _messages(contents, system, tools=None):
 def _body(model, contents, system, tools, temperature, json_schema, stream, max_tokens):
     body = {"model": model, "messages": _messages(contents, system, tools), "stream": stream,
             "max_tokens": max_tokens or MAX_TOKENS, **SAMPLING}
+    body["chat_template_kwargs"] = {"enable_thinking": THINKING}
     if temperature is not None:
         body["temperature"] = temperature
     if json_schema is not None:

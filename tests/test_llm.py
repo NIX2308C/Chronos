@@ -44,22 +44,20 @@ threading.Thread(target=server.serve_forever, daemon=True).start()
 llm.BASE_URL = "http://127.0.0.1:%d/v1" % server.server_port
 llm.API_KEY = "sekrit"
 llm.TIMEOUT_S = 5
+llm.time.sleep = lambda _s: None
 
 TOOL = A.practice_activity_tool(dict(A.course_settings(), practice_tools=True))
 
 
-def _reply(content="", tool_calls=None, usage=None):
-    msg = {"role": "assistant", "content": content}
-    if tool_calls:
-        msg["tool_calls"] = tool_calls
-    out = {"choices": [{"message": msg}]}
+def _reply(content="", usage=None):
+    out = {"choices": [{"message": {"role": "assistant", "content": content}}]}
     if usage:
         out["usage"] = usage
     return out
 
 
 def _call(args):
-    return [{"id": "c1", "type": "function", "function": {"name": A.TOOL_FUNCTION_NAME, "arguments": args}}]
+    return "\nTOOL_CALL " + json.dumps({"name": A.TOOL_FUNCTION_NAME, "args": args})
 
 
 def test_generate_text_and_request_shape():
@@ -74,20 +72,29 @@ def test_generate_text_and_request_shape():
     assert sent["path"] == "/v1/chat/completions" and sent["auth"] == "Bearer sekrit"
     b = sent["body"]
     assert [m["role"] for m in b["messages"]] == ["system", "user", "assistant", "user"], b["messages"]
-    assert b["messages"][0]["content"] == "SYS" and b["stream"] is False
-    assert b["temperature"] == 0.3
-    assert b["tools"][0]["function"]["name"] == A.TOOL_FUNCTION_NAME
-    assert b["tools"][0]["function"]["parameters"]["properties"]["type"]["enum"] == ["quiz", "flashcards"]
+    assert b["messages"][0]["content"].startswith("SYS") and "TOOL_CALL" in b["messages"][0]["content"]
+    assert A.TOOL_FUNCTION_NAME in b["messages"][0]["content"] and "tools" not in b
+    assert b["stream"] is False and b["temperature"] == 0.3
+    assert (b["top_p"], b["top_k"], b["max_tokens"]) == (0.95, 64, 1024)
     assert "response_format" not in b
-    print("ok - request carries system, roles, tools, temperature and auth")
+    print("ok - request carries system+tool prompt, roles, sampling and auth")
 
 
-def test_tool_call_and_string_arguments():
+def test_tool_call_parsed_from_text():
     want = {"name": A.TOOL_FUNCTION_NAME, "args": {"type": "quiz", "topic": "osmosis"}}
-    for args in ({"type": "quiz", "topic": "osmosis"}, json.dumps({"type": "quiz", "topic": "osmosis"})):
-        replies.append((200, _reply("", _call(args))))
-        assert llm.generate("m", "quiz me", tools=[TOOL]).tool_call == want
-    print("ok - tool calls parse whether arguments arrive as an object or a JSON string")
+    replies.append((200, _reply("Sure!" + _call({"type": "quiz", "topic": "osmosis"}))))
+    r = llm.generate("m", "quiz me", tools=[TOOL])
+    assert r.tool_call == want and r.text == "Sure!", r
+    replies.append((200, _reply("Sure! TOOL_CALL {not json")))
+    r = llm.generate("m", "quiz me", tools=[TOOL])
+    assert r.tool_call is None and r.text == "Sure!", r
+    print("ok - tool calls are parsed out of the text; malformed ones are dropped")
+
+
+def test_thinking_is_stripped():
+    replies.append((200, _reply("<|channel>thought\nhmm<channel|>Answer.")))
+    assert llm.generate("m", "hi").text == "Answer."
+    print("ok - thinking text never reaches the caller")
 
 
 def test_json_schema_becomes_response_format():
@@ -101,20 +108,29 @@ def test_json_schema_becomes_response_format():
 
 
 def test_stream():
-    d = lambda **kw: {"choices": [{"delta": kw}]}
+    d = lambda c: {"choices": [{"delta": {"content": c}}]}
     replies.append((200, [
-        d(content="Hel"), d(content="lo"),
-        d(tool_calls=[{"index": 0, "function": {"name": A.TOOL_FUNCTION_NAME, "arguments": '{"type": "flash'}}]),
-        d(tool_calls=[{"index": 0, "function": {"arguments": 'cards", "topic": "cells"}'}}]),
+        d("<|chan"), d("nel>thought\nx<channel|>"), d("Hel"), d("lo\nTOOL_"), d("CALL "),
+        d('{"name": "%s", "args": {"type": "flash' % A.TOOL_FUNCTION_NAME), d('cards", "topic": "cells"}}'),
         {"choices": [], "usage": {"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6}},
     ]))
     chunks = list(llm.stream("m", "hi", tools=[TOOL]))
-    assert "".join(c.text for c in chunks) == "Hello"
+    assert "".join(c.text for c in chunks).strip() == "Hello", chunks
     assert [c.tool_call for c in chunks if c.tool_call] == [
         {"name": A.TOOL_FUNCTION_NAME, "args": {"type": "flashcards", "topic": "cells"}}]
     assert chunks[-1].usage == {"prompt": 4, "reply": 2, "total": 6}
     assert requests[-1]["body"]["stream"] is True
-    print("ok - streaming yields text deltas, the assembled tool call and final usage")
+    print("ok - streaming hides thinking and the tool call, yields the call and final usage")
+
+
+def test_history_trim():
+    big = "x" * 20000
+    contents = [{"role": r, "parts": [{"text": big}]} for r in ("user", "model", "user", "model", "user")]
+    replies.append((200, _reply("ok")))
+    llm.generate("m", contents)
+    msgs = requests[-1]["body"]["messages"]
+    assert len(msgs) < 5 and msgs[-1]["role"] == "user" and msgs[0]["role"] == "user", [m["role"] for m in msgs]
+    print("ok - oldest turns are dropped to fit the context window")
 
 
 def test_embeddings():
@@ -127,6 +143,10 @@ def test_embeddings():
 
 
 def test_errors_raise():
+    llm.TRIES = 2
+    replies.append((502, {"error": "tunnel down"}))
+    replies.append((200, _reply("back")))
+    assert llm.generate("m", "hi").text == "back"      # 5xx is retried
     replies.append((404, {"error": {"message": "model 'm' not found"}}))
     try:
         llm.generate("m", "hi")
@@ -184,7 +204,7 @@ def test_chat_and_tool_routes_on_endpoint():
     _route_fakes(settings)
     c = A.app.test_client()
 
-    replies.append((200, _reply("Let's check what you know.", _call({"type": "quiz", "topic": "Osmosis"}))))
+    replies.append((200, _reply("Let's check what you know." + _call({"type": "quiz", "topic": "Osmosis"}))))
     r = c.post("/chat", json={"message": "can you test me on osmosis", "class_id": "c1", "chat_id": "chat1"})
     assert r.status_code == 200, r.get_json()
     body = r.get_json()
@@ -204,7 +224,7 @@ def test_chat_and_tool_routes_on_endpoint():
     assert requests[-1]["body"]["response_format"]["json_schema"]["schema"] == A.ACTIVITY_SCHEMAS["quiz"]
 
     # A tool the course has switched off is dropped even if the model calls it.
-    replies.append((200, _reply("Here you go.", _call({"type": "concept_map", "topic": "x"}))))
+    replies.append((200, _reply("Here you go." + _call({"type": "concept_map", "topic": "x"}))))
     r = c.post("/chat", json={"message": "map osmosis for me", "class_id": "c1", "chat_id": "chat1"})
     assert r.get_json()["tool_request"] is None
     print("ok - /chat and /tools/run work end to end through the endpoint")
@@ -213,7 +233,9 @@ def test_chat_and_tool_routes_on_endpoint():
 if __name__ == "__main__":
     try:
         test_generate_text_and_request_shape()
-        test_tool_call_and_string_arguments()
+        test_tool_call_parsed_from_text()
+        test_thinking_is_stripped()
+        test_history_trim()
         test_json_schema_becomes_response_format()
         test_embeddings()
         test_stream()

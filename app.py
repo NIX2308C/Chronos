@@ -3028,7 +3028,8 @@ def run_tool():
         if not context_block and settings["grounded_only"]:
             return jsonify({"error": "I couldn't find enough course material to build that yet."}), 422
         text = llm.generate(TOOL_MODEL, _tool_prompt(tool, context_block, custom_rules),
-                            temperature=0.2, json_schema=ACTIVITY_SCHEMAS[tool["type"]]).text
+                            temperature=0.2, json_schema=ACTIVITY_SCHEMAS[tool["type"]],
+                            max_tokens=3072).text
         result = _parse_tool_result(text, tool["type"])
         if not result:
             return jsonify({"error": "I couldn't make that learning activity. Please try again."}), 502

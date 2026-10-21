@@ -70,8 +70,8 @@ Add a `.env` file with your keys:
 
 ```env
 TEACHER_SIGNUP_CODE=your-strong-code     # required: gates teacher registration; the app won't start without it
-LLM_BASE_URL=http://localhost:11434/v1   # placeholder: your OpenAI-compatible endpoint
-LLM_API_KEY=                              # empty for local servers
+LLM_BASE_URL=https://chronos-llm.tevproject.com/v1
+LLM_API_KEY=...                           # required; server side only
 PINECONE_API_KEY=...
 FIREBASE_WEB_API_KEY=...                  # Firebase console > Project settings > Web app > apiKey
 FIREBASE_PROJECT_ID=your-project-id
@@ -131,7 +131,7 @@ A few optional overrides exist too:
 - `MAX_MESSAGES_RETURNED` (cap on messages returned for one conversation, default 500)
 - `ROLE_CACHE_TTL` (seconds a user's role is cached in-process, default 60)
 - `TRUST_PROXY_HOPS` (default 0; set to 1 on Cloud Run so client IPs in the logs are real)
-- `CHAT_MODEL` (the chat model name your endpoint serves, default `llama3.1`)
+- `CHAT_MODEL` (the chat model name your endpoint serves, default `gemma4-e4b`)
 - `TOOL_MODEL` (the model that builds learning activities; defaults to `CHAT_MODEL`)
 - `FLASK_DEBUG`
 
@@ -195,52 +195,24 @@ models or hosts, change environment variables only.
 
 | Variable | Default (placeholder) | Meaning |
 | --- | --- | --- |
-| `LLM_BASE_URL` | `http://localhost:11434/v1` | Endpoint root, **including `/v1`** |
-| `LLM_API_KEY` | empty | Bearer token; leave empty for servers without auth |
-| `CHAT_MODEL` | `llama3.1` | Model for tutoring replies |
+| `LLM_BASE_URL` | `https://chronos-llm.tevproject.com/v1` | Endpoint root, **including `/v1`** |
+| `LLM_API_KEY` | none (required) | Bearer token for the chat server |
+| `CHAT_MODEL` | `gemma4-e4b` | Model for tutoring replies |
 | `TOOL_MODEL` | = `CHAT_MODEL` | Model for quizzes/flashcards/etc. (must follow JSON schemas) |
 | `EMBED_MODEL` | `nomic-embed-text` | Embedding model |
 | `EMBED_DIMENSIONS` | unset | Sent as `dimensions` if set (OpenAI v3 embedding models only) |
-| `LLM_TIMEOUT_S` | `120` | Per-request timeout |
+| `LLM_TIMEOUT_S` | `120` | Read timeout (never below 120) |
+| `LLM_MAX_PROMPT_CHARS` | `36000` | History is trimmed past this size to fit the 16k-token window |
 
-### Recipes
-
-**OpenAI**
-```env
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_API_KEY=sk-...
-CHAT_MODEL=gpt-4o-mini
-EMBED_MODEL=text-embedding-3-small
-EMBED_DIMENSIONS=768
-```
-
-**Ollama on the same machine**
-```bash
-ollama pull llama3.1 && ollama pull nomic-embed-text
-```
-```env
-LLM_BASE_URL=http://localhost:11434/v1
-CHAT_MODEL=llama3.1
-EMBED_MODEL=nomic-embed-text
-```
-
-**Ollama on another device** (e.g. a GPU box at home). Either bind Ollama to the
-network and forward the port, or tunnel it:
-```bash
-# on the GPU box: listen on all interfaces (firewall it / put it behind auth!)
-OLLAMA_HOST=0.0.0.0 ollama serve
-
-# or, safer, from the machine running Chronos: an SSH tunnel
-ssh -N -L 11434:localhost:11434 user@gpu-box
-```
-```env
-LLM_BASE_URL=http://gpu-box.local:11434/v1     # or http://localhost:11434/v1 via the tunnel
-```
-An Ollama port reachable from the internet is an open LLM: put it behind a
-reverse proxy that checks a bearer token and set `LLM_API_KEY` to match.
-
-**LM Studio / vLLM / llama.cpp server** — same shape, e.g.
-`LLM_BASE_URL=http://localhost:1234/v1` (LM Studio) or `http://host:8000/v1` (vLLM).
+### Chat model
+Chat runs on a llama.cpp `llama-server` (Gemma 4 E4B, model name `gemma4-e4b`) at
+`https://chronos-llm.tevproject.com/v1`, behind a Cloudflare tunnel. It is stateless,
+handles one request at a time, and has a 16,384-token window (prompt + output), so
+`llm.py` sends the full conversation every time, trims the oldest turns when the prompt
+gets long, and streams so Cloudflare never sees 100 s of silence. 5xx and network errors
+retry up to 3 times. The server's native `tools` is not used: `llm.py` describes tools in
+the system prompt and parses `TOOL_CALL {...}` from the reply. Thinking text is stripped.
+`LLM_API_KEY` is required and is only ever read on the server.
 
 ### Embeddings and Pinecone
 Course material is embedded with `EMBED_MODEL` and stored in the Pinecone index

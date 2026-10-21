@@ -11,7 +11,7 @@ Chronos is a course grounded AI tutor. Teachers create courses, upload source ma
 | Task | Start here |
 | --- | --- |
 | Routes, configuration, auth, API contracts | `app.py` (search `@app.route`); `web/auth.js`; `android/.../net/Api.kt` |
-| Model endpoint (OpenAI-compatible) | `llm.py`: `generate`, `stream`, `embed`, `embed_batch`, `health`; env `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_TIMEOUT_S`, `CHAT_MODEL`/`TOOL_MODEL`/`EMBED_MODEL`. Every model call goes through it. Tools are plain JSON-schema declarations; `json_schema` maps to `response_format`. README "Connecting a model" |
+| Model endpoint (llama.cpp Gemma 4 E4B, OpenAI-compatible; text-protocol tools, thought stripping, retries, history trim) | `llm.py`: `generate`, `stream`, `embed`, `embed_batch`, `health`; env `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_TIMEOUT_S`, `CHAT_MODEL`/`TOOL_MODEL`/`EMBED_MODEL`. Every model call goes through it. Tools are plain JSON-schema declarations; `json_schema` maps to `response_format`. README "Connecting a model" |
 | Tutor answer, retrieval, memory, streaming | `app.py`: `chat`, `build_system_instruction` (`CHRONOS_CHARACTER`, `HINT_RULES`, fixed honesty/safety/format rules), `load_history`, `load_class_memory`, `load_student_docs`; `web/student.html`: `send`, `readChatResponse`; `android/.../net/ChatStream.kt` |
 | Learning activities | `app.py`: `run_tool`, `_tool_prompt`, `ACTIVITY_SCHEMAS` (schema-constrained output), `_parse_tool_result`, `activity_from_call`; `web/student.html`: `runTool`, `buildLearningTool` |
 | Teacher material and settings | `web/teacherknowledge.html`; `app.py`: `manage_course_settings`, `ingest`, `upload`, `list_rules`, `delete_rule` |

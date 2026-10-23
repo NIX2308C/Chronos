@@ -251,7 +251,7 @@ html.dark .ai-prose a { color: var(--accent); }
 /* reply status: one glyph in the left gutter that glides beside the line being written
    and morphs between phases (hop -> orbit -> voice bars -> card being written) */
 .ai-prose { position: relative; }
-.reply-status { --rs-y: .81em; position: absolute; left: -36px; top: 0; height: 0; display: flex; align-items: center; gap: 12px; color: var(--accent); pointer-events: none;
+.reply-status { --rs-y: .81em; position: absolute; left: -36px; top: 0; height: 0; transform-origin: 11px 0; display: flex; align-items: center; gap: 12px; color: var(--accent); pointer-events: none;
   transform: translateY(var(--rs-y)); transition: transform .42s var(--ease); animation: rs-in .45s var(--ease) both; }
 .reply-status.leaving { animation: rs-out .32s var(--ease) both; }
 .rs-glyph { position: relative; width: 22px; height: 22px; flex: none; }
@@ -280,9 +280,9 @@ html.dark .ai-prose a { color: var(--accent); }
 /* talking: one steady drop with soft rings that spread from it. Calm while the text pauses,
    quicker while it is being written */
 .rs-voice { display: block; }
-.rs-voice i { position: absolute; left: 50%; top: 50%; translate: -50% -50%; border-radius: 50%; width: 8px; height: 8px; }
-.rs-voice .core { background: currentColor; box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent); }
-.rs-voice .ring { border: 1.5px solid currentColor; opacity: 0; }
+.rs-voice i { position: absolute; left: 50%; top: 50%; translate: -50% -50%; border-radius: 50%; width: 6px; height: 6px; }
+.rs-voice .core { background: currentColor; }
+.rs-voice .ring { border: 1px solid currentColor; opacity: 0; }
 .reply-status[data-phase="responding"] .rs-voice { opacity: 1; scale: 1; filter: none; }
 .reply-status[data-phase="responding"] .rs-voice .core { animation: rs-core 2.4s ease-in-out infinite; }
 .reply-status[data-phase="responding"] .rs-voice .ring { animation: rs-ripple 2.4s cubic-bezier(.2, .6, .3, 1) infinite; }
@@ -307,13 +307,13 @@ html.dark .ai-prose a { color: var(--accent); }
 .reply-status[data-phase="thinking"] .rs-label { opacity: 1; translate: 0 0; animation: rs-label-pulse 2.2s ease-in-out infinite; }
 
 @keyframes rs-in { from { opacity: 0; scale: .6; } }
-@keyframes rs-out { to { opacity: 0; scale: .5; filter: blur(3px); } }
+@keyframes rs-out { to { opacity: 0; filter: blur(2px); } }
 @keyframes rs-hop { 0%, 55%, 100% { transform: translateY(0) scale(1, 1); opacity: .45; } 18% { transform: translateY(1px) scale(1.25, .75); } 32% { transform: translateY(-6px) scale(.9, 1.1); opacity: 1; } 46% { transform: translateY(0) scale(1.15, .85); } }
 @keyframes rs-spin { to { rotate: 360deg; } }
 @keyframes rs-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 @keyframes rs-core { 0%, 100% { scale: .85; } 50% { scale: 1.1; } }
-@keyframes rs-core-live { 0%, 100% { scale: .8; box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent); } 40% { scale: 1.25; box-shadow: 0 0 9px 1px color-mix(in srgb, currentColor 45%, transparent); } }
-@keyframes rs-ripple { 0% { scale: .9; opacity: .75; } 100% { scale: 2.75; opacity: 0; } }
+@keyframes rs-core-live { 0%, 100% { scale: .85; } 40% { scale: 1.15; } }
+@keyframes rs-ripple { 0% { scale: .9; opacity: .5; } 100% { scale: 2.4; opacity: 0; } }
 @keyframes rs-label-pulse { 0%, 100% { color: var(--faint); } 50% { color: var(--accent); } }
 @keyframes rs-paper { 0%, 100% { fill-opacity: 0; } 50% { fill-opacity: .09; } }
 @keyframes rs-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -1.2px; } }

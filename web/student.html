@@ -323,7 +323,7 @@
 <link href="icons/favicon.ico" rel="icon" sizes="16x16 32x32 48x48"/>
 <link href="icons/icon-192.png" rel="icon" type="image/png" sizes="192x192"/>
 <link href="icons/apple-touch-icon-180.png" rel="apple-touch-icon"/>
-<link href="ink.css?v=ink2" rel="stylesheet"/>
+<link href="ink.css?v=ink3" rel="stylesheet"/>
 <script src="ink.js?v=ink2" defer></script>
 </head>
 <body>
@@ -1213,7 +1213,7 @@
   // later chunks cannot change their wrapping or discard their text nodes.
   function createReplyStream(node){
     node.replaceChildren();
-    const pending=document.createElement("span");pending.className="typing-indicator ink-dots";pending.innerHTML="<i></i><i></i><i></i>";pending.setAttribute("role","status");pending.setAttribute("aria-label","Chronos is typing");
+    const pending=document.createElement("span");pending.className="typing-indicator ink-dots";pending.innerHTML="<i></i><i></i><i></i><em>Thinking…</em>";pending.setAttribute("role","status");pending.setAttribute("aria-label","Chronos is thinking");
     
     const tail=document.createElement("div");tail.className="stream-tail";
     tail.hidden=true;node.append(pending,tail);

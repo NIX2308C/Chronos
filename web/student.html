@@ -323,7 +323,7 @@
 <link href="icons/favicon.ico" rel="icon" sizes="16x16 32x32 48x48"/>
 <link href="icons/icon-192.png" rel="icon" type="image/png" sizes="192x192"/>
 <link href="icons/apple-touch-icon-180.png" rel="apple-touch-icon"/>
-<link href="ink.css?v=ink6" rel="stylesheet"/>
+<link href="ink.css?v=ink7" rel="stylesheet"/>
 <script src="ink.js?v=ink2" defer></script>
 </head>
 <body>
@@ -754,6 +754,7 @@
 
   function buildMsgEl(m){
     if(m.role==="tool_status")return buildToolStatus(m);
+    if(m.role==="error")return buildErrorNote(m.content);
     if(m.role==="student"){
       const w=document.createElement("div");w.className="flex flex-col items-end mb-stack-lg pr-1.5";
       const b=document.createElement("div");
@@ -1167,7 +1168,15 @@
   function buildToolProgress(request){
     return {role:"tool_status",state:"using",text:"Creating "+(TOOL_LABELS[request.type]||"activity").toLowerCase()+"…"};
   }
+  // A failure shown as a failure, not as something the tutor said. Messages are generic by design.
+  function buildErrorNote(text){
+    const box=document.createElement("div");box.className="err-note";box.setAttribute("role","alert");
+    box.innerHTML='<span class="material-symbols-outlined" aria-hidden="true">error</span><span class="en-text"></span>';
+    box.querySelector(".en-text").textContent=text;
+    return box;
+  }
   function buildToolStatus(status){
+    if(status.state==="failed")return buildErrorNote(status.text);
     const box=document.createElement("div");box.className="tool-status "+status.state;
     box.setAttribute("role","status");box.setAttribute("aria-live","polite");
     // Plain text; data-text feeds the glow layer that runs while it is working.
@@ -1695,11 +1704,22 @@
       if(!reachedServer)setStatus("offline");
       const message=(err&&err.message)||"Can't reach the server. Please try again.";
       const partial=stream.text;
-      tm.content=partial?partial+"\n\n"+message:message;
-      await stream.finish(partial||message);
       if(partial){
-        const note=document.createElement("p");note.className="mt-3.5 text-primary text-[13.5px] leading-relaxed";
-        note.textContent=message;el.appendChild(note);
+        // The reply was cut off part-way: keep what arrived and flag the break.
+        await stream.finish(partial);
+        el.appendChild(buildErrorNote(message));
+      }else{
+        // Nothing arrived: this is an error, not a reply. Take the unsent exchange back out of
+        // the thread, put the message back in the box, and show the failure on its own.
+        const failed=c.messages.indexOf(tm);
+        if(failed>=0){
+          c.messages.splice(failed,1);
+          if(failed>0&&c.messages[failed-1].role==="student")c.messages.splice(failed-1,1);
+        }
+        if(!c.messages.length&&c.isNew){c.title="New chat";renderSidebar();}
+        c.messages.push({role:"error",content:message});
+        if(!els.input.value)els.input.value=text;
+        if(c.id===activeChatId)renderMessages();
       }
       setSending(false);
       return false;

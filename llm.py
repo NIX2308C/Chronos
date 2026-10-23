@@ -15,7 +15,8 @@ The request shape app.py builds: `contents` is a string or a list of
 JSON-schema declarations, but the server's native `tools` is not used: they are
 described in the system prompt and the call is parsed out of the reply text
 (`TOOL_CALL {"name": ..., "args": {...}}` on the last line, one per turn). A
-malformed call is dropped. `json_schema` maps to `response_format`.
+malformed call is dropped. A tool marked `"alone": True` is called as the whole
+reply and its result is sent back for another turn (see app.py's tool loop). `json_schema` maps to `response_format`.
 
 The endpoint is stateless, so callers send the whole conversation each time. Thinking text
 (`<|channel>thought ... <channel|>`, `reasoning_content`) is never returned.
@@ -64,13 +65,18 @@ _embed_model = None
 
 # Default sampling; the caller's temperature overrides.
 SAMPLING = {"temperature": 1.0, "top_p": 0.95, "top_k": 64}
-MAX_TOKENS = 1500
-# The model requires reasoning, so it is always on. Non-streaming calls exclude it; streams
-# receive it on a separate field (never in the reply) so the UI can show a thinking phase. LLM_REASONING_EFFORT (low/medium/high) optionally bounds how much it thinks.
+# Reasoning tokens count against max_tokens, so this leaves room for both.
+MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
+# This model requires reasoning by default. Non-streaming calls exclude it; streams
+# receive it on a separate field (never in the reply) so the UI can show a thinking phase.
+# LLM_REASONING_EFFORT (low/medium/high) optionally bounds how much it thinks.
+# `think=False` asks the endpoint to switch it off; if the model refuses (it may make
+# reasoning mandatory) the request is retried once with it on and the answer remembered.
 REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT", "").strip().lower()
-# The 16,384-token window covers prompt + output: prompt <= ~12,000 tokens and
-# ~1,500 for the reply. Tokens are estimated as chars/3; the oldest turns go first.
-PROMPT_TOKENS = int(os.getenv("LLM_PROMPT_TOKENS", "12000"))
+_can_disable_thinking = None     # None = not tried yet
+# Prompt budget (tokens, estimated as chars/3; the oldest turns go first). Sized for a
+# hosted model with a large window; lower it if the model's window is small.
+PROMPT_TOKENS = int(os.getenv("LLM_PROMPT_TOKENS", "32000"))
 MESSAGE_OVERHEAD_TOKENS = 50      # chat-template overhead per message
 
 # Cloudflare rejects urllib's default "Python-urllib/x.y" agent with a 403 (error 1010).
@@ -101,22 +107,24 @@ def estimate_tokens(text):
 
 # ---------- prompt building ----------
 
+def _signature(t):
+    params = (t.get("parameters") or {}).get("properties") or {}
+    args = []
+    for k, v in params.items():
+        v = v if isinstance(v, dict) else {}
+        args.append("%s: %s" % (k, "|".join(v["enum"]) if v.get("enum") else v.get("type", "string")))
+    return "%s(%s)" % (t["name"], ", ".join(args))
+
+
 def _tool_instructions(tools):
     lines = [
-        "You can call one tool per reply. To call it, write your normal reply first, then put "
-        "this on the very last line and nothing after it:",
-        TOOL_MARKER + ' {"name": "<tool name>", "args": {<arguments as JSON>}}',
-        "Call a tool only when its description says to. Otherwise just answer.",
-        "Tools:",
+        "Tools. To call one, end your reply with this on the last line, nothing after it:",
+        TOOL_MARKER + ' {"name": "<tool>", "args": {...}}',
+        "One call per reply, only when its description says to. Tools marked [alone] must be the "
+        "whole reply: no other text, then you get the result and continue.",
     ]
     for t in tools:
-        lines.append("- %s: %s Arguments (JSON Schema): %s" % (
-            t["name"], t.get("description", ""),
-            json.dumps(t.get("parameters") or {"type": "object", "properties": {}}, separators=(",", ":"))))
-    first = tools[0]
-    props = (first.get("parameters") or {}).get("properties") or {}
-    example = {k: (v.get("enum") or ["..."])[0] if isinstance(v, dict) else "..." for k, v in props.items()}
-    lines.append("Example:\n%s %s" % (TOOL_MARKER, json.dumps({"name": first["name"], "args": example})))
+        lines.append("- %s%s: %s" % (_signature(t), " [alone]" if t.get("alone") else "", t.get("description", "")))
     return "\n".join(lines)
 
 
@@ -140,12 +148,15 @@ def _messages(contents, system, tools=None):
     return head + turns
 
 
-def _body(model, contents, system, tools, temperature, json_schema, stream, max_tokens):
+def _body(model, contents, system, tools, temperature, json_schema, stream, max_tokens, think=True):
     body = {"model": model, "messages": _messages(contents, system, tools), "stream": stream,
             "max_tokens": max_tokens or MAX_TOKENS, **SAMPLING}
-    body["reasoning"] = {"exclude": not stream}
-    if REASONING_EFFORT in ("low", "medium", "high"):
-        body["reasoning"]["effort"] = REASONING_EFFORT
+    if not think and _can_disable_thinking is not False:
+        body["reasoning"] = {"enabled": False}
+    else:
+        body["reasoning"] = {"exclude": not stream}
+        if REASONING_EFFORT in ("low", "medium", "high"):
+            body["reasoning"]["effort"] = REASONING_EFFORT
     if temperature is not None:
         body["temperature"] = temperature
     if json_schema is not None:
@@ -293,10 +304,32 @@ def health(model=None):
     return True
 
 
-def generate(model, contents, system=None, tools=None, temperature=None, json_schema=None, max_tokens=None):
+def can_disable_thinking():
+    """True/False once known from a real request, None until `think=False` has been tried."""
+    return _can_disable_thinking
+
+
+def _open_chat(args, think):
+    """Open a chat request. With think=False, fall back to normal reasoning if the model insists on it."""
+    global _can_disable_thinking
+    try:
+        resp = _open("/chat/completions", _body(*args, think))
+    except LLMError as e:
+        if think or _can_disable_thinking is False or "reason" not in str(e).lower():
+            raise
+        _can_disable_thinking = False
+        logger.warning("This model will not run without reasoning (%s); leaving it on.", e)
+        return _open("/chat/completions", _body(*args, True))
+    if not think and _can_disable_thinking is None:
+        _can_disable_thinking = True
+    return resp
+
+
+def generate(model, contents, system=None, tools=None, temperature=None, json_schema=None, max_tokens=None,
+             think=True):
     """One complete reply. `json_schema={}` asks for any JSON object."""
-    body = _body(model, contents, system, tools, temperature, json_schema, False, max_tokens)
-    with _open("/chat/completions", body) as resp:
+    args = (model, contents, system, tools, temperature, json_schema, False, max_tokens)
+    with _open_chat(args, think) as resp:
         data = _read_json(resp)
     choices = data.get("choices") or []
     if not choices:
@@ -310,11 +343,11 @@ def generate(model, contents, system=None, tools=None, temperature=None, json_sc
     return Result((text + tail).strip(), call, _usage(data))
 
 
-def stream(model, contents, system=None, tools=None, temperature=None, max_tokens=None):
+def stream(model, contents, system=None, tools=None, temperature=None, max_tokens=None, think=True):
     """Yield Chunk(text, tool_call, usage) as the reply arrives."""
     cleaner, usage, thinking = _Cleaner(), None, False
-    body = _body(model, contents, system, tools, temperature, None, True, max_tokens)
-    with _open("/chat/completions", body) as resp:
+    args = (model, contents, system, tools, temperature, None, True, max_tokens)
+    with _open_chat(args, think) as resp:
         for raw in resp:
             line = raw.decode("utf-8", "replace").strip()
             if not line.startswith("data:"):      # blank separators and ":" keep-alive pings

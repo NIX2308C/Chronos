@@ -323,7 +323,7 @@
 <link href="icons/favicon.ico" rel="icon" sizes="16x16 32x32 48x48"/>
 <link href="icons/icon-192.png" rel="icon" type="image/png" sizes="192x192"/>
 <link href="icons/apple-touch-icon-180.png" rel="apple-touch-icon"/>
-<link href="ink.css?v=ink5" rel="stylesheet"/>
+<link href="ink.css?v=ink6" rel="stylesheet"/>
 <script src="ink.js?v=ink2" defer></script>
 </head>
 <body>
@@ -436,7 +436,7 @@
 <div class="composer" id="composerBox">
 <div class="composer-tools">
 <button type="button" class="composer-action" id="addFileBtn" aria-label="Add to conversation" aria-haspopup="menu" aria-expanded="false" title="Add to conversation"><span class="material-symbols-outlined">add</span></button>
-<button type="button" class="composer-action" id="toolBtn" aria-label="Create learning activity" aria-haspopup="menu" aria-expanded="false" title="Create learning activity" hidden><span class="material-symbols-outlined">widgets</span></button>
+<button type="button" class="composer-action" id="toolBtn" aria-label="Activities and options" aria-haspopup="menu" aria-expanded="false" title="Activities and options"><span class="material-symbols-outlined">widgets</span></button>
 <div class="composer-menu" id="addFileMenu" role="menu" hidden>
 <button type="button" role="menuitem" data-add-kind="assignment"><span class="material-symbols-outlined">upload_file</span>Add assignment</button>
 <button type="button" role="menuitem" data-add-kind="rubric"><span class="material-symbols-outlined">checklist</span>Add rubric</button>
@@ -524,6 +524,11 @@
   const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),messages:document.getElementById("messages")};
   const chatTransition=ChronosNav.createViewTransition(document.querySelector("[data-chat-col]"));
   let navigationBusy=false,sending=false,toolRunning=false;
+  // Thinking is on unless the student switches it off (kept per device); THINK_LOCKED
+  // is set once the server finds the model won't run without it.
+  let THINK=true,THINK_LOCKED=false;
+  try{THINK=localStorage.getItem("chronos-think")!=="0";}catch(e){}
+  const TZ=(()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone||"";}catch(e){return "";}})();
   let IS_DEV=false,DEBUG=false;   // developer accounts only; decided by the server (/auth/me)
   const uiPref=(k,d)=>{const v=(window.ChronosTheme?ChronosTheme.ui():{})[k];return v===undefined?d:v;};
 
@@ -596,11 +601,11 @@
   async function loadMessages(c){
     if(c.loaded)return c.messages;
     const d=await Chronos.apiJson("/chats/"+encodeURIComponent(c.id)+"/messages",undefined,"GET");
+    c.ended=!!d.ended;
     // Students receive the answer status, not the underlying teacher sources.
     return (d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],
       sources:m.sources||[],tool:m.tool||null,
-      reviewed:!!m.reviewed,blocked:!!m.blocked,
-      gap:m.role==="teacher"&&!!m.material_gap&&!m.reviewed&&!m.blocked}));
+      reviewed:!!m.reviewed,blocked:!!m.blocked}));
   }
 
   async function deleteChat(id){
@@ -753,10 +758,7 @@
     b.className="ai-prose bub-ai"+(m.blocked?" bub-blocked":"");
     if(m.content){b.innerHTML=renderMarkdown(m.content);}
     w.appendChild(b);
-    // An answer with no sources behind it is the "not in this class's material"
-    // refusal — the same empty-rules signal the server counts as a knowledge gap.
     if(m.blocked)w.appendChild(blockedNote());
-    else if(m.gap)w.appendChild(gapNote());
     if(m.reviewed)w.appendChild(reviewedNote());
     // Sources are teacher-only: students never see the underlying material,
     // teachers get a collapsible dropdown beneath the answer. The role check
@@ -787,16 +789,8 @@
     return p;
   }
 
-  function gapNote(){
-    const p=document.createElement("p");
-    p.className="mt-3.5 text-primary text-[13.5px] leading-relaxed";
-    p.textContent="Not in the course material yet. Your teacher can see this.";
-    return p;
-  }
-
   // Answered from the work the student attached, because nothing in the class
-  // material matched. The teacher still counts it as a gap — but printing "not in
-  // my knowledge base" under a full review of their essay would just be untrue.
+  // material matched.
   function reviewedNote(){
     const p=document.createElement("p");
     p.className="mt-3.5 text-on-surface-variant text-[13.5px] leading-relaxed";
@@ -1169,14 +1163,6 @@
     }
     return box;
   }
-  // Slides the finished status up and away before the activity takes its place.
-  function dismissStatus(el){
-    return new Promise(resolve=>{
-      if(reduceMotion||!el.isConnected){resolve();return;}
-      let settled=false;const end=()=>{if(!settled){settled=true;resolve();}};
-      el.classList.add("leaving");el.addEventListener("animationend",end,{once:true});setTimeout(end,450);
-    });
-  }
   function scrollBottom(){els.messages.scrollTop=els.messages.scrollHeight;}
   // "Latest" pill: appears once the reader has scrolled away from the bottom.
   (function(){
@@ -1209,24 +1195,38 @@
     player.onended=()=>{if(currentSound===player)currentSound=null;};
   }
 
+  const PHASE_ARIA={waiting:"Chronos is working",thinking:"Chronos is thinking",responding:"Chronos is writing",tool:"Chronos is building an activity"};
+  // The status glyph shared by the reply gutter and the activity placeholder. Every phase's
+  // art is mounted at once; ink.css cross-fades them by data-phase.
+  function buildStatusGlyph(phase,label){
+    const el=document.createElement("div");el.className="reply-status";el.dataset.phase=phase;el.dataset.live="0";
+    el.setAttribute("role","status");el.setAttribute("aria-label",PHASE_ARIA[phase]);
+    el.innerHTML='<span class="rs-glyph" aria-hidden="true">'
+      +'<span class="rs-dots"><i></i><i></i><i></i></span>'
+      +'<span class="rs-wave"><i></i><i></i><i></i><i></i><i></i></span>'
+      +'<svg class="rs-build" viewBox="0 0 24 24"><rect class="b-card" pathLength="1" x="4.5" y="3.5" width="15" height="17" rx="3.2"/>'
+      +'<line class="b-line" pathLength="1" x1="8.5" y1="9" x2="15.5" y2="9"/><line class="b-line" pathLength="1" x1="8.5" y1="12.5" x2="15.5" y2="12.5"/><line class="b-line" pathLength="1" x1="8.5" y1="16" x2="12.5" y2="16"/></svg>'
+      +'</span>'+(label===false?"":'<span class="rs-label">Thinking</span>');
+    return el;
+  }
+
   // Only the unfinished block is reparsed. Finished blocks stay mounted, so
   // later chunks cannot change their wrapping or discard their text nodes.
   function createReplyStream(node){
     node.replaceChildren();
     // One status glyph sits in the left gutter beside the line being written and glides
-    // down with it: hopping dots while waiting, an orbit while the model reasons, a draining
-    // hourglass while it writes, a sparkle while it builds an activity.
-    const pending=document.createElement("div");pending.className="reply-status";pending.dataset.phase="waiting";
-    pending.setAttribute("role","status");pending.setAttribute("aria-label","Chronos is working");
-    pending.innerHTML='<span class="rs-glyph" aria-hidden="true">'
-      +'<span class="rs-dots"><i></i><i></i><i></i></span>'
-      +'<svg class="rs-glass" viewBox="0 0 24 24"><path class="rs-frame" pathLength="1" d="M6.5 3.5h11M6.5 20.5h11M8 3.5c0 4.6 8 5.6 8 8.5s-8 3.9-8 8.5M16 3.5c0 4.6-8 5.6-8 8.5s8 3.9 8 8.5"/><path class="rs-sand-top" d="M9.2 6h5.6L12 10.6z"/><path class="rs-sand-bot" d="M8.9 19.6h6.2L12 15.6z"/><line class="rs-stream" x1="12" y1="11" x2="12" y2="19"/></svg>'
-      +'<svg class="rs-spark" viewBox="0 0 24 24"><path d="M11 3c.6 4.4 3.1 7 7.5 7.6-4.4.6-6.9 3.2-7.5 7.6-.6-4.4-3.1-7-7.5-7.6C7.9 10 10.4 7.4 11 3z"/><path class="rs-spark-mini" d="M18.5 14.5c.25 1.9 1.1 2.75 3 3-1.9.25-2.75 1.1-3 3-.25-1.9-1.1-2.75-3-3 1.9-.25 2.75-1.1 3-3z"/></svg>'
-      +'</span><span class="rs-label">Thinking</span>';
-    const PHASE_ARIA={waiting:"Chronos is working",thinking:"Chronos is thinking",responding:"Chronos is writing",tool:"Chronos is preparing an activity"};
+    // down with it: hopping dots while waiting, an orbit while the model reasons, voice
+    // bars while it writes, a card being drawn while it builds an activity.
+    const pending=buildStatusGlyph("waiting");
     function setPhase(phase){
       if(pending.dataset.phase===phase||(phase==="thinking"&&pending.dataset.phase!=="waiting"))return;
       pending.dataset.phase=phase;pending.setAttribute("aria-label",PHASE_ARIA[phase]);
+    }
+    // The voice bars dance while text is arriving and settle into a slow breath when it pauses.
+    let liveTimer=null;
+    function markLive(){
+      pending.dataset.live="1";clearTimeout(liveTimer);
+      liveTimer=setTimeout(()=>{pending.dataset.live="0";},420);
     }
     // Align the glyph with the last rendered line of text.
     function track(){
@@ -1278,6 +1278,7 @@
         if(!remaining)tail.remove();
         else{tail.hidden=false;tail.innerHTML=preview(remaining);}
       }
+      if(!final)markLive();
       track();
       if(node.isConnected)scrollBottom();
     }
@@ -1386,6 +1387,38 @@
   let VIEW_GEN=0,toolAbort=null;
   function invalidateView(){ VIEW_GEN++;stopSound();if(toolAbort){toolAbort.abort();toolAbort=null;} }
 
+  // The placeholder that holds an activity's place while it is built: a skeleton card whose
+  // lines write themselves, with the status glyph in the gutter beside it.
+  function buildToolPending(request,onStop){
+    const card=document.createElement("div");card.className="tool-pending";
+    const kind=(TOOL_LABELS[request.type]||"activity").toLowerCase();
+    card.appendChild(buildStatusGlyph("tool",false));
+    const head=document.createElement("div");head.className="tp-head";
+    const label=document.createElement("span");label.className="tp-label";label.textContent="Building your "+kind;
+    const stop=document.createElement("button");stop.type="button";stop.className="tp-stop";stop.textContent="Stop";stop.onclick=onStop;
+    head.append(label,stop);
+    const lines=document.createElement("div");lines.className="tp-lines";
+    ["100%","86%","94%","58%"].forEach((w,i)=>{const l=document.createElement("i");l.style.setProperty("--w",w);l.style.setProperty("--i",i);lines.appendChild(l);});
+    card.append(head,lines);
+    return card;
+  }
+  // Dissolves the placeholder into the finished activity: the slot eases from one height
+  // to the other while the card fades out and the activity rises in.
+  function morphToolIn(slot,card,toolEl){
+    return new Promise(resolve=>{
+      if(reduceMotion||!slot.isConnected){slot.replaceWith(toolEl);resolve();return;}
+      const from=slot.offsetHeight;
+      slot.style.height=from+"px";
+      slot.appendChild(toolEl);
+      const to=toolEl.offsetHeight;
+      card.classList.add("leaving");
+      requestAnimationFrame(()=>{slot.style.height=to+"px";});
+      let done=false;
+      const end=()=>{if(done)return;done=true;if(slot.isConnected)slot.replaceWith(toolEl);resolve();};
+      setTimeout(end,620);
+    });
+  }
+
   // One status record follows the request through success, failure, or stop.
   async function runTool(request,chat,anchor){
     if(toolRunning)return;
@@ -1393,14 +1426,17 @@
     const gen=VIEW_GEN;
     const status=buildToolProgress(request);
     chat.messages.push(status);
-    let progress,stopped=false;
+    let stopped=false;
     const controller=new AbortController();toolAbort=controller;
-    status.cancel=()=>{
+    const slot=document.createElement("div");slot.className="tool-slot";
+    // A stopped or failed build shows its outcome as a quiet line where the card was.
+    const settle=()=>{if(slot.isConnected)slot.replaceWith(buildToolStatus(status));};
+    const stop=()=>{
       stopped=true;controller.abort();stopSound();
-      status.state="canceled";status.text="Stopped on this device.";
-      if(progress.isConnected)progress.replaceWith(progress=buildToolStatus(status));
+      status.state="canceled";status.text="Stopped on this device.";settle();
     };
-    progress=buildToolStatus(status);anchor.appendChild(progress);scrollBottom();playSound("using");
+    const card=buildToolPending(request,stop);
+    slot.appendChild(card);anchor.appendChild(slot);scrollBottom();playSound("using");
     try{
       const res=await Chronos.apiFetch("/tools/run",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({class_id:chat.classId||ACTIVE_CLASS,chat_id:chat.id,tool_request:request}),
@@ -1416,20 +1452,15 @@
       msg._toolEl=buildLearningTool(data.tool);
       chat.messages=chat.messages.filter(item=>item!==status);
       chat.messages.push(msg);
-      status.state="done";status.text=(TOOL_LABELS[request.type]||"Activity")+" ready";
-      progress.replaceWith(progress=buildToolStatus(status));playSound("done");
-      await new Promise(resolve=>setTimeout(resolve,reduceMotion?0:550));
-      if(gen===VIEW_GEN&&progress.isConnected){
-        await dismissStatus(progress);
-        if(gen===VIEW_GEN&&progress.isConnected)progress.replaceWith(msg._toolEl);
-      }
+      playSound("done");
+      await morphToolIn(slot,card,msg._toolEl);
     }catch(err){
       if(stopped||gen!==VIEW_GEN||(err&&err.name==="AbortError")){
         if(status.state==="using"){status.state="canceled";status.text="Stopped on this device.";}
         stopSound();return;
       }
       status.state="failed";status.text=(err&&err.message)||"Couldn’t create that activity.";
-      if(progress.isConnected)progress.replaceWith(progress=buildToolStatus(status));
+      settle();
       playSound("failed");
     }finally{
       if(toolAbort===controller)toolAbort=null;
@@ -1439,6 +1470,7 @@
   }
 
   const TOOL_LABELS={quiz:"Quiz",flashcards:"Flashcards",concept_map:"Concept map",review_sheet:"Review sheet"};
+  const TOOL_ICONS={quiz:"quiz",flashcards:"style",concept_map:"account_tree",review_sheet:"summarize"};
 
   function closeComposerMenus(){
     $s("addFileMenu").hidden=true;$s("toolMenu").hidden=true;
@@ -1476,27 +1508,30 @@
     });
   }
 
+  function menuItem(icon,label,onclick,checked){
+    const item=document.createElement("button");item.type="button";
+    item.setAttribute("role",checked===undefined?"menuitem":"menuitemcheckbox");
+    if(checked!==undefined)item.setAttribute("aria-checked",String(checked));
+    const symbol=document.createElement("span");symbol.className="material-symbols-outlined text-[18px]";symbol.textContent=icon;
+    if(checked)symbol.style.color="var(--crimson)";
+    item.append(symbol,document.createTextNode(label));
+    item.onclick=onclick;return item;
+  }
+
   function renderToolMenu(){
-    const button=$s("toolBtn"),menu=$s("toolMenu");
-    button.hidden=TOOLKITS.length===0&&!IS_DEV;
-    if(button.hidden){closeComposerMenus();return;}
+    const menu=$s("toolMenu");
+    $s("toolBtn").hidden=false;
     menu.replaceChildren();
     TOOLKITS.forEach(kind=>{
-      const item=document.createElement("button");item.type="button";item.setAttribute("role","menuitem");
-      const symbol=document.createElement("span");symbol.className="material-symbols-outlined text-[18px]";symbol.textContent="auto_awesome";
-      item.append(symbol,document.createTextNode(TOOL_LABELS[kind]||kind.replace(/_/g," ")));
-      item.onclick=()=>{closeComposerMenus();invokeTool(kind);};
-      menu.appendChild(item);
+      menu.appendChild(menuItem(TOOL_ICONS[kind]||"widgets",TOOL_LABELS[kind]||kind.replace(/_/g," "),()=>{closeComposerMenus();invokeTool(kind);}));
     });
-    if(IS_DEV){
-      const item=document.createElement("button");item.type="button";item.setAttribute("role","menuitemcheckbox");
-      item.setAttribute("aria-checked",String(DEBUG));
-      const symbol=document.createElement("span");symbol.className="material-symbols-outlined text-[18px]";symbol.textContent="bug_report";
-      if(DEBUG)symbol.style.color="var(--crimson)";
-      item.append(symbol,document.createTextNode(DEBUG?"Debug mode: on":"Debug mode"));
-      item.onclick=()=>{closeComposerMenus();setDebug(!DEBUG);};
-      menu.appendChild(item);
-    }
+    if(TOOLKITS.length)menu.appendChild(Object.assign(document.createElement("div"),{className:"menu-sep"}));
+    const think=menuItem("psychology",THINK_LOCKED?"Thinking: always on":(THINK?"Thinking: on":"Thinking: off"),
+      ()=>{if(THINK_LOCKED)return;THINK=!THINK;try{localStorage.setItem("chronos-think",THINK?"1":"0");}catch(e){}renderToolMenu();},
+      THINK_LOCKED?true:THINK);
+    if(THINK_LOCKED)think.disabled=true;
+    menu.appendChild(think);
+    if(IS_DEV)menu.appendChild(menuItem("bug_report",DEBUG?"Debug mode: on":"Debug mode",()=>{closeComposerMenus();setDebug(!DEBUG);},DEBUG));
   }
 
   // ---- debug mode (developer accounts) ----
@@ -1605,7 +1640,8 @@
     try{
       // The tutor answers from this chat's class. Omit chat_id for a not-yet-saved
       // conversation; the server creates one.
-      const body={message:text,class_id:c.classId||ACTIVE_CLASS,chat_id:c.id,stream:true};
+      const body={message:text,class_id:c.classId||ACTIVE_CLASS,chat_id:c.id,stream:true,tz:TZ};
+      if(!THINK)body.think=false;
       if(DEBUG)body.debug=true;
       const res=await Chronos.apiFetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       reachedServer=true;setStatus("online");
@@ -1623,12 +1659,12 @@
       const streamedText=stream.text;
       tm.content=data.response||streamedText;tm.rules=data.rules_used||[];tm.sources=data.sources||[];
       tm.reviewed=!!data.reviewed;tm.blocked=!!data.blocked;
-      tm.gap=!!data.material_gap&&!tm.reviewed&&!tm.blocked;
+      if(data.ended){c.ended=true;updateComposer();}
+      if(!!data.thinking_locked!==THINK_LOCKED){THINK_LOCKED=!!data.thinking_locked;renderToolMenu();}
       if(c.id!==activeChatId){setSending(false);return true;}
       if(Array.isArray(data.toolkits)){TOOLKITS=data.toolkits;renderToolMenu();}
       const gen=VIEW_GEN;
       await stream.finish(streamedText.trim()===tm.content?streamedText:tm.content);
-      if(tm.gap)el.appendChild(gapNote());
       if(tm.reviewed)el.appendChild(reviewedNote());
       const sources=IS_TEACHER?(tm.sources.length?tm.sources:tm.rules):[];
       if(sources.length)el.appendChild(buildSourcesDropdown(sources));
@@ -1654,8 +1690,10 @@
   }
 
   function updateComposer(){
-    els.sendBtn.disabled=sending||navigationBusy||toolRunning;
-    els.input.disabled=sending||navigationBusy||toolRunning;
+    const c=activeChat(),ended=!!(c&&c.ended);
+    els.sendBtn.disabled=sending||navigationBusy||toolRunning||ended;
+    els.input.disabled=sending||navigationBusy||toolRunning||ended;
+    els.input.placeholder=ended?"This conversation has ended. Start a new chat.":(matchMedia("(max-width:900px)").matches?"Ask a question…":"What would you like to understand?");
     $s("addFileBtn").disabled=navigationBusy||sending||toolRunning||FILES.length>=FILE_MAX;
     $s("toolBtn").disabled=navigationBusy||sending||toolRunning;
   }
@@ -1716,7 +1754,7 @@
     await applyClassFilter();
   }
   // The full prompt wraps onto two lines in a phone-width composer.
-  if(matchMedia("(max-width:900px)").matches)els.input.placeholder="Ask a question…";
+  updateComposer();
   els.input.addEventListener("input",()=>{if(activeChat())activeChat().draft=els.input.value;els.input.style.height="auto";els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";});
 
   // The on-screen keyboard doesn't resize the layout viewport, so the composer

@@ -161,6 +161,7 @@ def _chat_fakes(calls):
     A.load_history = lambda *a, **k: []
     A.load_course_settings = lambda *a, **k: A.course_settings()
     A.load_custom_rules = lambda *a, **k: []
+    A.load_course_name = lambda *a, **k: "Test Course"
     A.load_course_manifest = lambda *a, **k: [
         {"id": "file_1", "title": "Grammar.pdf", "summary": "Phrases.", "topics": ["Participle phrases"],
          "chunks": 3, "added": 1.0}]
@@ -201,7 +202,7 @@ def test_no_material_still_answers():
         prompt = calls[-1]["config"].system_instruction
         assert "Participle phrases" in prompt, "the outline never reached the model"
         if msg in ("hello", "hey there"):
-            assert body["material_gap"] is False, "a greeting was filed as a knowledge gap"
+            assert body["ended"] is False and "material_gap" not in body, "a greeting changed the chat's state"
     print("ok - greetings and empty retrieval reach the model with the course outline")
 
 

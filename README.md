@@ -202,7 +202,8 @@ change environment variables only.
 | `TOOL_MODEL` | = `CHAT_MODEL` | Model for quizzes/flashcards/etc. (must follow JSON schemas) |
 | `EMBED_BASE_URL` | `https://chronos-embed.tevproject.com/v1` | Embedding server (uses `LLM_API_KEY`) |
 | `LLM_TIMEOUT_S` | `120` | Read timeout (never below 120) |
-| `LLM_PROMPT_TOKENS` | `12000` | Oldest turns are dropped past this estimated size |
+| `LLM_PROMPT_TOKENS` | `32000` | Oldest turns are dropped past this estimated size |
+| `LLM_MAX_TOKENS` | `4096` | Reply limit; reasoning tokens count against it |
 
 ### Chat model
 Chat runs on OpenRouter (`recursive/flint-v1.0:free`) at
@@ -210,6 +211,9 @@ Chat runs on OpenRouter (`recursive/flint-v1.0:free`) at
 every time, trims the oldest turns when the prompt gets long, and streams replies. 5xx and
 network errors retry up to 3 times. Native `tools` is not used: `llm.py` describes tools in
 the system prompt and parses `TOOL_CALL {...}` from the reply. Reasoning text is excluded.
+The model reasons by default; a student can switch thinking off from the composer menu
+(`think:false` on `/chat`). If the model refuses to run without reasoning, `llm.py` retries once
+with it on, remembers that, and the menu shows "Thinking: always on".
 `OPENROUTER_API_KEY` is required and is only ever read on the server.
 
 ### Embeddings and Pinecone
@@ -226,13 +230,24 @@ old model must be re-uploaded**. If the embedding server (a home PC) is offline,
 instead of answering without retrieval. `RETRIEVAL_MIN_SCORE` (default 0.5) was tuned for
 another model; re-tune it against EmbeddingGemma scores (the dev debug panel shows them).
 
-### Context budget (16,384 tokens, prompt + reply)
-About 12,000 prompt tokens and a 1,500-token reply (chars ≈ 3 tokens). Student
-documents: 3,500 characters each, 9,000 together; a longer set is replaced by the short
-summary stored at upload. Retrieved excerpts go at the top of the current user message only,
-so the system prompt is identical every turn (prompt cache). History is capped at 12,000
-characters (`HISTORY_CHARS`). On HTTP 400 `/chat` retries once with half the excerpts and
-half the history. `llm.count_tokens` uses the chat server's `/tokenize` for exact counts.
+### Tools the tutor can call
+Besides practice activities, `agent_tools.py` declares lookup tools the model calls as its whole
+reply; `app.py` runs the tool and sends the result back, up to `MAX_TOOL_ROUNDS` (3) per reply:
+`search_course_material` (a second, model-worded search), `web_search` (only when "Use only teacher
+material" is off), `get_datetime`, `calculate`, `mark_gap` and `end_conversation`. The student sees a
+"thinking" state for the search and calculator tools and nothing for the others. `mark_gap` is how
+material gaps reach the teacher: it is silent, and nothing is inferred from an empty retrieval any
+more. `end_conversation` closes the chat (`ended` on the chat document, later messages get 409) and
+is refused for self-harm or safety wording.
+
+### Context budget
+Sized for a hosted model: prompt capped at `LLM_PROMPT_TOKENS` (32,000; chars ≈ 3 tokens), reply
+`LLM_MAX_TOKENS` (4,096). Retrieval pulls 8 chunks (`RETRIEVAL_TOP_K`, 12,000 characters). Student
+documents: 8,000 characters each, 20,000 together; a longer set is replaced by the short summary
+stored at upload. Retrieved excerpts go at the top of the current user message only, so the system
+prompt is identical every turn (prompt cache). History is 30 messages and 24,000 characters
+(`HISTORY_TURNS`, `HISTORY_CHARS`). On HTTP 400 `/chat` retries once with half the excerpts and
+half the history. Lower these for a small-window model.
 
 ### Troubleshooting
 The public `/status` page shows whether the endpoint is reachable. Errors are

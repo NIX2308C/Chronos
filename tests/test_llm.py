@@ -84,7 +84,7 @@ def test_generate_text_and_request_shape():
     assert b["messages"][0]["content"].startswith("SYS") and "TOOL_CALL" in b["messages"][0]["content"]
     assert A.TOOL_FUNCTION_NAME in b["messages"][0]["content"] and "tools" not in b
     assert b["stream"] is False and b["temperature"] == 0.3
-    assert (b["top_p"], b["top_k"], b["max_tokens"]) == (0.95, 64, 1500)
+    assert (b["top_p"], b["top_k"], b["max_tokens"]) == (0.95, 64, llm.MAX_TOKENS)
     assert "response_format" not in b and b["reasoning"] == {"exclude": True}
     print("ok - request carries system+tool prompt, roles, sampling and auth")
 
@@ -133,12 +133,12 @@ def test_stream():
 
 
 def test_history_trim():
-    big = "x" * 20000
+    big = "x" * (llm.PROMPT_TOKENS * 3 // 2)
     contents = [{"role": r, "parts": [{"text": big}]} for r in ("user", "model", "user", "model", "user")]
     replies.append((200, _reply("ok")))
     llm.generate("m", contents)
     msgs = requests[-1]["body"]["messages"]
-    assert sum(len(m["content"]) for m in msgs) <= 36000 and len(msgs) < 5 and msgs[-1]["role"] == "user" and msgs[0]["role"] == "user", [m["role"] for m in msgs]
+    assert sum(len(m["content"]) for m in msgs) <= llm.PROMPT_TOKENS * 3 and len(msgs) < 5 and msgs[-1]["role"] == "user" and msgs[0]["role"] == "user", [m["role"] for m in msgs]
     print("ok - oldest turns are dropped to fit the context window")
 
 
@@ -229,6 +229,7 @@ def _route_fakes(settings):
     A.user_in_class = lambda *a, **k: True
     A.load_course_settings = lambda *a, **k: settings
     A.load_custom_rules = lambda *a, **k: []
+    A.load_course_name = lambda *a, **k: "Test Course"
     A.load_course_manifest = lambda *a, **k: []
     A.load_user_preferences = lambda *a, **k: A.normalize_preferences(None)
     A.load_class_memory = lambda *a, **k: ""
@@ -319,6 +320,91 @@ def test_chat_and_tool_routes_on_endpoint():
     print("ok - /chat and /tools/run work end to end through the endpoint")
 
 
+def _agent_call(name, args):
+    return "TOOL_CALL " + json.dumps({"name": name, "args": args})
+
+
+def test_agent_tools_and_thinking_switch():
+    import agent_tools
+    assert agent_tools.calculate("2 + 3 * 4").endswith("= 14")
+    assert agent_tools.calculate("sqrt(16) ^ 2").endswith("= 16")
+    assert agent_tools.calculate("__import__('os')").startswith("Could not")
+    assert agent_tools.calculate("9 ** 9 ** 9").startswith("Could not")
+    assert "UTC" in agent_tools.current_datetime("")
+    assert agent_tools.current_datetime("Not/AZone").endswith("UTC")
+    names = [t["name"] for t in agent_tools.declarations(False)]
+    assert agent_tools.WEB_SEARCH not in names and agent_tools.MARK_GAP in names
+    assert agent_tools.WEB_SEARCH in [t["name"] for t in agent_tools.declarations(True)]
+
+    A._rate_hits.clear()
+    settings = dict(A.course_settings(), practice_tools=True)
+    _route_fakes(settings)
+    c = A.app.test_client()
+    ask = lambda m="what is 12 times 13?", **kw: c.post("/chat", json=dict(
+        {"message": m, "class_id": "c1", "chat_id": "chat1"}, **kw))
+
+    # A lookup tool is the whole reply; its result goes back and the model carries on.
+    requests.clear()
+    replies.append((200, _reply(_agent_call("calculate", {"expression": "12*13"}))))
+    replies.append((200, _reply("That's 156.")))
+    r = ask()
+    assert r.status_code == 200 and r.get_json()["response"] == "That's 156.", r.get_json()
+    second = requests[-1]["body"]["messages"]
+    assert second[-1]["content"] == "Tool result (calculate):\n12*13 = 156", second[-1]
+    assert second[-2]["role"] == "assistant" and "TOOL_CALL" in second[-2]["content"]
+    assert "web_search" not in second[0]["content"], "web search offered to a grounded course"
+
+    # mark_gap is silent and recorded; end_conversation closes the chat.
+    seen = []
+    A.summarize_exchange = lambda *a, **k: seen.append(a[-1]) or {}
+    replies.append((200, _reply(_agent_call("mark_gap", {"topic": "Cell division stages"}))))
+    replies.append((200, _reply("The material doesn't cover that yet.")))
+    body = ask("explain mitosis please").get_json()
+    assert seen[-1] == ["Cell division stages"] and body["response"] == "The material doesn't cover that yet."
+    assert body["ended"] is False
+    replies.append((200, _reply(_agent_call("end_conversation", {"reason": "sustained abuse"}))))
+    replies.append((200, _reply("I'm going to stop here.")))
+    body = ask("you are useless").get_json()
+    assert body["ended"] is True and body["response"] == "I'm going to stop here."
+    # ...but never for a safety disclosure, whatever the model asks.
+    replies.append((200, _reply(_agent_call("end_conversation", {"reason": "x"}))))
+    replies.append((200, _reply("I'm here. Please talk to a trusted adult.")))
+    assert ask("I want to hurt myself").get_json()["ended"] is False
+
+    # Web search is only offered when the teacher turned strict grounding off.
+    A.load_course_settings = lambda *a, **k: dict(settings, grounded_only=False)
+    requests.clear()
+    replies.append((200, _reply("Fine.")))
+    ask("hello again")
+    assert "web_search" in requests[-1]["body"]["messages"][0]["content"]
+    A.load_course_settings = lambda *a, **k: settings
+
+    # More lookups than allowed: the last round has no lookup tools to call.
+    requests.clear()
+    for _ in range(A.MAX_TOOL_ROUNDS):
+        replies.append((200, _reply(_agent_call("get_datetime", {}))))
+    replies.append((200, _reply("It is what it is.")))
+    assert ask("what day is it").get_json()["response"] == "It is what it is."
+    assert "get_datetime" not in requests[-1]["body"]["messages"][0]["content"]
+
+    # Thinking off is requested; a model that insists on reasoning is retried once with it on.
+    requests.clear()
+    replies.append((200, _reply("No thinking.")))
+    assert ask("hello", think=False).status_code == 200
+    assert requests[-1]["body"]["reasoning"] == {"enabled": False} and llm.can_disable_thinking() is True
+    llm._can_disable_thinking = None
+    replies.append((400, {"error": {"message": "Reasoning is mandatory for this endpoint"}}))
+    replies.append((200, _reply("Thinking anyway.")))
+    assert ask("hello", think=False).get_json()["response"] == "Thinking anyway."
+    assert "enabled" not in requests[-1]["body"]["reasoning"] and llm.can_disable_thinking() is False
+    requests.clear()
+    replies.append((200, _reply("Cached.")))
+    ask("hello", think=False)
+    assert len(requests) == 1 and "enabled" not in requests[-1]["body"]["reasoning"]
+    llm._can_disable_thinking = None
+    print("ok - lookup tools loop, gaps and endings are recorded quietly, web search follows grounding, thinking can be switched off")
+
+
 if __name__ == "__main__":
     try:
         test_generate_text_and_request_shape()
@@ -332,5 +418,6 @@ if __name__ == "__main__":
         test_stream()
         test_errors_raise()
         test_chat_and_tool_routes_on_endpoint()
+        test_agent_tools_and_thinking_switch()
     finally:
         server.shutdown()

@@ -19,12 +19,12 @@ def _usage(u):
 
 
 def install(A):
-    def generate(model, contents, system=None, tools=None, temperature=None, json_schema=None, max_tokens=None):
+    def generate(model, contents, system=None, tools=None, temperature=None, json_schema=None, max_tokens=None, **_):
         r = A.client.models.generate_content(model=model, contents=contents,
                                              config=_config(system, tools, temperature, json_schema))
         return llm.Result((getattr(r, "text", "") or "").strip(), None, _usage(getattr(r, "usage_metadata", None)))
 
-    def stream(model, contents, system=None, tools=None, temperature=None, max_tokens=None):
+    def stream(model, contents, system=None, tools=None, temperature=None, max_tokens=None, **_):
         for ch in A.client.models.generate_content_stream(model=model, contents=contents,
                                                           config=_config(system, tools, temperature, None)):
             text = "".join(p.text for cand in ch.candidates for p in cand.content.parts)

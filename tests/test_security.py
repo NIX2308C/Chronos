@@ -195,6 +195,7 @@ def test_sources_are_not_sent_to_students():
     # /chat reads these too. Left unstubbed they reach real Firestore, which is
     # exactly what this file claims never to do — it hangs instead of failing.
     A.load_custom_rules = lambda *_a, **_k: []
+    A.load_course_name = lambda *_a, **_k: "Test Course"
     A.load_course_manifest = lambda *_a, **_k: []
     A.load_user_preferences = lambda *_a, **_k: A.normalize_preferences(None)
     A.load_class_memory = lambda *_a, **_k: ""
@@ -282,6 +283,7 @@ def test_profanity_is_blocked_before_the_model():
     A.load_history = lambda *_a, **_k: []
     A.load_course_settings = lambda *_a, **_k: A.course_settings()
     A.load_custom_rules = lambda *_a, **_k: []
+    A.load_course_name = lambda *_a, **_k: "Test Course"
     A.load_course_manifest = lambda *_a, **_k: []
     A.load_user_preferences = lambda *_a, **_k: A.normalize_preferences(None)
     A.load_class_memory = lambda *_a, **_k: ""

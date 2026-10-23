@@ -14,7 +14,7 @@
 <link href="theme.css?v=ink2" rel="stylesheet"/>
 <link href="settings.css?v=ink2" rel="stylesheet"/>
 <link href="mobile.css?v=ink2" rel="stylesheet"/>
-<link href="ink.css?v=ink5" rel="stylesheet"/>
+<link href="ink.css?v=ink6" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
 <!-- The manifest carries one theme_color; these two let a browser follow the
      page's own light/dark tokens. A TWA reads the manifest, so its status bar
@@ -798,8 +798,8 @@
       }else{
         const gap=document.createElement("p");
         gap.className="probe-gap";
-        gap.textContent="Not in your material. Recorded as a gap.";
-        if(d.material_gap)box.appendChild(gap);
+        gap.textContent="Nothing in your material matched.";
+        box.appendChild(gap);
       }
       input.value="";
     }catch(err){

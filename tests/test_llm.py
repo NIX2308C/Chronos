@@ -298,20 +298,13 @@ def test_chat_and_tool_routes_on_endpoint():
     assert len(r.get_json()["tool"]["questions"]) == 3
     assert requests[-1]["body"]["response_format"]["json_schema"]["schema"] == A.ACTIVITY_SCHEMAS["quiz"]
 
-    # A failed build goes back to the model, which explains the raw error to the student.
+    # A failed build gets a fixed, plain message: no model call, and nothing about the internals.
+    requests.clear()
     replies.append((200, _reply("not json at all")))
-    replies.append((200, _reply("Sorry, the quiz came out garbled. Please try again.")))
     r = c.post("/tools/run", json={"class_id": "c1", "chat_id": "chat1",
                                    "tool_request": {"type": "quiz", "topic": "Osmosis"}})
-    assert r.status_code == 502 and r.get_json()["error"] == "Sorry, the quiz came out garbled. Please try again."
-    assert "did not match the required quiz format" in requests[-1]["body"]["messages"][-1]["content"]
-    replies.append((200, _reply("not json at all")))
-    replies.append((500, {"error": "boom"}))
-    replies.append((500, {"error": "boom"}))
-    replies.append((500, {"error": "boom"}))    # the explainer is down too: generic fallback
-    r = c.post("/tools/run", json={"class_id": "c1", "chat_id": "chat1",
-                                   "tool_request": {"type": "quiz", "topic": "Osmosis"}})
-    assert r.get_json()["error"].startswith("Sorry, I couldn't make that quiz")
+    assert r.status_code == 502 and r.get_json()["error"].startswith("I couldn't make that quiz"), r.get_json()
+    assert len(requests) == 1 and "format" not in r.get_json()["error"]
 
     # A tool the course has switched off is dropped even if the model calls it.
     replies.append((200, _reply("Here you go." + _call({"type": "concept_map", "topic": "x"}))))

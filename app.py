@@ -2814,6 +2814,10 @@ def chat():
                         streamed_tool = None
                         usage = None
                         for chunk in stream_model():
+                            if chunk.thinking:
+                                yield event("status", {"phase": "thinking"})
+                            if chunk.tool_call:
+                                yield event("status", {"phase": "tool"})
                             if chunk.text:
                                 if not parts:
                                     lap("first_token_ms", t_model)

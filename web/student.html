@@ -1754,7 +1754,7 @@
     await applyClassFilter();
   }
   // The full prompt wraps onto two lines in a phone-width composer.
-  updateComposer();
+  if(matchMedia("(max-width:900px)").matches)els.input.placeholder="Ask a question…";
   els.input.addEventListener("input",()=>{if(activeChat())activeChat().draft=els.input.value;els.input.style.height="auto";els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";});
 
   // The on-screen keyboard doesn't resize the layout viewport, so the composer

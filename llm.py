@@ -85,8 +85,9 @@ USER_AGENT = "Chronos/1.0"
 TOOL_MARKER = "TOOL_CALL"
 THOUGHT_OPEN, THOUGHT_CLOSE = "<|channel>", "<channel|>"
 
-Result = namedtuple("Result", "text tool_call usage")
-Chunk = namedtuple("Chunk", "text tool_call usage thinking", defaults=(False,))
+# `tool_call` is the first call, `calls` every call the reply made (a reply may end with several).
+Result = namedtuple("Result", "text tool_call usage calls", defaults=((),))
+Chunk = namedtuple("Chunk", "text tool_call usage thinking calls", defaults=(False, ()))
 
 
 class LLMError(RuntimeError):
@@ -118,10 +119,10 @@ def _signature(t):
 
 def _tool_instructions(tools):
     lines = [
-        "Tools. To call one, end your reply with this on the last line, nothing after it:",
+        "Tools. To call one, end your reply with a line like this, nothing after the last one:",
         TOOL_MARKER + ' {"name": "<tool>", "args": {...}}',
-        "One call per reply, only when its description says to. Tools marked [alone] must be the "
-        "whole reply: no other text, then you get the result and continue.",
+        "Only when a tool's description says to. You may end with several such lines. Tools marked "
+        "[alone] must be the whole reply, no other text: you get the result, then continue.",
     ]
     for t in tools:
         lines.append("- %s%s: %s" % (_signature(t), " [alone]" if t.get("alone") else "", t.get("description", "")))
@@ -211,10 +212,10 @@ class _Cleaner:
         return "".join(out)
 
     def finish(self):
-        """(remaining visible text, tool_call or None)."""
+        """(remaining visible text, list of tool calls in the order written)."""
         tail = self.buf if self.mode == "text" else ""
         self.buf = ""
-        return tail, _parse_call(self.tool_text)
+        return tail, _parse_calls(self.tool_text)
 
 
 def _parse_call(text):
@@ -228,6 +229,16 @@ def _parse_call(text):
     if isinstance(call, dict) and call.get("name") and isinstance(call.get("args"), dict):
         return {"name": str(call["name"]), "args": call["args"]}
     return None
+
+
+def _parse_calls(text):
+    """Every well-formed call in the text that followed the first marker; the rest are dropped."""
+    calls = []
+    for part in (text or "").split(TOOL_MARKER):
+        call = _parse_call(part)
+        if call:
+            calls.append(call)
+    return calls
 
 
 def _usage(data):
@@ -339,8 +350,8 @@ def generate(model, contents, system=None, tools=None, temperature=None, json_sc
         return Result(raw.strip(), None, _usage(data))
     cleaner = _Cleaner()
     text = cleaner.feed(raw)
-    tail, call = cleaner.finish()
-    return Result((text + tail).strip(), call, _usage(data))
+    tail, calls = cleaner.finish()
+    return Result((text + tail).strip(), calls[0] if calls else None, _usage(data), calls)
 
 
 def stream(model, contents, system=None, tools=None, temperature=None, max_tokens=None, think=True):
@@ -374,10 +385,10 @@ def stream(model, contents, system=None, tools=None, temperature=None, max_token
                 visible = cleaner.feed(str(text)) if text else ""
                 if visible:
                     yield Chunk(visible, None, None)
-    tail, call = cleaner.finish()
+    tail, calls = cleaner.finish()
     if tail:
         yield Chunk(tail, None, None)
-    yield Chunk("", call, usage)
+    yield Chunk("", calls[0] if calls else None, usage, False, calls)
 
 
 def count_tokens(text):

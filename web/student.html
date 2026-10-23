@@ -524,10 +524,18 @@
   const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),messages:document.getElementById("messages")};
   const chatTransition=ChronosNav.createViewTransition(document.querySelector("[data-chat-col]"));
   let navigationBusy=false,sending=false,toolRunning=false;
-  // Thinking is on unless the student switches it off (kept per device); THINK_LOCKED
-  // is set once the server finds the model won't run without it.
-  let THINK=true,THINK_LOCKED=false;
-  try{THINK=localStorage.getItem("chronos-think")!=="0";}catch(e){}
+  // Thinking starts off in every chat and only runs once the student switches it on for that
+  // chat (remembered per device). THINK_LOCKED is set once the server finds the model won't
+  // run without it.
+  let THINK_LOCKED=false,THINK_CHATS={};
+  try{THINK_CHATS=JSON.parse(localStorage.getItem("chronos-think-chats")||"{}")||{};}catch(e){}
+  const isThinking=c=>!!(c&&(c.think||THINK_CHATS[c.id]));
+  function setThinking(c,on){
+    if(!c)return;
+    c.think=on;
+    if(on)THINK_CHATS[c.id]=1;else delete THINK_CHATS[c.id];
+    try{localStorage.setItem("chronos-think-chats",JSON.stringify(Object.fromEntries(Object.entries(THINK_CHATS).slice(-300))));}catch(e){}
+  }
   const TZ=(()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone||"";}catch(e){return "";}})();
   let IS_DEV=false,DEBUG=false;   // developer accounts only; decided by the server (/auth/me)
   const uiPref=(k,d)=>{const v=(window.ChronosTheme?ChronosTheme.ui():{})[k];return v===undefined?d:v;};
@@ -603,7 +611,7 @@
     const d=await Chronos.apiJson("/chats/"+encodeURIComponent(c.id)+"/messages",undefined,"GET");
     c.ended=!!d.ended;
     // Students receive the answer status, not the underlying teacher sources.
-    return (d.messages||[]).map(m=>({role:m.role,content:m.content,rules:m.rules||[],
+    return (d.messages||[]).map(m=>({role:m.role,content:m.content,display:m.display||null,rules:m.rules||[],
       sources:m.sources||[],tool:m.tool||null,
       reviewed:!!m.reviewed,blocked:!!m.blocked}));
   }
@@ -749,8 +757,15 @@
     if(m.role==="student"){
       const w=document.createElement("div");w.className="flex flex-col items-end mb-stack-lg pr-1.5";
       const b=document.createElement("div");
-      b.className="bub-you";
-      b.textContent=m.content;
+      if(m.display){
+        // A long generated prompt (a quiz review) shows as a short attachment-style label.
+        b.className="bub-attach";
+        b.innerHTML='<span class="ba-icon"><span class="material-symbols-outlined">quiz</span></span><span class="ba-text"></span>';
+        b.querySelector(".ba-text").textContent=m.display;
+      }else{
+        b.className="bub-you";
+        b.textContent=m.content;
+      }
       w.appendChild(b);return w;
     }
     const w=document.createElement("div");w.className="flex flex-col items-start mb-stack-lg";
@@ -1053,7 +1068,7 @@
     }).join("\n");
     const summary="Quiz result summary\nActivity: "+(tool.title||"Practice quiz")+"\nScore: "+score+"/"+questions.length+"\n"+detail+"\nPlease identify the concepts I need to review, explain only what I missed, then give me one short targeted practice question.";
     button.disabled=true;button.textContent="Sending to AI…";els.input.value=summary;
-    send().then(sent=>{button.disabled=!!sent;button.textContent=sent?"Sent to AI":"Review with AI";})
+    send({display:"Help me review my answers."}).then(sent=>{button.disabled=!!sent;button.textContent=sent?"Sent to AI":"Review with AI";})
       .catch(()=>{button.disabled=false;button.textContent="Review with AI";});
   }
 
@@ -1203,7 +1218,7 @@
     el.setAttribute("role","status");el.setAttribute("aria-label",PHASE_ARIA[phase]);
     el.innerHTML='<span class="rs-glyph" aria-hidden="true">'
       +'<span class="rs-dots"><i></i><i></i><i></i></span>'
-      +'<span class="rs-wave"><i></i><i></i><i></i><i></i><i></i></span>'
+      +'<span class="rs-voice"><i class="ring"></i><i class="ring r2"></i><i class="core"></i></span>'
       +'<svg class="rs-build" viewBox="0 0 24 24"><rect class="b-card" pathLength="1" x="4.5" y="3.5" width="15" height="17" rx="3.2"/>'
       +'<line class="b-line" pathLength="1" x1="8.5" y1="9" x2="15.5" y2="9"/><line class="b-line" pathLength="1" x1="8.5" y1="12.5" x2="15.5" y2="12.5"/><line class="b-line" pathLength="1" x1="8.5" y1="16" x2="12.5" y2="16"/></svg>'
       +'</span>'+(label===false?"":'<span class="rs-label">Thinking</span>');
@@ -1439,7 +1454,7 @@
     slot.appendChild(card);anchor.appendChild(slot);scrollBottom();playSound("using");
     try{
       const res=await Chronos.apiFetch("/tools/run",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({class_id:chat.classId||ACTIVE_CLASS,chat_id:chat.id,tool_request:request}),
+        body:JSON.stringify({class_id:chat.classId||ACTIVE_CLASS,chat_id:chat.id,tool_request:request,think:isThinking(chat)}),
         signal:controller.signal});
       let data={};
       try{ data=await res.json(); }catch(e){ data={}; }
@@ -1526,9 +1541,10 @@
       menu.appendChild(menuItem(TOOL_ICONS[kind]||"widgets",TOOL_LABELS[kind]||kind.replace(/_/g," "),()=>{closeComposerMenus();invokeTool(kind);}));
     });
     if(TOOLKITS.length)menu.appendChild(Object.assign(document.createElement("div"),{className:"menu-sep"}));
-    const think=menuItem("psychology",THINK_LOCKED?"Thinking: always on":(THINK?"Thinking: on":"Thinking: off"),
-      ()=>{if(THINK_LOCKED)return;THINK=!THINK;try{localStorage.setItem("chronos-think",THINK?"1":"0");}catch(e){}renderToolMenu();},
-      THINK_LOCKED?true:THINK);
+    const chat=activeChat(),on=isThinking(chat);
+    const think=menuItem("psychology",THINK_LOCKED?"Thinking: always on":(on?"Thinking: on":"Thinking: off"),
+      ()=>{if(THINK_LOCKED)return;setThinking(chat,!on);renderToolMenu();},
+      THINK_LOCKED?true:on);
     if(THINK_LOCKED)think.disabled=true;
     menu.appendChild(think);
     if(IS_DEV)menu.appendChild(menuItem("bug_report",DEBUG?"Debug mode: on":"Debug mode",()=>{closeComposerMenus();setDebug(!DEBUG);},DEBUG));
@@ -1625,8 +1641,8 @@
     if(!activeChat())await newChat();
     const c=activeChat();
     if(!c)return;
-    c.messages.push({role:"student",content:text});
-    if(c.messages.length===1){c.title=text.length>30?text.slice(0,30)+"…":text;renderSidebar();}
+    c.messages.push({role:"student",content:text,display:options.display||null});
+    if(c.messages.length===1){const t=options.display||text;c.title=t.length>30?t.slice(0,30)+"…":t;renderSidebar();}
     els.input.value="";c.draft="";els.input.style.height="auto";
     renderMessages();
     // renderMessages rebuilds quietly; only the message just sent should move in.
@@ -1641,7 +1657,8 @@
       // The tutor answers from this chat's class. Omit chat_id for a not-yet-saved
       // conversation; the server creates one.
       const body={message:text,class_id:c.classId||ACTIVE_CLASS,chat_id:c.id,stream:true,tz:TZ};
-      if(!THINK)body.think=false;
+      if(isThinking(c))body.think=true;
+      if(options.display)body.display=options.display;
       if(DEBUG)body.debug=true;
       const res=await Chronos.apiFetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       reachedServer=true;setStatus("online");
@@ -1652,7 +1669,7 @@
           cache_hit_chats:ALL_CHATS.filter(x=>x.loaded).length}});
       }
       // Adopt the server's chat id/title for a freshly-created conversation.
-      if(data.chat_id&&c.isNew){const oldId=c.id;c.id=data.chat_id;c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId===oldId)activeChatId=c.id;renderSidebar();}
+      if(data.chat_id&&c.isNew){const oldId=c.id;c.id=data.chat_id;if(c.think)setThinking(c,true);c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId===oldId)activeChatId=c.id;renderSidebar();}
       // `grounded` comes from the server, which is the only side that can see
       // the sources: students are never sent rules_used, so an empty list here
       // no longer means "nothing backed this answer".
@@ -1830,16 +1847,20 @@
   }
 
   // Show only the active class's conversations.
-  async function applyClassFilter(){
+  async function applyClassFilter(fresh){
     const available=ALL_CHATS.filter(c=>c.classId===ACTIVE_CLASS);
-    if(available.length)return selectChat(available[0].id);
+    // Opening the page starts on a blank chat (reusing an empty one); switching course
+    // still lands on the most recent conversation.
+    const blankOne=fresh&&available.find(c=>c.isNew&&!c.messages.length);
+    if(blankOne)return selectChat(blankOne.id);
+    if(available.length&&!fresh)return selectChat(available[0].id);
     const blank={id:tempId(),title:"New chat",classId:ACTIVE_CLASS,messages:[],loaded:true,isNew:true};
     ALL_CHATS.unshift(blank);
     return selectChat(blank.id);
   }
 
   // Load this student's saved conversations (all classes) from the server.
-  async function loadChats(pending){
+  async function loadChats(pending,fresh){
     try{
       const result=pending?await pending:null;
       if(result&&result.error)throw result.error;
@@ -1855,7 +1876,7 @@
       if(!ALL_CHATS.length)throw new Error("Could not load conversations. Please refresh and try again.");
       fileErr("Could not refresh conversations. Please try again.");
     }
-    if(!(await applyClassFilter()))throw new Error("Could not open a conversation. Please try again.");
+    if(!(await applyClassFilter(fresh)))throw new Error("Could not open a conversation. Please try again.");
     // Quietly fetch the few most recent conversations so opening one is instant.
     ALL_CHATS.filter(c=>c.classId===ACTIVE_CLASS).slice(0,4).forEach(warmChat);
   }
@@ -2038,7 +2059,7 @@
     if(!hasClass){
       const skel=$s("chatSkel");if(skel)skel.remove();
       info.role==="teacher"?showTeacherNoClassGate():showJoinGate();
-    }else await loadChats(started.chats);
+    }else await loadChats(started.chats,true);
     checkServer();setInterval(checkServer,15000);
   }).catch(e=>showPageError((e&&e.message)||"Something went wrong. Please refresh."));
 </script>

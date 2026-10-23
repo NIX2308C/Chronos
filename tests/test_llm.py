@@ -330,8 +330,11 @@ def test_agent_tools_and_thinking_switch():
     assert agent_tools.calculate("sqrt(16) ^ 2").endswith("= 16")
     assert agent_tools.calculate("__import__('os')").startswith("Could not")
     assert agent_tools.calculate("9 ** 9 ** 9").startswith("Could not")
+    assert [c["name"] for c in llm._parse_calls(' {"name":"a","args":{}}\nTOOL_CALL {"name":"b","args":{"x":1}}')] == ["a", "b"]
     assert "UTC" in agent_tools.current_datetime("")
     assert agent_tools.current_datetime("Not/AZone").endswith("UTC")
+    assert agent_tools.RENAME_CHAT not in [t["name"] for t in agent_tools.declarations(False)]
+    assert agent_tools.RENAME_CHAT in [t["name"] for t in agent_tools.declarations(False, first_message=True)]
     names = [t["name"] for t in agent_tools.declarations(False)]
     assert agent_tools.WEB_SEARCH not in names and agent_tools.MARK_GAP in names
     assert agent_tools.WEB_SEARCH in [t["name"] for t in agent_tools.declarations(True)]
@@ -354,22 +357,27 @@ def test_agent_tools_and_thinking_switch():
     assert second[-2]["role"] == "assistant" and "TOOL_CALL" in second[-2]["content"]
     assert "web_search" not in second[0]["content"], "web search offered to a grounded course"
 
-    # mark_gap is silent and recorded; end_conversation closes the chat.
+    # mark_gap and end_conversation end the reply: no extra round trip, and a reply can make several.
     seen = []
     A.summarize_exchange = lambda *a, **k: seen.append(a[-1]) or {}
-    replies.append((200, _reply(_agent_call("mark_gap", {"topic": "Cell division stages"}))))
-    replies.append((200, _reply("The material doesn't cover that yet.")))
+    requests.clear()
+    replies.append((200, _reply("The material doesn't cover that yet.\n"
+                                + _agent_call("mark_gap", {"topic": "Cell division stages"}))))
     body = ask("explain mitosis please").get_json()
     assert seen[-1] == ["Cell division stages"] and body["response"] == "The material doesn't cover that yet."
-    assert body["ended"] is False
-    replies.append((200, _reply(_agent_call("end_conversation", {"reason": "sustained abuse"}))))
-    replies.append((200, _reply("I'm going to stop here.")))
+    assert body["ended"] is False and len(requests) == 1
+    replies.append((200, _reply("I'm going to stop here.\n" + _agent_call("end_conversation", {"reason": "abuse"}))))
     body = ask("you are useless").get_json()
     assert body["ended"] is True and body["response"] == "I'm going to stop here."
     # ...but never for a safety disclosure, whatever the model asks.
-    replies.append((200, _reply(_agent_call("end_conversation", {"reason": "x"}))))
-    replies.append((200, _reply("I'm here. Please talk to a trusted adult.")))
+    replies.append((200, _reply("I'm here. Please talk to a trusted adult.\n"
+                                + _agent_call("end_conversation", {"reason": "x"}))))
     assert ask("I want to hurt myself").get_json()["ended"] is False
+    # Two calls in one reply: an activity and a gap.
+    replies.append((200, _reply("Here you go.\n" + _call({"type": "quiz", "topic": "Osmosis"}) + "\n"
+                                + _agent_call("mark_gap", {"topic": "Osmosis in plants"}))))
+    body = ask("quiz me on osmosis").get_json()
+    assert body["tool_request"] == {"type": "quiz", "topic": "Osmosis"} and seen[-1] == ["Osmosis in plants"], body
 
     # Web search is only offered when the teacher turned strict grounding off.
     A.load_course_settings = lambda *a, **k: dict(settings, grounded_only=False)

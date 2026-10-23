@@ -288,7 +288,7 @@
     html.dark .quiz-option.correct { background:#238457;border-color:#36A46E;color:#fff; }
     html.dark .quiz-option.wrong { background:color-mix(in srgb, var(--crimson) 16%, transparent); }
     html.dark .flash-face.back { background:var(--c-hi); }
-    @media (prefers-reduced-motion:reduce){ .flashcard,.quiz-option,.composer-action,.sendbtn { transition:none; } .tool-status,.tool-status::before,.tool-status .material-symbols-outlined,.learning-tool,.tool-stage > *,.typing-indicator,.typing-indicator i { animation:none; } }
+    @media (prefers-reduced-motion:reduce){ .flashcard,.quiz-option,.composer-action,.sendbtn { transition:none; } .tool-status,.tool-status::before,.tool-status .material-symbols-outlined,.learning-tool,.tool-stage > *,.reply-status * { animation:none !important; } }
 
     /* ---- markdown inside AI bubbles ---- */
     .ai-prose p { margin:0 0 .75rem; }
@@ -323,7 +323,7 @@
 <link href="icons/favicon.ico" rel="icon" sizes="16x16 32x32 48x48"/>
 <link href="icons/icon-192.png" rel="icon" type="image/png" sizes="192x192"/>
 <link href="icons/apple-touch-icon-180.png" rel="apple-touch-icon"/>
-<link href="ink.css?v=ink3" rel="stylesheet"/>
+<link href="ink.css?v=ink4" rel="stylesheet"/>
 <script src="ink.js?v=ink2" defer></script>
 </head>
 <body>
@@ -1213,10 +1213,25 @@
   // later chunks cannot change their wrapping or discard their text nodes.
   function createReplyStream(node){
     node.replaceChildren();
-    const pending=document.createElement("span");pending.className="typing-indicator ink-dots";pending.innerHTML="<i></i><i></i><i></i><em>Thinking…</em>";pending.setAttribute("role","status");pending.setAttribute("aria-label","Chronos is thinking");
-    
+    // One status glyph rides below the reply: jumping dots while waiting, a slow wave
+    // while the model reasons, a turning hourglass while it writes, a tool while it builds.
+    const pending=document.createElement("div");pending.className="reply-status";pending.dataset.phase="waiting";
+    pending.setAttribute("role","status");pending.setAttribute("aria-label","Chronos is working");
+    pending.innerHTML='<span class="rs-glyph" aria-hidden="true"><span class="rs-dots"><i></i><i></i><i></i></span><span class="rs-icon rs-glass material-symbols-outlined">hourglass_top</span><span class="rs-icon rs-tool material-symbols-outlined">auto_awesome</span></span><span class="rs-label"></span>';
+    const PHASE_LABEL={waiting:"",thinking:"Thinking",responding:"",tool:"Preparing activity"};
+    const PHASE_ARIA={waiting:"Chronos is working",thinking:"Chronos is thinking",responding:"Chronos is writing",tool:"Chronos is preparing an activity"};
+    function setPhase(phase){
+      if(pending.dataset.phase===phase||(phase==="thinking"&&pending.dataset.phase!=="waiting"))return;
+      pending.dataset.phase=phase;pending.setAttribute("aria-label",PHASE_ARIA[phase]);
+      const label=pending.querySelector(".rs-label");if(PHASE_LABEL[phase])label.textContent=PHASE_LABEL[phase];
+    }
+    function retire(){
+      if(!pending.isConnected)return;
+      if(reduceMotion){pending.remove();return;}
+      pending.classList.add("leaving");setTimeout(()=>pending.remove(),260);
+    }
     const tail=document.createElement("div");tail.className="stream-tail";
-    tail.hidden=true;node.append(pending,tail);
+    tail.hidden=true;node.append(tail,pending);
     let source="",typed="",committed=0,typingTimer=null,finishResolve=null,finishRequested=false;
     const TYPE_TICK_MS=24;
     function preview(src){
@@ -1229,7 +1244,7 @@
     }
     function flush(final){
       const visible=final?source:typed;
-      if(tail.parentNode!==node)node.appendChild(tail);
+      if(tail.parentNode!==node)node.insertBefore(tail,pending.parentNode===node?pending:null);
       let end=committed;
       if(final)end=visible.length;
       else{
@@ -1240,7 +1255,7 @@
         }
       }
       if(end>committed){tail.insertAdjacentHTML("beforebegin",renderMarkdown(visible.slice(committed,end)));committed=end;}
-      if(final){pending.remove();tail.remove();}
+      if(final){retire();tail.remove();}
       else{
         const remaining=visible.slice(committed);
         if(!remaining)tail.remove();
@@ -1270,7 +1285,7 @@
         if(count>0){
           const end=typed.length+count,code=source.charCodeAt(end-1);
           if(code>=0xD800&&code<=0xDBFF&&end<source.length)count++;
-          pending.remove();
+          setPhase("responding");
           typed+=source.slice(typed.length,typed.length+count);
           flush(false);
         }
@@ -1300,16 +1315,17 @@
       finish(text){
         if(text!==source){
           source=text;
-          if(!source.startsWith(typed)){typed="";committed=0;node.replaceChildren(pending,tail);}
+          if(!source.startsWith(typed)){typed="";committed=0;node.replaceChildren(tail,pending);}
         }
         finishRequested=true;
         return new Promise(resolve=>{finishResolve=resolve;scheduleTyping();});
       },
+      status(phase){if(PHASE_LABEL[phase]!==undefined)setPhase(phase);},
       get text(){return source;}
     };
   }
 
-  async function readChatResponse(res,onDelta){
+  async function readChatResponse(res,onDelta,onStatus){
     if(!res.ok){let error={};try{error=await res.json();}catch{}throw new Error(error.details||error.error||"Could not answer right now.");}
     if(!(res.headers.get("content-type")||"").includes("text/event-stream"))return res.json();
     const reader=res.body&&res.body.getReader();
@@ -1319,6 +1335,7 @@
         if(!line.startsWith("data:"))continue;
         const item=JSON.parse(line.slice(5).trimStart());
         if(item.type==="delta")onDelta(item.text||"");
+        if(item.type==="status"&&onStatus)onStatus(item.phase);
         if(item.type==="done")result=item.data;
         if(item.type==="error")throw new Error(item.message||"Reply interrupted.");
       }
@@ -1574,7 +1591,7 @@
       if(DEBUG)body.debug=true;
       const res=await Chronos.apiFetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       reachedServer=true;setStatus("online");
-      const data=await readChatResponse(res,chunk=>{if(!tFirst)tFirst=performance.now();tm.content+=chunk;stream.push(chunk);});
+      const data=await readChatResponse(res,chunk=>{if(!tFirst)tFirst=performance.now();tm.content+=chunk;stream.push(chunk);},phase=>stream.status(phase));
       if(data.error)throw new Error(data.details||data.error);
       if(DEBUG&&data.debug){
         tm.debug=Object.assign({},data.debug,{client:{first_delta_ms:tFirst?Math.round(tFirst-tSent):null,done_ms:Math.round(performance.now()-tSent),

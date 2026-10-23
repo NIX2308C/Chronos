@@ -65,8 +65,8 @@ _embed_model = None
 # Default sampling; the caller's temperature overrides.
 SAMPLING = {"temperature": 1.0, "top_p": 0.95, "top_k": 64}
 MAX_TOKENS = 1500
-# The model requires reasoning, so it is always on; `exclude` keeps the reasoning text out of
-# the reply. LLM_REASONING_EFFORT (low/medium/high) optionally bounds how much it thinks.
+# The model requires reasoning, so it is always on. Non-streaming calls exclude it; streams
+# receive it on a separate field (never in the reply) so the UI can show a thinking phase. LLM_REASONING_EFFORT (low/medium/high) optionally bounds how much it thinks.
 REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT", "").strip().lower()
 # The 16,384-token window covers prompt + output: prompt <= ~12,000 tokens and
 # ~1,500 for the reply. Tokens are estimated as chars/3; the oldest turns go first.
@@ -80,7 +80,7 @@ TOOL_MARKER = "TOOL_CALL"
 THOUGHT_OPEN, THOUGHT_CLOSE = "<|channel>", "<channel|>"
 
 Result = namedtuple("Result", "text tool_call usage")
-Chunk = namedtuple("Chunk", "text tool_call usage")
+Chunk = namedtuple("Chunk", "text tool_call usage thinking", defaults=(False,))
 
 
 class LLMError(RuntimeError):
@@ -143,7 +143,7 @@ def _messages(contents, system, tools=None):
 def _body(model, contents, system, tools, temperature, json_schema, stream, max_tokens):
     body = {"model": model, "messages": _messages(contents, system, tools), "stream": stream,
             "max_tokens": max_tokens or MAX_TOKENS, **SAMPLING}
-    body["reasoning"] = {"exclude": True}
+    body["reasoning"] = {"exclude": not stream}
     if REASONING_EFFORT in ("low", "medium", "high"):
         body["reasoning"]["effort"] = REASONING_EFFORT
     if temperature is not None:
@@ -312,7 +312,7 @@ def generate(model, contents, system=None, tools=None, temperature=None, json_sc
 
 def stream(model, contents, system=None, tools=None, temperature=None, max_tokens=None):
     """Yield Chunk(text, tool_call, usage) as the reply arrives."""
-    cleaner, usage = _Cleaner(), None
+    cleaner, usage, thinking = _Cleaner(), None, False
     body = _body(model, contents, system, tools, temperature, None, True, max_tokens)
     with _open("/chat/completions", body) as resp:
         for raw in resp:
@@ -333,7 +333,11 @@ def stream(model, contents, system=None, tools=None, temperature=None, max_token
             if data.get("usage"):
                 usage = _usage(data)
             for choice in data.get("choices") or []:
-                text = (choice.get("delta") or {}).get("content")
+                delta = choice.get("delta") or {}
+                if not thinking and (delta.get("reasoning") or delta.get("reasoning_details")):
+                    thinking = True
+                    yield Chunk("", None, None, True)
+                text = delta.get("content")
                 visible = cleaner.feed(str(text)) if text else ""
                 if visible:
                     yield Chunk(visible, None, None)

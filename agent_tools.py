@@ -1,10 +1,12 @@
 """Tools the tutor can call mid-reply, apart from the practice activities.
 
-All of them are "alone" tools (see llm.py): the model calls one as its whole reply,
-app.py runs it and sends the result back, and the model carries on. This module holds
-the declarations and the pieces that need no database: the clock, the calculator and
-web search. Course search, gap marking and ending a conversation touch the chat itself,
-so app.py runs those.
+Two kinds. Lookup tools (course search, web search, clock, calculator) are "alone" (see
+llm.py): the model calls one as its whole reply, app.py runs it and sends the result back, and
+the model carries on. The rest (mark_gap, end_conversation, rename_chat) are end-of-reply
+tools: the model writes its answer, then ends it with the call, so they cost no extra round
+trip and a reply can make several. This module holds the declarations and the pieces that need
+no database: the clock, the calculator and web search. Course search and the end-of-reply
+tools touch the chat itself, so app.py runs those.
 """
 import ast
 import html
@@ -25,6 +27,9 @@ GET_DATETIME = "get_datetime"
 CALCULATE = "calculate"
 MARK_GAP = "mark_gap"
 END_CONVERSATION = "end_conversation"
+RENAME_CHAT = "rename_chat"
+# Called at the end of a reply rather than as the whole of one.
+SIDE = {MARK_GAP, END_CONVERSATION, RENAME_CHAT}
 
 # The student sees a "thinking" state while these run. The rest are instant or invisible.
 VISIBLE = {SEARCH_COURSE, WEB_SEARCH, CALCULATE}
@@ -32,10 +37,11 @@ VISIBLE = {SEARCH_COURSE, WEB_SEARCH, CALCULATE}
 RESULT_CHARS = 3500
 
 
-def declarations(web_enabled):
-    """Declarations for every always-available tool; web search only when allowed."""
+def declarations(web_enabled, first_message=False):
+    """Declarations for the tutor's tools. Web search only when the course allows it,
+    renaming only on a conversation's first message."""
     def tool(name, description, **props):
-        return {"name": name, "alone": True, "description": description,
+        return {"name": name, "alone": name not in SIDE, "description": description,
                 "parameters": {"type": "object", "properties": {
                     k: {"type": "string", "description": v} for k, v in props.items()},
                     "required": list(props)}}
@@ -54,12 +60,17 @@ def declarations(web_enabled):
                         "abs round, pi, e. Skip easy ones.", expression="the expression"),
         tool(MARK_GAP, "Quietly tell the teacher the course material lacks something students need. "
                        "Rarely: only when a real course question had no support in it. Never mention "
-                       "this to the student.", topic="what is missing, in a few words"),
+                       "this to the student. Call after your reply.", topic="what is missing, in a few words"),
         tool(END_CONVERSATION, "Permanently end this chat. Only for sustained abuse, insults or "
                                "jailbreak attempts after you already asked them to stop. Never for "
-                               "goodbyes, thanks, sensitive topics or distress.",
-                             reason="one short sentence"),
+                               "goodbyes, thanks, sensitive topics or distress. Call after a brief "
+                               "final message.", reason="one short sentence"),
     ]
+    if first_message:
+        tools.append(tool(RENAME_CHAT, "Name this chat from what the student is asking, in 2 to 5 plain "
+                                       "words (a topic, not \"Greeting\"). Call after your reply on the "
+                                       "first message only; skip it if they only said hello.",
+                          title="the chat name"))
     return tools
 
 

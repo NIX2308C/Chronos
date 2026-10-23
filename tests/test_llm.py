@@ -51,6 +51,7 @@ threading.Thread(target=server.serve_forever, daemon=True).start()
 llm.BASE_URL = "http://127.0.0.1:%d/v1" % server.server_port
 llm.EMBED_BASE_URL = llm.BASE_URL
 llm.API_KEY = "sekrit"
+llm.CHAT_API_KEY = "sekrit"
 llm.TIMEOUT_S = 5
 llm.time.sleep = lambda _s: None
 
@@ -84,7 +85,7 @@ def test_generate_text_and_request_shape():
     assert A.TOOL_FUNCTION_NAME in b["messages"][0]["content"] and "tools" not in b
     assert b["stream"] is False and b["temperature"] == 0.3
     assert (b["top_p"], b["top_k"], b["max_tokens"]) == (0.95, 64, 1500)
-    assert "response_format" not in b and b["chat_template_kwargs"] == {"enable_thinking": False}
+    assert "response_format" not in b and b["reasoning"] == {"enabled": False}
     print("ok - request carries system+tool prompt, roles, sampling and auth")
 
 

@@ -1,14 +1,13 @@
 """One seam between Chronos and the model that generates its text and embeddings.
 
-Chat goes to a llama.cpp `llama-server` (Gemma 4 E4B) through its OpenAI-compatible
-`/v1/chat/completions`, behind a Cloudflare tunnel. Server side only: the key never
-reaches browser or Android code.
+Chat goes to OpenRouter's OpenAI-compatible `/api/v1/chat/completions`. Server side
+only: the keys never reach browser or Android code.
 
-    LLM_BASE_URL   endpoint root including /v1   (default https://chronos-llm.tevproject.com/v1)
-    LLM_API_KEY    bearer token, required, read from the environment only
-    CHAT_MODEL / TOOL_MODEL   model name sent (default gemma4-e4b)
-    EMBED_BASE_URL embeddings server (default https://chronos-embed.tevproject.com/v1),
-                   same bearer key. EmbeddingGemma 300M, 768-d, L2-normalized.
+    LLM_BASE_URL        chat endpoint root (default https://openrouter.ai/api/v1)
+    OPENROUTER_API_KEY  bearer token for chat, required, read from the environment only
+    CHAT_MODEL / TOOL_MODEL   model name sent (default recursive/flint-v1.0:free)
+    EMBED_BASE_URL      embeddings server (default https://chronos-embed.tevproject.com/v1),
+                        authenticated with LLM_API_KEY. EmbeddingGemma 300M, 768-d, L2-normalized.
     LLM_TIMEOUT_S  read timeout, at least 120
 
 The request shape app.py builds: `contents` is a string or a list of
@@ -18,8 +17,7 @@ described in the system prompt and the call is parsed out of the reply text
 (`TOOL_CALL {"name": ..., "args": {...}}` on the last line, one per turn). A
 malformed call is dropped. `json_schema` maps to `response_format`.
 
-The server is stateless and processes one request at a time, so callers send the
-whole conversation each time and must not fan out in parallel. Thinking text
+The endpoint is stateless, so callers send the whole conversation each time. Thinking text
 (`<|channel>thought ... <channel|>`, `reasoning_content`) is never returned.
 
 Results are backend-neutral:
@@ -44,14 +42,16 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = os.getenv("LLM_BASE_URL", "https://chronos-llm.tevproject.com/v1").strip().rstrip("/")
-API_KEY = os.getenv("LLM_API_KEY", "").strip()
+BASE_URL = os.getenv("LLM_BASE_URL", "https://openrouter.ai/api/v1").strip().rstrip("/")
+# Chat (OpenRouter) and embeddings (chronos-embed) are separate services with separate keys.
+CHAT_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
+API_KEY = os.getenv("LLM_API_KEY", "").strip()      # embedding server
 # Cloudflare drops a request with no data for ~100 s, so replies are streamed; the
 # client side waits at least 120 s.
 TIMEOUT_S = max(float(os.getenv("LLM_TIMEOUT_S", "120")), 120.0)
 TRIES = 3
 
-DEFAULT_CHAT_MODEL = "gemma4-e4b"
+DEFAULT_CHAT_MODEL = "recursive/flint-v1.0:free"
 EMBED_BASE_URL = os.getenv("EMBED_BASE_URL", "https://chronos-embed.tevproject.com/v1").strip().rstrip("/")
 # Used only if GET /models on the embedding server cannot be read; normally the id it returns wins.
 EMBED_MODEL = "embeddinggemma"
@@ -62,11 +62,11 @@ EMBED_UNAVAILABLE = ("Course search is temporarily unavailable (the embedding se
                      "unreachable). Please try again in a few minutes.")
 _embed_model = None
 
-# Recommended Gemma sampling; the caller's temperature overrides.
+# Default sampling; the caller's temperature overrides.
 SAMPLING = {"temperature": 1.0, "top_p": 0.95, "top_k": 64}
 MAX_TOKENS = 1500
-# Gemma's thinking mode is off: it costs latency and context for a tutor that answers directly.
-# Sent as a chat-template argument; LLM_THINKING=1 turns it back on.
+# Reasoning is excluded from replies: it costs latency for a tutor that answers directly.
+# LLM_THINKING=1 lets the model reason (its reasoning text is still never returned).
 THINKING = os.getenv("LLM_THINKING", "").strip().lower() in ("1", "true", "yes")
 # The 16,384-token window covers prompt + output: prompt <= ~12,000 tokens and
 # ~1,500 for the reply. Tokens are estimated as chars/3; the oldest turns go first.
@@ -143,7 +143,7 @@ def _messages(contents, system, tools=None):
 def _body(model, contents, system, tools, temperature, json_schema, stream, max_tokens):
     body = {"model": model, "messages": _messages(contents, system, tools), "stream": stream,
             "max_tokens": max_tokens or MAX_TOKENS, **SAMPLING}
-    body["chat_template_kwargs"] = {"enable_thinking": THINKING}
+    body["reasoning"] = {"enabled": True, "exclude": True} if THINKING else {"enabled": False}
     if temperature is not None:
         body["temperature"] = temperature
     if json_schema is not None:
@@ -229,13 +229,13 @@ def _usage(data):
 # ---------- transport ----------
 
 def _open(path, body, base=None, tries=None):
-    if not API_KEY:
-        raise LLMError("LLM_API_KEY is not set")
     base = base or BASE_URL
     tries = tries or TRIES
-    headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT}
-    if API_KEY:
-        headers["Authorization"] = "Bearer " + API_KEY
+    embedding = base == EMBED_BASE_URL and base != BASE_URL
+    key = API_KEY if embedding else CHAT_API_KEY
+    if not key:
+        raise LLMError(("LLM_API_KEY" if embedding else "OPENROUTER_API_KEY") + " is not set")
+    headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT, "Authorization": "Bearer " + key}
     data = json.dumps(body).encode("utf-8")
     for attempt in range(1, tries + 1):
         req = urllib.request.Request(base + path, data=data, headers=headers, method="POST")
@@ -277,9 +277,9 @@ def _read_json(resp):
 
 def health(model=None):
     """Raise unless the endpoint is reachable and the key is accepted. Generates nothing."""
-    if not API_KEY:
-        raise LLMError("LLM_API_KEY is not set")
-    req = urllib.request.Request(BASE_URL + "/models", headers={"Authorization": "Bearer " + API_KEY,
+    if not CHAT_API_KEY:
+        raise LLMError("OPENROUTER_API_KEY is not set")
+    req = urllib.request.Request(BASE_URL + "/models", headers={"Authorization": "Bearer " + CHAT_API_KEY,
                                                                     "User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(req, timeout=min(TIMEOUT_S, 10)) as resp:
@@ -342,13 +342,8 @@ def stream(model, contents, system=None, tools=None, temperature=None, max_token
 
 
 def count_tokens(text):
-    """Exact prompt tokens via the chat server's POST /tokenize; the estimate if it can't answer."""
-    try:
-        with _open("/tokenize", {"content": text}, base=BASE_URL[:-3] if BASE_URL.endswith("/v1") else BASE_URL,
-                   tries=1) as resp:
-            return len(_read_json(resp).get("tokens") or [])
-    except Exception:
-        return estimate_tokens(text)
+    """Estimated prompt tokens (OpenRouter has no tokenize endpoint)."""
+    return estimate_tokens(text)
 
 
 # ---------- embeddings ----------

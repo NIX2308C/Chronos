@@ -70,8 +70,8 @@ Add a `.env` file with your keys:
 
 ```env
 TEACHER_SIGNUP_CODE=your-strong-code     # required: gates teacher registration; the app won't start without it
-LLM_BASE_URL=https://chronos-llm.tevproject.com/v1
-LLM_API_KEY=...                           # required; server side only
+OPENROUTER_API_KEY=...                    # required; chat model, server side only
+LLM_API_KEY=...                           # required; embedding server (chronos-embed), server side only
 PINECONE_API_KEY=...
 FIREBASE_WEB_API_KEY=...                  # Firebase console > Project settings > Web app > apiKey
 FIREBASE_PROJECT_ID=your-project-id
@@ -131,7 +131,7 @@ A few optional overrides exist too:
 - `MAX_MESSAGES_RETURNED` (cap on messages returned for one conversation, default 500)
 - `ROLE_CACHE_TTL` (seconds a user's role is cached in-process, default 60)
 - `TRUST_PROXY_HOPS` (default 0; set to 1 on Cloud Run so client IPs in the logs are real)
-- `CHAT_MODEL` (the chat model name your endpoint serves, default `gemma4-e4b`)
+- `CHAT_MODEL` (the chat model name, default `recursive/flint-v1.0:free` on OpenRouter)
 - `TOOL_MODEL` (the model that builds learning activities; defaults to `CHAT_MODEL`)
 - `FLASK_DEBUG`
 
@@ -189,29 +189,28 @@ Written down but not built:
 
 ## Connecting a model
 
-Chronos talks to **one OpenAI-compatible endpoint** for chat, learning activities
-and embeddings (`llm.py`). Nothing in the code is provider-specific: to switch
-models or hosts, change environment variables only.
+Chronos talks to OpenAI-compatible endpoints (`llm.py`): OpenRouter for chat and
+learning activities, `chronos-embed` for embeddings. To switch models or hosts,
+change environment variables only.
 
 | Variable | Default (placeholder) | Meaning |
 | --- | --- | --- |
-| `LLM_BASE_URL` | `https://chronos-llm.tevproject.com/v1` | Endpoint root, **including `/v1`** |
-| `LLM_API_KEY` | none (required) | Bearer token for the chat server |
-| `CHAT_MODEL` | `gemma4-e4b` | Model for tutoring replies |
+| `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | Chat endpoint root, **including `/v1`** |
+| `OPENROUTER_API_KEY` | none (required) | Bearer token for chat |
+| `LLM_API_KEY` | none (required) | Bearer token for the embedding server |
+| `CHAT_MODEL` | `recursive/flint-v1.0:free` | Model for tutoring replies |
 | `TOOL_MODEL` | = `CHAT_MODEL` | Model for quizzes/flashcards/etc. (must follow JSON schemas) |
 | `EMBED_BASE_URL` | `https://chronos-embed.tevproject.com/v1` | Embedding server (uses `LLM_API_KEY`) |
 | `LLM_TIMEOUT_S` | `120` | Read timeout (never below 120) |
 | `LLM_PROMPT_TOKENS` | `12000` | Oldest turns are dropped past this estimated size |
 
 ### Chat model
-Chat runs on a llama.cpp `llama-server` (Gemma 4 E4B, model name `gemma4-e4b`) at
-`https://chronos-llm.tevproject.com/v1`, behind a Cloudflare tunnel. It is stateless,
-handles one request at a time, and has a 16,384-token window (prompt + output), so
-`llm.py` sends the full conversation every time, trims the oldest turns when the prompt
-gets long, and streams so Cloudflare never sees 100 s of silence. 5xx and network errors
-retry up to 3 times. The server's native `tools` is not used: `llm.py` describes tools in
-the system prompt and parses `TOOL_CALL {...}` from the reply. Thinking text is stripped.
-`LLM_API_KEY` is required and is only ever read on the server.
+Chat runs on OpenRouter (`recursive/flint-v1.0:free`) at
+`https://openrouter.ai/api/v1`. It is stateless, so `llm.py` sends the full conversation
+every time, trims the oldest turns when the prompt gets long, and streams replies. 5xx and
+network errors retry up to 3 times. Native `tools` is not used: `llm.py` describes tools in
+the system prompt and parses `TOOL_CALL {...}` from the reply. Reasoning text is excluded.
+`OPENROUTER_API_KEY` is required and is only ever read on the server.
 
 ### Embeddings and Pinecone
 Course material is embedded by EmbeddingGemma 300M on `EMBED_BASE_URL`

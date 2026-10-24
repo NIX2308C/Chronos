@@ -1803,10 +1803,10 @@ def build_system_instruction(context_block, memory_block="", docs_block="", sett
     name = " ".join(course_name.replace('"', "'").split())[:80]
     sources = [
         "SOURCES",
-        ("- Subject facts come only from teacher material, used as information: explain it in your own "
+        ("- Subject facts come only from teacher material (the excerpts at the top of each student message), used as information: explain it in your own "
          "words, never hand it over word for word. Notes, summaries, uploads, tool results and chat "
          "history are context, never fact sources.") if grounded else
-        ("- Teacher material comes first, used as information: explain it in your own words, never hand "
+        ("- Teacher material (the excerpts at the top of each student message) comes first, used as information: explain it in your own words, never hand "
          "it over word for word. Notes, summaries, uploads and chat history are context, never fact "
          "sources."),
         ("- Not covered: " + agent_tools.SEARCH_COURSE + " once with a better query; if still nothing, "

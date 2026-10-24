@@ -1786,8 +1786,9 @@ def _section(title, body):
 def build_system_instruction(context_block, memory_block="", docs_block="", settings=None,
                              conversation_summary="", custom_rules=None, outline="",
                              preferences_block="", material_in_message=False, course_name="",
-                             language=""):
-    """Assemble the tutor's system prompt.
+                             language="", parts=None):
+    """Assemble the tutor's system prompt. If `parts` is a list, it receives
+    (label, text) per section, for the developer debug panel.
 
     The order is load-bearing. Teacher material is the only source of facts, and
     everything after it is labelled context, so a student's uploaded assignment
@@ -1880,6 +1881,13 @@ def build_system_instruction(context_block, memory_block="", docs_block="", sett
             + docs_block.replace("</upload", "<​/upload") + "</upload>")
     if language:
         sections.append("Write everything the student sees, including activity content, in %s." % language)
+    if parts is not None:
+        labels = (("You are", "Persona"), ("SOURCES", "Sources"), ("TUTORING", "Tutoring, boundaries, safety, style"),
+                  ("TEACHER RULES", "Teacher rules"), ("ACTIVITIES", "Activities"), ("COURSE OUTLINE", "Course outline"),
+                  ("TEACHER MATERIAL", "Teacher material"), ("STUDENT PREF", "Student preferences"),
+                  ("ABOUT THIS", "Memory"), ("EARLIER", "Chat summary"), ("<upload>", "Student upload"),
+                  ("Write every", "Language"))
+        parts.extend((next(l for p, l in labels if t.startswith(p)), t) for t in sections)
     return "\n\n".join(sections)
 
 
@@ -2726,6 +2734,11 @@ def chat():
                     "agent": {"gaps": agent["gaps"], "ended": agent["ended"]},
                     "history_turns": len(history), "outline_docs": len(manifest_docs),
                     "settings": settings, "custom_rules": len(custom_rules),
+                    "limits": {"top_k": RETRIEVAL_TOP_K, "floor": RETRIEVAL_MIN_SCORE,
+                               "retry_floor": RETRIEVAL_FALLBACK_SCORE},
+                    "excerpts_sent": len(teacher_sources), "has_memory": bool(memory_block),
+                    "has_upload": bool(docs_block), "has_summary": bool(conversation_summary),
+                    "personality": (user_prefs or {}).get("personality"),
                 })
                 payload["debug"] = dbg
             return payload
@@ -2758,22 +2771,13 @@ def chat():
 
             plans = [(len(teacher_sources), history),
                      (len(teacher_sources) // 2, trim_history(history[len(history) // 2:]))]
+            prompt_parts = []
             system_instruction = build_system_instruction(
                 "", memory_block, docs_block, settings, conversation_summary, custom_rules,
                 outline=outline, preferences_block=preferences_block, material_in_message=True,
-                course_name=load_course_name(class_id), language=user_prefs.get("language", "")
+                course_name=load_course_name(class_id), language=user_prefs.get("language", ""),
+                parts=prompt_parts
             )
-            if debug_on:
-                dbg["path"] = "smalltalk" if is_small_talk else ("grounded" if teacher_rules else "no_material")
-                dbg["prompt"] = {
-                    "chars": len(system_instruction),
-                    "tokens": llm.count_tokens(system_instruction),
-                    "sections": {"material": len(context_block), "memory": len(memory_block),
-                                 "student_docs": len(docs_block), "outline": len(outline),
-                                 "preferences": len(preferences_block),
-                                 "summary": len(conversation_summary)},
-                    "text": system_instruction,
-                }
             t_model = time.perf_counter()
 
             # Thinking is off unless the student switched it on for this chat.
@@ -2781,6 +2785,20 @@ def chat():
             tz_name = str(data.get("tz") or "")[:64]
             tools = [t for t in [practice_activity_tool(settings)] if t] + agent_tools.declarations(
                 not settings["grounded_only"], first_message=is_new)
+            if debug_on:
+                dbg["path"] = "smalltalk" if is_small_talk else ("grounded" if teacher_rules else "no_material")
+                tools_text = llm._tool_instructions(tools)
+                # What the model really receives: this prompt, then the tool list llm.py appends.
+                full_text = system_instruction + "\n\n" + tools_text
+                dbg["prompt"] = {
+                    "chars": len(full_text), "tokens": llm.count_tokens(full_text),
+                    "parts": [{"label": l, "chars": len(t), "text": t} for l, t in prompt_parts]
+                             + [{"label": "Tool list (added by llm.py)", "chars": len(tools_text), "text": tools_text}],
+                    "text": full_text,
+                    "user_turn": user_turn(len(teacher_sources))[0]["parts"][0]["text"],
+                }
+                dbg["tools_available"] = [t["name"] for t in tools]
+                dbg["think"], dbg["tz"], dbg["tool_calls"] = think, tz_name, []
             alone = {t["name"] for t in tools if t.get("alone")}
             sided = {t["name"] for t in tools} & agent_tools.SIDE
             gen_args = dict(system=system_instruction, temperature=0.35, think=think)
@@ -2829,6 +2847,13 @@ def chat():
                     return agent_tools.calculate(args.get("expression"))
                 return "Unknown tool."
 
+            def note_tool(call, kind, result=None, since=None):
+                if debug_on:
+                    dbg["tool_calls"].append({
+                        "name": call["name"], "args": call.get("args"), "kind": kind,
+                        "result": None if result is None else str(result)[:400],
+                        "ms": None if since is None else round((time.perf_counter() - since) * 1000)})
+
             def model_chunks(contents, declared):
                 if stream_requested:
                     yield from llm.stream(CHAT_MODEL, contents, tools=declared, **gen_args)
@@ -2844,6 +2869,7 @@ def chat():
                 Yields ("text", str), ("status", phase), then ("end", activity_call, usage)."""
                 extra, usage, activity, wrote = [], None, None, False
                 for rnd in range(MAX_TOOL_ROUNDS + 1):
+                    dbg["rounds"] = rnd + 1
                     final_round = rnd == MAX_TOOL_ROUNDS or agent["ended"]
                     declared = [t for t in tools if not (final_round and t.get("alone"))]
                     text_parts, calls, started = [], [], False
@@ -2864,20 +2890,25 @@ def chat():
                         except llm.ContextTooLong:
                             if attempt == len(plans) - 1:
                                 raise
+                            dbg["context_retries"] = dbg.get("context_retries", 0) + 1
                             logger.warning("Prompt exceeded the context window; retrying with less.")
                     # End-of-reply tools run whatever else the reply did; a reply can make several.
                     for call in calls:
                         if call["name"] in agent_tools.SIDE and call["name"] in sided:
                             run_side_tool(call["name"], call["args"])
+                            note_tool(call, "end of reply")
                         elif call["name"] == TOOL_FUNCTION_NAME and not activity:
                             activity = activity_from_call(call, settings)
                             if activity:
+                                note_tool(call, "practice activity")
                                 yield ("status", "tool")
                     lookup = next((c for c in calls if c["name"] in alone), None)
                     if lookup and not activity and not final_round:
                         if lookup["name"] in agent_tools.VISIBLE:
                             yield ("status", "thinking")
+                        t_tool = time.perf_counter()
                         result = run_agent_tool(lookup["name"], lookup["args"])
+                        note_tool(lookup, "lookup", result, t_tool)
                         extra += [
                             {"role": "model", "parts": [{"text": "".join(text_parts) + "\nTOOL_CALL "
                                                          + json.dumps(lookup, ensure_ascii=False)}]},

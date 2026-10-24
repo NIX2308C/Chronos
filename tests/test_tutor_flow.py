@@ -215,7 +215,11 @@ def test_dev_debug_payload():
     assert d["model"] == A.CHAT_MODEL and d["path"] == "no_material", d["path"]
     assert d["retrieval"]["matches"][0]["score"] == 0.31 and d["retrieval"]["matches"][0]["kept"] is False
     assert d["tokens"] == {"prompt": 11, "reply": 5, "total": 16}, d["tokens"]
-    assert "COURSE OUTLINE" in d["prompt"]["text"] and d["prompt"]["sections"]["outline"] > 0
+    assert "COURSE OUTLINE" in d["prompt"]["text"] and "Tools." in d["prompt"]["text"]
+    labels = [x["label"] for x in d["prompt"]["parts"]]
+    assert labels[:3] == ["Persona", "Sources", "Tutoring, boundaries, safety, style"] and "Course outline" in labels, labels
+    assert labels[-1].startswith("Tool list") and "what is a participle" in d["prompt"]["user_turn"]
+    assert d["tools_available"] and d["tool_calls"] == [] and d["rounds"] == 1 and d["limits"]["floor"] == A.RETRIEVAL_MIN_SCORE
     for key in ("embed_ms", "pinecone_ms", "model_ms", "total_ms"):
         assert key in d["timings"], key
     # Without asking, a dev gets the normal payload.

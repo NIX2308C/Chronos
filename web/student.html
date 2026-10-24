@@ -95,23 +95,35 @@
 
     @keyframes pop { from{opacity:0;transform:translateY(10px) scale(.97)} to{opacity:1;transform:none} }
 
-    details.dbg { margin-top:10px; width:100%; max-width:100%; font:12px/1.5 ui-monospace,Consolas,monospace; color:var(--c-sub);
+    details.dbg { margin-top:10px; width:100%; max-width:100%; font:13px/1.55 'Schibsted Grotesk',system-ui,sans-serif; color:var(--c-sub);
         border-left:2px solid var(--crimson); padding-left:10px }
-    details.dbg > summary { cursor:pointer; list-style:none; user-select:none }
-    details.dbg > summary::-webkit-details-marker { display:none }
+    details.dbg > summary { cursor:pointer; list-style:none; user-select:none; font:12px/1.5 ui-monospace,Consolas,monospace }
+    details.dbg summary::-webkit-details-marker { display:none }
     details.dbg > summary::before { content:"▸ "; color:var(--crimson) }
     details.dbg[open] > summary::before { content:"▾ " }
-    .dbg-body { padding:8px 0 4px; display:grid; gap:10px }
-    .dbg-body h4 { margin:0 0 3px; font:600 11px/1.3 'Schibsted Grotesk',sans-serif; text-transform:uppercase; letter-spacing:.06em; color:var(--c-ink) }
+    .dbg-body { padding:10px 0 4px; display:grid; gap:16px }
+    .dbg-body h4 { margin:0 0 5px; font:600 11px/1.3 'Schibsted Grotesk',sans-serif; text-transform:uppercase; letter-spacing:.06em; color:var(--c-ink) }
+    .dbg-num { font:12px ui-monospace,Consolas,monospace; color:var(--c-ink) }
+    .dbg-list { margin:0; padding-left:18px; color:var(--c-ink) }
+    .dbg-list li { margin:2px 0 }
+    .dbg-rows { display:grid; gap:7px }
+    .dbg-row, .dbg-part > summary { display:flex; justify-content:space-between; gap:12px }
+    .dbg-note { font-size:12px; color:var(--c-sub); overflow-wrap:anywhere }
+    .dbg-call { padding:5px 0; border-top:1px solid var(--c-rule); color:var(--c-ink) }
+    .dbg-chips { display:flex; flex-wrap:wrap; gap:5px }
+    .dbg-chip { font-size:11px; padding:1px 8px; border:1px solid var(--c-rule); color:var(--c-sub) }
+    .dbg-chip.on { color:var(--c-ink); border-color:var(--crimson) }
+    .dbg-part { border-top:1px solid var(--c-rule); padding-top:5px; color:var(--c-ink) }
+    .dbg-part > summary { cursor:pointer; list-style:none }
     .dbg-kv { display:grid; grid-template-columns:auto 1fr; gap:1px 14px }
     .dbg-kv span:nth-child(odd) { color:var(--c-sub) }
-    .dbg-kv span:nth-child(even) { color:var(--c-ink); text-align:right }
+    .dbg-kv span:nth-child(even) { color:var(--c-ink); text-align:right; font-family:ui-monospace,Consolas,monospace; font-size:12px }
     .dbg-bar { height:3px; background:var(--c-rule); margin-top:2px }
     .dbg-bar > i { display:block; height:100%; background:var(--crimson) }
     .dbg-bar > i.drop { background:var(--c-sub);opacity:.4 }
-    .dbg-pre { margin:0; max-height:220px; overflow:auto; white-space:pre-wrap; background:var(--c-hi); padding:8px; color:var(--c-ink) }
+    .dbg-pre { margin:6px 0 2px; max-height:260px; overflow:auto; white-space:pre-wrap; background:var(--c-hi); padding:8px; color:var(--c-ink); font:12px/1.5 ui-monospace,Consolas,monospace }
     .dbg-actions { display:flex; gap:8px }
-    .dbg-actions button { font:inherit; color:var(--c-ink); background:transparent; border:1px solid var(--c-rule); padding:3px 9px; cursor:pointer }
+    .dbg-actions button { font:inherit; font-size:12px; color:var(--c-ink); background:transparent; border:1px solid var(--c-rule); padding:3px 9px; cursor:pointer }
     .dbg-actions button:hover { border-color:var(--crimson); color:var(--crimson) }
 
     /* ---- compact source disclosure ---- */
@@ -1581,51 +1593,122 @@
   }
   function dbgSection(title,node){const s=dbgEl("div");s.appendChild(dbgEl("h4",null,title));s.appendChild(node);return s;}
 
+  const fmtN=v=>v==null?null:Number(v).toLocaleString();
+  const DBG_PATH={grounded:"Answered using course material",no_material:"No course material matched, so the tutor answered without it",
+    smalltalk:"Small talk, so no course lookup",blocked:"Blocked by the profanity filter, the model never ran",model:"Answered by the model"};
+  const DBG_SETTING={grounded_only:"Course material only",guide_not_complete:"Guide, don't complete",state_uncertainty:"State uncertainty",
+    reveal_final_answers:"Reveal final answers",worked_examples:"Worked examples",practice_tools:"Practice tools",visual_tools:"Visual tools",study_materials:"Study materials"};
+  const dbgHits=d=>{const all=(d.retrieval&&d.retrieval.matches)||[];return {all,kept:all.filter(m=>m.kept).length};};
+  function dbgList(items){const u=dbgEl("ul","dbg-list");items.filter(Boolean).forEach(t=>u.appendChild(dbgEl("li",null,t)));return u;}
+  function dbgBar(frac,cls){const b=dbgEl("div","dbg-bar"),i=dbgEl("i",cls||"");i.style.width=Math.max(1,Math.min(100,frac*100))+"%";b.appendChild(i);return b;}
+  function dbgCopy(btn,text){
+    btn.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(text()).then(()=>{const o=btn.textContent;btn.textContent="Copied";setTimeout(()=>{btn.textContent=o;},1200);});};
+  }
+
   function paintDebugStrip(d){
-    const t=d.timings||{},tok=d.tokens||{},all=(d.retrieval&&d.retrieval.matches)||[];
+    const t=d.timings||{},tok=d.tokens||{},h=dbgHits(d);
     const parts=[d.model,d.path,fmtMs(t.total_ms),t.first_token_ms!=null?"first token "+fmtMs(t.first_token_ms):null,
-      tok.total!=null?tok.total+" tok":null,all.filter(m=>m.kept).length+"/"+all.length+" hits"].filter(Boolean);
+      tok.total!=null?fmtN(tok.total)+" tok":null,h.all.length?h.kept+"/"+h.all.length+" excerpts":null].filter(Boolean);
     const strip=$s("dbgStrip");strip.textContent="";
     strip.appendChild(dbgEl("b",null,"DEBUG "));strip.appendChild(document.createTextNode(parts.join(" · ")));
   }
 
   function buildDebugPanel(d){
     const box=dbgEl("details","dbg");
-    const t=d.timings||{},tok=d.tokens||{},all=(d.retrieval&&d.retrieval.matches)||[];
-    box.appendChild(dbgEl("summary",null,["debug",d.path,fmtMs(t.total_ms),tok.total!=null?tok.total+" tok":null,
-      all.filter(m=>m.kept).length+"/"+all.length+" hits"].filter(Boolean).join(" · ")));
+    const t=d.timings||{},tok=d.tokens||{},h=dbgHits(d);
+    box.appendChild(dbgEl("summary",null,["debug",d.path,fmtMs(t.total_ms),tok.total!=null?fmtN(tok.total)+" tok":null,
+      h.all.length?h.kept+"/"+h.all.length+" excerpts":null].filter(Boolean).join(" · ")));
     let built=false;
     box.addEventListener("toggle",()=>{
       if(!box.open||built)return;built=true;
-      const body=dbgEl("div","dbg-body"),c=d.client||{};
-      body.appendChild(dbgSection("Timing",dbgKV([["embed",fmtMs(t.embed_ms)],["vector search",fmtMs(t.pinecone_ms)],
-        ["history",fmtMs(t.history_ms)],["retry search",fmtMs(t.fallback_ms)],["first token",fmtMs(t.first_token_ms)],
-        ["model",fmtMs(t.model_ms)],["server total",fmtMs(t.total_ms)],["browser: first text",fmtMs(c.first_delta_ms)],
-        ["browser: done",fmtMs(c.done_ms)]])));
-      const list=dbgEl("div");
-      if(!all.length)list.appendChild(dbgEl("div",null,"no vector search ran"));
-      all.forEach(m=>{
-        const row=dbgEl("div"),score=Math.max(0,Math.min(1,m.score||0));
-        row.appendChild(dbgEl("div",null,(m.source||"note")+(m.chunk!=null?" §"+(m.chunk+1):"")+"  "+(m.score||0).toFixed(3)+(m.kept?"":"  (below floor)")));
-        const bar=dbgEl("div","dbg-bar"),fill=dbgEl("i",m.kept?"":"drop");fill.style.width=(score*100)+"%";
-        bar.appendChild(fill);row.appendChild(bar);list.appendChild(row);
+      const body=dbgEl("div","dbg-body"),c=d.client||{},calls=d.tool_calls||[],lim=d.limits||{};
+
+      // 1. The story in plain words.
+      const ctx=[d.has_memory&&"student memory",d.has_upload&&"an uploaded file",d.has_summary&&"an earlier-chat summary",d.outline_docs&&"the course outline ("+d.outline_docs+" docs)",
+        d.custom_rules&&d.custom_rules+" teacher rule"+(d.custom_rules>1?"s":"")].filter(Boolean);
+      const used=[...new Set(calls.map(x=>x.name))];
+      body.appendChild(dbgSection("What happened",dbgList([
+        DBG_PATH[d.path]||d.path,
+        h.all.length?h.kept+" of "+h.all.length+" excerpts scored at least "+(lim.floor!=null?lim.floor:"the cut-off")+" and "+(h.kept===1?"was":"were")+" sent to the tutor"
+          :(d.path==="smalltalk"||d.path==="blocked"?null:"The course search found nothing"),
+        ((d.retrieval&&d.retrieval.passes)||[]).length>1?((d.retrieval.passes.length)+" searches ran (the first, then retries or tutor-requested ones)"):null,
+        used.length?"Tools used: "+used.join(", "):"No tools used",
+        d.rounds>1?"The tutor ran "+d.rounds+" times (a tool result was fed back to it)":null,
+        d.context_retries?"The prompt was too long, so it retried with fewer excerpts and older history":null,
+        ctx.length?"Also in the prompt: "+ctx.join(", "):"Nothing extra in the prompt (no memory, upload or outline)",
+        d.agent&&d.agent.ended?"The tutor ended this chat":null,
+        d.agent&&d.agent.gaps&&d.agent.gaps.length?"Flagged a gap for the teacher: "+d.agent.gaps.join("; "):null,
+        d.think?"Thinking was on for this chat":null
+      ])));
+
+      // 2. Where the time went.
+      const stages=[["Embedding the question",t.embed_ms],["Searching the course",t.pinecone_ms],["Loading history",t.history_ms],
+        ["Retry search",t.fallback_ms],["Tutor writing the reply",t.model_ms]].filter(s=>s[1]!=null);
+      const tl=dbgEl("div","dbg-rows"),total=t.total_ms||1;
+      stages.forEach(([k,v])=>{const r=dbgEl("div");r.appendChild(dbgEl("div","dbg-row",""));
+        r.firstChild.appendChild(dbgEl("span",null,k));r.firstChild.appendChild(dbgEl("span","dbg-num",fmtMs(v)));r.appendChild(dbgBar(v/total));tl.appendChild(r);});
+      tl.appendChild(dbgKV([["First words appeared",fmtMs(t.first_token_ms)],["Server total",fmtMs(t.total_ms)],
+        ["Browser: first text",fmtMs(c.first_delta_ms)],["Browser: finished",fmtMs(c.done_ms)]]));
+      body.appendChild(dbgSection("Where the time went",tl));
+
+      // 3. What the search found.
+      const list=dbgEl("div","dbg-rows");
+      if(!h.all.length)list.appendChild(dbgEl("div","dbg-note","No vector search ran for this message."));
+      else list.appendChild(dbgEl("div","dbg-note","Sent = score at or above "+lim.floor+" (searched top "+lim.top_k+"). Dropped = too weak to trust."));
+      h.all.forEach(m=>{
+        const row=dbgEl("div"),r=dbgEl("div","dbg-row");
+        r.appendChild(dbgEl("span",null,(m.source||"teacher note")+(m.chunk!=null?" §"+(m.chunk+1):"")));
+        r.appendChild(dbgEl("span","dbg-num",(m.score||0).toFixed(3)+(m.kept?"  sent":"  dropped")));
+        row.appendChild(r);row.appendChild(dbgBar(Math.max(0,Math.min(1,m.score||0)),m.kept?"":"drop"));list.appendChild(row);
       });
-      const passes=(d.retrieval&&d.retrieval.passes)||[];
-      body.appendChild(dbgSection("Retrieval",list));
-      if(passes.length)body.appendChild(dbgSection("Queries",dbgKV(passes.map((p,i)=>[(i+1)+" · floor "+p.floor,p.query.slice(0,70)]))));
-      const ps=(d.prompt&&d.prompt.sections)||{};
-      body.appendChild(dbgSection("Prompt",dbgKV([["total chars",d.prompt&&d.prompt.chars],["material",ps.material],["outline",ps.outline],
-        ["memory",ps.memory],["student files",ps.student_docs],["preferences",ps.preferences],["summary",ps.summary]])));
-      body.appendChild(dbgSection("Tokens",dbgKV([["prompt",tok.prompt],["reply",tok.reply],["total",tok.total]])));
-      body.appendChild(dbgSection("Request",dbgKV([["model",d.model],["path",d.path],["history turns",d.history_turns],
-        ["outline docs",d.outline_docs],["custom rules",d.custom_rules],["new chat",d.new_chat]])));
-      const actions=dbgEl("div","dbg-actions"),pre=dbgEl("pre","dbg-pre");pre.hidden=true;
-      const showPrompt=dbgEl("button",null,"Prompt");showPrompt.type="button";
-      showPrompt.onclick=()=>{pre.hidden=!pre.hidden;pre.textContent=pre.hidden?"":(d.prompt&&d.prompt.text)||"";};
-      const copy=dbgEl("button",null,"Copy JSON");copy.type="button";
-      copy.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(JSON.stringify(d,null,2)).then(()=>{copy.textContent="Copied";setTimeout(()=>{copy.textContent="Copy JSON";},1200);});};
-      actions.appendChild(showPrompt);actions.appendChild(copy);
-      body.appendChild(actions);body.appendChild(pre);
+      ((d.retrieval&&d.retrieval.passes)||[]).forEach((p,i)=>list.appendChild(dbgEl("div","dbg-note","Search "+(i+1)+": “"+p.query.slice(0,90)+"”")));
+      body.appendChild(dbgSection("Course material found",list));
+
+      // 4. Tools.
+      const tools=dbgEl("div","dbg-rows");
+      const chips=dbgEl("div","dbg-chips");
+      (d.tools_available||[]).forEach(n=>chips.appendChild(dbgEl("span","dbg-chip"+(used.includes(n)?" on":""),n)));
+      tools.appendChild(dbgEl("div","dbg-note","Offered to the tutor (highlighted = used):"));tools.appendChild(chips);
+      calls.forEach(x=>{
+        const row=dbgEl("div","dbg-call");
+        row.appendChild(dbgEl("div",null,x.name+"  ·  "+x.kind+(x.ms!=null?"  ·  "+fmtMs(x.ms):"")));
+        row.appendChild(dbgEl("div","dbg-note","args: "+JSON.stringify(x.args||{}).slice(0,200)));
+        if(x.result)row.appendChild(dbgEl("div","dbg-note","result: "+x.result.slice(0,200)));
+        tools.appendChild(row);
+      });
+      body.appendChild(dbgSection("Tools",tools));
+
+      // 5. The prompt, piece by piece.
+      const pr=d.prompt,pw=dbgEl("div","dbg-rows");
+      if(!pr)pw.appendChild(dbgEl("div","dbg-note","The model never ran, so no prompt was built."));
+      else{
+        pw.appendChild(dbgEl("div","dbg-note",fmtN(pr.chars)+" characters, "+(tok.prompt!=null?fmtN(tok.prompt)+" tokens billed":"about "+fmtN(pr.tokens)+" tokens")
+          +". Click a part to read exactly what the tutor was told."));
+        (pr.parts||[]).forEach(p=>{
+          const det=dbgEl("details","dbg-part"),sm=dbgEl("summary");
+          sm.appendChild(dbgEl("span",null,p.label));sm.appendChild(dbgEl("span","dbg-num",fmtN(p.chars)+" chars"));
+          det.appendChild(sm);det.appendChild(dbgBar(p.chars/pr.chars));
+          det.appendChild(dbgEl("pre","dbg-pre",p.text));pw.appendChild(det);
+        });
+        const ut=dbgEl("details","dbg-part"),us=dbgEl("summary");
+        us.appendChild(dbgEl("span",null,"This message as the tutor saw it (with excerpts)"));ut.appendChild(us);
+        ut.appendChild(dbgEl("pre","dbg-pre",pr.user_turn||""));pw.appendChild(ut);
+      }
+      body.appendChild(dbgSection("Prompt",pw));
+
+      // 6. Settings and tokens.
+      const st=d.settings||{},chipsS=dbgEl("div","dbg-chips");
+      Object.keys(DBG_SETTING).forEach(k=>chipsS.appendChild(dbgEl("span","dbg-chip"+(st[k]?" on":""),DBG_SETTING[k]+(st[k]?"":" · off"))));
+      const sw=dbgEl("div","dbg-rows");sw.appendChild(chipsS);
+      sw.appendChild(dbgKV([["Hints",st.hint_strength],["Personality",d.personality],["Model",d.model],["New chat",d.new_chat?"yes":"no"],
+        ["History sent",d.history_turns!=null?d.history_turns+" turns":null]]));
+      body.appendChild(dbgSection("Course settings in effect",sw));
+      body.appendChild(dbgSection("Tokens",dbgKV([["Prompt",fmtN(tok.prompt)],["Reply",fmtN(tok.reply)],["Total",fmtN(tok.total)]])));
+
+      const actions=dbgEl("div","dbg-actions");
+      const cp=dbgEl("button",null,"Copy prompt"),cj=dbgEl("button",null,"Copy JSON");cp.type=cj.type="button";
+      dbgCopy(cp,()=>(d.prompt&&d.prompt.text)||"");dbgCopy(cj,()=>JSON.stringify(d,null,2));
+      actions.appendChild(cp);actions.appendChild(cj);body.appendChild(actions);
       box.appendChild(body);
     });
     return box;

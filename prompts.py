@@ -9,11 +9,11 @@ from pathlib import Path
 
 
 def _load(path):
-    """`## name` heading, then the fenced block under it is that prompt."""
+    """`### name` heading, then the fenced block under it is that prompt."""
     sections, name, lines = {}, None, None
     for line in path.read_text(encoding="utf-8").splitlines():
         if lines is None:
-            heading = re.fullmatch(r"## (\S+)\s*", line)
+            heading = re.fullmatch(r"### (\S+)\s*", line)
             if heading:
                 name = heading.group(1)
             elif name and line.startswith("```"):

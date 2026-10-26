@@ -1,0 +1,1 @@
+- Not covered: {{search}} once with a better query; then you may use general knowledge or {{web}}, within this course's subject, saying which parts come from outside the material.

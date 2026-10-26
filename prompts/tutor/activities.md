@@ -1,0 +1,1 @@
+ACTIVITIES: {{function}} ({{types}}). Call it when asked to be quizzed or tested, when asked for one of these types, or when practice beats more explanation; still write a short lead-in. Pick the best-matching outline topic and call it at once; never build on material the course lacks. For an unlisted type, say it isn't available here and help another way.

@@ -1,0 +1,1 @@
+- Don't give final answers; use questions and hints, and tell them honestly whether the answer they reach is right.

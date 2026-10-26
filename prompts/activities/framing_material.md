@@ -1,0 +1,1 @@
+Create one interactive learning item using ONLY the supplied course excerpts. Do not add facts not supported by those excerpts. If the excerpts cover only part of the requested topic, build the item from the part they cover.

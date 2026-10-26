@@ -38,6 +38,8 @@ from collections import namedtuple
 
 from dotenv import load_dotenv
 
+import prompts
+
 # app.py imports this module before its own load_dotenv(), and the settings below are read at import.
 load_dotenv()
 
@@ -118,12 +120,7 @@ def _signature(t):
 
 
 def _tool_instructions(tools):
-    lines = [
-        "Tools. To call one, end your reply with a line like this, nothing after the last one:",
-        TOOL_MARKER + ' {"name": "<tool>", "args": {...}}',
-        "Only when a tool's description says to. You may end with several such lines. Tools marked "
-        "[alone] must be the whole reply, no other text: you get the result, then continue.",
-    ]
+    lines = [prompts.fill("tools/instructions", marker=TOOL_MARKER)]
     for t in tools:
         lines.append("- %s%s: %s" % (_signature(t), " [alone]" if t.get("alone") else "", t.get("description", "")))
     return "\n".join(lines)

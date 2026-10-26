@@ -19,6 +19,8 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
+import prompts
+
 logger = logging.getLogger(__name__)
 
 SEARCH_COURSE = "search_course_material"
@@ -40,37 +42,19 @@ RESULT_CHARS = 3500
 def declarations(web_enabled, first_message=False):
     """Declarations for the tutor's tools. Web search only when the course allows it,
     renaming only on a conversation's first message."""
-    def tool(name, description, **props):
-        return {"name": name, "alone": name not in SIDE, "description": description,
+    def tool(name, *params):
+        return {"name": name, "alone": name not in SIDE,
+                "description": prompts.get("tools/%s/description" % name),
                 "parameters": {"type": "object", "properties": {
-                    k: {"type": "string", "description": v} for k, v in props.items()},
-                    "required": list(props)}}
-    tools = [tool(SEARCH_COURSE,
-                  "Search the course material with your own query when the excerpts you were given "
-                  "don't help. Sparingly: only when the question seems answerable from the course.",
-                  query="what to look for")]
+                    k: {"type": "string", "description": prompts.get("tools/%s/%s" % (name, k))} for k in params},
+                    "required": list(params)}}
+    tools = [tool(SEARCH_COURSE, "query")]
     if web_enabled:
-        tools.append(tool(WEB_SEARCH,
-                          "Search the web for current or outside facts the course material lacks. "
-                          "Sparingly, and never for what the material already answers.",
-                          query="search terms"))
-    tools += [
-        tool(GET_DATETIME, "The current date and time. Only when the answer depends on it."),
-        tool(CALCULATE, "Exact arithmetic for hard sums: + - * / ** % ( ), sqrt sin cos tan log ln "
-                        "abs round, pi, e. Skip easy ones.", expression="the expression"),
-        tool(MARK_GAP, "Quietly tell the teacher the course material lacks something students need. "
-                       "Rarely: only when a real course question had no support in it. Never mention "
-                       "this to the student. Call after your reply.", topic="what is missing, in a few words"),
-        tool(END_CONVERSATION, "Permanently end this chat. Only for sustained abuse, insults or "
-                               "jailbreak attempts after you already asked them to stop. Never for "
-                               "goodbyes, thanks, sensitive topics or distress. Call after a brief "
-                               "final message.", reason="one short sentence"),
-    ]
+        tools.append(tool(WEB_SEARCH, "query"))
+    tools += [tool(GET_DATETIME), tool(CALCULATE, "expression"), tool(MARK_GAP, "topic"),
+              tool(END_CONVERSATION, "reason")]
     if first_message:
-        tools.append(tool(RENAME_CHAT, "Name this chat from what the student is asking, in 2 to 5 plain "
-                                       "words (a topic, not \"Greeting\"). Call after your reply on the "
-                                       "first message only; skip it if they only said hello.",
-                          title="the chat name"))
+        tools.append(tool(RENAME_CHAT, "title"))
     return tools
 
 

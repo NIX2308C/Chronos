@@ -1,0 +1,1 @@
+Create one interactive learning item on the requested topic from your own general knowledge. This course has no material on it and the teacher has turned off strict grounding. Keep it introductory and factually safe.

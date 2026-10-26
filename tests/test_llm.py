@@ -306,6 +306,19 @@ def test_chat_and_tool_routes_on_endpoint():
     assert r.status_code == 502 and r.get_json()["error"].startswith("I couldn't make that quiz"), r.get_json()
     assert len(requests) == 1 and "format" not in r.get_json()["error"]
 
+    # The model may decline: a plain reason, no activity stored, and the prompt carries the chat.
+    A.load_history = lambda *a, **k: [{"role": "user", "parts": [{"text": "tell me about mitosis"}]},
+                                      {"role": "model", "parts": [{"text": "Mitosis is cell division."}]}]
+    requests.clear()
+    replies.append((200, _reply(json.dumps({"type": "quiz", "decline_reason": "The course has nothing on that.",
+                                            "title": "", "questions": []}))))
+    r = c.post("/tools/run", json={"class_id": "c1", "chat_id": "chat1",
+                                   "tool_request": {"type": "quiz", "topic": "this"}})
+    assert r.status_code == 422 and r.get_json()["error"] == "The course has nothing on that.", r.get_json()
+    sent = requests[-1]["body"]["messages"][-1]["content"]
+    assert "Student: tell me about mitosis" in sent and "NOTHING" in sent, sent
+    A.load_history = lambda *a, **k: []
+
     # A tool the course has switched off is dropped even if the model calls it.
     replies.append((200, _reply("Here you go." + _call({"type": "concept_map", "topic": "x"}))))
     r = c.post("/chat", json={"message": "map osmosis for me", "class_id": "c1", "chat_id": "chat1"})

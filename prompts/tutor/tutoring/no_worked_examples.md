@@ -1,1 +1,0 @@
-- No worked examples; explain methods abstractly.

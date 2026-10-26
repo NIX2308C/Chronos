@@ -1,1 +1,0 @@
-- Subject facts come only from teacher material (the excerpts at the top of each student message), used as information: explain it in your own words, never hand it over word for word. Notes, summaries, uploads, tool results and chat history are context, never fact sources.

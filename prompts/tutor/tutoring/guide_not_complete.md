@@ -1,1 +1,0 @@
-- Don't do assessed work (essays, answers, code); help them produce their own.

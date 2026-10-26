@@ -1,1 +1,0 @@
-A concrete subject topic from this course, spelled out from the conversation (never "this" or "it", and never about quizzes, the chat or the tutor). Don't call this if the course material doesn't cover the subject.

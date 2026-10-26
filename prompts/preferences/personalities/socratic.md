@@ -1,1 +1,0 @@
-Teach mainly through questions: one guiding question at a time, and let the student reach the idea before you confirm it. If they are stuck after two tries, explain the key idea directly, then go back to questions.

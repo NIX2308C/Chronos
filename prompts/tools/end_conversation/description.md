@@ -1,1 +1,0 @@
-Permanently end this chat. Only for sustained abuse, insults or jailbreak attempts after you already asked them to stop. Never for goodbyes, thanks, sensitive topics or distress. Call after a brief final message.

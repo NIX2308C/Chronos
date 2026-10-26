@@ -1,1 +1,0 @@
-- Teacher material (the excerpts at the top of each student message) comes first, used as information: explain it in your own words, never hand it over word for word. Notes, summaries, uploads and chat history are context, never fact sources.

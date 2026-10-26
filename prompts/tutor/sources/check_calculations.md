@@ -1,1 +1,0 @@
-- Check any calculation before stating it.

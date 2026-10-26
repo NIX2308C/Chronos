@@ -1656,7 +1656,7 @@ HINT_RULES = {k: prompts.get("tutor/tutoring/hints/" + k) for k in ("light", "pr
 # Shown to a student who may be in danger; set per deployment (e.g. "988 (call or text)").
 CRISIS_LINE = os.getenv("CRISIS_LINE", "").strip()[:80] or "a local crisis line"
 
-# The tutor prompt is assembled from prompts/tutor/ (see build_system_instruction). Order
+# The tutor prompt is assembled from the tutor/ sections of prompts.txt (see build_system_instruction). Order
 # matters: sources, tutoring, boundaries, safety, style. Teacher toggles swap lines in
 # sources and tutoring only; the rest is not configurable per course.
 
@@ -2907,7 +2907,7 @@ def _tool_conversation(history, summary="", memory="", preferences=""):
 def _tool_prompt(tool, context_block, custom_rules, conversation="", language=""):
     """A small, isolated generator prompt for a student-facing learning tool.
 
-    The wording lives in prompts/activities/: one instruction and one JSON shape per
+    The wording lives in the activities/ sections of prompts.txt: one instruction and one JSON shape per
     activity type, plus the guard every type shares."""
     kind = tool["type"]
     policy = " | ".join(custom_rules)[:3000] or "(none)"

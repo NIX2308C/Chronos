@@ -1211,20 +1211,22 @@
   })();
 
   const reduceMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
-  // Keep this list in sync with app.py's /audio allowlist. `thinking.mp3` is
-  // intentionally not included until there is a deliberate UX for it.
+  // Keep this list in sync with app.py's /audio allowlist.
   const sounds={
     using:"audio/toolkit_using.mp3",done:"audio/toolkit_done.mp3",failed:"audio/toolkit_fail.mp3",
     correct:"audio/quiz_correct.mp3",incorrect:"audio/quiz_incorrect.mp3",
-    highScore:"audio/high_score.mp3",lowScore:"audio/low_score.mp3"
+    highScore:"audio/high_score.mp3",lowScore:"audio/low_score.mp3",
+    thinking:"audio/thinking.mp3"
   };
+  // Quiet cues: the ones that can fire while the student is reading.
+  const QUIET_SOUNDS={using:.18,thinking:.14};
   let currentSound=null,audioEnabled=false;
   document.addEventListener("pointerdown",()=>{audioEnabled=true;},{passive:true});
   document.addEventListener("keydown",()=>{audioEnabled=true;});
   function stopSound(){if(currentSound){try{currentSound.pause();currentSound.currentTime=0;}catch{}currentSound=null;}}
   function playSound(kind){
     stopSound();if(!audioEnabled||!sounds[kind])return;
-    const player=new Audio(sounds[kind]);player.volume=kind==="using"?.18:.24;currentSound=player;
+    const player=new Audio(sounds[kind]);player.volume=QUIET_SOUNDS[kind]||.24;currentSound=player;
     try{Promise.resolve(player.play()).then(()=>{if(currentSound!==player)player.pause();})
       .catch(()=>{if(currentSound===player)currentSound=null;});}
     catch{if(currentSound===player)currentSound=null;}
@@ -1257,6 +1259,8 @@
     function setPhase(phase){
       if(pending.dataset.phase===phase||(phase==="thinking"&&pending.dataset.phase!=="waiting"))return;
       pending.dataset.phase=phase;pending.setAttribute("aria-label",PHASE_ARIA[phase]);
+      // Once per reply: the guard above only lets "thinking" through from "waiting".
+      if(phase==="thinking")playSound("thinking");
     }
     // The voice bars dance while text is arriving and settle into a slow breath when it pauses.
     let liveTimer=null;

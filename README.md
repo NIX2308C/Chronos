@@ -217,6 +217,8 @@ with it on, remembers that, and the menu shows "Thinking: always on".
 `OPENROUTER_API_KEY` is required and is only ever read on the server.
 
 ### Embeddings and Pinecone
+Set `EMBED_MODEL_ID=embeddinggemma` in `.env` so the index's recorded model name stays fixed however the
+embedding server is launched (otherwise a different `--alias` or model path makes the startup check refuse to run).
 Course material is embedded by EmbeddingGemma 300M on `EMBED_BASE_URL`
 (`https://chronos-embed.tevproject.com/v1`, same `LLM_API_KEY`): 768-d,
 L2-normalized. The model id comes from `GET /v1/models`. Questions are sent as

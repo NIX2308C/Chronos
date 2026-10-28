@@ -58,6 +58,10 @@ DEFAULT_CHAT_MODEL = "recursive/flint-v1.0:free"
 EMBED_BASE_URL = os.getenv("EMBED_BASE_URL", "https://chronos-embed.tevproject.com/v1").strip().rstrip("/")
 # Used only if GET /models on the embedding server cannot be read; normally the id it returns wins.
 EMBED_MODEL = "embeddinggemma"
+# Pins the name recorded for the index. The server reports whatever it was launched with (a file
+# name, a Hugging Face path, an --alias), so without this a restart that changes the launch command
+# looks like a model switch and the startup check refuses to run. Set it once and leave it.
+EMBED_MODEL_ID = os.getenv("EMBED_MODEL_ID", "").strip()
 # Must equal the Pinecone index dimension. Vectors from different models never share an index.
 EMBED_DIM = 768
 EMBED_BATCH = 16                  # inputs per /embeddings request (16-32 is safe)
@@ -459,4 +463,4 @@ def embed_documents(chunks, title=None):
 def verify_embeddings():
     """Embed one test string and require EMBED_DIM floats. Returns (model, dimension)."""
     vec = _embed_raw([query_text("startup check")])[0]
-    return embed_model(), len(vec)
+    return (EMBED_MODEL_ID or embed_model()), len(vec)

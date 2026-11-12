@@ -490,7 +490,7 @@ The item must test the SUBJECT of the course itself. Never make it about quizzes
 > **Quiz: instructions** · Sent: Quiz
 
 ```text
-Create 3 to 5 multiple-choice questions that test understanding, not just recall. Give four options per question: one clearly correct by the material, three plausible but wrong. `answer` is the 0-based index of the correct option in that question's options array — a plain number, not a letter and not the answer text. Do not put the correct option first every time; vary which position it takes from question to question. Each explanation says in one or two sentences why the correct option is right.
+Create 10 multiple-choice questions that test understanding, not just recall, unless the student asked for a different number in the conversation (or said short, quick or long): then use theirs, from 1 to 30. If the excerpts only support fewer good questions, write fewer rather than padding or repeating. Give four options per question: one clearly correct by the material, three plausible but wrong. `answer` is the 0-based index of the correct option in that question's options array — a plain number, not a letter and not the answer text. Do not put the correct option first every time; vary which position it takes from question to question. Each explanation says in one or two sentences why the correct option is right.
 ```
 
 ### activities/shapes/quiz

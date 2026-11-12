@@ -224,6 +224,8 @@ TOOL_MODEL = os.getenv("TOOL_MODEL", CHAT_MODEL)
 # knowledge base" answer instead of being force-fed the least-bad matches. The
 # index uses cosine; with embeddings on-topic chunks score ~0.52+ and
 # unrelated ones ~0.48–0.51, so 0.5 is a sensible default. Tune per your material.
+# A quiz defaults to 10 questions (prompts.md); a student can ask for more or fewer, up to this.
+MAX_QUIZ_QUESTIONS = int(os.getenv("MAX_QUIZ_QUESTIONS", "30"))
 RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "12"))
 RETRIEVAL_MIN_SCORE = float(os.getenv("RETRIEVAL_MIN_SCORE", "0.5"))
 RETRIEVAL_CONTEXT_CHARS = int(os.getenv("RETRIEVAL_CONTEXT_CHARS", "20000"))
@@ -2856,7 +2858,7 @@ ACTIVITY_SCHEMAS = {
     "quiz": _obj({
         "type": {"type": "string", "enum": ["quiz"]}, **_DECLINE,
         "title": {"type": "string"},
-        "questions": {"type": "array", "minItems": 0, "maxItems": 5, "items": _obj({
+        "questions": {"type": "array", "minItems": 0, "maxItems": MAX_QUIZ_QUESTIONS, "items": _obj({
             "prompt": {"type": "string"},
             "options": _str_list(4, 4),
             "answer": {"type": "integer", "minimum": 0, "maximum": 3},
@@ -3020,7 +3022,7 @@ def _parse_tool_result(text, requested_type):
     result["title"] = str(result.get("title") or requested_type.replace("_", " ").title())[:120]
     if requested_type == "quiz":
         questions = []
-        for q in result.get("questions", [])[:5]:
+        for q in result.get("questions", [])[:MAX_QUIZ_QUESTIONS]:
             options = q.get("options") if isinstance(q, dict) else None
             if not isinstance(options, list) or len(options) < 2:
                 continue

@@ -215,6 +215,9 @@ html.dark .nav-link.on .msym, html.dark .nav-link.on .material-symbols-outlined 
 .chat-ind.ready { opacity: 1; transition: transform .6s var(--quart), height .6s var(--quart), opacity .25s var(--quart); }
 .chat-row > * { position: relative; }
 .chat-ind.jump { transition: none; }
+.chat-row { z-index: 1; }
+.chat-ind { z-index: 0; }
+.chat-row.on, .chat-row.on:hover { background: transparent; }
 .chat-delete { width: 36px; height: 36px; margin-right: 4px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px;
   background: none; color: var(--faint); cursor: pointer; opacity: 0; transition: opacity var(--dur), color var(--dur), background-color var(--dur); }
 .chat-row:hover .chat-delete, .chat-row:focus-within .chat-delete, .chat-row.on .chat-delete { opacity: 1; }

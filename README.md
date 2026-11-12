@@ -243,16 +243,23 @@ more. `end_conversation` closes the chat (`ended` on the chat document, later me
 is refused for self-harm or safety wording.
 
 ### Context budget
-Sized for a hosted model with a large window: prompt capped at `LLM_PROMPT_TOKENS` (100,000; chars ≈ 3
-tokens), reply `LLM_MAX_TOKENS` (4,096). Retrieval pulls 12 chunks (`RETRIEVAL_TOP_K`, 20,000
-characters). Student documents: 20,000 characters each, 45,000 together; a longer set is replaced by
-the short summary stored at upload. Retrieved excerpts go at the top of the current user message only,
-so the system prompt is identical every turn (prompt cache). History is 80 messages and 90,000
-characters (`HISTORY_TURNS`, `HISTORY_CHARS`); older turns roll into a chat summary (up to 8,000
-characters, refreshed every 16 messages). Class memory recalls 25 earlier chats and 12 learning gaps.
-Mild frequency/presence penalties (`LLM_FREQUENCY_PENALTY` 0.3, `LLM_PRESENCE_PENALTY` 0.2) and a
-prompt rule against reusing earlier phrasing reduce repetition. On HTTP 400 `/chat` retries once with
-half the excerpts and half the history. Lower these for a small-window model.
+Sized for a hosted model with a large window: prompt capped at `LLM_PROMPT_TOKENS` (150,000; chars ≈ 3
+tokens), reply `LLM_MAX_TOKENS` (16,384, shared with thinking). Retrieval pulls 16 chunks
+(`RETRIEVAL_TOP_K`, 30,000 characters). Student documents: 30,000 characters each, 80,000 together; a
+longer set is replaced by the short summary stored at upload. Retrieved excerpts go at the top of the
+current user message only, so the system prompt is identical every turn (prompt cache). Class memory
+recalls 40 earlier chats and 15 learning gaps. Mild frequency/presence penalties
+(`LLM_FREQUENCY_PENALTY`, `LLM_PRESENCE_PENALTY`) and a prompt rule against reusing earlier phrasing
+reduce repetition. On HTTP 400 `/chat` retries once with half the excerpts and half the history. Lower
+these for a small-window model.
+
+**Compaction.** Priority, highest first: system rules and the current message; course excerpts; the
+newest `COMPACT_KEEP_MESSAGES` (40) turns word for word; the chat summary; older turns. Once a chat runs
+`SUMMARY_BATCH_MESSAGES` (12) past the keep window, the oldest unsummarized slice is rolled into a short
+priority-ordered note (current work, gaps, mastered, examples already used; hard cap
+`CONVERSATION_SUMMARY_CHARS`) and no longer replayed, so nothing is said twice. Only if the replay still
+exceeds `HISTORY_CHARS` (150,000) are turns outside the newest `HISTORY_RECENT_MESSAGES` (10) shortened to
+`HISTORY_OLDER_TURN_CHARS` (600), oldest first, and only after that dropped (`app.py:trim_history`).
 
 ### Troubleshooting
 The public `/status` page shows whether the endpoint is reachable. Errors are

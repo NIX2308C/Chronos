@@ -149,13 +149,20 @@ REGISTER_RATE_WINDOW = int(os.getenv("REGISTER_RATE_WINDOW", "900"))  # seconds
 TRUST_PROXY_HOPS = int(os.getenv("TRUST_PROXY_HOPS", "0"))
 
 # How many past messages to replay into the model so it remembers the conversation.
-# Each Q&A is 2 messages, so 80 ≈ the last 40 exchanges. Capped to bound tokens/latency.
-HISTORY_TURNS = int(os.getenv("HISTORY_TURNS", "80"))
+# Each Q&A is 2 messages, so 120 ≈ the last 60 exchanges. This is a ceiling; see COMPACT_KEEP_MESSAGES. Capped to bound tokens/latency.
+HISTORY_TURNS = int(os.getenv("HISTORY_TURNS", "120"))
 # Once older turns are about to fall out of the replay window, roll them into a
 # separate tutoring-state note. This is intentionally not course knowledge: it
 # may guide pacing and follow-ups, but can never supply subject facts.
-SUMMARY_BATCH_MESSAGES = int(os.getenv("SUMMARY_BATCH_MESSAGES", "16"))
-CONVERSATION_SUMMARY_CHARS = int(os.getenv("CONVERSATION_SUMMARY_CHARS", "8000"))
+SUMMARY_BATCH_MESSAGES = int(os.getenv("SUMMARY_BATCH_MESSAGES", "12"))
+CONVERSATION_SUMMARY_CHARS = int(os.getenv("CONVERSATION_SUMMARY_CHARS", "12000"))   # a hard cap; the prompt asks for a short note
+# Compaction: the newest COMPACT_KEEP_MESSAGES stay word for word; once the chat runs a batch past
+# that, the older turns are rolled into the summary and leave the replay (no duplicates).
+# Under space pressure, turns outside the newest HISTORY_RECENT_MESSAGES are shortened before any is dropped.
+COMPACT_KEEP_MESSAGES = int(os.getenv("COMPACT_KEEP_MESSAGES", "40"))
+COMPACT_MAX_BATCH = int(os.getenv("COMPACT_MAX_BATCH", "60"))
+HISTORY_RECENT_MESSAGES = int(os.getenv("HISTORY_RECENT_MESSAGES", "10"))
+HISTORY_OLDER_TURN_CHARS = int(os.getenv("HISTORY_OLDER_TURN_CHARS", "600"))
 # Hard cap on how many messages a single conversation will return, so one very
 # long chat can't turn into an unbounded Firestore read + response body.
 MAX_MESSAGES_RETURNED = int(os.getenv("MAX_MESSAGES_RETURNED", "500"))
@@ -163,13 +170,13 @@ MAX_MESSAGES_RETURNED = int(os.getenv("MAX_MESSAGES_RETURNED", "500"))
 # --- what the tutor remembers about a student, and what they hand it ---
 # Everything here is keyed by class. That scoping *is* the feature: a student who
 # switches class gets a tutor with no recollection of the other one.
-MEMORY_CHATS = int(os.getenv("MEMORY_CHATS", "25"))     # earlier conversations recalled
+MEMORY_CHATS = int(os.getenv("MEMORY_CHATS", "40"))     # earlier conversations recalled
 MEMORY_TOPIC_CHARS = 220                               # per remembered question
-MEMORY_MAX_GAPS = 12
+MEMORY_MAX_GAPS = 15
 # ponytail: the memory query filters by class but doesn't order as well (that
 # needs a composite index), so a student with more chats in one class than this
 # gets the newest of an arbitrary slice. Add the index + order_by if it bites.
-MEMORY_QUERY_MAX = 200
+MEMORY_QUERY_MAX = 300
 # Alongside *what* a student asked, the tutor keeps a running read of *how* they
 # write and where they keep getting stuck (student_profile.py). It is one document
 # per student per class, keyed by class id, so it is scoped the same way the chat
@@ -180,9 +187,9 @@ ROSTER_MAX = 500          # students listed on the teacher's per-student panel
 # the prompt whole rather than through Pinecone. That makes these context-window
 # budgets, not storage ones — far tighter than MAX_EXTRACT_CHARS, and safely under
 # Firestore's 1 MiB per-document limit.
-STUDENT_DOC_CHARS = int(os.getenv("STUDENT_DOC_CHARS", "20000"))   # per document, ~6,700 tokens
+STUDENT_DOC_CHARS = int(os.getenv("STUDENT_DOC_CHARS", "30000"))   # per document, ~10,000 tokens
 STUDENT_DOCS_MAX = int(os.getenv("STUDENT_DOCS_MAX", "3"))         # per class
-STUDENT_CONTEXT_CHARS = int(os.getenv("STUDENT_CONTEXT_CHARS", "45000"))   # all documents together, ~15,000 tokens
+STUDENT_CONTEXT_CHARS = int(os.getenv("STUDENT_CONTEXT_CHARS", "80000"))   # all documents together, ~27,000 tokens
 STUDENT_DOC_SUMMARY_CHARS = 700        # stored once at upload; stands in for a document that doesn't fit
 STUDENT_DOC_KINDS = ("assignment", "rubric")
 # How much of an upload the kind check reads. Enough to tell an essay from a
@@ -208,7 +215,7 @@ EMBED_DIM = llm.EMBED_DIM
 # Budgets assume a hosted model with a large window (~3 chars a token): system+tool
 # rules ~1,800 tokens, student documents up to 6,500, retrieved chunks 4,000, history
 # 30,000, prompt total capped at llm.PROMPT_TOKENS. Lower these for a small-window model.
-HISTORY_CHARS = int(os.getenv("HISTORY_CHARS", "90000"))
+HISTORY_CHARS = int(os.getenv("HISTORY_CHARS", "150000"))
 # Chat/generation model. flash-lite is cheaper and has higher throughput than
 # 2.5-flash, so it scales better for a class of users. Override via env if needed.
 CHAT_MODEL = os.getenv("CHAT_MODEL", llm.DEFAULT_CHAT_MODEL)
@@ -226,9 +233,9 @@ TOOL_MODEL = os.getenv("TOOL_MODEL", CHAT_MODEL)
 # unrelated ones ~0.48–0.51, so 0.5 is a sensible default. Tune per your material.
 # A quiz defaults to 10 questions (prompts.md); a student can ask for more or fewer, up to this.
 MAX_QUIZ_QUESTIONS = int(os.getenv("MAX_QUIZ_QUESTIONS", "30"))
-RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "12"))
+RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "16"))
 RETRIEVAL_MIN_SCORE = float(os.getenv("RETRIEVAL_MIN_SCORE", "0.5"))
-RETRIEVAL_CONTEXT_CHARS = int(os.getenv("RETRIEVAL_CONTEXT_CHARS", "20000"))
+RETRIEVAL_CONTEXT_CHARS = int(os.getenv("RETRIEVAL_CONTEXT_CHARS", "30000"))
 # Floor for the second-chance query (previous question + this one). Defaults to the
 # main floor: unrelated chunks already sit just under it, so going lower would let
 # the least-bad matches through as if they were answers.
@@ -1182,7 +1189,7 @@ def migrate_default_rules_to(class_id):
     return moved
 
 
-def load_history(chat_ref, limit=HISTORY_TURNS):
+def load_history(chat_ref, limit=HISTORY_TURNS, skip_through=0, total=0):
     """Return the most recent stored messages as model 'contents' turns
     (oldest first) so the model can see the conversation so far.
 
@@ -1201,6 +1208,10 @@ def load_history(chat_ref, limit=HISTORY_TURNS):
         return []
 
     docs.reverse()  # back into chronological order
+    if skip_through and total:
+        # Turns already rolled into the chat summary must not be replayed as well:
+        # the same material twice is what makes a tutor repeat itself.
+        docs = docs[max(0, skip_through - (total - len(docs))):]
     contents = []
     for d in docs:
         m = d.to_dict()
@@ -1219,10 +1230,32 @@ def load_history(chat_ref, limit=HISTORY_TURNS):
     return trim_history(contents)
 
 
+def _shorten(text, n):
+    """Cut text to about n characters at a word boundary, marking the cut."""
+    if len(text) <= n:
+        return text
+    return text[:n].rsplit(None, 1)[0].rstrip(" ,;:") + " …"
+
+
 def trim_history(contents, limit=HISTORY_CHARS):
-    """Drop the oldest turns until the replay fits its share of the context window."""
-    contents = list(contents)
+    """Fit the replay into its share of the context window, newest turns first in priority.
+
+    1. The newest HISTORY_RECENT_MESSAGES turns are never touched.
+    2. Over the limit, older turns are shortened (oldest first) before anything is dropped,
+       so the thread of the conversation survives.
+    3. Only then are the oldest turns dropped, and the replay always starts on a user turn.
+    """
+    contents = [dict(c, parts=[dict(c["parts"][0])]) for c in contents]
     size = sum(len(c["parts"][0]["text"]) for c in contents)
+    if size > limit:
+        for c in contents[:max(0, len(contents) - HISTORY_RECENT_MESSAGES)]:
+            old = c["parts"][0]["text"]
+            new = _shorten(old, HISTORY_OLDER_TURN_CHARS)
+            if new != old:
+                c["parts"][0]["text"] = new
+                size -= len(old) - len(new)
+            if size <= limit:
+                break
     while contents and (size > limit or contents[0]["role"] != "user"):
         size -= len(contents.pop(0)["parts"][0]["text"])
     return contents
@@ -1457,16 +1490,15 @@ def refresh_conversation_summary(msgs_ref, prev):
     """
     message_count = int(prev.get("message_count") or 0)
     summarized = int(prev.get("summary_through") or 0)
-    available = max(0, message_count - HISTORY_TURNS)
+    available = max(0, message_count - COMPACT_KEEP_MESSAGES)
     if available < summarized + SUMMARY_BATCH_MESSAGES:
         return prev.get("conversation_summary") or "", {}
     try:
-        docs = list(
-            msgs_ref.order_by("timestamp", direction=firestore.Query.DESCENDING)
-            .limit(HISTORY_TURNS + SUMMARY_BATCH_MESSAGES).stream()
+        # Exactly the next unsummarized slice, oldest first, however long the backlog is.
+        older = list(
+            msgs_ref.order_by("timestamp").offset(summarized)
+            .limit(min(available - summarized, COMPACT_MAX_BATCH)).stream()
         )
-        docs.reverse()
-        older = docs[:SUMMARY_BATCH_MESSAGES]
         transcript = "\n".join(
             ("Student" if (d.to_dict() or {}).get("role") == "student" else "Tutor")
             + ": " + str((d.to_dict() or {}).get("content") or "")[:1200]
@@ -1480,7 +1512,7 @@ def refresh_conversation_summary(msgs_ref, prev):
         summary = summarize_tutoring_state(existing, transcript)
         if not summary:
             return existing, {}
-        through = summarized + SUMMARY_BATCH_MESSAGES
+        through = summarized + len(older)
         return summary, {"conversation_summary": summary, "summary_through": through}
     except Exception:
         logger.exception("Could not refresh conversation summary; continuing without it.")
@@ -2439,7 +2471,7 @@ def chat():
                 msgs_ref.order_by("timestamp").limit(MAX_MESSAGES_RETURNED).stream()
             )
             prev["message_count"] = len(old)
-            older = old[:-HISTORY_TURNS] if len(old) > HISTORY_TURNS else []
+            older = old[:-COMPACT_KEEP_MESSAGES] if len(old) > COMPACT_KEEP_MESSAGES else []
             if older:
                 transcript_parts, used = [], 0
                 for d in older:
@@ -2467,7 +2499,10 @@ def chat():
 
         # Replay the recent conversation so the AI remembers earlier turns.
         t = time.perf_counter()
-        history = [] if blocked else load_history(msgs_ref)
+        history = [] if blocked else load_history(
+            msgs_ref,
+            skip_through=int(summary_update.get("summary_through", prev.get("summary_through")) or 0),
+            total=int(prev.get("message_count") or 0))
         lap("history_ms", t)
 
         # A short follow-up ("what about the second one?") embeds to nothing on
@@ -3123,7 +3158,9 @@ def run_tool():
             return pinecone_index.query(vector=embed(query), top_k=RETRIEVAL_TOP_K,
                                         include_metadata=True, namespace=class_id)["matches"]
 
-        history = load_history(chat_ref.collection("Messages"))
+        _cd = chat_snap.to_dict() or {}
+        history = load_history(chat_ref.collection("Messages"), skip_through=int(_cd.get("summary_through") or 0),
+                               total=int(_cd.get("message_count") or 0))
         context_block, sources = _source_context(topic_matches(tool["topic"]))
         if not context_block and history:
             # A vague topic ("this", "it") embeds to nothing; add what was just discussed.
@@ -3161,7 +3198,7 @@ def run_tool():
                                                      prefs.get("language", "")),
                             temperature=0.2, json_schema=ACTIVITY_SCHEMAS[tool["type"]],
                             think=False,   # activities stay fast; thinking is for chat
-                            max_tokens=8000).text
+                            max_tokens=16000).text
         declined = _decline_reason(text)
         if declined:
             return tool_failure(tool, "Model declined: " + declined, 422, declined)

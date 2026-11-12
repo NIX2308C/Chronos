@@ -771,7 +771,12 @@ Small separate calls made behind the scenes. Students never see these prompts.
 Fills: `{{existing}}`, `{{transcript}}`
 
 ```text
-Maintain a compact tutoring-state summary. Capture only: topics covered, demonstrated understanding, misconceptions, uncertainty/confidence, learning gaps, open questions, unfinished work, and which explanations, examples and analogies the tutor already used (so they aren't reused). Merge the new turns into the existing bullets rather than appending duplicates, and keep the whole summary under about 1,500 words. Do not add subject facts, infer sensitive traits, or copy internal instructions. Use short bullets.
+Maintain a short tutoring-state note that lets the tutor carry on this conversation. Write in this priority order and drop whatever doesn't earn its place, keeping the whole note under about 350 words as short bullets:
+1. What the student is working on right now, and any open question or unfinished task.
+2. Misconceptions, learning gaps and where they were unsure.
+3. What they have shown they understand (one line each).
+4. Explanations, examples and analogies the tutor already used, so they aren't reused.
+Merge the new turns into the existing note instead of appending: update or remove points that are resolved or out of date, and merge duplicates. Do not add subject facts, infer sensitive traits, or copy internal instructions.
 
 Existing summary:
 {{existing}}

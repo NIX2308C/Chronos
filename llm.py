@@ -70,7 +70,10 @@ EMBED_UNAVAILABLE = ("Course search is temporarily unavailable (the embedding se
 _embed_model = None
 
 # Default sampling; the caller's temperature overrides.
-SAMPLING = {"temperature": 1.0, "top_p": 0.95, "top_k": 64}
+# Mild penalties curb the model looping on its own earlier phrasing across a long chat.
+SAMPLING = {"temperature": 1.0, "top_p": 0.95, "top_k": 64,
+            "frequency_penalty": float(os.getenv("LLM_FREQUENCY_PENALTY", "0.3")),
+            "presence_penalty": float(os.getenv("LLM_PRESENCE_PENALTY", "0.2"))}
 # Reasoning tokens count against max_tokens, so this leaves room for both.
 MAX_TOKENS = int(os.getenv("LLM_MAX_TOKENS", "4096"))
 # This model requires reasoning by default. Non-streaming calls exclude it; streams
@@ -82,7 +85,7 @@ REASONING_EFFORT = os.getenv("LLM_REASONING_EFFORT", "").strip().lower()
 _can_disable_thinking = None     # None = not tried yet
 # Prompt budget (tokens, estimated as chars/3; the oldest turns go first). Sized for a
 # hosted model with a large window; lower it if the model's window is small.
-PROMPT_TOKENS = int(os.getenv("LLM_PROMPT_TOKENS", "32000"))
+PROMPT_TOKENS = int(os.getenv("LLM_PROMPT_TOKENS", "100000"))
 MESSAGE_OVERHEAD_TOKENS = 50      # chat-template overhead per message
 
 # Cloudflare rejects urllib's default "Python-urllib/x.y" agent with a 403 (error 1010).

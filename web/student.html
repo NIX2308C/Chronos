@@ -536,16 +536,16 @@
   const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),messages:document.getElementById("messages")};
   const chatTransition=ChronosNav.createViewTransition(document.querySelector("[data-chat-col]"));
   let navigationBusy=false,sending=false,toolRunning=false;
-  // Thinking starts off in every chat and only runs once the student switches it on for that
-  // chat (remembered per device). THINK_LOCKED is set once the server finds the model won't
+  // Thinking starts on in every chat; a student can switch it off for that chat (remembered
+  // per device: 1 on, 0 off). THINK_LOCKED is set once the server finds the model won't
   // run without it.
   let THINK_LOCKED=false,THINK_CHATS={};
   try{THINK_CHATS=JSON.parse(localStorage.getItem("chronos-think-chats")||"{}")||{};}catch(e){}
-  const isThinking=c=>!!(c&&(c.think||THINK_CHATS[c.id]));
+  const isThinking=c=>!!c&&(c.think!==undefined?!!c.think:THINK_CHATS[c.id]!==0);
   function setThinking(c,on){
     if(!c)return;
     c.think=on;
-    if(on)THINK_CHATS[c.id]=1;else delete THINK_CHATS[c.id];
+    THINK_CHATS[c.id]=on?1:0;
     try{localStorage.setItem("chronos-think-chats",JSON.stringify(Object.fromEntries(Object.entries(THINK_CHATS).slice(-300))));}catch(e){}
   }
   const TZ=(()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone||"";}catch(e){return "";}})();
@@ -1753,7 +1753,7 @@
       // The tutor answers from this chat's class. Omit chat_id for a not-yet-saved
       // conversation; the server creates one.
       const body={message:text,class_id:c.classId||ACTIVE_CLASS,chat_id:c.id,stream:true,tz:TZ};
-      if(isThinking(c))body.think=true;
+      body.think=isThinking(c);
       if(options.display)body.display=options.display;
       if(DEBUG)body.debug=true;
       const res=await Chronos.apiFetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
@@ -1765,7 +1765,7 @@
           cache_hit_chats:ALL_CHATS.filter(x=>x.loaded).length}});
       }
       // Adopt the server's chat id/title for a freshly-created conversation.
-      if(data.chat_id&&c.isNew){const oldId=c.id;c.id=data.chat_id;if(c.think)setThinking(c,true);c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId===oldId)activeChatId=c.id;renderSidebar();}
+      if(data.chat_id&&c.isNew){const oldId=c.id;c.id=data.chat_id;if(c.think!==undefined)setThinking(c,c.think);c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId===oldId)activeChatId=c.id;renderSidebar();}
       // `grounded` comes from the server, which is the only side that can see
       // the sources: students are never sent rules_used, so an empty list here
       // no longer means "nothing backed this answer".

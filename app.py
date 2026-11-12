@@ -149,13 +149,13 @@ REGISTER_RATE_WINDOW = int(os.getenv("REGISTER_RATE_WINDOW", "900"))  # seconds
 TRUST_PROXY_HOPS = int(os.getenv("TRUST_PROXY_HOPS", "0"))
 
 # How many past messages to replay into the model so it remembers the conversation.
-# Each Q&A is 2 messages, so 30 ≈ the last 15 exchanges. Capped to bound tokens/latency.
-HISTORY_TURNS = int(os.getenv("HISTORY_TURNS", "30"))
+# Each Q&A is 2 messages, so 80 ≈ the last 40 exchanges. Capped to bound tokens/latency.
+HISTORY_TURNS = int(os.getenv("HISTORY_TURNS", "80"))
 # Once older turns are about to fall out of the replay window, roll them into a
 # separate tutoring-state note. This is intentionally not course knowledge: it
 # may guide pacing and follow-ups, but can never supply subject facts.
-SUMMARY_BATCH_MESSAGES = int(os.getenv("SUMMARY_BATCH_MESSAGES", "8"))
-CONVERSATION_SUMMARY_CHARS = int(os.getenv("CONVERSATION_SUMMARY_CHARS", "2400"))
+SUMMARY_BATCH_MESSAGES = int(os.getenv("SUMMARY_BATCH_MESSAGES", "16"))
+CONVERSATION_SUMMARY_CHARS = int(os.getenv("CONVERSATION_SUMMARY_CHARS", "8000"))
 # Hard cap on how many messages a single conversation will return, so one very
 # long chat can't turn into an unbounded Firestore read + response body.
 MAX_MESSAGES_RETURNED = int(os.getenv("MAX_MESSAGES_RETURNED", "500"))
@@ -163,13 +163,13 @@ MAX_MESSAGES_RETURNED = int(os.getenv("MAX_MESSAGES_RETURNED", "500"))
 # --- what the tutor remembers about a student, and what they hand it ---
 # Everything here is keyed by class. That scoping *is* the feature: a student who
 # switches class gets a tutor with no recollection of the other one.
-MEMORY_CHATS = int(os.getenv("MEMORY_CHATS", "8"))     # earlier conversations recalled
-MEMORY_TOPIC_CHARS = 120                               # per remembered question
-MEMORY_MAX_GAPS = 5
+MEMORY_CHATS = int(os.getenv("MEMORY_CHATS", "25"))     # earlier conversations recalled
+MEMORY_TOPIC_CHARS = 220                               # per remembered question
+MEMORY_MAX_GAPS = 12
 # ponytail: the memory query filters by class but doesn't order as well (that
 # needs a composite index), so a student with more chats in one class than this
 # gets the newest of an arbitrary slice. Add the index + order_by if it bites.
-MEMORY_QUERY_MAX = 60
+MEMORY_QUERY_MAX = 200
 # Alongside *what* a student asked, the tutor keeps a running read of *how* they
 # write and where they keep getting stuck (student_profile.py). It is one document
 # per student per class, keyed by class id, so it is scoped the same way the chat
@@ -180,9 +180,9 @@ ROSTER_MAX = 500          # students listed on the teacher's per-student panel
 # the prompt whole rather than through Pinecone. That makes these context-window
 # budgets, not storage ones — far tighter than MAX_EXTRACT_CHARS, and safely under
 # Firestore's 1 MiB per-document limit.
-STUDENT_DOC_CHARS = int(os.getenv("STUDENT_DOC_CHARS", "8000"))    # per document, ~2,700 tokens
+STUDENT_DOC_CHARS = int(os.getenv("STUDENT_DOC_CHARS", "20000"))   # per document, ~6,700 tokens
 STUDENT_DOCS_MAX = int(os.getenv("STUDENT_DOCS_MAX", "3"))         # per class
-STUDENT_CONTEXT_CHARS = int(os.getenv("STUDENT_CONTEXT_CHARS", "20000"))   # all documents together, ~6,500 tokens
+STUDENT_CONTEXT_CHARS = int(os.getenv("STUDENT_CONTEXT_CHARS", "45000"))   # all documents together, ~15,000 tokens
 STUDENT_DOC_SUMMARY_CHARS = 700        # stored once at upload; stands in for a document that doesn't fit
 STUDENT_DOC_KINDS = ("assignment", "rubric")
 # How much of an upload the kind check reads. Enough to tell an essay from a
@@ -207,8 +207,8 @@ INDEX_NAME = "teacherchronostwo"
 EMBED_DIM = llm.EMBED_DIM
 # Budgets assume a hosted model with a large window (~3 chars a token): system+tool
 # rules ~1,800 tokens, student documents up to 6,500, retrieved chunks 4,000, history
-# 8,000, prompt total capped at llm.PROMPT_TOKENS. Lower these for a small-window model.
-HISTORY_CHARS = int(os.getenv("HISTORY_CHARS", "24000"))
+# 30,000, prompt total capped at llm.PROMPT_TOKENS. Lower these for a small-window model.
+HISTORY_CHARS = int(os.getenv("HISTORY_CHARS", "90000"))
 # Chat/generation model. flash-lite is cheaper and has higher throughput than
 # 2.5-flash, so it scales better for a class of users. Override via env if needed.
 CHAT_MODEL = os.getenv("CHAT_MODEL", llm.DEFAULT_CHAT_MODEL)
@@ -224,9 +224,9 @@ TOOL_MODEL = os.getenv("TOOL_MODEL", CHAT_MODEL)
 # knowledge base" answer instead of being force-fed the least-bad matches. The
 # index uses cosine; with embeddings on-topic chunks score ~0.52+ and
 # unrelated ones ~0.48–0.51, so 0.5 is a sensible default. Tune per your material.
-RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "8"))
+RETRIEVAL_TOP_K = int(os.getenv("RETRIEVAL_TOP_K", "12"))
 RETRIEVAL_MIN_SCORE = float(os.getenv("RETRIEVAL_MIN_SCORE", "0.5"))
-RETRIEVAL_CONTEXT_CHARS = int(os.getenv("RETRIEVAL_CONTEXT_CHARS", "12000"))
+RETRIEVAL_CONTEXT_CHARS = int(os.getenv("RETRIEVAL_CONTEXT_CHARS", "20000"))
 # Floor for the second-chance query (previous question + this one). Defaults to the
 # main floor: unrelated chunks already sit just under it, so going lower would let
 # the least-bad matches through as if they were answers.
@@ -2629,8 +2629,8 @@ def chat():
             )
             t_model = time.perf_counter()
 
-            # Thinking is off unless the student switched it on for this chat.
-            think = data.get("think") is True
+            # Thinking is on unless the student switched it off for this chat.
+            think = data.get("think") is not False
             tz_name = str(data.get("tz") or "")[:64]
             tools = [t for t in [practice_activity_tool(settings)] if t] + agent_tools.declarations(
                 not settings["grounded_only"], first_message=is_new)
@@ -3158,7 +3158,7 @@ def run_tool():
         text = llm.generate(TOOL_MODEL, _tool_prompt(tool, context_block, custom_rules, conversation,
                                                      prefs.get("language", "")),
                             temperature=0.2, json_schema=ACTIVITY_SCHEMAS[tool["type"]],
-                            think=data.get("think") is True,
+                            think=data.get("think") is not False,
                             max_tokens=8000).text
         declined = _decline_reason(text)
         if declined:

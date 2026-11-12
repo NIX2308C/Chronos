@@ -243,13 +243,16 @@ more. `end_conversation` closes the chat (`ended` on the chat document, later me
 is refused for self-harm or safety wording.
 
 ### Context budget
-Sized for a hosted model: prompt capped at `LLM_PROMPT_TOKENS` (32,000; chars ≈ 3 tokens), reply
-`LLM_MAX_TOKENS` (4,096). Retrieval pulls 8 chunks (`RETRIEVAL_TOP_K`, 12,000 characters). Student
-documents: 8,000 characters each, 20,000 together; a longer set is replaced by the short summary
-stored at upload. Retrieved excerpts go at the top of the current user message only, so the system
-prompt is identical every turn (prompt cache). History is 30 messages and 24,000 characters
-(`HISTORY_TURNS`, `HISTORY_CHARS`). On HTTP 400 `/chat` retries once with half the excerpts and
-half the history. Lower these for a small-window model.
+Sized for a hosted model with a large window: prompt capped at `LLM_PROMPT_TOKENS` (100,000; chars ≈ 3
+tokens), reply `LLM_MAX_TOKENS` (4,096). Retrieval pulls 12 chunks (`RETRIEVAL_TOP_K`, 20,000
+characters). Student documents: 20,000 characters each, 45,000 together; a longer set is replaced by
+the short summary stored at upload. Retrieved excerpts go at the top of the current user message only,
+so the system prompt is identical every turn (prompt cache). History is 80 messages and 90,000
+characters (`HISTORY_TURNS`, `HISTORY_CHARS`); older turns roll into a chat summary (up to 8,000
+characters, refreshed every 16 messages). Class memory recalls 25 earlier chats and 12 learning gaps.
+Mild frequency/presence penalties (`LLM_FREQUENCY_PENALTY` 0.3, `LLM_PRESENCE_PENALTY` 0.2) and a
+prompt rule against reusing earlier phrasing reduce repetition. On HTTP 400 `/chat` retries once with
+half the excerpts and half the history. Lower these for a small-window model.
 
 ### Troubleshooting
 The public `/status` page shows whether the endpoint is reachable. Errors are

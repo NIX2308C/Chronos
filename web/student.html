@@ -1479,7 +1479,7 @@
     slot.appendChild(card);anchor.appendChild(slot);scrollBottom();playSound("using");
     try{
       const res=await Chronos.apiFetch("/tools/run",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({class_id:chat.classId||ACTIVE_CLASS,chat_id:chat.id,tool_request:request,think:isThinking(chat)}),
+        body:JSON.stringify({class_id:chat.classId||ACTIVE_CLASS,chat_id:chat.id,tool_request:request}),
         signal:controller.signal});
       let data={};
       try{ data=await res.json(); }catch(e){ data={}; }

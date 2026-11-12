@@ -3158,7 +3158,7 @@ def run_tool():
         text = llm.generate(TOOL_MODEL, _tool_prompt(tool, context_block, custom_rules, conversation,
                                                      prefs.get("language", "")),
                             temperature=0.2, json_schema=ACTIVITY_SCHEMAS[tool["type"]],
-                            think=data.get("think") is not False,
+                            think=False,   # activities stay fast; thinking is for chat
                             max_tokens=8000).text
         declined = _decline_reason(text)
         if declined:

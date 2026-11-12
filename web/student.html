@@ -323,7 +323,7 @@
 
     @media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
 </style>
-<link href="theme.css?v=ink2" rel="stylesheet"/>
+<link href="theme.css?v=ink3" rel="stylesheet"/>
 <link href="settings.css?v=ink2" rel="stylesheet"/>
 <link href="mobile.css?v=ink2" rel="stylesheet"/>
 <link href="manifest.json" rel="manifest"/>
@@ -335,7 +335,7 @@
 <link href="icons/favicon.ico" rel="icon" sizes="16x16 32x32 48x48"/>
 <link href="icons/icon-192.png" rel="icon" type="image/png" sizes="192x192"/>
 <link href="icons/apple-touch-icon-180.png" rel="apple-touch-icon"/>
-<link href="ink.css?v=ink8" rel="stylesheet"/>
+<link href="ink.css?v=ink9" rel="stylesheet"/>
 <script src="ink.js?v=ink2" defer></script>
 </head>
 <body>
@@ -535,7 +535,7 @@
   const CLASS_KEY="chronos_student_class";
   const els={chatList:document.getElementById("chatList"),messagesInner:document.getElementById("messagesInner"),input:document.getElementById("input"),sendBtn:document.getElementById("sendBtn"),newChatBtn:document.getElementById("newChatBtn"),newChatBtnMobile:document.getElementById("newChatBtnMobile"),messages:document.getElementById("messages")};
   const chatTransition=ChronosNav.createViewTransition(document.querySelector("[data-chat-col]"));
-  let navigationBusy=false,sending=false,toolRunning=false;
+  let navigationBusy=false,sending=false,toolRunning=false,chatInd=null;
   // Thinking starts on in every chat; a student can switch it off for that chat (remembered
   // per device: 1 on, 0 off). THINK_LOCKED is set once the server finds the model won't
   // run without it.
@@ -655,7 +655,8 @@
 
   function renderSidebar(animate=false){
     const scroll=els.chatList.scrollTop;
-    els.chatList.innerHTML="";
+    // Keep the sliding highlight attached so its transition survives the rebuild.
+    [...els.chatList.children].forEach(n=>{if(n!==chatInd)n.remove();});
     paintHeader();
     const box=$s("chatSearchWrap");
     box.classList.toggle("hidden",chats.length<CHAT_FILTER_MIN);
@@ -689,6 +690,26 @@
       els.chatList.appendChild(row);
     });
     els.chatList.scrollTop=scroll;
+    moveChatInd();
+  }
+
+  // The active-conversation highlight is one element that slides to the new row.
+  function moveChatInd(){
+    const list=els.chatList,row=list.querySelector(".chat-row.on");
+    if(!chatInd)chatInd=document.createElement("div");
+    chatInd.className="chat-ind"+(chatInd.dataset.ready?" ready":"");
+    chatInd.setAttribute("aria-hidden","true");
+    list.appendChild(chatInd);   // renderSidebar wipes the list; re-attach the same element so it can animate
+    if(!row){chatInd.classList.remove("ready");chatInd.dataset.ready="";return;}
+    const y=row.offsetTop,h=row.offsetHeight;
+    if(!chatInd.dataset.ready||reduceMotion){
+      chatInd.classList.add("jump");
+      chatInd.style.transform="translateY("+y+"px)";chatInd.style.height=h+"px";
+      void chatInd.offsetWidth;chatInd.classList.add("ready");chatInd.dataset.ready="1";
+      requestAnimationFrame(()=>chatInd.classList.remove("jump"));
+    }else{
+      chatInd.style.transform="translateY("+y+"px)";chatInd.style.height=h+"px";
+    }
   }
 
   // Class-agnostic openers — the server has no notion of suggested questions, so
@@ -786,6 +807,7 @@
     b.className="ai-prose bub-ai"+(m.blocked?" bub-blocked":"");
     if(m.content){b.innerHTML=renderMarkdown(m.content);}
     w.appendChild(b);
+    if(m.content&&!m.blocked&&!m.tool)w.appendChild(buildMsgActions(m));
     if(m.blocked)w.appendChild(blockedNote());
     if(m.reviewed)w.appendChild(reviewedNote());
     // Sources are teacher-only: students never see the underlying material,
@@ -805,6 +827,56 @@
       w.appendChild(m._toolEl);
     }
     return w;
+  }
+
+  // Quiet three-dot menu under a tutor reply: copy it, or ask for another take.
+  const REPLY_ACTIONS=[
+    {icon:"content_copy",label:"Copy",copy:true},
+    {icon:"refresh",label:"Redo",ask:"Please redo your last answer from scratch, in a different way."},
+    {icon:"short_text",label:"Make it shorter",ask:"Please make your last answer shorter."},
+    {icon:"lightbulb",label:"Explain more simply",ask:"Please explain your last answer more simply, with an example."}
+  ];
+  function closeMsgMenus(except){
+    document.querySelectorAll(".msg-actions.open").forEach(a=>{
+      if(a===except)return;a.classList.remove("open");
+      a.querySelector(".ma-menu").hidden=true;a.querySelector(".ma-btn").setAttribute("aria-expanded","false");
+    });
+  }
+  document.addEventListener("click",e=>{if(!e.target.closest(".msg-actions"))closeMsgMenus();});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")closeMsgMenus();});
+  async function copyText(text){
+    try{await navigator.clipboard.writeText(text);return true;}catch(e){}
+    try{
+      const t=document.createElement("textarea");t.value=text;t.style.cssText="position:fixed;opacity:0";
+      document.body.appendChild(t);t.select();const ok=document.execCommand("copy");t.remove();return ok;
+    }catch(e){return false;}
+  }
+  function buildMsgActions(m){
+    const box=document.createElement("div");box.className="msg-actions";
+    const btn=document.createElement("button");
+    btn.type="button";btn.className="ma-btn";btn.title="More";btn.setAttribute("aria-label","More actions");
+    btn.setAttribute("aria-haspopup","menu");btn.setAttribute("aria-expanded","false");
+    btn.innerHTML='<span class="material-symbols-outlined" style="font-size:20px">more_horiz</span>';
+    const menu=document.createElement("div");menu.className="ma-menu";menu.hidden=true;menu.setAttribute("role","menu");
+    REPLY_ACTIONS.forEach(a=>{
+      const it=document.createElement("button");it.type="button";it.className="ma-item";it.setAttribute("role","menuitem");
+      it.innerHTML='<span class="material-symbols-outlined"></span><span></span>';
+      it.firstChild.textContent=a.icon;it.lastChild.textContent=a.label;
+      it.onclick=async()=>{
+        closeMsgMenus();
+        if(a.copy){window.chronosToast&&chronosToast((await copyText(m.content))?"Copied":"Couldn\u2019t copy",true);return;}
+        if(navigationBusy||sending||toolRunning)return;
+        els.input.value=a.ask;send({display:a.label});
+      };
+      menu.appendChild(it);
+    });
+    btn.onclick=e=>{
+      e.stopPropagation();
+      const open=menu.hidden;closeMsgMenus(open?box:null);
+      menu.hidden=!open;box.classList.toggle("open",open);btn.setAttribute("aria-expanded",String(open));
+      if(open)menu.querySelector("button").focus();
+    };
+    box.append(btn,menu);return box;
   }
 
   // The tutor refused: the message had profanity in it and never reached the
@@ -1450,12 +1522,16 @@
       const from=slot.offsetHeight;
       slot.style.height=from+"px";
       slot.appendChild(toolEl);
+      toolEl.classList.remove("toolkit-enter");toolEl.classList.add("tool-arriving");
       const to=toolEl.offsetHeight;
       card.classList.add("leaving");
-      requestAnimationFrame(()=>{slot.style.height=to+"px";});
+      requestAnimationFrame(()=>requestAnimationFrame(()=>{
+        slot.style.height=to+"px";
+        toolEl.classList.add("tool-arrive");toolEl.classList.remove("tool-arriving");
+      }));
       let done=false;
-      const end=()=>{if(done)return;done=true;if(slot.isConnected)slot.replaceWith(toolEl);resolve();};
-      setTimeout(end,620);
+      const end=()=>{if(done)return;done=true;toolEl.classList.remove("tool-arrive");if(slot.isConnected)slot.replaceWith(toolEl);resolve();};
+      setTimeout(end,900);
     });
   }
 
@@ -1778,6 +1854,7 @@
       if(Array.isArray(data.toolkits)){TOOLKITS=data.toolkits;renderToolMenu();}
       const gen=VIEW_GEN;
       await stream.finish(streamedText.trim()===tm.content?streamedText:tm.content);
+      if(tm.content&&!tm.blocked)b.after(buildMsgActions(tm));
       if(tm.reviewed)el.appendChild(reviewedNote());
       const sources=IS_TEACHER?(tm.sources.length?tm.sources:tm.rules):[];
       if(sources.length)el.appendChild(buildSourcesDropdown(sources));

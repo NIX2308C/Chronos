@@ -206,8 +206,15 @@ html.dark .nav-link.on .msym, html.dark .nav-link.on .material-symbols-outlined 
 .chat-row > button:first-child { flex: 1; min-width: 0; height: 46px; padding: 0 12px 0 14px; border: 0; background: none; color: inherit; text-align: left;
   font-size: 14.5px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .chat-row:hover { background: var(--hi); color: var(--ink); }
-.chat-row.on { background: var(--accent-soft); color: var(--ink); border-radius: 4px var(--r-sm) var(--r-sm) 4px; }
-.chat-row.on::before { background: var(--accent); }
+.chat-row.on { color: var(--ink); }
+/* One highlight that glides between rows (ease-out quartic) instead of jumping. */
+.side-list { position: relative; }
+.chat-ind { position: absolute; left: 18px; right: 18px; top: 0; height: 46px; border-radius: 4px var(--r-sm) var(--r-sm) 4px; background: var(--accent-soft);
+  pointer-events: none; opacity: 0; will-change: transform, height; }
+.chat-ind::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; border-radius: 2px; background: var(--accent); }
+.chat-ind.ready { opacity: 1; transition: transform .6s var(--quart), height .6s var(--quart), opacity .25s var(--quart); }
+.chat-row > * { position: relative; }
+.chat-ind.jump { transition: none; }
 .chat-delete { width: 36px; height: 36px; margin-right: 4px; flex: none; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px;
   background: none; color: var(--faint); cursor: pointer; opacity: 0; transition: opacity var(--dur), color var(--dur), background-color var(--dur); }
 .chat-row:hover .chat-delete, .chat-row:focus-within .chat-delete, .chat-row.on .chat-delete { opacity: 1; }
@@ -323,13 +330,29 @@ html.dark .ai-prose a { color: var(--accent); }
 @media (max-width: 900px) { .reply-status { left: -15px; } .rs-glyph { scale: .62; transform-origin: 0 50%; } }
 
 /* activity placeholder: a skeleton card that holds the activity's place, then dissolves into it */
-.tool-slot { position: relative; display: grid; width: 100%; max-width: 620px; margin-top: 14px; transition: height .55s var(--ease); }
+.tool-slot { position: relative; display: grid; width: 100%; max-width: 620px; margin-top: 14px; transition: height .75s var(--quart); }
 .tool-slot > * { grid-area: 1 / 1; min-width: 0; }
 .tool-slot .learning-tool { margin-top: 0; }
 .tool-pending { position: relative; align-self: start; padding: 20px 22px 22px; border: 1px solid var(--rule); border-radius: var(--r); background: var(--field);
   animation: tp-in .55s var(--ease) both; transition: opacity .4s var(--ease), scale .5s var(--ease), filter .4s var(--ease); }
 .tool-pending .reply-status { --rs-y: 30px; }
 .tool-pending.leaving { opacity: 0; scale: .985; filter: blur(3px); pointer-events: none; }
+/* The finished activity waits invisibly, then eases in as the placeholder dissolves. */
+.tool-slot .learning-tool.tool-arriving { opacity: 0; translate: 0 14px; scale: .985; filter: blur(4px); animation: none; }
+.tool-slot .learning-tool.tool-arrive { transition: opacity .6s var(--quart) .12s, translate .75s var(--quart) .08s, scale .75s var(--quart) .08s, filter .55s var(--quart) .1s; }
+/* reply actions: a quiet three-dot menu under each answer */
+.msg-actions { position: relative; margin-top: 6px; opacity: 0; transition: opacity .25s var(--quart); }
+.msg-actions[hidden] { display: none; }
+.flex:hover > .msg-actions, .msg-actions:focus-within, .msg-actions.open { opacity: 1; }
+@media (hover: none) { .msg-actions { opacity: .7; } }
+.ma-btn { width: 32px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 8px; background: none; color: var(--faint); cursor: pointer; transition: background-color var(--dur), color var(--dur); }
+.ma-btn:hover, .msg-actions.open .ma-btn { background: var(--hi); color: var(--ink); }
+.ma-menu { position: absolute; left: 0; top: 100%; z-index: 20; min-width: 190px; margin-top: 4px; padding: 5px; display: grid; gap: 1px;
+  border: 1px solid var(--rule); border-radius: var(--r-sm); background: var(--field); box-shadow: var(--shadow); transform-origin: top left; animation: ink-pop .22s var(--quart) both; }
+.ma-menu[hidden] { display: none; }
+.ma-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 6px; background: none; color: var(--ink); font: 400 13.5px/1.2 var(--sans); text-align: left; cursor: pointer; }
+.ma-item:hover, .ma-item:focus-visible { background: var(--hi); outline: none; }
+.ma-item .material-symbols-outlined { font-size: 18px; color: var(--sub); }
 .tp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
 .tp-label { font: 500 12.5px/1.6 var(--sans); letter-spacing: .04em; color: var(--faint); animation: rs-label-pulse 2.2s ease-in-out infinite; }
 .tp-stop { border: 0; background: transparent; color: var(--sub); font: 500 12px/1 var(--sans); opacity: .75; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; transition: color .2s, opacity .2s; }
@@ -341,6 +364,7 @@ html.dark .ai-prose a { color: var(--accent); }
 @keyframes tp-in { from { opacity: 0; translate: 0 8px; scale: .985; } }
 @keyframes tp-fill { 0% { scale: .12 1; opacity: .5; } 38%, 82% { scale: 1 1; opacity: 1; } 100% { scale: 1 1; opacity: .5; } }
 @keyframes tp-sheen { to { background-position: -300% 0; } }
+@media (prefers-reduced-motion: reduce) { .chat-ind.ready, .tool-slot .learning-tool.tool-arrive, .msg-actions, .ma-menu { transition: none !important; animation: none !important; } }
 @media (prefers-reduced-motion: reduce) { .reply-status, .reply-status *, .tool-pending, .tool-pending * { animation: none !important; transition: none !important; } .tool-slot { transition: none; } }
 
 #messagesInner > .enter { animation: ink-rise .35s var(--ease) both; }

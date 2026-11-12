@@ -114,6 +114,7 @@ html.dark {
   /* motion */
   --ease: cubic-bezier(.22, 1, .36, 1);
   --ease-in: cubic-bezier(.5, 0, .75, 0);
+  --quart: cubic-bezier(.25, 1, .5, 1);   /* ease-out quartic: quick off the mark, settles softly */
   --dur-fast: .12s;
   --dur: .2s;
   --dur-slow: .5s;

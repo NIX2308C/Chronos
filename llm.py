@@ -29,6 +29,7 @@ where tool_call is {"name": str, "args": dict} or None and usage is
 {"prompt", "reply", "total"} (ints or None).
 """
 import json
+import re
 import logging
 import os
 import time
@@ -93,6 +94,12 @@ USER_AGENT = "Chronos/1.0"
 
 TOOL_MARKER = "TOOL_CALL"
 THOUGHT_OPEN, THOUGHT_CLOSE = "<|channel>", "<channel|>"
+# Models often ignore TOOL_CALL and write the call in the format they were trained on. Every
+# common one is accepted and treated as a call, never as text: <x_function_call>/<function_calls>/
+# <tool_call> wrappers, <invoke name=..><parameter name=..>, <function=..><parameter=..>, and
+# Hermes-style <tool_call>{"name":..,"arguments":{..}}</tool_call>.
+_XML_OPEN_RE = re.compile(r"<(?:[a-z0-9_]*_)?(?:function_calls?|tool_calls?)>|<invoke\s|<function=")
+_XML_PARTIAL_RE = re.compile(r"<[a-z0-9_=/ ]{0,40}$")
 
 # `tool_call` is the first call, `calls` every call the reply made (a reply may end with several).
 Result = namedtuple("Result", "text tool_call usage calls", defaults=((),))
@@ -202,14 +209,22 @@ class _Cleaner:
                 self.buf = ""
             else:
                 hits = [(i, m) for m in (THOUGHT_OPEN, TOOL_MARKER) if (i := self.buf.find(m)) >= 0]
+                xml = _XML_OPEN_RE.search(self.buf)
+                if xml:
+                    hits.append((xml.start(), xml.group()))
                 if hits:
                     i, marker = min(hits)
                     out.append(self.buf[:i])
                     self.buf = self.buf[i + len(marker):]
                     self.mode = "thought" if marker == THOUGHT_OPEN else "tool"
+                    if marker not in (THOUGHT_OPEN, TOOL_MARKER):
+                        self.tool_text += marker
                     continue
                 keep = max((k for m in (THOUGHT_OPEN, TOOL_MARKER) for k in range(1, len(m))
                             if self.buf.endswith(m[:k])), default=0)
+                partial = _XML_PARTIAL_RE.search(self.buf)
+                if partial:
+                    keep = max(keep, len(self.buf) - partial.start())
                 out.append(self.buf[:len(self.buf) - keep])
                 self.buf = self.buf[len(self.buf) - keep:]
                 break
@@ -230,8 +245,10 @@ def _parse_call(text):
         call, _ = json.JSONDecoder().raw_decode(text)
     except ValueError:
         return None
-    if isinstance(call, dict) and call.get("name") and isinstance(call.get("args"), dict):
-        return {"name": str(call["name"]), "args": call["args"]}
+    if isinstance(call, dict) and call.get("name"):
+        args = next((call[k] for k in ("args", "arguments", "parameters") if isinstance(call.get(k), dict)), None)
+        if args is not None:
+            return {"name": str(call["name"]), "args": args}
     return None
 
 
@@ -242,6 +259,43 @@ def _parse_calls(text):
         call = _parse_call(part)
         if call:
             calls.append(call)
+    return calls or _parse_xml_calls(text)
+
+
+_INVOKE_RE = re.compile(r'<invoke\s+name\s*=\s*"([^"]+)"\s*>(.*?)(?=<invoke\s|$)', re.S)
+_FUNCTION_RE = re.compile(r'<function=([\w.-]+)>(.*?)(?=<function=|$)', re.S)
+_PARAM_RE = re.compile(r'<parameter(?:\s+name\s*=\s*"([^"]+)"|=([\w.-]+))\s*>(.*?)</parameter>', re.S)
+
+
+def _xml_args(body):
+    args = {}
+    for quoted, bare, raw in _PARAM_RE.findall(body):
+        raw = raw.strip()
+        try:
+            args[quoted or bare] = json.loads(raw)
+        except ValueError:
+            args[quoted or bare] = raw
+    return args
+
+
+def _parse_xml_calls(text):
+    """Calls in the other common formats (see XML markers above); stray or unclosed tags are ignored."""
+    text = text or ""
+    calls = [{"name": n.strip(), "args": _xml_args(b)}
+             for n, b in _INVOKE_RE.findall(text) + _FUNCTION_RE.findall(text)]
+    if calls:
+        return calls
+    pos = 0    # Hermes style: JSON objects inside the wrapper
+    while (pos := text.find("{", pos)) >= 0:
+        try:
+            _, end = json.JSONDecoder().raw_decode(text[pos:])
+        except ValueError:
+            pos += 1
+            continue
+        call = _parse_call(text[pos:pos + end])
+        if call:
+            calls.append(call)
+        pos += end
     return calls
 
 

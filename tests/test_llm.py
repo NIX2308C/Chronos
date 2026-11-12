@@ -100,6 +100,24 @@ def test_tool_call_parsed_from_text():
     print("ok - tool calls are parsed out of the text; malformed ones are dropped")
 
 
+def test_other_tool_call_formats_are_parsed_not_shown():
+    want = {"name": "create_practice_activity", "args": {"type": "quiz", "topic": "Meiosis"}}
+    formats = [
+        '<dots_function_call>\n<invoke name="create_practice_activity">\n</parameter>\n<parameter name="type">quiz</parameter>\n'
+        '<parameter name="topic">Meiosis</parameter>\n</invoke>\n</dots_function_call>',
+        '<function_calls><invoke name="create_practice_activity"><parameter name="type">quiz</parameter>'
+        '<parameter name="topic">Meiosis</parameter></invoke></function_calls>',
+        '<tool_call>{"name": "create_practice_activity", "arguments": {"type": "quiz", "topic": "Meiosis"}}</tool_call>',
+        '<tool_call><function=create_practice_activity><parameter=type>quiz</parameter>'
+        '<parameter=topic>Meiosis</parameter></function></tool_call>',
+    ]
+    for f in formats:
+        replies.append((200, _reply("Sure.\n" + f)))
+        r = llm.generate("m", "hi")
+        assert r.text.strip() == "Sure." and r.tool_call == want, (f, r)
+    print("ok - XML, Hermes and function= tool calls become calls and never reach the student")
+
+
 def test_thinking_is_stripped():
     replies.append((200, _reply("<|channel>thought\nhmm<channel|>Answer.")))
     assert llm.generate("m", "hi").text == "Answer."
@@ -423,6 +441,7 @@ if __name__ == "__main__":
     try:
         test_generate_text_and_request_shape()
         test_tool_call_parsed_from_text()
+        test_other_tool_call_formats_are_parsed_not_shown()
         test_thinking_is_stripped()
         test_history_trim()
         test_json_schema_becomes_response_format()

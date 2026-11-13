@@ -1,11 +1,18 @@
 """One seam between Chronos and the model that generates its text and embeddings.
 
-Chat goes to OpenRouter's OpenAI-compatible `/api/v1/chat/completions`. Server side
-only: the keys never reach browser or Android code.
+Chat goes to one of two backends (LLM_PROVIDER), server side only: the keys never
+reach browser or Android code.
 
+  gemini (chosen when GEMINI_API_KEY is set): Google's native Gemini API.
+    GEMINI_API_KEY      AI Studio key, read from the environment only
+    GEMINI_MODEL        default model (gemini-flash-latest); CHAT_MODEL / TOOL_MODEL override it
+    GEMINI_RPM / GEMINI_RPD   free-tier caps per model per process (default 9 a minute,
+                        240 a day); past them calls raise QuotaExceeded with a student-safe message
+  openrouter: OpenRouter's OpenAI-compatible `/api/v1/chat/completions` (or any such endpoint).
     LLM_BASE_URL        chat endpoint root (default https://openrouter.ai/api/v1)
-    OPENROUTER_API_KEY  bearer token for chat, required, read from the environment only
+    OPENROUTER_API_KEY  bearer token for chat
     CHAT_MODEL / TOOL_MODEL   model name sent (default recursive/flint-v1.0:free)
+  Either way, HTTP 429 from the provider also raises QuotaExceeded.
     EMBED_BASE_URL      embeddings server (default https://chronos-embed.tevproject.com/v1),
                         authenticated with LLM_API_KEY. EmbeddingGemma 300M, 768-d, L2-normalized.
     LLM_TIMEOUT_S  read timeout, at least 120
@@ -32,10 +39,13 @@ import json
 import re
 import logging
 import os
+import threading
 import time
 import urllib.error
 import urllib.request
-from collections import namedtuple
+from collections import deque, namedtuple
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 
@@ -55,7 +65,26 @@ API_KEY = os.getenv("LLM_API_KEY", "").strip()      # embedding server
 TIMEOUT_S = max(float(os.getenv("LLM_TIMEOUT_S", "120")), 120.0)
 TRIES = 3
 
-DEFAULT_CHAT_MODEL = "recursive/flint-v1.0:free"
+# Which chat backend: "gemini" (Google's native Gemini API) or "openrouter" (any
+# OpenAI-compatible endpoint). Setting GEMINI_API_KEY selects Gemini unless LLM_PROVIDER says otherwise.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+PROVIDER = (os.getenv("LLM_PROVIDER", "").strip().lower()
+            or ("gemini" if GEMINI_API_KEY else "openrouter"))
+GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL",
+                            "https://generativelanguage.googleapis.com/v1beta").strip().rstrip("/")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest").strip()
+# Free-tier guard. Google's free tier has per-project limits per model (requests a minute and a
+# day, reset at midnight Pacific). These caps stop Chronos before it reaches them and tell the
+# student the tutor is busy, instead of sending requests that would fail. They are counted per
+# server process, so with several Cloud Run instances each gets its own budget. They are a
+# backstop: the guarantee of never paying is a Google project with no billing account. 0 = no cap.
+GEMINI_RPM = int(os.getenv("GEMINI_RPM", "9"))
+GEMINI_RPD = int(os.getenv("GEMINI_RPD", "240"))
+QUOTA_WAIT_S = 20                 # a request waits this long for a per-minute slot before giving up
+BUSY_MINUTE = "The tutor is busy right now. Please try again in a minute."
+BUSY_DAY = "The tutor has reached its free daily limit. It resets at midnight Pacific time."
+
+DEFAULT_CHAT_MODEL = GEMINI_MODEL if PROVIDER == "gemini" else "recursive/flint-v1.0:free"
 EMBED_BASE_URL = os.getenv("EMBED_BASE_URL", "https://chronos-embed.tevproject.com/v1").strip().rstrip("/")
 # Used only if GET /models on the embedding server cannot be read; normally the id it returns wins.
 EMBED_MODEL = "embeddinggemma"
@@ -116,6 +145,47 @@ class ContextTooLong(LLMError):
 
 class EmbeddingsUnavailable(LLMError):
     """The embedding server is down, or returned vectors we must not store or search with."""
+
+
+class QuotaExceeded(LLMError):
+    """The model's rate limit (ours or the provider's HTTP 429) is used up. The message is student-safe."""
+
+
+# ---------- free-tier quota ----------
+
+try:
+    _PACIFIC = ZoneInfo("America/Los_Angeles")
+except Exception:                 # no tz database in the image
+    _PACIFIC = timezone(timedelta(hours=-8))
+_quota_lock = threading.Lock()
+_quota_minute = {}                # model -> deque of request times in the last 60 s
+_quota_day = {}                   # model -> (Pacific date, requests that day)
+
+
+def _take_quota(model):
+    """Count one request against the caps, waiting briefly for a per-minute slot. Raises QuotaExceeded."""
+    for _ in range(3):
+        with _quota_lock:
+            now = time.time()
+            today = datetime.fromtimestamp(now, _PACIFIC).date()
+            minute = _quota_minute.setdefault(model, deque())
+            while minute and now - minute[0] >= 60:
+                minute.popleft()
+            day, used = _quota_day.get(model, (today, 0))
+            used = used if day == today else 0
+            if GEMINI_RPD > 0 and used >= GEMINI_RPD:
+                logger.warning("Daily request cap reached for %s (%d).", model, GEMINI_RPD)
+                raise QuotaExceeded(BUSY_DAY)
+            if GEMINI_RPM <= 0 or len(minute) < GEMINI_RPM:
+                minute.append(now)
+                _quota_day[model] = (today, used + 1)
+                return
+            wait = 60 - (now - minute[0])
+        if wait > QUOTA_WAIT_S:
+            break
+        time.sleep(wait + 0.05)
+    logger.warning("Per-minute request cap reached for %s (%d).", model, GEMINI_RPM)
+    raise QuotaExceeded(BUSY_MINUTE)
 
 
 def estimate_tokens(text):
@@ -317,10 +387,18 @@ def _open(path, body, base=None, tries=None):
     key = API_KEY if embedding else CHAT_API_KEY
     if not key:
         raise LLMError(("LLM_API_KEY" if embedding else "OPENROUTER_API_KEY") + " is not set")
-    headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT, "Authorization": "Bearer " + key}
+    return _post(base + path, body, {"Authorization": "Bearer " + key}, tries, base)
+
+
+def _post(url, body, auth, tries=None, label=None, before_each=None):
+    """POST JSON with retries on 5xx/network errors. HTTP 429 raises QuotaExceeded, never retried."""
+    tries = tries or TRIES
+    headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT, **auth}
     data = json.dumps(body).encode("utf-8")
     for attempt in range(1, tries + 1):
-        req = urllib.request.Request(base + path, data=data, headers=headers, method="POST")
+        if before_each:
+            before_each()
+        req = urllib.request.Request(url, data=data, headers=headers, method="POST")
         try:
             return urllib.request.urlopen(req, timeout=TIMEOUT_S)
         except urllib.error.HTTPError as e:
@@ -336,12 +414,16 @@ def _open(path, body, base=None, tries=None):
                 detail = " ".join(raw.split())[:200]      # e.g. a Cloudflare HTML block page
             if e.code == 400 and any(w in detail.lower() for w in ("context", "exceed", "too long", "n_ctx")):
                 raise ContextTooLong("Model endpoint: %s" % detail) from e
+            if e.code == 429:
+                logger.warning("Model endpoint rate limit (HTTP 429): %s", detail[:300])
+                daily = any(w in detail.lower() for w in ("per day", "perday", "daily"))
+                raise QuotaExceeded(BUSY_DAY if daily else BUSY_MINUTE) from e
             raise LLMError("Model endpoint returned HTTP %s %s" % (e.code, detail)) from e
         except (urllib.error.URLError, OSError) as e:
             if attempt < tries:
                 time.sleep(2 ** (attempt - 1))
                 continue
-            raise LLMError("Could not reach the model endpoint at %s: %s" % (base, e)) from e
+            raise LLMError("Could not reach the model endpoint at %s: %s" % (label or url, e)) from e
 
 
 def _read_json(resp):
@@ -355,21 +437,158 @@ def _read_json(resp):
     return data
 
 
+# ---------- Gemini (native generateContent API) ----------
+# The OpenAI-compatible Gemini endpoint rejects the newer "AQ." AI Studio keys, so this
+# speaks Google's own API. Tools still use the text protocol above; penalties are not sent
+# (several Gemini models reject them).
+
+_warned_model = False
+
+
+def _gemini_model(model):
+    """The Gemini model id; an OpenRouter-style "vendor/name" left in CHAT_MODEL falls back to GEMINI_MODEL."""
+    global _warned_model
+    m = (model or GEMINI_MODEL).strip()
+    m = m[len("models/"):] if m.startswith("models/") else m
+    if "/" in m or ":" in m:
+        if not _warned_model:
+            logger.warning("Model %r is not a Gemini model id; using %s instead.", m, GEMINI_MODEL)
+            _warned_model = True
+        m = GEMINI_MODEL
+    return m
+
+
+def _gemini_body(contents, system, tools, temperature, json_schema, max_tokens, think, stream):
+    msgs = _messages(contents, system, tools)
+    body, turns = {}, []
+    for m in msgs:
+        text = m["content"]
+        if m["role"] == "system":
+            body["systemInstruction"] = {"parts": [{"text": text}]}
+            continue
+        if not text.strip():
+            continue                       # Gemini rejects empty parts
+        role = "model" if m["role"] == "assistant" else "user"
+        if turns and turns[-1]["role"] == role:
+            turns[-1]["parts"][0]["text"] += "\n\n" + text
+        else:
+            turns.append({"role": role, "parts": [{"text": text}]})
+    if not turns or turns[0]["role"] != "user":
+        turns.insert(0, {"role": "user", "parts": [{"text": "(continuing our conversation)"}]})
+    body["contents"] = turns
+    cfg = {"temperature": SAMPLING["temperature"] if temperature is None else temperature,
+           "topP": SAMPLING["top_p"], "topK": SAMPLING["top_k"],
+           "maxOutputTokens": max_tokens or MAX_TOKENS}
+    if not think and _can_disable_thinking is not False:
+        cfg["thinkingConfig"] = {"thinkingBudget": 0}
+    elif stream:
+        cfg["thinkingConfig"] = {"includeThoughts": True}      # lets the UI show a thinking phase
+    if json_schema is not None:
+        cfg["responseMimeType"] = "application/json"
+        if json_schema:
+            cfg["responseJsonSchema"] = json_schema
+    body["generationConfig"] = cfg
+    return body
+
+
+def _gemini_open(model, body, stream):
+    m = _gemini_model(model)
+    url = "%s/models/%s:%s" % (GEMINI_BASE_URL, m, "streamGenerateContent?alt=sse" if stream else "generateContent")
+    return _post(url, body, {"x-goog-api-key": GEMINI_API_KEY}, label=GEMINI_BASE_URL,
+                 before_each=lambda: _take_quota(m))
+
+
+def _gemini_parts(data):
+    """(visible text, whether thought parts were present) from one response or stream chunk."""
+    if not data.get("candidates") and (data.get("promptFeedback") or {}).get("blockReason"):
+        raise LLMError("Gemini blocked the prompt: %s" % data["promptFeedback"]["blockReason"])
+    text, thought = [], False
+    for cand in (data.get("candidates") or [])[:1]:
+        for p in (cand.get("content") or {}).get("parts") or []:
+            if p.get("thought"):
+                thought = True
+            elif p.get("text"):
+                text.append(str(p["text"]))
+    return "".join(text), thought
+
+
+def _gemini_usage(data):
+    u = (data or {}).get("usageMetadata") or {}
+    ints = lambda *ks: [u[k] for k in ks if isinstance(u.get(k), int)]
+    p = (ints("promptTokenCount") or [None])[0]
+    r = sum(ints("candidatesTokenCount", "thoughtsTokenCount")) if ints("candidatesTokenCount", "thoughtsTokenCount") else None
+    t = (ints("totalTokenCount") or [None])[0]
+    t = t if t is not None else ((p + r) if p is not None and r is not None else None)
+    return {"prompt": p, "reply": r, "total": t}
+
+
+def _gemini_generate(model, contents, system, tools, temperature, json_schema, max_tokens, think):
+    body = lambda th: _gemini_body(contents, system, tools, temperature, json_schema, max_tokens, th, False)
+    with _with_thinking_fallback(lambda th: _gemini_open(model, body(th), False), think) as resp:
+        data = _read_json(resp)
+    raw, _ = _gemini_parts(data)
+    if json_schema is not None:
+        return Result(raw.strip(), None, _gemini_usage(data))
+    cleaner = _Cleaner()
+    text = cleaner.feed(raw)
+    tail, calls = cleaner.finish()
+    return Result((text + tail).strip(), calls[0] if calls else None, _gemini_usage(data), calls)
+
+
+def _gemini_stream(model, contents, system, tools, temperature, max_tokens, think):
+    cleaner, usage, thinking = _Cleaner(), None, False
+    body = lambda th: _gemini_body(contents, system, tools, temperature, None, max_tokens, th, True)
+    with _with_thinking_fallback(lambda th: _gemini_open(model, body(th), True), think) as resp:
+        for raw in resp:
+            line = raw.decode("utf-8", "replace").strip()
+            if not line.startswith("data:"):
+                continue
+            payload = line[5:].strip()
+            if payload == "[DONE]":
+                break
+            try:
+                data = json.loads(payload)
+            except ValueError:
+                logger.warning("Skipping an unreadable stream line")
+                continue
+            if data.get("error"):
+                err = data["error"]
+                raise LLMError("Model endpoint: %s" % (err.get("message") if isinstance(err, dict) else err))
+            if data.get("usageMetadata"):
+                usage = _gemini_usage(data)
+            text, thought = _gemini_parts(data)
+            if thought and not thinking:
+                thinking = True
+                yield Chunk("", None, None, True)
+            visible = cleaner.feed(text) if text else ""
+            if visible:
+                yield Chunk(visible, None, None)
+    tail, calls = cleaner.finish()
+    if tail:
+        yield Chunk(tail, None, None)
+    yield Chunk("", calls[0] if calls else None, usage, False, calls)
+
+
 # ---------- public ----------
 
 def health(model=None):
     """Raise unless the endpoint is reachable and the key is accepted. Generates nothing."""
-    if not CHAT_API_KEY:
-        raise LLMError("OPENROUTER_API_KEY is not set")
-    req = urllib.request.Request(BASE_URL + "/models", headers={"Authorization": "Bearer " + CHAT_API_KEY,
-                                                                    "User-Agent": USER_AGENT})
+    if PROVIDER == "gemini":
+        if not GEMINI_API_KEY:
+            raise LLMError("GEMINI_API_KEY is not set")
+        url, headers = "%s/models/%s" % (GEMINI_BASE_URL, _gemini_model(model)), {"x-goog-api-key": GEMINI_API_KEY}
+    else:
+        if not CHAT_API_KEY:
+            raise LLMError("OPENROUTER_API_KEY is not set")
+        url, headers = BASE_URL + "/models", {"Authorization": "Bearer " + CHAT_API_KEY}
+    req = urllib.request.Request(url, headers={**headers, "User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(req, timeout=min(TIMEOUT_S, 10)) as resp:
             resp.read()
     except urllib.error.HTTPError as e:
         raise LLMError("Model endpoint returned HTTP %s" % e.code) from e
     except (urllib.error.URLError, OSError) as e:
-        raise LLMError("Could not reach the model endpoint at %s: %s" % (BASE_URL, e)) from e
+        raise LLMError("Could not reach the model endpoint at %s: %s" % (url.split("/models")[0], e)) from e
     return True
 
 
@@ -378,25 +597,34 @@ def can_disable_thinking():
     return _can_disable_thinking
 
 
-def _open_chat(args, think):
-    """Open a chat request. With think=False, fall back to normal reasoning if the model insists on it."""
+def _with_thinking_fallback(open_with, think):
+    """open_with(think) -> response. With think=False, fall back to thinking if the model insists on it."""
     global _can_disable_thinking
     try:
-        resp = _open("/chat/completions", _body(*args, think))
+        resp = open_with(think)
+    except QuotaExceeded:
+        raise
     except LLMError as e:
-        if think or _can_disable_thinking is False or "reason" not in str(e).lower():
+        msg = str(e).lower()
+        if think or _can_disable_thinking is False or not ("reason" in msg or "think" in msg):
             raise
         _can_disable_thinking = False
         logger.warning("This model will not run without reasoning (%s); leaving it on.", e)
-        return _open("/chat/completions", _body(*args, True))
+        return open_with(True)
     if not think and _can_disable_thinking is None:
         _can_disable_thinking = True
     return resp
 
 
+def _open_chat(args, think):
+    return _with_thinking_fallback(lambda th: _open("/chat/completions", _body(*args, th)), think)
+
+
 def generate(model, contents, system=None, tools=None, temperature=None, json_schema=None, max_tokens=None,
              think=True):
     """One complete reply. `json_schema={}` asks for any JSON object."""
+    if PROVIDER == "gemini":
+        return _gemini_generate(model, contents, system, tools, temperature, json_schema, max_tokens, think)
     args = (model, contents, system, tools, temperature, json_schema, False, max_tokens)
     with _open_chat(args, think) as resp:
         data = _read_json(resp)
@@ -414,6 +642,9 @@ def generate(model, contents, system=None, tools=None, temperature=None, json_sc
 
 def stream(model, contents, system=None, tools=None, temperature=None, max_tokens=None, think=True):
     """Yield Chunk(text, tool_call, usage) as the reply arrives."""
+    if PROVIDER == "gemini":
+        yield from _gemini_stream(model, contents, system, tools, temperature, max_tokens, think)
+        return
     cleaner, usage, thinking = _Cleaner(), None, False
     args = (model, contents, system, tools, temperature, None, True, max_tokens)
     with _open_chat(args, think) as resp:

@@ -216,8 +216,7 @@ EMBED_DIM = llm.EMBED_DIM
 # rules ~1,800 tokens, student documents up to 6,500, retrieved chunks 4,000, history
 # 30,000, prompt total capped at llm.PROMPT_TOKENS. Lower these for a small-window model.
 HISTORY_CHARS = int(os.getenv("HISTORY_CHARS", "150000"))
-# Chat/generation model. flash-lite is cheaper and has higher throughput than
-# 2.5-flash, so it scales better for a class of users. Override via env if needed.
+# Chat/generation model; the default depends on the provider (see llm.py). Override via env.
 CHAT_MODEL = os.getenv("CHAT_MODEL", llm.DEFAULT_CHAT_MODEL)
 # Tool generation is intentionally separate from the tutoring reply. It gets a
 # small purpose-built prompt plus retrieved course excerpts, not the whole chat
@@ -658,6 +657,11 @@ RETRIEVAL_DOWN = ("Course search is temporarily unavailable. Please try again in
 def retrieval_unavailable(exc):
     logger.error("Retrieval unavailable: %s", exc)
     return jsonify({"error": RETRIEVAL_DOWN, "code": "retrieval_unavailable"}), 503
+
+
+def model_busy(exc):
+    """The model's request cap (ours or the provider's) is used up; the message is student-safe."""
+    return jsonify({"error": str(exc), "code": "model_busy"}), 503
 
 
 def check_embedding_index():
@@ -2833,6 +2837,8 @@ def chat():
                         if not final_answer:
                             raise ValueError("Tutor returned an empty reply")
                         yield event("done", {"data": finish_exchange(final_answer, streamed_tool)})
+                    except llm.QuotaExceeded as e:
+                        yield event("error", {"message": str(e), "code": "model_busy"})
                     except Exception:
                         logger.exception("Could not stream chat response.")
                         yield event("error", {"message": "Could not finish the reply. Please try again."})
@@ -2868,6 +2874,8 @@ def chat():
 
     except llm.EmbeddingsUnavailable as e:
         return retrieval_unavailable(e)
+    except llm.QuotaExceeded as e:
+        return model_busy(e)
     except Exception as e:
         return server_error("Server issue while answering.", e)
 
@@ -3224,6 +3232,8 @@ def run_tool():
                         "sources": sources if role == "teacher" else []})
     except llm.EmbeddingsUnavailable as e:
         return retrieval_unavailable(e)
+    except llm.QuotaExceeded as e:
+        return tool_failure(tool, e, 503, str(e))
     except Exception as e:
         logger.exception("Could not create that learning activity.")
         return tool_failure(tool, "%s: %s" % (type(e).__name__, e), 500)

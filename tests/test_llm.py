@@ -25,7 +25,8 @@ class _Server(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        requests.append({"path": self.path, "body": None, "auth": self.headers.get("Authorization")})
+        requests.append({"path": self.path, "body": None, "auth": self.headers.get("Authorization"),
+                         "goog": self.headers.get("x-goog-api-key")})
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.end_headers()
@@ -33,7 +34,8 @@ class _Server(BaseHTTPRequestHandler):
 
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
-        requests.append({"path": self.path, "body": body, "auth": self.headers.get("Authorization")})
+        requests.append({"path": self.path, "body": body, "auth": self.headers.get("Authorization"),
+                         "goog": self.headers.get("x-goog-api-key")})
         status, payload = replies.pop(0)
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
@@ -437,6 +439,131 @@ def test_agent_tools_and_thinking_switch():
     print("ok - lookup tools loop, gaps and endings are recorded quietly, web search follows grounding, thinking can be switched off")
 
 
+def _g(*parts, usage=None):
+    out = {"candidates": [{"content": {"role": "model", "parts": list(parts)}}]}
+    if usage:
+        out["usageMetadata"] = usage
+    return out
+
+
+def test_gemini_backend():
+    saved = (llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY, llm.GEMINI_RPM, llm.GEMINI_RPD)
+    llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY = "gemini", llm.BASE_URL, "gkey"
+    llm.GEMINI_RPM, llm.GEMINI_RPD = 0, 0
+    llm._can_disable_thinking = None
+    try:
+        requests.clear()
+        replies.append((200, _g({"text": " Hi "}, usage={"promptTokenCount": 5, "candidatesTokenCount": 2,
+                                                           "thoughtsTokenCount": 3, "totalTokenCount": 10})))
+        contents = [{"role": "model", "parts": [{"text": "Welcome"}]}, {"role": "user", "parts": [{"text": "hi"}]},
+                    {"role": "user", "parts": [{"text": ""}]}, {"role": "user", "parts": [{"text": "again"}]}]
+        r = llm.generate("gemini-x", contents, system="SYS", tools=[TOOL], temperature=0.3, think=False)
+        assert r.text == "Hi" and r.usage == {"prompt": 5, "reply": 5, "total": 10}, r
+        sent = requests[-1]
+        assert sent["path"] == "/v1/models/gemini-x:generateContent", sent["path"]
+        assert sent["goog"] == "gkey" and sent["auth"] is None
+        b = sent["body"]
+        sys_text = b["systemInstruction"]["parts"][0]["text"]
+        assert sys_text.startswith("SYS") and llm.TOOL_MARKER in sys_text
+        assert [t["role"] for t in b["contents"]] == ["user", "model", "user"], b["contents"]
+        assert b["contents"][-1]["parts"][0]["text"] == "hi\n\nagain"      # same-role turns merge, empty dropped
+        cfg = b["generationConfig"]
+        assert cfg["temperature"] == 0.3 and cfg["thinkingConfig"] == {"thinkingBudget": 0}
+        assert "frequencyPenalty" not in cfg and "responseMimeType" not in cfg
+        assert llm.can_disable_thinking() is True
+
+        # An OpenRouter slug left in CHAT_MODEL falls back to the Gemini default.
+        replies.append((200, _g({"text": "ok"})))
+        llm.generate("recursive/flint-v1.0:free", "hi")
+        assert requests[-1]["path"] == "/v1/models/%s:generateContent" % llm.GEMINI_MODEL
+
+        # JSON schema, thought parts dropped, tool calls parsed out of the text.
+        replies.append((200, _g({"text": '{"a": 1}'})))
+        r = llm.generate("g", "hi", json_schema={"type": "object"})
+        assert r.text == '{"a": 1}'
+        cfg = requests[-1]["body"]["generationConfig"]
+        assert cfg["responseMimeType"] == "application/json" and cfg["responseJsonSchema"] == {"type": "object"}
+        replies.append((200, _g({"text": "secret plan", "thought": True},
+                                {"text": "Sure." + _call({"type": "quiz", "topic": "cells"})})))
+        r = llm.generate("g", "quiz me", tools=[TOOL])
+        assert r.text == "Sure." and r.tool_call == {"name": A.TOOL_FUNCTION_NAME,
+                                                      "args": {"type": "quiz", "topic": "cells"}}, r
+
+        # Streaming: a thinking phase, visible text, final usage.
+        replies.append((200, [_g({"text": "hmm", "thought": True}), _g({"text": "Hel"}),
+                              _g({"text": "lo"}, usage={"promptTokenCount": 4, "candidatesTokenCount": 2,
+                                                        "totalTokenCount": 6})]))
+        chunks = list(llm.stream("g", "hi"))
+        assert chunks[0].thinking and "".join(c.text for c in chunks) == "Hello", chunks
+        assert chunks[-1].usage == {"prompt": 4, "reply": 2, "total": 6}
+        assert requests[-1]["path"] == "/v1/models/g:streamGenerateContent?alt=sse"
+        assert requests[-1]["body"]["generationConfig"]["thinkingConfig"] == {"includeThoughts": True}
+
+        # A model that insists on thinking: retried once with it on, then remembered.
+        llm._can_disable_thinking = None
+        replies.append((400, {"error": {"message": "Budget 0 is invalid. This model only works in thinking mode."}}))
+        replies.append((200, _g({"text": "Thought anyway."})))
+        assert llm.generate("g", "hi", think=False).text == "Thought anyway."
+        assert "thinkingConfig" not in requests[-1]["body"]["generationConfig"]
+        assert llm.can_disable_thinking() is False
+        llm._can_disable_thinking = None
+
+        # Google's HTTP 429 is a QuotaExceeded with a student-safe message, never retried.
+        requests.clear()
+        replies.append((429, {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "message":
+                       "Quota exceeded for metric: generate_content_free_tier_requests, limit: 250 per day"}}))
+        try:
+            llm.generate("g", "hi")
+            raise AssertionError("429 was swallowed")
+        except llm.QuotaExceeded as e:
+            assert str(e) == llm.BUSY_DAY and len(requests) == 1
+
+        # Our own caps stop requests before they are sent.
+        llm._quota_minute.clear(); llm._quota_day.clear()
+        llm.GEMINI_RPM = 2
+        replies.extend([(200, _g({"text": "1"})), (200, _g({"text": "2"}))])
+        llm.generate("g", "a"); llm.generate("g", "b")
+        requests.clear()
+        try:
+            llm.generate("g", "c")
+            raise AssertionError("the per-minute cap did not hold")
+        except llm.QuotaExceeded as e:
+            assert str(e) == llm.BUSY_MINUTE and not requests
+        replies.append((200, _g({"text": "other model"})))
+        assert llm.generate("g2", "d").text == "other model"        # limits are per model
+        llm.GEMINI_RPM, llm.GEMINI_RPD = 0, 1
+        llm._quota_minute.clear(); llm._quota_day.clear()
+        replies.append((200, _g({"text": "1"})))
+        llm.generate("g", "a")
+        try:
+            llm.generate("g", "b")
+            raise AssertionError("the daily cap did not hold")
+        except llm.QuotaExceeded as e:
+            assert str(e) == llm.BUSY_DAY
+
+        # The status check reads the model without generating.
+        requests.clear()
+        assert llm.health("g") is True
+        assert requests[-1]["path"] == "/v1/models/g" and requests[-1]["goog"] == "gkey"
+
+        # /chat turns a used-up quota into a 503 (or a stream error) the clients can show.
+        replies.append((200, _g({"text": "uses today's one request"})))
+        llm.generate(llm.GEMINI_MODEL, "x")
+        A._rate_hits.clear()
+        settings = dict(A.course_settings(), practice_tools=True)
+        _route_fakes(settings)
+        c = A.app.test_client()
+        r = c.post("/chat", json={"message": "what is osmosis", "class_id": "c1", "chat_id": "chat1"})
+        assert r.status_code == 503 and r.get_json() == {"error": llm.BUSY_DAY, "code": "model_busy"}, r.get_json()
+        r = c.post("/chat", json={"message": "what is osmosis", "class_id": "c1", "chat_id": "chat1", "stream": True})
+        assert b'"code": "model_busy"' in r.data or b'"code":"model_busy"' in r.data, r.data
+    finally:
+        llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY, llm.GEMINI_RPM, llm.GEMINI_RPD = saved
+        llm._quota_minute.clear(); llm._quota_day.clear()
+        llm._can_disable_thinking = None
+    print("ok - gemini: native request shape, thinking, schema, streaming, 429 and free-tier caps")
+
+
 if __name__ == "__main__":
     try:
         test_generate_text_and_request_shape()
@@ -452,5 +579,6 @@ if __name__ == "__main__":
         test_errors_raise()
         test_chat_and_tool_routes_on_endpoint()
         test_agent_tools_and_thinking_switch()
+        test_gemini_backend()
     finally:
         server.shutdown()

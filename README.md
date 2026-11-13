@@ -131,7 +131,7 @@ A few optional overrides exist too:
 - `MAX_MESSAGES_RETURNED` (cap on messages returned for one conversation, default 500)
 - `ROLE_CACHE_TTL` (seconds a user's role is cached in-process, default 60)
 - `TRUST_PROXY_HOPS` (default 0; set to 1 on Cloud Run so client IPs in the logs are real)
-- `CHAT_MODEL` (the chat model name, default `recursive/flint-v1.0:free` on OpenRouter)
+- `CHAT_MODEL` (the chat model name, default `GEMINI_MODEL` with a Gemini key, else `recursive/flint-v1.0:free` on OpenRouter)
 - `TOOL_MODEL` (the model that builds learning activities; defaults to `CHAT_MODEL`)
 - `FLASK_DEBUG`
 
@@ -189,23 +189,46 @@ Written down but not built:
 
 ## Connecting a model
 
-Chronos talks to OpenAI-compatible endpoints (`llm.py`): OpenRouter for chat and
-learning activities, `chronos-embed` for embeddings. To switch models or hosts,
-change environment variables only.
+Chronos sends chat and learning activities to one of two backends (`llm.py`): Google's
+Gemini API (used whenever `GEMINI_API_KEY` is set) or any OpenAI-compatible endpoint such as
+OpenRouter. Embeddings always go to `chronos-embed`. To switch models or hosts, change
+environment variables only.
 
 | Variable | Default (placeholder) | Meaning |
 | --- | --- | --- |
+| `LLM_PROVIDER` | `gemini` if `GEMINI_API_KEY` is set, else `openrouter` | Which chat backend |
+| `GEMINI_API_KEY` | none | Google AI Studio key (the newer `AQ.` keys work) |
+| `GEMINI_MODEL` | `gemini-flash-latest` | Gemini model when `CHAT_MODEL` is unset |
+| `GEMINI_RPM` / `GEMINI_RPD` | `9` / `240` | Free-tier caps per model per server process (0 = off) |
 | `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | Chat endpoint root, **including `/v1`** |
-| `OPENROUTER_API_KEY` | none (required) | Bearer token for chat |
+| `OPENROUTER_API_KEY` | none (required for `openrouter`) | Bearer token for chat |
 | `LLM_API_KEY` | none (required) | Bearer token for the embedding server |
-| `CHAT_MODEL` | `recursive/flint-v1.0:free` | Model for tutoring replies |
+| `CHAT_MODEL` | `GEMINI_MODEL`, or `recursive/flint-v1.0:free` on OpenRouter | Model for tutoring replies |
 | `TOOL_MODEL` | = `CHAT_MODEL` | Model for quizzes/flashcards/etc. (must follow JSON schemas) |
 | `EMBED_BASE_URL` | `https://chronos-embed.tevproject.com/v1` | Embedding server (uses `LLM_API_KEY`) |
 | `LLM_TIMEOUT_S` | `120` | Read timeout (never below 120) |
 | `LLM_PROMPT_TOKENS` | `32000` | Oldest turns are dropped past this estimated size |
 | `LLM_MAX_TOKENS` | `4096` | Reply limit; reasoning tokens count against it |
 
-### Chat model
+### Gemini (free tier)
+With `GEMINI_API_KEY` set, `llm.py` calls `generativelanguage.googleapis.com/v1beta`
+(`:generateContent`, and `:streamGenerateContent?alt=sse` for streaming) with the key in the
+`x-goog-api-key` header. Tools use the same `TOOL_CALL` text protocol, `json_schema` becomes
+`responseJsonSchema`, `think=False` sends `thinkingBudget: 0` (with the same fall-back as below),
+and frequency/presence penalties are not sent. An OpenRouter-style `vendor/model` left in
+`CHAT_MODEL` is ignored in favour of `GEMINI_MODEL`.
+
+**Staying free.** The only hard guarantee is that the Google Cloud project behind the key has
+**no billing account**: then Google can only refuse requests past the free limits, never charge.
+Check the project's tier and its real limits at aistudio.google.com (Usage / Rate limit). On top
+of that, Chronos counts its own requests per model and stops at `GEMINI_RPM` a minute (a request
+waits up to 20 s for a slot) and `GEMINI_RPD` a day (reset at midnight Pacific). Past either cap,
+or on any HTTP 429 from the provider, `/chat` returns 503 `{"code": "model_busy"}` (a stream gets an
+`error` event) and `/tools/run` a 503, each with a student-facing "tutor is busy" message. The
+counters are per process, so with several Cloud Run instances set `--max-instances=1` or divide
+the caps. Free-tier prompts may be used by Google to improve its products.
+
+### Chat model (OpenRouter)
 Chat runs on OpenRouter (`recursive/flint-v1.0:free`) at
 `https://openrouter.ai/api/v1`. It is stateless, so `llm.py` sends the full conversation
 every time, trims the oldest turns when the prompt gets long, and streams replies. 5xx and

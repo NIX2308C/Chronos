@@ -439,6 +439,78 @@ def test_agent_tools_and_thinking_switch():
     print("ok - lookup tools loop, gaps and endings are recorded quietly, web search follows grounding, thinking can be switched off")
 
 
+def test_study_mode_route():
+    """Study mode end to end: the switch, topic choice, grading, mastery and moving on."""
+    import study
+    A._rate_hits.clear()
+    settings = dict(A.course_settings(), practice_tools=True, reveal_final_answers=True)
+    _route_fakes(settings)
+    A.load_course_manifest = lambda *a, **k: [{"id": "f1", "title": "Cells.pdf", "summary": "",
+                                               "topics": ["Cells", "Osmosis"], "chunks": 1, "added": 1.0}]
+    queries = []
+    A.embed = lambda t: queries.append(t) or [0.0] * A.EMBED_DIM
+    store = {"message_count": 2}
+
+    class _Doc:
+        id = "chat1"
+        exists = True
+        def get(self): return self
+        def to_dict(self): return dict(store)
+        def set(self, data, merge=False): store.update(data)
+        def collection(self, _n): return type("_M", (), {"add": lambda s, *a, **k: None})()
+
+    A._user_chats = lambda _uid: type("_C", (), {"document": lambda s, *_a: _Doc()})()
+    c = A.app.test_client()
+    post = lambda msg, on=True: c.post("/chat", json={"message": msg, "class_id": "c1", "chat_id": "chat1",
+                                                       "study": on})
+    tool = lambda name, **args: "\nTOOL_CALL " + json.dumps({"name": name, "args": args})
+
+    # Switched on: asks which topic; activities are swapped for the study tools.
+    replies.append((200, _reply("Do you want to study the whole course, or one topic like Cells or Osmosis?")))
+    r = post("Start study mode.")
+    assert r.status_code == 200, r.get_json()
+    sent = requests[-1]["body"]["messages"][0]["content"]
+    assert "no topic chosen yet" in sent and "grade_answer(result: correct|partial|wrong)" in sent
+    assert A.TOOL_FUNCTION_NAME not in sent and "You may confirm or give final answers" not in sent
+    assert r.get_json()["study"]["on"] is True and r.get_json()["study"]["topic"] is None
+    assert store["study"]["on"] is True
+
+    # The whole course: the outline becomes the plan.
+    replies.append((200, _reply("First question: what does the cell membrane do?"
+                                + tool("study_topic", topic="Cells", scope="course"))))
+    r = post("the whole course")
+    st = r.get_json()["study"]
+    assert (st["scope"], st["topic"], st["plan"]) == ("course", "Cells", ["Cells", "Osmosis"]), st
+    assert r.get_json()["response"] == "First question: what does the cell membrane do?"
+
+    # Answers are looked up against the topic and graded; a partial starts the count again.
+    queries.clear()
+    replies.append((200, _reply("Right. Why does that matter for the cell?" + tool("grade_answer", result="correct"))))
+    r = post("it controls what goes in and out")
+    assert queries[0] == "Cells: it controls what goes in and out", queries
+    assert r.get_json()["study"]["streak"] == 1
+    replies.append((200, _reply("Partly. What else?" + tool("grade_answer", result="partial")
+                                + tool("grade_answer", result="correct"))))
+    assert post("it keeps stuff in").get_json()["study"]["streak"] == 0, "second grade in one reply counted"
+
+    for i in range(study.MASTERY_STREAK):
+        replies.append((200, _reply("Yes. Next one." + tool("grade_answer", result="correct"))))
+        r = post("answer %d" % i)
+        if i == study.MASTERY_STREAK - 1:
+            assert "ask your first question on Osmosis" in requests[-1]["body"]["messages"][0]["content"]
+    st = r.get_json()["study"]
+    assert st["just_mastered"] is True and st["mastered"] == ["Cells"] and st["topic"] == "Osmosis", st
+
+    # Switched off: the normal tutor again, progress kept for next time.
+    replies.append((200, _reply("Sure.")))
+    r = post("what is osmosis?", on=False)
+    sent = requests[-1]["body"]["messages"][0]["content"]
+    assert "STUDY MODE" not in sent and A.TOOL_FUNCTION_NAME in sent
+    assert store["study"]["on"] is False and store["study"]["mastered"] == ["Cells"]
+    assert r.get_json()["study"]["on"] is False
+    print("ok - study mode route: topic choice, per-topic lookups, grading, mastery gate, switching off")
+
+
 def _g(*parts, usage=None):
     out = {"candidates": [{"content": {"role": "model", "parts": list(parts)}}]}
     if usage:
@@ -580,5 +652,6 @@ if __name__ == "__main__":
         test_chat_and_tool_routes_on_endpoint()
         test_agent_tools_and_thinking_switch()
         test_gemini_backend()
+        test_study_mode_route()
     finally:
         server.shutdown()

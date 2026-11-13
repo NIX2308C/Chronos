@@ -7,6 +7,7 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import app as A
+import prompts
 import _llm_shim
 _llm_shim.install(A)
 
@@ -330,7 +331,9 @@ def test_behaviour_rules_follow_settings():
     default = A.build_system_instruction("m", settings=base)
     assert default.startswith("You are Chronos"), default[:80]
     assert A.HINT_RULES["progressive"] in default
-    assert "Don't give final answers" in default and "No tables or LaTeX" in default
+    assert "Don't give final answers" in default and "No headings, tables or LaTeX" in default
+    assert "A bare guess" in default and "could be copied down as the answer" in default
+    assert "Use tools sparingly" not in default
     for level in ("light", "strong"):
         p = A.build_system_instruction("m", settings=dict(base, hint_strength=level))
         assert A.HINT_RULES[level] in p and A.HINT_RULES["progressive"] not in p, level
@@ -352,6 +355,92 @@ def test_behaviour_rules_follow_settings():
     print("ok - hint levels, answer/example settings and the fixed protections render per course")
 
 
+# ---------- study mode ----------
+
+def test_study_mode_state():
+    import study
+    n = study.MASTERY_STREAK
+    s = study.normalize(None)
+    assert s == {"on": False, "scope": "", "topic": "", "plan": [], "mastered": [], "streak": 0, "complete": False}
+    s, done = study.grade(s, "correct")
+    assert not done and s["streak"] == 0, "graded with no topic"
+
+    # One topic: n correct in a row masters it; partial or wrong starts again.
+    s = study.set_topic(s, "Osmosis", "topic", ["Cells", "Osmosis"])
+    assert (s["scope"], s["topic"], s["plan"]) == ("topic", "Osmosis", [])
+    for _ in range(n - 1):
+        s, done = study.grade(s, "correct")
+    s, done = study.grade(s, "partial")
+    assert s["streak"] == 0 and not done and not s["mastered"], "a partial answer kept the count"
+    for i in range(n):
+        s, done = study.grade(s, "correct")
+        assert done == (i == n - 1)
+    assert s["mastered"] == ["Osmosis"] and s["topic"] == "Osmosis" and s["streak"] == 0
+    s, _ = study.grade(s, "bogus")
+    assert s["streak"] == 0
+
+    # Whole course: the outline is the plan, topics open in order, only after mastery.
+    c = study.set_topic(study.normalize({}), "", "course", ["Cells", "Osmosis", "Diffusion"])
+    assert (c["scope"], c["topic"]) == ("course", "Cells"), c
+    c = study.set_topic(c, "osmosis", "course", ["Cells", "Osmosis", "Diffusion"])
+    assert c["topic"] == "Osmosis", "starting topic named by the tutor is honoured"
+    c = study.set_topic(study.normalize({}), "", "course", ["Cells", "Osmosis", "Diffusion"])
+    for _ in range(n - 1):
+        c, _ = study.grade(c, "correct")
+    assert c["topic"] == "Cells", "moved on before mastery"
+    c, _ = study.grade(c, "wrong")
+    assert c["topic"] == "Cells" and c["streak"] == 0
+    for topic in ("Cells", "Osmosis", "Diffusion"):
+        assert c["topic"] == topic
+        for _ in range(n):
+            c, _ = study.grade(c, "correct")
+    assert c["complete"] and c["topic"] == "" and c["mastered"] == ["Cells", "Osmosis", "Diffusion"]
+
+    # No outline topics: a whole-course request falls back to the one topic named.
+    f = study.set_topic(study.normalize({}), "Cells", "course", [])
+    assert (f["scope"], f["topic"]) == ("topic", "Cells")
+    assert study.public(c)["needed"] == n and study.public(c)["complete"] is True
+    print("ok - study mode counts correct answers in a row and only moves on after mastery")
+
+
+def test_study_mode_prompt():
+    import study
+    settings = dict(A.course_settings(), practice_tools=True, reveal_final_answers=True, worked_examples=True)
+    on = lambda **kw: dict(study.normalize({}), on=True, **kw)
+
+    p = A.build_system_instruction("m", settings=settings, outline="Topics: Cells, Osmosis", study_state=on())
+    assert "STUDY MODE" in p and "no topic chosen yet" in p
+    assert "Don't give final answers" in p and "You may confirm or give final answers" not in p, \
+        "study mode must hold answers even when the course reveals them"
+    assert "ACTIVITIES" not in p, "study mode asks its own questions"
+    assert p.rstrip().endswith(prompts.get("tutor/study/no_topic")), "the changing part must come last"
+
+    p = A.build_system_instruction("m", settings=settings, study_state=on(scope="topic", topic="Osmosis", streak=1))
+    assert "studying Osmosis, 1 of %d" % study.MASTERY_STREAK in p and "never ask which topic" in p
+    p = A.build_system_instruction("m", settings=settings, study_state=on(
+        scope="course", topic="Cells", plan=["Cells", "Osmosis"], streak=study.MASTERY_STREAK - 1))
+    assert "Whole course, in this order: Cells, Osmosis" in p and "ask your first question on Osmosis" in p
+    p = A.build_system_instruction("m", settings=settings, study_state=on(
+        scope="topic", topic="Cells", mastered=["Cells"]))
+    assert "Cells is mastered" in p and "don't ask them to choose" in p
+    p = A.build_system_instruction("m", settings=settings, study_state=on(scope="course", complete=True))
+    assert "every topic in the course is mastered" in p
+
+    # Off: the normal prompt, with this course's answer setting.
+    off = A.build_system_instruction("m", settings=settings, study_state=study.normalize({}))
+    assert "STUDY MODE" not in off and "You may confirm or give final answers" in off and "ACTIVITIES" in off
+
+    # The study tools are declared only in study mode, with their allowed values.
+    import agent_tools
+    names = [t["name"] for t in agent_tools.declarations(False, study=True)]
+    assert agent_tools.STUDY_TOPIC in names and agent_tools.GRADE_ANSWER in names
+    assert agent_tools.GRADE_ANSWER not in [t["name"] for t in agent_tools.declarations(False)]
+    grade = next(t for t in agent_tools.declarations(False, study=True) if t["name"] == agent_tools.GRADE_ANSWER)
+    assert grade["parameters"]["properties"]["result"]["enum"] == ["correct", "partial", "wrong"]
+    assert "grade_answer(result: correct|partial|wrong)" in A.llm._tool_instructions([grade])
+    print("ok - study mode prompt: answers held, no activities, status last, tools only when on")
+
+
 if __name__ == "__main__":
     test_small_talk_detection()
     test_prompt_pieces()
@@ -366,3 +455,5 @@ if __name__ == "__main__":
     test_category_cache()
     test_additional_instruction_migrates()
     test_outline_cleanup_and_document_delete_validation()
+    test_study_mode_state()
+    test_study_mode_prompt()

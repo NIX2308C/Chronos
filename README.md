@@ -265,6 +265,18 @@ material gaps reach the teacher: it is silent, and nothing is inferred from an e
 more. `end_conversation` closes the chat (`ended` on the chat document, later messages get 409) and
 is refused for self-harm or safety wording.
 
+### Study mode
+A student switches it on per chat from the composer menu (`study: true` on `/chat`). The tutor then
+asks one question at a time, never gives the answer to its own questions (whatever the course's
+answer setting), and first asks once whether to study one topic or the whole course. It reports
+each answer with `grade_answer` (correct / partial / wrong) and picks the topic with `study_topic`;
+`study.py` counts fully correct, unaided answers in a row and marks a topic mastered only at
+`STUDY_MASTERY_STREAK` (default 3). A partial or wrong answer resets the count. A whole-course session
+follows the course outline's topics in order and opens the next topic only after mastery. Progress
+lives on the chat document (`study`), is returned as `study` in the `done` payload and
+`/chats/<id>/messages`, and drives the chip above the composer. While a topic is set, retrieval
+searches with the topic prepended to the student's answer, and practice activities are hidden.
+
 ### Context budget
 Sized for a hosted model with a large window: prompt capped at `LLM_PROMPT_TOKENS` (150,000; chars ≈ 3
 tokens), reply `LLM_MAX_TOKENS` (16,384, shared with thinking). Retrieval pulls 16 chunks

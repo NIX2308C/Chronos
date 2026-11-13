@@ -2,7 +2,8 @@
 
 Two kinds. Lookup tools (course search, web search, clock, calculator) are "alone" (see
 llm.py): the model calls one as its whole reply, app.py runs it and sends the result back, and
-the model carries on. The rest (mark_gap, end_conversation, rename_chat) are end-of-reply
+the model carries on. The rest (mark_gap, end_conversation, rename_chat, and in study mode
+study_topic and grade_answer) are end-of-reply
 tools: the model writes its answer, then ends it with the call, so they cost no extra round
 trip and a reply can make several. This module holds the declarations and the pieces that need
 no database: the clock, the calculator and web search. Course search and the end-of-reply
@@ -30,8 +31,10 @@ CALCULATE = "calculate"
 MARK_GAP = "mark_gap"
 END_CONVERSATION = "end_conversation"
 RENAME_CHAT = "rename_chat"
+STUDY_TOPIC = "study_topic"
+GRADE_ANSWER = "grade_answer"
 # Called at the end of a reply rather than as the whole of one.
-SIDE = {MARK_GAP, END_CONVERSATION, RENAME_CHAT}
+SIDE = {MARK_GAP, END_CONVERSATION, RENAME_CHAT, STUDY_TOPIC, GRADE_ANSWER}
 
 # The student sees a "thinking" state while these run. The rest are instant or invisible.
 VISIBLE = {SEARCH_COURSE, WEB_SEARCH, CALCULATE}
@@ -39,15 +42,21 @@ VISIBLE = {SEARCH_COURSE, WEB_SEARCH, CALCULATE}
 RESULT_CHARS = 3500
 
 
-def declarations(web_enabled, first_message=False):
+def declarations(web_enabled, first_message=False, study=False):
     """Declarations for the tutor's tools. Web search only when the course allows it,
-    renaming only on a conversation's first message."""
+    renaming only on a conversation's first message, the study tools only in study mode.
+    A parameter is a name, or (name, allowed values)."""
     def tool(name, *params):
+        props = {}
+        for p in params:
+            key, allowed = p if isinstance(p, tuple) else (p, None)
+            props[key] = {"type": "string", "description": prompts.get("tools/%s/%s" % (name, key))}
+            if allowed:
+                props[key]["enum"] = list(allowed)
         return {"name": name, "alone": name not in SIDE,
                 "description": prompts.get("tools/%s/description" % name),
-                "parameters": {"type": "object", "properties": {
-                    k: {"type": "string", "description": prompts.get("tools/%s/%s" % (name, k))} for k in params},
-                    "required": list(params)}}
+                "parameters": {"type": "object", "properties": props,
+                               "required": [p[0] if isinstance(p, tuple) else p for p in params]}}
     tools = [tool(SEARCH_COURSE, "query")]
     if web_enabled:
         tools.append(tool(WEB_SEARCH, "query"))
@@ -55,6 +64,9 @@ def declarations(web_enabled, first_message=False):
               tool(END_CONVERSATION, "reason")]
     if first_message:
         tools.append(tool(RENAME_CHAT, "title"))
+    if study:
+        tools += [tool(STUDY_TOPIC, "topic", ("scope", ("topic", "course"))),
+                  tool(GRADE_ANSWER, ("result", ("correct", "partial", "wrong")))]
     return tools
 
 

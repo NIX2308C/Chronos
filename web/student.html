@@ -79,6 +79,17 @@
     }
 </script>
 <style>
+/* Study mode: one line above the composer with the topic and answers in a row. */
+.study-chip{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 6px 6px 12px;border-radius:999px;
+  background:rgb(var(--k-accent-soft));color:rgb(var(--k-accent-d));font-size:12.5px;max-width:100%;width:max-content}
+.study-chip[hidden]{display:none}
+.study-chip .material-symbols-outlined{font-size:16px}
+.study-chip .study-text{color:rgb(var(--k-sub));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.study-dots{display:inline-flex;gap:3px}
+.study-dots i{width:7px;height:7px;border-radius:50%;border:1.5px solid rgb(var(--k-accent));box-sizing:border-box}
+.study-dots i.on{background:rgb(var(--k-accent))}
+.study-chip button{display:grid;place-items:center;padding:2px;border:0;border-radius:50%;background:none;color:rgb(var(--k-sub));cursor:pointer}
+.study-chip button:hover{color:rgb(var(--k-ink))}
     /* Custom components use these vars so they follow the theme on their own;
        theme.css only has to repoint the Tailwind-generated utility classes. */
     :root{--snap:cubic-bezier(.22,1,.36,1);--soft:cubic-bezier(.22,1,.36,1)}
@@ -445,6 +456,10 @@
 <input accept=".pdf,.docx,.txt,.md,.csv" class="hidden" id="fileInput" type="file"/>
 </div>
 <div class="dbg-strip" id="dbgStrip" aria-live="polite"></div>
+<div class="study-chip" id="studyChip" hidden aria-live="polite">
+<span class="material-symbols-outlined">school</span><b>Study mode</b><span class="study-text" id="studyText"></span><span class="study-dots" id="studyDots" aria-hidden="true"></span>
+<button type="button" id="studyExit" aria-label="Turn off study mode" title="Turn off study mode"><span class="material-symbols-outlined">close</span></button>
+</div>
 <div class="composer" id="composerBox">
 <div class="composer-tools">
 <button type="button" class="composer-action" id="addFileBtn" aria-label="Add to conversation" aria-haspopup="menu" aria-expanded="false" title="Add to conversation"><span class="material-symbols-outlined">add</span></button>
@@ -548,6 +563,21 @@
     THINK_CHATS[c.id]=on?1:0;
     try{localStorage.setItem("chronos-think-chats",JSON.stringify(Object.fromEntries(Object.entries(THINK_CHATS).slice(-300))));}catch(e){}
   }
+  // Study mode is switched per chat from the composer menu: the tutor asks one question at a
+  // time and moves on only after mastery. The server keeps the progress (topic, answers in a
+  // row, mastered topics); this remembers the switch per device (1 on, 0 off) and falls back
+  // to the server's flag for a chat last used elsewhere.
+  const STUDY_LABEL="Study mode on";
+  let STUDY_CHATS={};
+  try{STUDY_CHATS=JSON.parse(localStorage.getItem("chronos-study-chats")||"{}")||{};}catch(e){}
+  const isStudying=c=>!!c&&(c.study!==undefined?!!c.study:(STUDY_CHATS[c.id]!==undefined?STUDY_CHATS[c.id]===1:!!c.serverStudy));
+  function setStudying(c,on){
+    if(!c)return;
+    c.study=on;
+    if(c.isNew)return;
+    STUDY_CHATS[c.id]=on?1:0;
+    try{localStorage.setItem("chronos-study-chats",JSON.stringify(Object.fromEntries(Object.entries(STUDY_CHATS).slice(-300))));}catch(e){}
+  }
   const TZ=(()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone||"";}catch(e){return "";}})();
   let IS_DEV=false,DEBUG=false;   // developer accounts only; decided by the server (/auth/me)
   const uiPref=(k,d)=>{const v=(window.ChronosTheme?ChronosTheme.ui():{})[k];return v===undefined?d:v;};
@@ -576,7 +606,7 @@
     ACTIVE_CLASS=classId;localStorage.setItem(CLASS_KEY,classId);
     chats=ALL_CHATS.filter(x=>x.classId===classId);
     activeChatId=id;FILES=c.files;
-    fileErr("");syncToolkits();paintClassSwitcher();renderSidebar(courseChanged);renderFiles();renderMessages();
+    fileErr("");syncToolkits();paintClassSwitcher();renderSidebar(courseChanged);renderFiles();renderMessages();renderStudy();
     els.input.value=c.draft||"";
     els.input.style.height="auto";
     els.input.style.height=Math.min(els.input.scrollHeight,160)+"px";
@@ -622,6 +652,7 @@
     if(c.loaded)return c.messages;
     const d=await Chronos.apiJson("/chats/"+encodeURIComponent(c.id)+"/messages",undefined,"GET");
     c.ended=!!d.ended;
+    c.studyState=d.study||null;
     // Students receive the answer status, not the underlying teacher sources.
     return (d.messages||[]).map(m=>({role:m.role,content:m.content,display:m.display||null,rules:m.rules||[],
       sources:m.sources||[],tool:m.tool||null,
@@ -794,7 +825,8 @@
       if(m.display){
         // A long generated prompt (a quiz review) shows as a short attachment-style label.
         b.className="bub-attach";
-        b.innerHTML='<span class="ba-icon"><span class="material-symbols-outlined">quiz</span></span><span class="ba-text"></span>';
+        b.innerHTML='<span class="ba-icon"><span class="material-symbols-outlined"></span></span><span class="ba-text"></span>';
+        b.querySelector(".material-symbols-outlined").textContent=m.display===STUDY_LABEL?"school":"quiz";
         b.querySelector(".ba-text").textContent=m.display;
       }else{
         b.className="bub-you";
@@ -1638,11 +1670,14 @@
     const menu=$s("toolMenu");
     $s("toolBtn").hidden=false;
     menu.replaceChildren();
-    TOOLKITS.forEach(kind=>{
+    const chat=activeChat(),on=isThinking(chat),studying=isStudying(chat);
+    // Study mode asks its own questions one at a time, so the activities step aside.
+    const kits=studying?[]:TOOLKITS;
+    kits.forEach(kind=>{
       menu.appendChild(menuItem(TOOL_ICONS[kind]||"widgets",TOOL_LABELS[kind]||kind.replace(/_/g," "),()=>{closeComposerMenus();invokeTool(kind);}));
     });
-    if(TOOLKITS.length)menu.appendChild(Object.assign(document.createElement("div"),{className:"menu-sep"}));
-    const chat=activeChat(),on=isThinking(chat);
+    if(kits.length)menu.appendChild(Object.assign(document.createElement("div"),{className:"menu-sep"}));
+    menu.appendChild(menuItem("school",studying?"Study mode: on":"Study mode",()=>{closeComposerMenus();toggleStudy();},studying));
     const think=menuItem("psychology",THINK_LOCKED?"Thinking: always on":(on?"Thinking: on":"Thinking: off"),
       ()=>{if(THINK_LOCKED)return;setThinking(chat,!on);renderToolMenu();},
       THINK_LOCKED?true:on);
@@ -1807,15 +1842,45 @@
     }
   }
 
+  async function toggleStudy(){
+    if(navigationBusy||sending||toolRunning)return;
+    if(!activeChat())await newChat();
+    const c=activeChat();if(!c||c.ended)return;
+    const on=!isStudying(c);
+    setStudying(c,on);renderToolMenu();renderStudy();updateComposer();
+    // Turning it on starts the session: the tutor asks what to study (or carries on where
+    // this chat left off). The student's draft stays in the box.
+    if(on)send({text:"Start study mode.",display:STUDY_LABEL});
+    else if(window.chronosToast)chronosToast("Study mode off");
+  }
+
+  function renderStudy(){
+    const c=activeChat(),on=isStudying(c);
+    $s("studyChip").hidden=!on;
+    if(!on)return;
+    const st=c.studyState||{},dots=$s("studyDots");
+    let text="choosing a topic";
+    dots.replaceChildren();
+    if(st.complete)text="whole course mastered";
+    else if(st.topic){
+      text=st.topic;
+      if(st.scope==="course"&&st.plan&&st.plan.length)
+        text+=" · topic "+Math.min((st.mastered||[]).length+1,st.plan.length)+" of "+st.plan.length;
+      for(let i=0;i<(st.needed||3);i++){const d=document.createElement("i");if(i<(st.streak||0))d.className="on";dots.appendChild(d);}
+      dots.title=(st.streak||0)+" of "+(st.needed||3)+" correct in a row to master it";
+    }
+    $s("studyText").textContent=text;
+  }
+
   async function send(options={}){
     if(navigationBusy||sending||toolRunning)return;
-    const text=els.input.value.trim();if(!text)return;
+    const text=(options.text||els.input.value).trim();if(!text)return;
     if(!activeChat())await newChat();
     const c=activeChat();
     if(!c)return;
     c.messages.push({role:"student",content:text,display:options.display||null});
     if(c.messages.length===1){const t=options.display||text;c.title=t.length>30?t.slice(0,30)+"…":t;renderSidebar();}
-    els.input.value="";c.draft="";els.input.style.height="auto";
+    if(!options.text){els.input.value="";c.draft="";els.input.style.height="auto";}
     renderMessages();
     // renderMessages rebuilds quietly; only the message just sent should move in.
     if(els.messagesInner.lastElementChild)els.messagesInner.lastElementChild.classList.add("enter");
@@ -1830,6 +1895,7 @@
       // conversation; the server creates one.
       const body={message:text,class_id:c.classId||ACTIVE_CLASS,chat_id:c.id,stream:true,tz:TZ};
       body.think=isThinking(c);
+      body.study=isStudying(c);
       if(options.display)body.display=options.display;
       if(DEBUG)body.debug=true;
       const res=await Chronos.apiFetch("/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
@@ -1841,7 +1907,7 @@
           cache_hit_chats:ALL_CHATS.filter(x=>x.loaded).length}});
       }
       // Adopt the server's chat id/title for a freshly-created conversation.
-      if(data.chat_id&&c.isNew){const oldId=c.id;c.id=data.chat_id;if(c.think!==undefined)setThinking(c,c.think);c.isNew=false;c.loaded=true;if(data.title)c.title=data.title;if(activeChatId===oldId)activeChatId=c.id;renderSidebar();}
+      if(data.chat_id&&c.isNew){const oldId=c.id;c.id=data.chat_id;if(c.think!==undefined)setThinking(c,c.think);c.isNew=false;if(c.study!==undefined)setStudying(c,c.study);c.loaded=true;if(data.title)c.title=data.title;if(activeChatId===oldId)activeChatId=c.id;renderSidebar();}
       // `grounded` comes from the server, which is the only side that can see
       // the sources: students are never sent rules_used, so an empty list here
       // no longer means "nothing backed this answer".
@@ -1849,6 +1915,12 @@
       tm.content=data.response||streamedText;tm.rules=data.rules_used||[];tm.sources=data.sources||[];
       tm.reviewed=!!data.reviewed;tm.blocked=!!data.blocked;
       if(data.ended){c.ended=true;updateComposer();}
+      if(data.study!==undefined){
+        const before=c.studyState&&c.studyState.topic;
+        c.studyState=data.study;
+        if(data.study&&data.study.just_mastered&&window.chronosToast)chronosToast("Mastered: "+(before||"this topic"));
+        if(c.id===activeChatId)renderStudy();
+      }
       if(!!data.thinking_locked!==THINK_LOCKED){THINK_LOCKED=!!data.thinking_locked;renderToolMenu();}
       if(c.id!==activeChatId){setSending(false);return true;}
       if(Array.isArray(data.toolkits)){TOOLKITS=data.toolkits;renderToolMenu();}
@@ -1894,7 +1966,7 @@
     const c=activeChat(),ended=!!(c&&c.ended);
     els.sendBtn.disabled=sending||navigationBusy||toolRunning||ended;
     els.input.disabled=sending||navigationBusy||toolRunning||ended;
-    els.input.placeholder=ended?"This conversation has ended. Start a new chat.":(matchMedia("(max-width:900px)").matches?"Ask a question…":"What would you like to understand?");
+    els.input.placeholder=ended?"This conversation has ended. Start a new chat.":isStudying(c)?"Type your answer…":(matchMedia("(max-width:900px)").matches?"Ask a question…":"What would you like to understand?");
     $s("addFileBtn").disabled=navigationBusy||sending||toolRunning||FILES.length>=FILE_MAX;
     $s("toolBtn").disabled=navigationBusy||sending||toolRunning;
   }
@@ -2052,8 +2124,8 @@
       const retained=new Map(ALL_CHATS.map(c=>[c.id,c]));
       const saved=(d.chats||[]).map(c=>{
         const local=retained.get(c.id);
-        return local?Object.assign(local,{title:c.title,classId:c.class_id}):
-          {id:c.id,title:c.title,classId:c.class_id,messages:[],loaded:false,isNew:false};
+        return local?Object.assign(local,{title:c.title,classId:c.class_id,serverStudy:!!c.study}):
+          {id:c.id,title:c.title,classId:c.class_id,serverStudy:!!c.study,messages:[],loaded:false,isNew:false};
       });
       ALL_CHATS=saved.concat(ALL_CHATS.filter(c=>c.isNew&&!saved.includes(c)));
     }catch(e){
@@ -2135,6 +2207,7 @@
 
   $s("addFileBtn").onclick=()=>{renderAddFileMenu(null);openComposerMenu("addFileMenu");};
   $s("toolBtn").onclick=()=>openComposerMenu("toolMenu");
+  $s("studyExit").onclick=()=>{if(isStudying(activeChat()))toggleStudy();};
   document.addEventListener("click",e=>{
     if(!e.target.closest("#addFileMenu,#toolMenu,#addFileBtn,#toolBtn"))closeComposerMenus();
   });

@@ -24,6 +24,7 @@ import llm
 import prompts
 import profanity
 import student_profile
+import study
 from pinecone import Pinecone
 try:
     from google.cloud.devtools import cloudbuild_v1
@@ -1667,7 +1668,8 @@ def practice_activity_tool(settings):
         return None
     return {
         "name": TOOL_FUNCTION_NAME,
-        "description": prompts.get("tools/%s/description" % TOOL_FUNCTION_NAME),
+        "description": prompts.fill("tools/%s/description" % TOOL_FUNCTION_NAME,
+                                    types=", ".join(k.replace("_", " ") for k in kinds)),
         "parameters": {
             "type": "object",
             "properties": {
@@ -1706,7 +1708,7 @@ def _section(title, body):
 def build_system_instruction(context_block, memory_block="", docs_block="", settings=None,
                              conversation_summary="", custom_rules=None, outline="",
                              preferences_block="", material_in_message=False, course_name="",
-                             language="", parts=None):
+                             language="", parts=None, study_state=None):
     """Assemble the tutor's system prompt. If `parts` is a list, it receives
     (label, text) per section, for the developer debug panel.
 
@@ -1718,8 +1720,13 @@ def build_system_instruction(context_block, memory_block="", docs_block="", sett
     With `material_in_message` the retrieved excerpts ride at the top of the
     current user message instead of here, which keeps this prompt identical from
     turn to turn so the server's prompt cache holds.
+
+    With `study_state` on (see study.py) final answers are always held back, the activities
+    section is left out (study mode asks its own questions, one at a time), and the STUDY MODE
+    section goes last, since it is the only part that changes every turn.
     """
     settings = course_settings(settings)
+    studying = bool(study_state and study_state.get("on"))
     grounded = settings["grounded_only"]
     name = " ".join(course_name.replace('"', "'").split())[:80]
     P = prompts.get
@@ -1736,7 +1743,8 @@ def build_system_instruction(context_block, memory_block="", docs_block="", sett
     tutoring = [
         P("tutor/tutoring/header"),
         P("tutor/tutoring/guide_not_complete" if settings["guide_not_complete"] else "tutor/tutoring/complete_allowed"),
-        P("tutor/tutoring/reveal_answers" if settings["reveal_final_answers"] else "tutor/tutoring/hold_answers"),
+        P("tutor/tutoring/reveal_answers" if settings["reveal_final_answers"] and not studying
+          else "tutor/tutoring/hold_answers"),
         "- " + HINT_RULES[settings["hint_strength"]],
         P("tutor/tutoring/worked_examples" if settings["worked_examples"] else "tutor/tutoring/no_worked_examples"),
         P("tutor/tutoring/general"),
@@ -1744,7 +1752,7 @@ def build_system_instruction(context_block, memory_block="", docs_block="", sett
     tail = "\n\n".join((P("tutor/boundaries"), prompts.fill("tutor/safety", crisis_line=CRISIS_LINE), P("tutor/style")))
 
     rules = [str(r)[:1200] for r in (custom_rules or []) if str(r).strip()]
-    types = enabled_tool_types(settings)
+    types = [] if studying else enabled_tool_types(settings)
     sections = [
         prompts.fill("tutor/core", course='"%s"' % name if name else "one school course"),
         "\n".join(sources),
@@ -1769,12 +1777,14 @@ def build_system_instruction(context_block, memory_block="", docs_block="", sett
             P("tutor/upload") + "\n<upload>" + docs_block.replace("</upload", "<​/upload") + "</upload>")
     if language:
         sections.append(prompts.fill("tutor/language", language=language))
+    if studying:
+        sections.append(study.prompt_block(study_state))
     if parts is not None:
         labels = (("You are", "Persona"), ("SOURCES", "Sources"), ("TUTORING", "Tutoring, boundaries, safety, style"),
                   ("TEACHER RULES", "Teacher rules"), ("ACTIVITIES", "Activities"), ("COURSE OUTLINE", "Course outline"),
                   ("TEACHER MATERIAL", "Teacher material"), ("STUDENT PREF", "Student preferences"),
                   ("ABOUT THIS", "Memory"), ("EARLIER", "Chat summary"), ("<upload>", "Student upload"),
-                  ("Write every", "Language"))
+                  ("Write every", "Language"), ("STUDY MODE", "Study mode"))
         parts.extend((next(l for p, l in labels if t.startswith(p)), t) for t in sections)
     return "\n\n".join(sections)
 
@@ -2286,6 +2296,7 @@ def list_chats():
             "title": m.get("title") or "New chat",
             "class_id": m.get("class_id"),
             "last_active": _ts_seconds(m.get("last_active")),
+            "study": bool((m.get("study") or {}).get("on")),
         })
     chats.sort(key=lambda c: c["last_active"], reverse=True)
     return jsonify({"chats": chats})
@@ -2337,7 +2348,9 @@ def chat_messages(chat_id):
             "blocked": bool(m.get("blocked")),
             "issue_kind": m.get("issue_kind") if m.get("issue_kind") in ("academic", "behavioral") else None,
         })
-    return jsonify({"messages": messages, "ended": bool((chat_snap.to_dict() or {}).get("ended"))})
+    meta = chat_snap.to_dict() or {}
+    return jsonify({"messages": messages, "ended": bool(meta.get("ended")),
+                    "study": study.public(study.normalize(meta["study"])) if meta.get("study") else None})
 
 
 @app.route('/chats/<chat_id>', methods=['DELETE'])
@@ -2419,7 +2432,29 @@ def chat():
         dbg["timings"][name] = round((time.perf_counter() - since) * 1000)
 
     try:
-        is_small_talk = bool(_SMALL_TALK_RE.fullmatch(user_message))
+        # Resolve (or create) the conversation document for this user.
+        chats_col = _user_chats(request.uid)
+        chat_doc = chats_col.document(chat_id) if chat_id else chats_col.document()
+        chat_id = chat_doc.id
+        msgs_ref = chat_doc.collection('Messages')
+
+        # One read serves double duty: "is this a new conversation?" and the
+        # running summary we extend below (see STAT_SUMMARY_VERSION).
+        snap = chat_doc.get()
+        is_new = not snap.exists
+        prev = (snap.to_dict() or {}) if snap.exists else {}
+        if prev.get("ended"):
+            return jsonify({"error": ENDED_REPLY, "code": "conversation_ended"}), 409
+
+        # Study mode is switched per chat by the client; its progress lives on the chat
+        # document (study.py). While a topic is set, every message is looked up against it,
+        # since an answer like "B" or "because it's denser" means nothing on its own.
+        study_state = study.normalize(prev.get("study"))
+        study_state["on"] = data.get("study") is True and not blocked
+        studying = study_state["on"]
+        study_was = dict(study_state)
+
+        is_small_talk = bool(_SMALL_TALK_RE.fullmatch(user_message)) and not (studying and study_state["topic"])
         # Small talk needs no course lookup, but the tutor still answers it.
         skip_retrieval = is_small_talk or bool(blocked)
         raw_matches = []
@@ -2427,7 +2462,8 @@ def chat():
             pinecone_resp = {"matches": []}
         else:
             t = time.perf_counter()
-            question_embedding = embed(user_message)
+            question_embedding = embed(
+                (study_state["topic"] + ": " + user_message) if studying and study_state["topic"] else user_message)
             lap("embed_ms", t)
             t = time.perf_counter()
             pinecone_resp = pinecone_index.query(
@@ -2452,19 +2488,6 @@ def chat():
         teacher_rules = [s["excerpt"] for s in teacher_sources]
         custom_rules = [r["text"] for r in load_custom_rules(class_id)]
 
-        # Resolve (or create) the conversation document for this user.
-        chats_col = _user_chats(request.uid)
-        chat_doc = chats_col.document(chat_id) if chat_id else chats_col.document()
-        chat_id = chat_doc.id
-        msgs_ref = chat_doc.collection('Messages')
-
-        # One read serves double duty: "is this a new conversation?" and the
-        # running summary we extend below (see STAT_SUMMARY_VERSION).
-        snap = chat_doc.get()
-        is_new = not snap.exists
-        prev = (snap.to_dict() or {}) if snap.exists else {}
-        if prev.get("ended"):
-            return jsonify({"error": ENDED_REPLY, "code": "conversation_ended"}), 409
         migration_summary_update = {}
         if not is_new and "message_count" not in prev:
             # One-time migration for conversations created before rolling memory.
@@ -2557,7 +2580,7 @@ def chat():
 
         # What the tutor's own tools did this turn (see agent_tools): topics it
         # flagged for the teacher, and whether it ended the conversation.
-        agent = {"gaps": [], "ended": False, "title": None}
+        agent = {"gaps": [], "ended": False, "title": None, "graded": False, "mastered": False}
 
         def finish_exchange(final_answer, tool_request):
             reviewed = bool(docs_block) and not teacher_rules
@@ -2579,6 +2602,9 @@ def chat():
             chat_meta.update(summarize_exchange(prev, is_new, display or user_message, final_answer, agent["gaps"]))
             if agent["ended"]:
                 chat_meta["ended"] = True
+            # Saved when progress moved or the switch flipped (a chat that never studied stays untouched).
+            if study_state != study_was or studying != bool((prev.get("study") or {}).get("on")):
+                chat_meta["study"] = study_state
             chat_doc.set(chat_meta, merge=True)
             if PROFILE_ENABLED and not skip_retrieval:
                 try:
@@ -2611,6 +2637,8 @@ def chat():
                 "issue_kind": issue_kind,
                 "chat_id": chat_id,
                 "title": title,
+                "study": dict(study.public(study_state), just_mastered=agent["mastered"])
+                         if (studying or "study" in prev) else None,
             }
             if debug_on:
                 lap("total_ms", t0)
@@ -2623,6 +2651,7 @@ def chat():
                 dbg.update({
                     "model": CHAT_MODEL, "small_talk": is_small_talk, "new_chat": is_new,
                     "agent": {"gaps": agent["gaps"], "ended": agent["ended"]},
+                    "study": study.public(study_state) if studying else None,
                     "history_turns": len(history), "outline_docs": len(manifest_docs),
                     "settings": settings, "custom_rules": len(custom_rules),
                     "limits": {"top_k": RETRIEVAL_TOP_K, "floor": RETRIEVAL_MIN_SCORE,
@@ -2666,15 +2695,15 @@ def chat():
                 "", memory_block, docs_block, settings, conversation_summary, custom_rules,
                 outline=outline, preferences_block=preferences_block, material_in_message=True,
                 course_name=load_course_name(class_id), language=user_prefs.get("language", ""),
-                parts=prompt_parts
+                parts=prompt_parts, study_state=study_state
             )
             t_model = time.perf_counter()
 
             # Thinking is on unless the student switched it off for this chat.
             think = data.get("think") is not False
             tz_name = str(data.get("tz") or "")[:64]
-            tools = [t for t in [practice_activity_tool(settings)] if t] + agent_tools.declarations(
-                not settings["grounded_only"], first_message=is_new)
+            tools = [t for t in [None if studying else practice_activity_tool(settings)] if t] + \
+                agent_tools.declarations(not settings["grounded_only"], first_message=is_new, study=studying)
             if debug_on:
                 dbg["path"] = "smalltalk" if is_small_talk else ("grounded" if teacher_rules else "no_material")
                 tools_text = llm._tool_instructions(tools)
@@ -2706,6 +2735,14 @@ def chat():
                     title = " ".join(str(args.get("title") or "").split()).strip("\"'“”.")[:50]
                     if title and not profanity.is_profane(title):
                         agent["title"] = title
+                elif name == agent_tools.GRADE_ANSWER and not agent["graded"]:
+                    # Once per reply: a second grade can't double-count one answer.
+                    agent["graded"] = True
+                    new_state, agent["mastered"] = study.grade(study_state, str(args.get("result") or ""))
+                    study_state.update(new_state)
+                elif name == agent_tools.STUDY_TOPIC:
+                    study_state.update(study.set_topic(study_state, args.get("topic"), args.get("scope"),
+                                                       manifest_topics(manifest_docs)))
 
             def run_agent_tool(name, args):
                 """Run one of the tutor's lookup tools and return the text it sees next."""
@@ -2783,7 +2820,8 @@ def chat():
                             dbg["context_retries"] = dbg.get("context_retries", 0) + 1
                             logger.warning("Prompt exceeded the context window; retrying with less.")
                     # End-of-reply tools run whatever else the reply did; a reply can make several.
-                    for call in calls:
+                    # A grade is applied before a topic change, so it counts for the question asked.
+                    for call in sorted(calls, key=lambda c: c["name"] != agent_tools.GRADE_ANSWER):
                         if call["name"] in agent_tools.SIDE and call["name"] in sided:
                             run_side_tool(call["name"], call["args"])
                             note_tool(call, "end of reply")
@@ -2826,7 +2864,7 @@ def chat():
                                 yield event("status", {"phase": ev[1]})
                             else:
                                 _, streamed_tool, usage = ev
-                        streamed_tool = streamed_tool or explicit_tool_request(user_message, settings, history)
+                        streamed_tool = streamed_tool or (None if studying else explicit_tool_request(user_message, settings, history))
                         final_answer = "".join(parts).strip()
                         lap("model_ms", t_model)
                         dbg["tokens"] = usage or {"prompt": None, "reply": None, "total": None}
@@ -2854,7 +2892,7 @@ def chat():
             final_answer = "".join(parts).strip()
             lap("model_ms", t_model)
             dbg["tokens"] = usage or {"prompt": None, "reply": None, "total": None}
-            tool_request = tool_request or explicit_tool_request(user_message, settings, history)
+            tool_request = tool_request or (None if studying else explicit_tool_request(user_message, settings, history))
             if tool_request and not final_answer:
                 # The model can answer with the function call alone. The activity
                 # renders under a tutor message, so that message needs words.

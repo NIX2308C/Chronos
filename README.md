@@ -204,7 +204,7 @@ environment variables only.
 | `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | Chat endpoint root, **including `/v1`** |
 | `OPENROUTER_API_KEY` | none (required for `openrouter`) | Bearer token for chat |
 | `LLM_API_KEY` | none (required) | Bearer token for the embedding server |
-| `OPENROUTER_MODEL` | free `nvidia/nemotron-3.5-lightning`, `-3-ultra-550b-a55b`, `-3-nano-30b-a3b` (`:free`) | Comma-separated OpenRouter models tried in order (a dead or rate-limited one moves to the next): primary with `LLM_PROVIDER=openrouter`, otherwise the automatic fallback |
+| `OPENROUTER_MODEL` | free `nvidia/nemotron-3.5-super-vl`, `-3.5-lightning`, `-3-ultra-550b-a55b`, `-3-nano-30b-a3b` (`:free`) | Comma-separated OpenRouter models tried in order (a dead or rate-limited one moves to the next): primary with `LLM_PROVIDER=openrouter`, otherwise the automatic fallback |
 | `LLM_FALLBACK` | `1` | `0` stops Gemini failures/quota stops falling back to OpenRouter |
 | `CHAT_MODEL` | `GEMINI_MODEL`, or `OPENROUTER_MODEL` on OpenRouter | Model for tutoring replies |
 | `TOOL_MODEL` | = `CHAT_MODEL` | Model for quizzes/flashcards/etc. (must follow JSON schemas) |

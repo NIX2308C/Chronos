@@ -89,7 +89,8 @@ BUSY_DAY = "The tutor has reached its free daily limit. It resets at midnight Pa
 # over its free-tier caps or errors. Fallback is on whenever OPENROUTER_API_KEY is set (FALLBACK=0 turns it off).
 # Comma-separated, tried in order: free slugs get retired without notice, so a dead or rate-limited
 # first choice just moves on to the next.
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free,"
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-super-vl:free,"
+                             "nvidia/nemotron-3.5-lightning:free,"
                              "nvidia/nemotron-3-ultra-550b-a55b:free,"
                              "nvidia/nemotron-3-nano-30b-a3b:free").strip()
 OPENROUTER_MODELS = [m.strip() for m in OPENROUTER_MODEL.split(",") if m.strip()]

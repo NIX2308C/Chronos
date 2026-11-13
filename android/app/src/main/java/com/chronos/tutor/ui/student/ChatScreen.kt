@@ -404,7 +404,9 @@ private fun DebugStrip(json: String) {
                 for (p in path) e = (e as? kotlinx.serialization.json.JsonObject)?.get(p)
                 return (e as? kotlinx.serialization.json.JsonPrimitive)?.content
             }
-            listOfNotNull(f("path"), f("model"), f("timings", "total_ms")?.let { "${it} ms" },
+            listOfNotNull(f("path"),
+                f("model")?.let { m -> if (f("fallback") == "true") "$m (fallback)" else m },
+                f("timings", "total_ms")?.let { "${it} ms" },
                 f("prompt", "chars")?.let { "$it prompt chars" }).joinToString(" · ")
         }.getOrDefault("debug")
     }

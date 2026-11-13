@@ -5,7 +5,7 @@ reach browser or Android code.
 
   gemini (chosen when GEMINI_API_KEY is set): Google's native Gemini API.
     GEMINI_API_KEY      AI Studio key, read from the environment only
-    GEMINI_MODEL        default model (gemini-3.5-flash-lite); CHAT_MODEL / TOOL_MODEL override it
+    GEMINI_MODEL        the Gemini model (default gemini-3.5-flash-lite)
     GEMINI_RPM / GEMINI_RPD   free-tier caps per model per process (default 9 a minute,
                         240 a day); past them calls raise QuotaExceeded with a student-safe message
   openrouter: OpenRouter's OpenAI-compatible `/api/v1/chat/completions` (or any such endpoint).
@@ -85,7 +85,7 @@ QUOTA_WAIT_S = 20                 # a request waits this long for a per-minute s
 BUSY_MINUTE = "The tutor is busy right now. Please try again in a minute."
 BUSY_DAY = "The tutor has reached its free daily limit. It resets at midnight Pacific time."
 
-# OpenRouter model: the primary when LLM_PROVIDER=openrouter, and the automatic fallback when Gemini is
+# OpenRouter models: the primary when LLM_PROVIDER=openrouter, and the automatic fallback when Gemini is
 # over its free-tier caps or errors. Fallback is on whenever OPENROUTER_API_KEY is set (FALLBACK=0 turns it off).
 # Comma-separated, tried in order: free slugs get retired without notice, so a dead or rate-limited
 # first choice just moves on to the next.
@@ -95,7 +95,6 @@ OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-super-vl:f
                              "nvidia/nemotron-3-nano-30b-a3b:free").strip()
 OPENROUTER_MODELS = [m.strip() for m in OPENROUTER_MODEL.split(",") if m.strip()]
 FALLBACK = os.getenv("LLM_FALLBACK", "1").strip().lower() not in ("0", "off", "false", "no")
-DEFAULT_CHAT_MODEL = GEMINI_MODEL if PROVIDER == "gemini" else (OPENROUTER_MODELS or [""])[0]
 EMBED_BASE_URL = os.getenv("EMBED_BASE_URL", "https://chronos-embed.tevproject.com/v1").strip().rstrip("/")
 # Used only if GET /models on the embedding server cannot be read; normally the id it returns wins.
 EMBED_MODEL = "embeddinggemma"
@@ -142,8 +141,16 @@ _XML_OPEN_RE = re.compile(r"<(?:[a-z0-9_]*_)?(?:function_calls?|tool_calls?)>|<i
 _XML_PARTIAL_RE = re.compile(r"<[a-z0-9_=/ ]{0,40}$")
 
 # `tool_call` is the first call, `calls` every call the reply made (a reply may end with several).
-Result = namedtuple("Result", "text tool_call usage calls", defaults=((),))
-Chunk = namedtuple("Chunk", "text tool_call usage thinking calls", defaults=(False, ()))
+Result = namedtuple("Result", "text tool_call usage calls served", defaults=((), None))
+Chunk = namedtuple("Chunk", "text tool_call usage thinking calls served", defaults=(False, (), None))
+
+
+def _served(provider, model, fallback=False, reason=None, skipped=()):
+    """Which model really produced a reply: {"provider", "model", "fallback", "reason", "skipped"}.
+    `fallback` is true when the primary (Gemini) failed first, `reason` is why, and `skipped` lists
+    fallback models that failed before this one answered.  Debug mode shows it; nothing else uses it."""
+    return {"provider": provider, "model": model, "fallback": bool(fallback), "reason": reason,
+            "skipped": list(skipped)}
 
 
 class LLMError(RuntimeError):
@@ -453,20 +460,10 @@ def _read_json(resp):
 # speaks Google's own API. Tools still use the text protocol above; penalties are not sent
 # (several Gemini models reject them).
 
-_warned_model = False
-
-
-def _gemini_model(model):
-    """The Gemini model id; an OpenRouter-style "vendor/name" left in CHAT_MODEL falls back to GEMINI_MODEL."""
-    global _warned_model
-    m = (model or GEMINI_MODEL).strip()
-    m = m[len("models/"):] if m.startswith("models/") else m
-    if "/" in m or ":" in m:
-        if not _warned_model:
-            logger.warning("Model %r is not a Gemini model id; using %s instead.", m, GEMINI_MODEL)
-            _warned_model = True
-        m = GEMINI_MODEL
-    return m
+def _gemini_model():
+    """The Gemini model id (GEMINI_MODEL, without any "models/" prefix)."""
+    m = GEMINI_MODEL
+    return m[len("models/"):] if m.startswith("models/") else m
 
 
 def _gemini_body(contents, system, tools, temperature, json_schema, max_tokens, think, stream):
@@ -502,8 +499,8 @@ def _gemini_body(contents, system, tools, temperature, json_schema, max_tokens, 
     return body
 
 
-def _gemini_open(model, body, stream):
-    m = _gemini_model(model)
+def _gemini_open(body, stream):
+    m = _gemini_model()
     url = "%s/models/%s:%s" % (GEMINI_BASE_URL, m, "streamGenerateContent?alt=sse" if stream else "generateContent")
     return _post(url, body, {"x-goog-api-key": GEMINI_API_KEY}, label=GEMINI_BASE_URL,
                  before_each=lambda: _take_quota(m))
@@ -533,9 +530,9 @@ def _gemini_usage(data):
     return {"prompt": p, "reply": r, "total": t}
 
 
-def _gemini_generate(model, contents, system, tools, temperature, json_schema, max_tokens, think):
+def _gemini_generate(contents, system, tools, temperature, json_schema, max_tokens, think):
     body = lambda th: _gemini_body(contents, system, tools, temperature, json_schema, max_tokens, th, False)
-    with _with_thinking_fallback(lambda th: _gemini_open(model, body(th), False), think) as resp:
+    with _with_thinking_fallback(lambda th: _gemini_open(body(th), False), think) as resp:
         data = _read_json(resp)
     raw, _ = _gemini_parts(data)
     if json_schema is not None:
@@ -546,10 +543,10 @@ def _gemini_generate(model, contents, system, tools, temperature, json_schema, m
     return Result((text + tail).strip(), calls[0] if calls else None, _gemini_usage(data), calls)
 
 
-def _gemini_stream(model, contents, system, tools, temperature, max_tokens, think):
+def _gemini_stream(contents, system, tools, temperature, max_tokens, think):
     cleaner, usage, thinking = _Cleaner(), None, False
     body = lambda th: _gemini_body(contents, system, tools, temperature, None, max_tokens, th, True)
-    with _with_thinking_fallback(lambda th: _gemini_open(model, body(th), True), think) as resp:
+    with _with_thinking_fallback(lambda th: _gemini_open(body(th), True), think) as resp:
         for raw in resp:
             line = raw.decode("utf-8", "replace").strip()
             if not line.startswith("data:"):
@@ -594,14 +591,14 @@ def _health_check(url, headers):
     return True
 
 
-def health(model=None):
+def health():
     """Raise unless the endpoint is reachable and the key is accepted. Generates nothing.
     On Gemini, a working OpenRouter fallback also counts as healthy."""
     if PROVIDER == "gemini":
         if not GEMINI_API_KEY:
             raise LLMError("GEMINI_API_KEY is not set")
         try:
-            return _health_check("%s/models/%s" % (GEMINI_BASE_URL, _gemini_model(model)),
+            return _health_check("%s/models/%s" % (GEMINI_BASE_URL, _gemini_model()),
                                  {"x-goog-api-key": GEMINI_API_KEY})
         except LLMError:
             if not _can_fall_back():
@@ -640,46 +637,49 @@ def _open_chat(args, think):
     return _with_thinking_fallback(lambda th: _open("/chat/completions", _body(*args, th)), think)
 
 
-def _or_models(model):
-    """One model name, or the whole OPENROUTER_MODEL list when given the list or its first entry as the default."""
-    if isinstance(model, (list, tuple)):
-        return list(model)
-    if PROVIDER != "gemini" and OPENROUTER_MODELS and model == OPENROUTER_MODELS[0]:
-        return list(OPENROUTER_MODELS)
-    return [model]
-
-
 def _can_fall_back():
     return PROVIDER == "gemini" and FALLBACK and bool(CHAT_API_KEY)
 
 
-def generate(model, contents, system=None, tools=None, temperature=None, json_schema=None, max_tokens=None,
+def _chain():
+    if not OPENROUTER_MODELS:
+        raise LLMError("OPENROUTER_MODEL lists no models")
+    return OPENROUTER_MODELS
+
+
+def generate(contents, system=None, tools=None, temperature=None, json_schema=None, max_tokens=None,
              think=True):
     """One complete reply. `json_schema={}` asks for any JSON object.
 
-    On Gemini, a quota stop or provider failure is retried once on OpenRouter (OPENROUTER_MODEL)."""
+    The model is chosen here, never by the caller: Gemini when it is the provider, with a quota stop or
+    provider failure retried on the OpenRouter chain; otherwise the OpenRouter chain. `Result.served`
+    says which model answered and whether that was a fallback."""
+    reason = None
     if PROVIDER == "gemini":
         try:
-            return _gemini_generate(model, contents, system, tools, temperature, json_schema, max_tokens, think)
+            r = _gemini_generate(contents, system, tools, temperature, json_schema, max_tokens, think)
+            return r._replace(served=_served("gemini", _gemini_model()))
         except ContextTooLong:
             raise
         except LLMError as e:
             if not _can_fall_back():
                 raise
+            reason = str(e)
             logger.warning("Gemini failed (%s); falling back to OpenRouter %s.", e, OPENROUTER_MODELS)
-            model = OPENROUTER_MODELS
-    return _openrouter_generate(model, contents, system, tools, temperature, json_schema, max_tokens, think)
+    return _openrouter_generate(reason, contents, system, tools, temperature, json_schema, max_tokens, think)
 
 
-def _openrouter_generate(model, *args):
-    last = None
-    for m in _or_models(model):
+def _openrouter_generate(reason, *args):
+    skipped, last = [], None
+    for m in _chain():
         try:
-            return _openrouter_generate_one(m, *args)
+            r = _openrouter_generate_one(m, *args)
+            return r._replace(served=_served("openrouter", m, reason is not None, reason, skipped))
         except ContextTooLong:
             raise
         except LLMError as e:
-            last = e
+            last = e          # re-raised as is when every model fails, so QuotaExceeded stays a 503 "busy"
+            skipped.append({"model": m, "error": str(e)})
             logger.warning("OpenRouter model %s failed (%s).", m, e)
     raise last
 
@@ -700,35 +700,32 @@ def _openrouter_generate_one(model, contents, system, tools, temperature, json_s
     return Result((text + tail).strip(), calls[0] if calls else None, _usage(data), calls)
 
 
-def stream(model, contents, system=None, tools=None, temperature=None, max_tokens=None, think=True):
-    """Yield Chunk(text, tool_call, usage) as the reply arrives.
+def stream(contents, system=None, tools=None, temperature=None, max_tokens=None, think=True):
+    """Yield Chunk(text, tool_call, usage) as the reply arrives; every chunk carries `served` (see generate).
 
-    On Gemini, a failure before any text has been sent falls back to OpenRouter; after that it propagates."""
+    A failure before any text has been sent moves on (Gemini, then the OpenRouter chain); after that it propagates."""
+    reason = None
     if PROVIDER == "gemini":
-        started = False
+        started, served = False, _served("gemini", _gemini_model())
         try:
-            for chunk in _gemini_stream(model, contents, system, tools, temperature, max_tokens, think):
+            for chunk in _gemini_stream(contents, system, tools, temperature, max_tokens, think):
                 started = started or bool(chunk.text or chunk.tool_call)
-                yield chunk
+                yield chunk._replace(served=served)
             return
         except ContextTooLong:
             raise
         except LLMError as e:
             if started or not _can_fall_back():
                 raise
+            reason = str(e)
             logger.warning("Gemini failed (%s); falling back to OpenRouter %s.", e, OPENROUTER_MODELS)
-            model = OPENROUTER_MODELS
-    yield from _openrouter_stream(model, contents, system, tools, temperature, max_tokens, think)
-
-
-def _openrouter_stream(model, *args):
-    last = None
-    for m in _or_models(model):
-        started = False
+    skipped, last = [], None
+    for m in _chain():
+        started, served = False, _served("openrouter", m, reason is not None, reason, skipped)
         try:
-            for chunk in _openrouter_stream_one(m, *args):
+            for chunk in _openrouter_stream_one(m, contents, system, tools, temperature, max_tokens, think):
                 started = started or bool(chunk.text or chunk.tool_call)
-                yield chunk
+                yield chunk._replace(served=served)
             return
         except ContextTooLong:
             raise
@@ -736,6 +733,7 @@ def _openrouter_stream(model, *args):
             if started:
                 raise
             last = e
+            skipped.append({"model": m, "error": str(e)})
             logger.warning("OpenRouter model %s failed (%s).", m, e)
     raise last
 

@@ -1677,6 +1677,7 @@
   const fmtN=v=>v==null?null:Number(v).toLocaleString();
   const DBG_PATH={grounded:"Answered using course material",no_material:"No course material matched, so the tutor answered without it",
     smalltalk:"Small talk, so no course lookup",blocked:"Blocked by the profanity filter, the model never ran",model:"Answered by the model"};
+  const dbgModel=d=>d.model?d.model+(d.fallback?" (fallback)":""):null;
   const DBG_SETTING={grounded_only:"Course material only",guide_not_complete:"Guide, don't complete",state_uncertainty:"State uncertainty",
     reveal_final_answers:"Reveal final answers",worked_examples:"Worked examples",practice_tools:"Practice tools",visual_tools:"Visual tools",study_materials:"Study materials"};
   const dbgHits=d=>{const all=(d.retrieval&&d.retrieval.matches)||[];return {all,kept:all.filter(m=>m.kept).length};};
@@ -1688,7 +1689,7 @@
 
   function paintDebugStrip(d){
     const t=d.timings||{},tok=d.tokens||{},h=dbgHits(d);
-    const parts=[d.model,d.path,fmtMs(t.total_ms),t.first_token_ms!=null?"first token "+fmtMs(t.first_token_ms):null,
+    const parts=[dbgModel(d),d.path,fmtMs(t.total_ms),t.first_token_ms!=null?"first token "+fmtMs(t.first_token_ms):null,
       tok.total!=null?fmtN(tok.total)+" tok":null,h.all.length?h.kept+"/"+h.all.length+" excerpts":null].filter(Boolean);
     const strip=$s("dbgStrip");strip.textContent="";
     strip.appendChild(dbgEl("b",null,"DEBUG "));strip.appendChild(document.createTextNode(parts.join(" · ")));
@@ -1781,9 +1782,14 @@
       const st=d.settings||{},chipsS=dbgEl("div","dbg-chips");
       Object.keys(DBG_SETTING).forEach(k=>chipsS.appendChild(dbgEl("span","dbg-chip"+(st[k]?" on":""),DBG_SETTING[k]+(st[k]?"":" · off"))));
       const sw=dbgEl("div","dbg-rows");sw.appendChild(chipsS);
-      sw.appendChild(dbgKV([["Hints",st.hint_strength],["Personality",d.personality],["Model",d.model],["New chat",d.new_chat?"yes":"no"],
+      sw.appendChild(dbgKV([["Hints",st.hint_strength],["Personality",d.personality],["New chat",d.new_chat?"yes":"no"],
         ["History sent",d.history_turns!=null?d.history_turns+" turns":null]]));
       body.appendChild(dbgSection("Course settings in effect",sw));
+      const calls=d.model_calls||[];
+      body.appendChild(dbgSection("Model that answered",dbgKV([["Model",d.model||"none, the model never ran"],["Provider",d.provider],
+        ["Fallback",d.model?(d.fallback?"yes, Gemini failed: "+(d.fallback_reason||"unknown"):"no, answered directly"):null],
+        ["Skipped",(d.skipped_models||[]).map(m=>m.model+" ("+m.error+")").join("; ")],
+        ["Calls",calls.length>1?calls.map(c=>c.model+(c.fallback?" (fallback)":"")).join(" → "):null]])));
       body.appendChild(dbgSection("Tokens",dbgKV([["Prompt",fmtN(tok.prompt)],["Reply",fmtN(tok.reply)],["Total",fmtN(tok.total)]])));
 
       const actions=dbgEl("div","dbg-actions");

@@ -56,6 +56,9 @@ llm.API_KEY = "sekrit"
 llm.CHAT_API_KEY = "sekrit"
 llm.TIMEOUT_S = 5
 llm.time.sleep = lambda _s: None
+# One OpenRouter model for the plain-endpoint tests (one reply each); the fallback tests widen the chain.
+CHAIN = llm.OPENROUTER_MODELS
+llm.OPENROUTER_MODELS = CHAIN[:1]
 
 TOOL = A.practice_activity_tool(dict(A.course_settings(), practice_tools=True))
 
@@ -76,7 +79,7 @@ def test_generate_text_and_request_shape():
     replies.append((200, _reply(" Hello \n", usage={"prompt_tokens": 7, "completion_tokens": 3, "total_tokens": 10})))
     contents = [{"role": "user", "parts": [{"text": "hi"}]}, {"role": "model", "parts": [{"text": "yo"}]},
                 {"role": "user", "parts": [{"text": "again"}]}]
-    r = llm.generate("m", contents, system="SYS", tools=[TOOL], temperature=0.3)
+    r = llm.generate(contents, system="SYS", tools=[TOOL], temperature=0.3)
     assert r.text == "Hello" and r.tool_call is None, r
     assert r.usage == {"prompt": 7, "reply": 3, "total": 10}, r.usage
     sent = requests[-1]
@@ -94,10 +97,10 @@ def test_generate_text_and_request_shape():
 def test_tool_call_parsed_from_text():
     want = {"name": A.TOOL_FUNCTION_NAME, "args": {"type": "quiz", "topic": "osmosis"}}
     replies.append((200, _reply("Sure!" + _call({"type": "quiz", "topic": "osmosis"}))))
-    r = llm.generate("m", "quiz me", tools=[TOOL])
+    r = llm.generate("quiz me", tools=[TOOL])
     assert r.tool_call == want and r.text == "Sure!", r
     replies.append((200, _reply("Sure! TOOL_CALL {not json")))
-    r = llm.generate("m", "quiz me", tools=[TOOL])
+    r = llm.generate("quiz me", tools=[TOOL])
     assert r.tool_call is None and r.text == "Sure!", r
     print("ok - tool calls are parsed out of the text; malformed ones are dropped")
 
@@ -115,23 +118,23 @@ def test_other_tool_call_formats_are_parsed_not_shown():
     ]
     for f in formats:
         replies.append((200, _reply("Sure.\n" + f)))
-        r = llm.generate("m", "hi")
+        r = llm.generate("hi")
         assert r.text.strip() == "Sure." and r.tool_call == want, (f, r)
     print("ok - XML, Hermes and function= tool calls become calls and never reach the student")
 
 
 def test_thinking_is_stripped():
     replies.append((200, _reply("<|channel>thought\nhmm<channel|>Answer.")))
-    assert llm.generate("m", "hi").text == "Answer."
+    assert llm.generate("hi").text == "Answer."
     print("ok - thinking text never reaches the caller")
 
 
 def test_json_schema_becomes_response_format():
     replies.append((200, _reply("{}")))
-    llm.generate("m", "p", json_schema=A.ACTIVITY_SCHEMAS["quiz"])
+    llm.generate("p", json_schema=A.ACTIVITY_SCHEMAS["quiz"])
     assert requests[-1]["body"]["response_format"]["json_schema"]["schema"] == A.ACTIVITY_SCHEMAS["quiz"]
     replies.append((200, _reply("{}")))
-    llm.generate("m", "p", json_schema={})
+    llm.generate("p", json_schema={})
     assert requests[-1]["body"]["response_format"] == {"type": "json_object"}
     print("ok - a JSON schema constrains decoding via response_format")
 
@@ -143,7 +146,7 @@ def test_stream():
         d('{"name": "%s", "args": {"type": "flash' % A.TOOL_FUNCTION_NAME), d('cards", "topic": "cells"}}'),
         {"choices": [], "usage": {"prompt_tokens": 4, "completion_tokens": 2, "total_tokens": 6}},
     ]))
-    chunks = list(llm.stream("m", "hi", tools=[TOOL]))
+    chunks = list(llm.stream("hi", tools=[TOOL]))
     assert "".join(c.text for c in chunks).strip() == "Hello", chunks
     assert [c.tool_call for c in chunks if c.tool_call] == [
         {"name": A.TOOL_FUNCTION_NAME, "args": {"type": "flashcards", "topic": "cells"}}]
@@ -156,7 +159,7 @@ def test_history_trim():
     big = "x" * (llm.PROMPT_TOKENS * 3 // 2)
     contents = [{"role": r, "parts": [{"text": big}]} for r in ("user", "model", "user", "model", "user")]
     replies.append((200, _reply("ok")))
-    llm.generate("m", contents)
+    llm.generate(contents)
     msgs = requests[-1]["body"]["messages"]
     assert sum(len(m["content"]) for m in msgs) <= llm.PROMPT_TOKENS * 3 and len(msgs) < 5 and msgs[-1]["role"] == "user" and msgs[0]["role"] == "user", [m["role"] for m in msgs]
     print("ok - oldest turns are dropped to fit the context window")
@@ -211,7 +214,7 @@ def test_embeddings_down():
 def test_context_too_long():
     replies.append((400, {"error": {"message": "the request exceeds the available context size"}}))
     try:
-        llm.generate("m", "hi")
+        llm.generate("hi")
         raise AssertionError("HTTP 400 was swallowed")
     except llm.ContextTooLong:
         pass
@@ -222,17 +225,17 @@ def test_errors_raise():
     llm.TRIES = 2
     replies.append((502, {"error": "tunnel down"}))
     replies.append((200, _reply("back")))
-    assert llm.generate("m", "hi").text == "back"      # 5xx is retried
+    assert llm.generate("hi").text == "back"      # 5xx is retried
     replies.append((404, {"error": {"message": "model 'm' not found"}}))
     try:
-        llm.generate("m", "hi")
+        llm.generate("hi")
         raise AssertionError("an HTTP error was swallowed")
     except llm.LLMError as e:
         assert "404" in str(e) and "not found" in str(e), e
     saved = llm.BASE_URL
     llm.BASE_URL = "http://127.0.0.1:9/v1"      # nothing listens here
     try:
-        llm.generate("m", "hi")
+        llm.generate("hi")
         raise AssertionError("an unreachable host was swallowed")
     except llm.LLMError:
         pass
@@ -288,7 +291,7 @@ def test_chat_and_tool_routes_on_endpoint():
     assert body["response"] == "Let's check what you know."
     assert body["tool_request"] == {"type": "quiz", "topic": "Osmosis"}, body
     sent = requests[-1]["body"]
-    assert sent["model"] == A.CHAT_MODEL
+    assert sent["model"] == CHAIN[0]
     assert "Osmosis is the movement" not in sent["messages"][0]["content"]       # system prompt stays stable
     assert sent["messages"][-1]["content"].startswith("Teacher material for this message:")
     assert "Osmosis is the movement" in sent["messages"][-1]["content"]
@@ -446,39 +449,72 @@ def _g(*parts, usage=None):
     return out
 
 
+def test_openrouter_primary_is_direct_not_fallback():
+    saved = (llm.PROVIDER, llm.FALLBACK)
+    llm.PROVIDER = "openrouter"
+    try:
+        replies.append((200, _reply("hello")))
+        r = llm.generate("hi")
+        assert r.served == {"provider": "openrouter", "model": llm.OPENROUTER_MODELS[0], "fallback": False,
+                            "reason": None, "skipped": []}, r.served
+        replies.append((200, [{"choices": [{"delta": {"content": "hey"}}]}]))
+        assert llm.stream("hi").__next__().served["fallback"] is False
+    finally:
+        llm.PROVIDER, llm.FALLBACK = saved
+    print("ok - OpenRouter as the primary reports its model and is not marked as a fallback")
+
+
 def test_gemini_falls_back_to_openrouter():
     saved = (llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY, llm.GEMINI_RPM, llm.GEMINI_RPD, llm.FALLBACK)
     llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY = "gemini", llm.BASE_URL, "gkey"
     llm.GEMINI_RPM, llm.GEMINI_RPD, llm.FALLBACK = 0, 0, True
+    llm.OPENROUTER_MODELS = CHAIN
     try:
         # A Gemini 429 is answered by OpenRouter with OPENROUTER_MODEL, not the Gemini model name.
         requests.clear()
         replies.append((429, {"error": {"message": "quota"}}))
         replies.append((200, _reply("from openrouter")))
-        assert llm.generate(llm.GEMINI_MODEL, "hi").text == "from openrouter"
+        r = llm.generate("hi")
+        assert r.text == "from openrouter"
         assert requests[-1]["path"] == "/v1/chat/completions"
         assert requests[-1]["body"]["model"] == llm.OPENROUTER_MODELS[0]
+        # The result says exactly who answered and why it was a fallback.
+        assert r.served["provider"] == "openrouter" and r.served["model"] == llm.OPENROUTER_MODELS[0], r.served
+        assert r.served["fallback"] is True and r.served["reason"] == llm.BUSY_MINUTE and r.served["skipped"] == [], r.served
         # Same for a stream that fails before sending any text.
         replies.append((429, {"error": {"message": "quota"}}))
         replies.append((200, [{"choices": [{"delta": {"content": "streamed"}}]}]))
-        text = "".join(c.text for c in llm.stream(llm.GEMINI_MODEL, "hi"))
-        assert "streamed" in text, text
+        chunks = list(llm.stream("hi"))
+        assert "streamed" in "".join(c.text for c in chunks)
+        assert all(c.served["model"] == llm.OPENROUTER_MODELS[0] and c.served["fallback"] for c in chunks), chunks
         # A dead first OpenRouter model (404) moves on to the next one in the list.
         replies.append((429, {"error": {"message": "quota"}}))
         replies.append((404, {"error": {"message": "No endpoints found"}}))
         replies.append((200, _reply("second model")))
-        assert llm.generate(llm.GEMINI_MODEL, "hi").text == "second model"
-        assert requests[-1]["body"]["model"] == llm.OPENROUTER_MODELS[1]
+        r = llm.generate("hi")
+        assert r.text == "second model" and requests[-1]["body"]["model"] == llm.OPENROUTER_MODELS[1]
+        assert r.served["model"] == llm.OPENROUTER_MODELS[1] and r.served["fallback"] is True
+        assert [m["model"] for m in r.served["skipped"]] == [llm.OPENROUTER_MODELS[0]], r.served
+        assert "No endpoints found" in r.served["skipped"][0]["error"]
+        # Every OpenRouter model failing surfaces the last error as it was, so a quota stop stays a 503 "busy".
+        for _ in range(1 + len(CHAIN)):
+            replies.append((429, {"error": {"message": "quota"}}))
+        try:
+            llm.generate("hi")
+            raise AssertionError("expected the chain to give up")
+        except llm.QuotaExceeded:
+            pass
         # Fallback off: the quota error reaches the caller.
         llm.FALLBACK = False
         replies.append((429, {"error": {"message": "quota"}}))
         try:
-            llm.generate(llm.GEMINI_MODEL, "hi")
+            llm.generate("hi")
             raise AssertionError("fallback ran while disabled")
         except llm.QuotaExceeded:
             pass
     finally:
         llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY, llm.GEMINI_RPM, llm.GEMINI_RPD, llm.FALLBACK = saved
+        llm.OPENROUTER_MODELS = CHAIN[:1]
         llm._quota_minute.clear(); llm._quota_day.clear()
     print("ok - gemini falls back to OpenRouter on quota/failure")
 
@@ -494,10 +530,12 @@ def test_gemini_backend():
                                                            "thoughtsTokenCount": 3, "totalTokenCount": 10})))
         contents = [{"role": "model", "parts": [{"text": "Welcome"}]}, {"role": "user", "parts": [{"text": "hi"}]},
                     {"role": "user", "parts": [{"text": ""}]}, {"role": "user", "parts": [{"text": "again"}]}]
-        r = llm.generate("gemini-x", contents, system="SYS", tools=[TOOL], temperature=0.3, think=False)
+        r = llm.generate(contents, system="SYS", tools=[TOOL], temperature=0.3, think=False)
         assert r.text == "Hi" and r.usage == {"prompt": 5, "reply": 5, "total": 10}, r
         sent = requests[-1]
-        assert sent["path"] == "/v1/models/gemini-x:generateContent", sent["path"]
+        assert sent["path"] == "/v1/models/%s:generateContent" % llm.GEMINI_MODEL, sent["path"]
+        assert r.served == {"provider": "gemini", "model": llm.GEMINI_MODEL, "fallback": False,
+                            "reason": None, "skipped": []}, r.served
         assert sent["goog"] == "gkey" and sent["auth"] is None
         b = sent["body"]
         sys_text = b["systemInstruction"]["parts"][0]["text"]
@@ -509,20 +547,15 @@ def test_gemini_backend():
         assert "frequencyPenalty" not in cfg and "responseMimeType" not in cfg
         assert llm.can_disable_thinking() is True
 
-        # An OpenRouter slug left in CHAT_MODEL falls back to the Gemini default.
-        replies.append((200, _g({"text": "ok"})))
-        llm.generate("recursive/flint-v1.0:free", "hi")
-        assert requests[-1]["path"] == "/v1/models/%s:generateContent" % llm.GEMINI_MODEL
-
         # JSON schema, thought parts dropped, tool calls parsed out of the text.
         replies.append((200, _g({"text": '{"a": 1}'})))
-        r = llm.generate("g", "hi", json_schema={"type": "object"})
+        r = llm.generate("hi", json_schema={"type": "object"})
         assert r.text == '{"a": 1}'
         cfg = requests[-1]["body"]["generationConfig"]
         assert cfg["responseMimeType"] == "application/json" and cfg["responseJsonSchema"] == {"type": "object"}
         replies.append((200, _g({"text": "secret plan", "thought": True},
                                 {"text": "Sure." + _call({"type": "quiz", "topic": "cells"})})))
-        r = llm.generate("g", "quiz me", tools=[TOOL])
+        r = llm.generate("quiz me", tools=[TOOL])
         assert r.text == "Sure." and r.tool_call == {"name": A.TOOL_FUNCTION_NAME,
                                                       "args": {"type": "quiz", "topic": "cells"}}, r
 
@@ -530,17 +563,17 @@ def test_gemini_backend():
         replies.append((200, [_g({"text": "hmm", "thought": True}), _g({"text": "Hel"}),
                               _g({"text": "lo"}, usage={"promptTokenCount": 4, "candidatesTokenCount": 2,
                                                         "totalTokenCount": 6})]))
-        chunks = list(llm.stream("g", "hi"))
+        chunks = list(llm.stream("hi"))
         assert chunks[0].thinking and "".join(c.text for c in chunks) == "Hello", chunks
         assert chunks[-1].usage == {"prompt": 4, "reply": 2, "total": 6}
-        assert requests[-1]["path"] == "/v1/models/g:streamGenerateContent?alt=sse"
+        assert requests[-1]["path"] == "/v1/models/%s:streamGenerateContent?alt=sse" % llm.GEMINI_MODEL
         assert requests[-1]["body"]["generationConfig"]["thinkingConfig"] == {"includeThoughts": True}
 
         # A model that insists on thinking: retried once with it on, then remembered.
         llm._can_disable_thinking = None
         replies.append((400, {"error": {"message": "Budget 0 is invalid. This model only works in thinking mode."}}))
         replies.append((200, _g({"text": "Thought anyway."})))
-        assert llm.generate("g", "hi", think=False).text == "Thought anyway."
+        assert llm.generate("hi", think=False).text == "Thought anyway."
         assert "thinkingConfig" not in requests[-1]["body"]["generationConfig"]
         assert llm.can_disable_thinking() is False
         llm._can_disable_thinking = None
@@ -550,7 +583,7 @@ def test_gemini_backend():
         replies.append((429, {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "message":
                        "Quota exceeded for metric: generate_content_free_tier_requests, limit: 250 per day"}}))
         try:
-            llm.generate("g", "hi")
+            llm.generate("hi")
             raise AssertionError("429 was swallowed")
         except llm.QuotaExceeded as e:
             assert str(e) == llm.BUSY_DAY and len(requests) == 1
@@ -559,33 +592,32 @@ def test_gemini_backend():
         llm._quota_minute.clear(); llm._quota_day.clear()
         llm.GEMINI_RPM = 2
         replies.extend([(200, _g({"text": "1"})), (200, _g({"text": "2"}))])
-        llm.generate("g", "a"); llm.generate("g", "b")
+        llm.generate("a"); llm.generate("b")
         requests.clear()
         try:
-            llm.generate("g", "c")
+            llm.generate("c")
             raise AssertionError("the per-minute cap did not hold")
         except llm.QuotaExceeded as e:
             assert str(e) == llm.BUSY_MINUTE and not requests
-        replies.append((200, _g({"text": "other model"})))
-        assert llm.generate("g2", "d").text == "other model"        # limits are per model
         llm.GEMINI_RPM, llm.GEMINI_RPD = 0, 1
         llm._quota_minute.clear(); llm._quota_day.clear()
         replies.append((200, _g({"text": "1"})))
-        llm.generate("g", "a")
+        llm.generate("a")
         try:
-            llm.generate("g", "b")
+            llm.generate("b")
             raise AssertionError("the daily cap did not hold")
         except llm.QuotaExceeded as e:
             assert str(e) == llm.BUSY_DAY
 
         # The status check reads the model without generating.
         requests.clear()
-        assert llm.health("g") is True
-        assert requests[-1]["path"] == "/v1/models/g" and requests[-1]["goog"] == "gkey"
+        assert llm.health() is True
+        assert requests[-1]["path"] == "/v1/models/%s" % llm.GEMINI_MODEL and requests[-1]["goog"] == "gkey"
 
         # /chat turns a used-up quota into a 503 (or a stream error) the clients can show.
+        llm._quota_minute.clear(); llm._quota_day.clear()
         replies.append((200, _g({"text": "uses today's one request"})))
-        llm.generate(llm.GEMINI_MODEL, "x")
+        llm.generate("x")
         A._rate_hits.clear()
         settings = dict(A.course_settings(), practice_tools=True)
         _route_fakes(settings)
@@ -618,5 +650,6 @@ if __name__ == "__main__":
         test_agent_tools_and_thinking_switch()
         test_gemini_backend()
         test_gemini_falls_back_to_openrouter()
+        test_openrouter_primary_is_direct_not_fallback()
     finally:
         server.shutdown()

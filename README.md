@@ -132,8 +132,6 @@ A few optional overrides exist too:
 - `MAX_MESSAGES_RETURNED` (cap on messages returned for one conversation, default 500)
 - `ROLE_CACHE_TTL` (seconds a user's role is cached in-process, default 60)
 - `TRUST_PROXY_HOPS` (default 0; set to 1 behind a single proxy so client IPs in the logs are real)
-- `CHAT_MODEL` (the chat model name, default `GEMINI_MODEL` with a Gemini key, else `OPENROUTER_MODEL` on OpenRouter)
-- `TOOL_MODEL` (the model that builds learning activities; defaults to `CHAT_MODEL`)
 - `FLASK_DEBUG`
 
 Rate limits are keyed by Firebase uid, not IP — behind a load balancer every request shares one IP, so an IP-keyed limit would throttle a whole course as though it were a single student. Teacher registration is the one exception, and it's keyed by IP: the attacker there isn't a signed-in student but anyone who can make a Firebase account, which is free and unlimited, so a per-account budget would reset on every guess.
@@ -199,15 +197,13 @@ environment variables only.
 | --- | --- | --- |
 | `LLM_PROVIDER` | `gemini` if `GEMINI_API_KEY` is set, else `openrouter` | Which chat backend |
 | `GEMINI_API_KEY` | none | Google AI Studio key (the newer `AQ.` keys work) |
-| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Gemini model when `CHAT_MODEL` is unset |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | The Gemini model |
 | `GEMINI_RPM` / `GEMINI_RPD` | `9` / `240` | Free-tier caps per model per server process (0 = off) |
 | `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | Chat endpoint root, **including `/v1`** |
 | `OPENROUTER_API_KEY` | none (required for `openrouter`) | Bearer token for chat |
 | `LLM_API_KEY` | none (required) | Bearer token for the embedding server |
 | `OPENROUTER_MODEL` | free `nvidia/nemotron-3.5-super-vl`, `-3.5-lightning`, `-3-ultra-550b-a55b`, `-3-nano-30b-a3b` (`:free`) | Comma-separated OpenRouter models tried in order (a dead or rate-limited one moves to the next): primary with `LLM_PROVIDER=openrouter`, otherwise the automatic fallback |
 | `LLM_FALLBACK` | `1` | `0` stops Gemini failures/quota stops falling back to OpenRouter |
-| `CHAT_MODEL` | `GEMINI_MODEL`, or `OPENROUTER_MODEL` on OpenRouter | Model for tutoring replies |
-| `TOOL_MODEL` | = `CHAT_MODEL` | Model for quizzes/flashcards/etc. (must follow JSON schemas) |
 | `EMBED_BASE_URL` | `https://chronos-embed.tevproject.com/v1` | Embedding server (uses `LLM_API_KEY`) |
 | `LLM_TIMEOUT_S` | `120` | Read timeout (never below 120) |
 | `LLM_PROMPT_TOKENS` | `32000` | Oldest turns are dropped past this estimated size |
@@ -218,8 +214,9 @@ With `GEMINI_API_KEY` set, `llm.py` calls `generativelanguage.googleapis.com/v1b
 (`:generateContent`, and `:streamGenerateContent?alt=sse` for streaming) with the key in the
 `x-goog-api-key` header. Tools use the same `TOOL_CALL` text protocol, `json_schema` becomes
 `responseJsonSchema`, `think=False` sends `thinkingBudget: 0` (with the same fall-back as below),
-and frequency/presence penalties are not sent. An OpenRouter-style `vendor/model` left in
-`CHAT_MODEL` is ignored in favour of `GEMINI_MODEL`.
+and frequency/presence penalties are not sent. Which model runs is decided only by `GEMINI_MODEL` and
+`OPENROUTER_MODEL` (the old `CHAT_MODEL`/`TOOL_MODEL` settings are gone and ignored).
+
 
 **Staying free.** The only hard guarantee is that the Google Cloud project behind the key has
 **no billing account**: then Google can only refuse requests past the free limits, never charge.
@@ -236,6 +233,11 @@ free-tier caps, gets HTTP 429, or fails (after its retries), that call is repeat
 `OPENROUTER_MODEL`; a stream falls back only if no text has been sent yet. Only if the fallback
 also fails does the student see the "tutor is busy" error. `/status` counts either backend as healthy.
 Set `LLM_FALLBACK=0` to disable.
+
+**Debug mode** (developer accounts) shows the model that actually generated each reply, never the configured
+one: `model`, `provider`, `fallback` (true if Gemini failed first), `fallback_reason`, `skipped_models`
+(OpenRouter models that failed before one answered) and `model_calls` (one entry per model call, since a tool
+round is another call). It is `null` when no model ran, e.g. a message blocked by the profanity filter.
 
 ### Chat model (OpenRouter)
 Chat runs on OpenRouter (`OPENROUTER_MODEL`, default a list of free NVIDIA Nemotron models) at

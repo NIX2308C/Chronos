@@ -18,16 +18,21 @@ def _usage(u):
     return {"prompt": u.prompt_token_count, "reply": u.candidates_token_count, "total": u.total_token_count}
 
 
-def install(A):
-    def generate(model, contents, system=None, tools=None, temperature=None, json_schema=None, max_tokens=None, **_):
-        r = A.client.models.generate_content(model=model, contents=contents,
-                                             config=_config(system, tools, temperature, json_schema))
-        return llm.Result((getattr(r, "text", "") or "").strip(), None, _usage(getattr(r, "usage_metadata", None)))
+# What the fake model reports as having answered; a test sets this to simulate a fallback.
+SERVED = llm._served("gemini", "gemini-test")
 
-    def stream(model, contents, system=None, tools=None, temperature=None, max_tokens=None, **_):
-        for ch in A.client.models.generate_content_stream(model=model, contents=contents,
+
+def install(A):
+    def generate(contents, system=None, tools=None, temperature=None, json_schema=None, max_tokens=None, **_):
+        r = A.client.models.generate_content(contents=contents,
+                                             config=_config(system, tools, temperature, json_schema))
+        return llm.Result((getattr(r, "text", "") or "").strip(), None, _usage(getattr(r, "usage_metadata", None)),
+                          served=SERVED)
+
+    def stream(contents, system=None, tools=None, temperature=None, max_tokens=None, **_):
+        for ch in A.client.models.generate_content_stream(contents=contents,
                                                           config=_config(system, tools, temperature, None)):
             text = "".join(p.text for cand in ch.candidates for p in cand.content.parts)
-            yield llm.Chunk(text, None, _usage(getattr(ch, "usage_metadata", None)))
+            yield llm.Chunk(text, None, _usage(getattr(ch, "usage_metadata", None)), served=SERVED)
 
     llm.generate, llm.stream = generate, stream

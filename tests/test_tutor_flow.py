@@ -212,7 +212,10 @@ def test_dev_debug_payload():
     r = c.post("/chat", json={"message": "what is a participle", "class_id": "c1", "debug": True})
     assert r.status_code == 200, r.get_json()
     d = r.get_json()["debug"]
-    assert d["model"] == A.CHAT_MODEL and d["path"] == "no_material", d["path"]
+    assert d["path"] == "no_material", d["path"]
+    # The reported model is the one that answered, and a direct answer is not a fallback.
+    assert d["model"] == "gemini-test" and d["provider"] == "gemini" and d["fallback"] is False, d
+    assert d["fallback_reason"] is None and d["skipped_models"] == [] and len(d["model_calls"]) == 1, d
     assert d["retrieval"]["matches"][0]["score"] == 0.31 and d["retrieval"]["matches"][0]["kept"] is False
     assert d["tokens"] == {"prompt": 11, "reply": 5, "total": 16}, d["tokens"]
     assert "COURSE OUTLINE" in d["prompt"]["text"] and "Tools." in d["prompt"]["text"]
@@ -225,6 +228,28 @@ def test_dev_debug_payload():
     # Without asking, a dev gets the normal payload.
     assert "debug" not in c.post("/chat", json={"message": "what is a participle", "class_id": "c1"}).get_json()
     print("ok - dev debug payload has timings, scored matches, tokens and the prompt")
+
+
+def test_debug_reports_a_fallback_model():
+    A._rate_hits.clear()
+    calls = []
+    _chat_fakes(calls)
+    signed_in_as("dev1", "student", "test@gmail.com")
+    old = _llm_shim.SERVED
+    _llm_shim.SERVED = _llm_shim.llm._served("openrouter", "nvidia/nemotron-3.5-lightning:free", True,
+                                             "The tutor is busy right now.",
+                                             [{"model": "nvidia/nemotron-3.5-super-vl:free", "error": "HTTP 404"}])
+    try:
+        d = c.post("/chat", json={"message": "what is a participle", "class_id": "c1", "debug": True}).get_json()["debug"]
+        assert d["model"] == "nvidia/nemotron-3.5-lightning:free" and d["provider"] == "openrouter", d
+        assert d["fallback"] is True and d["fallback_reason"] == "The tutor is busy right now.", d
+        assert d["skipped_models"] == [{"model": "nvidia/nemotron-3.5-super-vl:free", "error": "HTTP 404"}], d
+        # A blocked message never reaches a model, so no model is claimed.
+        d = c.post("/chat", json={"message": "fuck you", "class_id": "c1", "debug": True}).get_json()
+        assert d.get("debug", {}).get("model") is None, d
+    finally:
+        _llm_shim.SERVED = old
+    print("ok - debug payload names the fallback model, why it was used, and which models were skipped")
 
 
 def test_stream_carries_debug_for_dev_only():
@@ -362,6 +387,7 @@ if __name__ == "__main__":
     test_preferences_route()
     test_no_material_still_answers()
     test_dev_debug_payload()
+    test_debug_reports_a_fallback_model()
     test_stream_carries_debug_for_dev_only()
     test_category_cache()
     test_additional_instruction_migrates()

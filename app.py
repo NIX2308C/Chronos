@@ -216,12 +216,10 @@ EMBED_DIM = llm.EMBED_DIM
 # rules ~1,800 tokens, student documents up to 6,500, retrieved chunks 4,000, history
 # 30,000, prompt total capped at llm.PROMPT_TOKENS. Lower these for a small-window model.
 HISTORY_CHARS = int(os.getenv("HISTORY_CHARS", "150000"))
-# Chat/generation model; the default depends on the provider (see llm.py). Override via env.
-CHAT_MODEL = os.getenv("CHAT_MODEL", llm.DEFAULT_CHAT_MODEL)
+# Which model answers is llm.py's decision (Gemini first, then the OpenRouter chain); nothing here names one.
 # Tool generation is intentionally separate from the tutoring reply. It gets a
 # small purpose-built prompt plus retrieved course excerpts, not the whole chat
 # system instruction or a student's private context.
-TOOL_MODEL = os.getenv("TOOL_MODEL", CHAT_MODEL)
 
 # Retrieval tuning for the tutor. RETRIEVAL_TOP_K is how many knowledge chunks we
 # pull per question (more context generally = fuller answers). RETRIEVAL_MIN_SCORE
@@ -319,7 +317,7 @@ def _run_status_checks():
     checks = {
         "chronos": lambda: True,
         # Lists models on the configured endpoint without generating any text.
-        "ai": lambda: llm.health(CHAT_MODEL),
+        "ai": llm.health,
         "data": lambda: list(db.collection("Classes").limit(1).stream()),
         "materials": lambda: pinecone_index.describe_index_stats(),
     }
@@ -961,7 +959,7 @@ def summarize_document(source, chunks):
     try:
         sample = "\n\n".join(chunks[:MANIFEST_SAMPLE_CHUNKS])[:7000]
         prompt = prompts.fill("background/catalog_document", source=source, excerpt=sample)
-        text = llm.generate(TOOL_MODEL, prompt, temperature=0.1, json_schema=MANIFEST_SCHEMA, think=False).text
+        text = llm.generate(prompt, temperature=0.1, json_schema=MANIFEST_SCHEMA, think=False).text
         parsed = json.loads(text[text.find("{"):text.rfind("}") + 1])
         entry.update(_clean_manifest_entry(parsed, source))
         entry["title"] = source
@@ -1191,6 +1189,18 @@ def migrate_default_rules_to(class_id):
         moved = 0
     flag_ref.set({"legacy_rules_moved": True, "moved_at": firestore.SERVER_TIMESTAMP}, merge=True)
     return moved
+
+
+def debug_model(served_calls):
+    """Debug fields for the model that really generated the reply (never the configured one).
+
+    `model`/`provider` are the last call's; `fallback` is true if any call fell back from Gemini.
+    `model` is None when no model ran (e.g. a profanity block). `model_calls` lists every call."""
+    last = served_calls[-1] if served_calls else {}
+    fb = next((c for c in served_calls if c.get("fallback")), None)
+    return {"model": last.get("model"), "provider": last.get("provider"),
+            "fallback": fb is not None, "fallback_reason": fb.get("reason") if fb else None,
+            "skipped_models": last.get("skipped") or [], "model_calls": served_calls}
 
 
 def load_history(chat_ref, limit=HISTORY_TURNS, skip_through=0, total=0):
@@ -1448,14 +1458,14 @@ def load_student_docs(uid, class_id, chat_id):
 def summarize_tutoring_state(existing, transcript):
     """Generate a bounded, non-authoritative tutoring-state note."""
     prompt = prompts.fill("background/summarize_tutoring_state", existing=existing or "(none)", transcript=transcript)
-    return llm.generate(CHAT_MODEL, prompt, think=False).text[:CONVERSATION_SUMMARY_CHARS]
+    return llm.generate(prompt, think=False).text[:CONVERSATION_SUMMARY_CHARS]
 
 
 def summarize_student_doc(text):
     """A short stored stand-in for a student document, made once at upload."""
     prompt = prompts.fill("background/summarize_student_doc", text=str(text or "")[:STUDENT_DOC_CHARS])
     try:
-        return llm.generate(CHAT_MODEL, prompt, temperature=0.2, max_tokens=1200, think=False).text[:STUDENT_DOC_SUMMARY_CHARS]
+        return llm.generate(prompt, temperature=0.2, max_tokens=1200, think=False).text[:STUDENT_DOC_SUMMARY_CHARS]
     except Exception:
         logger.exception("Could not summarize a student upload; storing it without a summary.")
         return ""
@@ -1475,7 +1485,7 @@ def classify_student_upload(text):
         return None
     prompt = prompts.fill("background/classify_upload", document=sample)
     try:
-        text = llm.generate(CHAT_MODEL, prompt, temperature=0, think=False).text
+        text = llm.generate(prompt, temperature=0, think=False).text
         word = re.sub(r"[^a-z]", "", text.lower())
         return word if word in ("assignment", "rubric", "material") else None
     except Exception:
@@ -2450,6 +2460,7 @@ def chat():
     debug_on = dev and data.get("debug") is True
     t0 = time.perf_counter()
     dbg = {"timings": {}, "retrieval": {"passes": []}, "path": "model"}
+    served_calls = []     # llm `served` records, one per model call (a tool round is another call)
 
     def lap(name, since):
         dbg["timings"][name] = round((time.perf_counter() - since) * 1000)
@@ -2657,7 +2668,7 @@ def chat():
                      "kept": float(m.get("score") or 0) >= RETRIEVAL_MIN_SCORE}
                     for m in raw_matches]
                 dbg.update({
-                    "model": CHAT_MODEL, "small_talk": is_small_talk, "new_chat": is_new,
+                    **debug_model(served_calls), "small_talk": is_small_talk, "new_chat": is_new,
                     "agent": {"gaps": agent["gaps"], "ended": agent["ended"]},
                     "history_turns": len(history), "outline_docs": len(manifest_docs),
                     "settings": settings, "custom_rules": len(custom_rules),
@@ -2782,9 +2793,14 @@ def chat():
 
             def model_chunks(contents, declared):
                 if stream_requested:
-                    yield from llm.stream(CHAT_MODEL, contents, tools=declared, **gen_args)
+                    for chunk in llm.stream(contents, tools=declared, **gen_args):
+                        if chunk.served and not (served_calls and served_calls[-1] is chunk.served):
+                            served_calls.append(chunk.served)
+                        yield chunk
                     return
-                result = llm.generate(CHAT_MODEL, contents, tools=declared, **gen_args)
+                result = llm.generate(contents, tools=declared, **gen_args)
+                if result.served:
+                    served_calls.append(result.served)
                 if result.text:
                     yield llm.Chunk(result.text, None, None)
                 yield llm.Chunk("", result.tool_call, result.usage, False, result.calls)
@@ -3238,7 +3254,7 @@ def run_tool():
             load_class_memory(request.uid, class_id, exclude_chat_id=chat_id,
                               profile=load_class_profile(request.uid, class_id)),
             preference_directive(prefs, dev))
-        text = llm.generate(TOOL_MODEL, _tool_prompt(tool, context_block, custom_rules, conversation,
+        text = llm.generate(_tool_prompt(tool, context_block, custom_rules, conversation,
                                                      prefs.get("language", "")),
                             temperature=0.2, json_schema=ACTIVITY_SCHEMAS[tool["type"]],
                             think=False,   # activities stay fast; thinking is for chat
@@ -3681,7 +3697,7 @@ def _categorize_uncached(convos):
     numbered = "\n".join(f"{i+1}. {c}" for i, c in enumerate(convos))
     prompt = prompts.fill("background/categorize_conversations", conversations=numbered)
     try:
-        text = llm.generate(CHAT_MODEL, prompt,
+        text = llm.generate(prompt,
                             json_schema={"type": "array", "items": {"type": "string"}}, think=False).text
         text = text.replace("```json", "").replace("```", "").strip()
         cats = json.loads(text)

@@ -204,7 +204,7 @@ environment variables only.
 | `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | Chat endpoint root, **including `/v1`** |
 | `OPENROUTER_API_KEY` | none (required for `openrouter`) | Bearer token for chat |
 | `LLM_API_KEY` | none (required) | Bearer token for the embedding server |
-| `OPENROUTER_MODEL` | `nvidia/nemotron-3-super-120b-a12b:free` | OpenRouter model: primary with `LLM_PROVIDER=openrouter`, otherwise the automatic fallback |
+| `OPENROUTER_MODEL` | free `nvidia/nemotron-3.5-lightning`, `-3-ultra-550b-a55b`, `-3-nano-30b-a3b` (`:free`) | Comma-separated OpenRouter models tried in order (a dead or rate-limited one moves to the next): primary with `LLM_PROVIDER=openrouter`, otherwise the automatic fallback |
 | `LLM_FALLBACK` | `1` | `0` stops Gemini failures/quota stops falling back to OpenRouter |
 | `CHAT_MODEL` | `GEMINI_MODEL`, or `OPENROUTER_MODEL` on OpenRouter | Model for tutoring replies |
 | `TOOL_MODEL` | = `CHAT_MODEL` | Model for quizzes/flashcards/etc. (must follow JSON schemas) |
@@ -238,7 +238,7 @@ also fails does the student see the "tutor is busy" error. `/status` counts eith
 Set `LLM_FALLBACK=0` to disable.
 
 ### Chat model (OpenRouter)
-Chat runs on OpenRouter (`OPENROUTER_MODEL`, default `nvidia/nemotron-3-super-120b-a12b:free`) at
+Chat runs on OpenRouter (`OPENROUTER_MODEL`, default a list of free NVIDIA Nemotron models) at
 `https://openrouter.ai/api/v1`. It is stateless, so `llm.py` sends the full conversation
 every time, trims the oldest turns when the prompt gets long, and streams replies. 5xx and
 network errors retry up to 3 times. Native `tools` is not used: `llm.py` describes tools in

@@ -457,12 +457,18 @@ def test_gemini_falls_back_to_openrouter():
         replies.append((200, _reply("from openrouter")))
         assert llm.generate(llm.GEMINI_MODEL, "hi").text == "from openrouter"
         assert requests[-1]["path"] == "/v1/chat/completions"
-        assert requests[-1]["body"]["model"] == llm.OPENROUTER_MODEL
+        assert requests[-1]["body"]["model"] == llm.OPENROUTER_MODELS[0]
         # Same for a stream that fails before sending any text.
         replies.append((429, {"error": {"message": "quota"}}))
         replies.append((200, [{"choices": [{"delta": {"content": "streamed"}}]}]))
         text = "".join(c.text for c in llm.stream(llm.GEMINI_MODEL, "hi"))
         assert "streamed" in text, text
+        # A dead first OpenRouter model (404) moves on to the next one in the list.
+        replies.append((429, {"error": {"message": "quota"}}))
+        replies.append((404, {"error": {"message": "No endpoints found"}}))
+        replies.append((200, _reply("second model")))
+        assert llm.generate(llm.GEMINI_MODEL, "hi").text == "second model"
+        assert requests[-1]["body"]["model"] == llm.OPENROUTER_MODELS[1]
         # Fallback off: the quota error reaches the caller.
         llm.FALLBACK = False
         replies.append((429, {"error": {"message": "quota"}}))

@@ -11,7 +11,7 @@ reach browser or Android code.
   openrouter: OpenRouter's OpenAI-compatible `/api/v1/chat/completions` (or any such endpoint).
     LLM_BASE_URL        chat endpoint root (default https://openrouter.ai/api/v1)
     OPENROUTER_API_KEY  bearer token for chat
-    OPENROUTER_MODEL    model sent (default nvidia/nemotron-3-super-120b-a12b:free); also the automatic
+    OPENROUTER_MODEL    comma-separated models tried in order (default free NVIDIA Nemotron slugs); also the automatic
                         fallback when Gemini hits its caps or errors (LLM_FALLBACK=0 disables)
   Either way, HTTP 429 from the provider also raises QuotaExceeded.
     EMBED_BASE_URL      embeddings server (default https://chronos-embed.tevproject.com/v1),
@@ -87,9 +87,14 @@ BUSY_DAY = "The tutor has reached its free daily limit. It resets at midnight Pa
 
 # OpenRouter model: the primary when LLM_PROVIDER=openrouter, and the automatic fallback when Gemini is
 # over its free-tier caps or errors. Fallback is on whenever OPENROUTER_API_KEY is set (FALLBACK=0 turns it off).
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3-super-120b-a12b:free").strip()
+# Comma-separated, tried in order: free slugs get retired without notice, so a dead or rate-limited
+# first choice just moves on to the next.
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free,"
+                             "nvidia/nemotron-3-ultra-550b-a55b:free,"
+                             "nvidia/nemotron-3-nano-30b-a3b:free").strip()
+OPENROUTER_MODELS = [m.strip() for m in OPENROUTER_MODEL.split(",") if m.strip()]
 FALLBACK = os.getenv("LLM_FALLBACK", "1").strip().lower() not in ("0", "off", "false", "no")
-DEFAULT_CHAT_MODEL = GEMINI_MODEL if PROVIDER == "gemini" else OPENROUTER_MODEL
+DEFAULT_CHAT_MODEL = GEMINI_MODEL if PROVIDER == "gemini" else (OPENROUTER_MODELS or [""])[0]
 EMBED_BASE_URL = os.getenv("EMBED_BASE_URL", "https://chronos-embed.tevproject.com/v1").strip().rstrip("/")
 # Used only if GET /models on the embedding server cannot be read; normally the id it returns wins.
 EMBED_MODEL = "embeddinggemma"
@@ -634,6 +639,15 @@ def _open_chat(args, think):
     return _with_thinking_fallback(lambda th: _open("/chat/completions", _body(*args, th)), think)
 
 
+def _or_models(model):
+    """One model name, or the whole OPENROUTER_MODEL list when given the list or its first entry as the default."""
+    if isinstance(model, (list, tuple)):
+        return list(model)
+    if PROVIDER != "gemini" and OPENROUTER_MODELS and model == OPENROUTER_MODELS[0]:
+        return list(OPENROUTER_MODELS)
+    return [model]
+
+
 def _can_fall_back():
     return PROVIDER == "gemini" and FALLBACK and bool(CHAT_API_KEY)
 
@@ -651,12 +665,25 @@ def generate(model, contents, system=None, tools=None, temperature=None, json_sc
         except LLMError as e:
             if not _can_fall_back():
                 raise
-            logger.warning("Gemini failed (%s); falling back to OpenRouter %s.", e, OPENROUTER_MODEL)
-            model = OPENROUTER_MODEL
+            logger.warning("Gemini failed (%s); falling back to OpenRouter %s.", e, OPENROUTER_MODELS)
+            model = OPENROUTER_MODELS
     return _openrouter_generate(model, contents, system, tools, temperature, json_schema, max_tokens, think)
 
 
-def _openrouter_generate(model, contents, system, tools, temperature, json_schema, max_tokens, think):
+def _openrouter_generate(model, *args):
+    last = None
+    for m in _or_models(model):
+        try:
+            return _openrouter_generate_one(m, *args)
+        except ContextTooLong:
+            raise
+        except LLMError as e:
+            last = e
+            logger.warning("OpenRouter model %s failed (%s).", m, e)
+    raise last
+
+
+def _openrouter_generate_one(model, contents, system, tools, temperature, json_schema, max_tokens, think):
     args = (model, contents, system, tools, temperature, json_schema, False, max_tokens)
     with _open_chat(args, think) as resp:
         data = _read_json(resp)
@@ -688,12 +715,31 @@ def stream(model, contents, system=None, tools=None, temperature=None, max_token
         except LLMError as e:
             if started or not _can_fall_back():
                 raise
-            logger.warning("Gemini failed (%s); falling back to OpenRouter %s.", e, OPENROUTER_MODEL)
-            model = OPENROUTER_MODEL
+            logger.warning("Gemini failed (%s); falling back to OpenRouter %s.", e, OPENROUTER_MODELS)
+            model = OPENROUTER_MODELS
     yield from _openrouter_stream(model, contents, system, tools, temperature, max_tokens, think)
 
 
-def _openrouter_stream(model, contents, system, tools, temperature, max_tokens, think):
+def _openrouter_stream(model, *args):
+    last = None
+    for m in _or_models(model):
+        started = False
+        try:
+            for chunk in _openrouter_stream_one(m, *args):
+                started = started or bool(chunk.text or chunk.tool_call)
+                yield chunk
+            return
+        except ContextTooLong:
+            raise
+        except LLMError as e:
+            if started:
+                raise
+            last = e
+            logger.warning("OpenRouter model %s failed (%s).", m, e)
+    raise last
+
+
+def _openrouter_stream_one(model, contents, system, tools, temperature, max_tokens, think):
     cleaner, usage, thinking = _Cleaner(), None, False
     args = (model, contents, system, tools, temperature, None, True, max_tokens)
     with _open_chat(args, think) as resp:

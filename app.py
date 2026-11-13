@@ -1850,6 +1850,42 @@ def legacy_login():
     return legacy_page_redirect('/login')
 
 
+MAINTENANCE_FILE = os.path.join(BASE_DIR, 'maintenance.json')
+
+
+def maintenance_state():
+    """System-wide maintenance switch, read per request so a flip needs no restart
+    when the file is edited. `MAINTENANCE_MODE` (on/off) overrides the file's
+    `enabled`, so it can also be flipped from the Cloud Run env. Never raises."""
+    state = {"enabled": False}
+    try:
+        with open(MAINTENANCE_FILE, encoding='utf-8') as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            state.update({k: v for k, v in data.items() if k in ("enabled", "title", "message", "detail")})
+    except (OSError, ValueError):
+        pass
+    env = os.getenv("MAINTENANCE_MODE", "").strip().lower()
+    if env in ("1", "on", "true", "yes"):
+        state["enabled"] = True
+    elif env in ("0", "off", "false", "no"):
+        state["enabled"] = False
+    state["enabled"] = bool(state.get("enabled"))
+    return state
+
+
+@app.route('/maintenance/state')
+def maintenance_state_route():
+    resp = jsonify(maintenance_state())
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route('/maintenance.js')
+def maintenance_js():
+    return send_from_directory(WEB_DIR, 'maintenance.js', max_age=0)
+
+
 @app.route('/status')
 def page_status():
     return send_from_directory(WEB_DIR, 'status.html')

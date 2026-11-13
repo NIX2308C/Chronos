@@ -131,7 +131,7 @@ A few optional overrides exist too:
 - `HISTORY_TURNS` (how many past turns the tutor remembers, default 20)
 - `MAX_MESSAGES_RETURNED` (cap on messages returned for one conversation, default 500)
 - `ROLE_CACHE_TTL` (seconds a user's role is cached in-process, default 60)
-- `TRUST_PROXY_HOPS` (default 0; set to 1 on Cloud Run so client IPs in the logs are real)
+- `TRUST_PROXY_HOPS` (default 0; set to 1 behind a single proxy so client IPs in the logs are real)
 - `CHAT_MODEL` (the chat model name, default `GEMINI_MODEL` with a Gemini key, else `OPENROUTER_MODEL` on OpenRouter)
 - `TOOL_MODEL` (the model that builds learning activities; defaults to `CHAT_MODEL`)
 - `FLASK_DEBUG`
@@ -228,8 +228,7 @@ of that, Chronos counts its own requests per model and stops at `GEMINI_RPM` a m
 waits up to 20 s for a slot) and `GEMINI_RPD` a day (reset at midnight Pacific). Past either cap,
 or on any HTTP 429 from the provider, `/chat` returns 503 `{"code": "model_busy"}` (a stream gets an
 `error` event) and `/tools/run` a 503, each with a student-facing "tutor is busy" message. The
-counters are per process, so with several Cloud Run instances set `--max-instances=1` or divide
-the caps. Free-tier prompts may be used by Google to improve its products.
+counters are per process, so with several server processes divide the caps. Free-tier prompts may be used by Google to improve its products.
 
 ### Fallback to OpenRouter
 With both keys set, Gemini is primary and OpenRouter is the fallback. If a Gemini call hits our
@@ -314,24 +313,24 @@ that supports them (Llama 3.1+, Qwen 2.5+, GPT-4-class).
 
 ## Deploying
 
-Chronos runs on **Google Cloud Run**, built from the `Dockerfile` in this repo and deployed continuously from GitHub — pushing to the default branch triggers a build and rollout. Cloud Run injects `$PORT` (the Dockerfile defaults it to 8080) and the container serves with Waitress.
+Chronos runs from the `Dockerfile` in this repo, normally through `docker-compose.yml` together with its embedding server (see "Running Chronos and the embedding server together"). The container serves with Waitress on `$PORT` (default 8080).
 
-Configuration goes in the Cloud Run service, not in the repo:
+Configuration goes in `.env` next to `docker-compose.yml`, not in the repo:
 
-- **Secrets** — `TEACHER_SIGNUP_CODE`, `LLM_API_KEY`, `PINECONE_API_KEY`, `FIREBASE_CREDENTIALS_JSON` (the full contents of `firebase_credentials.json`). Use Secret Manager and expose them to the service as environment variables rather than plain env vars, so they aren't readable from the service description.
-- **Plain env vars** — `FLASK_DEBUG=0`, `TRUST_PROXY_HOPS=1` (Cloud Run puts exactly one proxy in front of you, so trusting that single hop gives real client IPs without letting anyone forge `X-Forwarded-For`), `ALLOWED_ORIGINS` set to your real front-end origin, and the `FIREBASE_*` web config values.
+- **Secrets** — `TEACHER_SIGNUP_CODE`, `LLM_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `PINECONE_API_KEY`, `FIREBASE_CREDENTIALS_JSON` (the full contents of `firebase_credentials.json`). `.env` is git- and docker-ignored; keep it that way.
+- **Plain env vars** — `FLASK_DEBUG=0`, `TRUST_PROXY_HOPS=1` (set when exactly one proxy, such as a Cloudflare tunnel, sits in front of Chronos, so the logs get real client IPs without letting anyone forge `X-Forwarded-For`), `ALLOWED_ORIGINS` set to your real front-end origin, and the `FIREBASE_*` web config values.
 
 ### Status page deployment access
 
-`/status` is public and reports only coarse service health. Its developer-only deployment panel needs `CLOUD_STATUS_PROJECT_ID`, `CLOUD_STATUS_REGION`, `CLOUD_STATUS_SERVICE`, and `CLOUD_STATUS_BUILD_TRIGGER_ID` set on the Cloud Run service. Grant its runtime service account `roles/cloudbuild.builds.viewer` and `roles/run.viewer`, and enable the Cloud Build and Cloud Run Admin APIs. The panel is visible only to verified Firebase accounts listed in `DEV_EMAILS`; it uses the runtime identity and never sends Google credentials to the browser.
+`/status` is public and reports only coarse service health. Its optional developer-only deployment panel reads Google Cloud Build/Run state and needs `CLOUD_STATUS_PROJECT_ID`, `CLOUD_STATUS_REGION`, `CLOUD_STATUS_SERVICE`, and `CLOUD_STATUS_BUILD_TRIGGER_ID`; leave them unset and it reports deployment data as unavailable. It is visible only to verified Firebase accounts listed in `DEV_EMAILS`.
 
 The Werkzeug debugger stays off unless you explicitly set `FLASK_DEBUG=1`. If `ALLOWED_ORIGINS` is left on the local-dev default, or `TRUST_PROXY_HOPS` is still 0, the app logs a warning at startup — the first means your front-end will be CORS-blocked, the second means the teacher-code rate limit sees the load balancer's IP for every caller and throttles globally instead of per client.
 
 **Firestore rules** live in `firestore.rules` and deny all client access (`allow read, write: if false`). That is deliberate and load-bearing: nothing in the browser talks to Firestore, so every read and write goes through `app.py` via the Admin SDK, which bypasses rules. Relaxing them to the usual `if request.auth != null` would let any signed-in student write their own `Users/{uid}.role` and make themselves a teacher, bypassing `TEACHER_SIGNUP_CODE` entirely. Deploy with `firebase deploy --only firestore:rules`.
 
-**A note on memory:** the Google, Pinecone, and Firebase SDKs are heavy. Just importing them eats a few hundred MB, so there isn't much room to spare on Cloud Run's 512 MiB default instance. To avoid blowing past that on big files, uploads are processed in batches: the document is read, chunked, embedded, and pushed to Pinecone a little at a time instead of all at once, so memory stays roughly flat no matter how large the file is. `MAX_UPLOAD_MB` also defaults to 10. If you're still hitting out-of-memory errors when adding documents, drop that number lower or raise the service's memory limit.
+**A note on memory:** the Google, Pinecone, and Firebase SDKs are heavy. Just importing them eats a few hundred MB, so give the Chronos container at least 512 MiB. To avoid blowing past that on big files, uploads are processed in batches: the document is read, chunked, embedded, and pushed to Pinecone a little at a time instead of all at once, so memory stays roughly flat no matter how large the file is. `MAX_UPLOAD_MB` also defaults to 10. If you're still hitting out-of-memory errors when adding documents, drop that number lower or raise the container's memory limit.
 
-Because Cloud Run scales to zero and can run several instances at once, note that the rate limiter is per-process in-memory — it resets on a cold start and isn't shared between instances. It's a courtesy throttle, not a hard guarantee; a real limit needs shared state or Cloud Armor.
+Note that the rate limiter is per-process in-memory — it resets on a restart and isn't shared between processes. It's a courtesy throttle, not a hard guarantee; a real limit needs shared state or Cloud Armor.
 
 ## Endpoints
 
@@ -341,6 +340,6 @@ All endpoints below the auth layer expect a Firebase ID token in the `Authorizat
 - **Student (any signed-in user in the course):** `/chat`, `/chats`, `/chats/<id>/messages`, `DELETE /chats/<id>`, all course-scoped.
 - **Teacher (owner of the course):** `/ingest`, `/upload`, `/rules`, `/delete_rule`, `/stats`, and `/course-settings`; these retain the legacy `class_id` field.
 - `/health` is a plain health check.
-- `/status/public` is a public, coarse health snapshot; `/status/deployment` is developer-only Cloud Build/Run state.
+- `/status/public` is a public, coarse health snapshot; `/status/deployment` is developer-only optional Cloud Build/Run state.
 
 Legacy rules from before courses existed are automatically migrated into the first course a teacher creates.

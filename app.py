@@ -106,8 +106,8 @@ MAX_EXTRACT_CHARS = int(os.getenv("MAX_EXTRACT_CHARS", "2000000"))   # ~2 MB of 
 
 # Lightweight rate limits. These are keyed by the caller's Firebase uid, not by
 # IP: every rate-limited route here is behind @require_auth, and a uid is both
-# harder to rotate than an IP and correct behind a proxy (on Cloud Run every
-# request arrives from the front end / load balancer, so an IP key would
+# harder to rotate than an IP and correct behind a proxy (behind a proxy every
+# request arrives from the proxy / load balancer, so an IP key would
 # throttle a whole class as if it were one student).
 CHAT_RATE_LIMIT = int(os.getenv("CHAT_RATE_LIMIT", "20"))     # requests
 CHAT_RATE_WINDOW = int(os.getenv("CHAT_RATE_WINDOW", "60"))   # seconds
@@ -143,7 +143,7 @@ REGISTER_RATE_WINDOW = int(os.getenv("REGISTER_RATE_WINDOW", "900"))  # seconds
 
 # Number of proxies in front of the app whose X-Forwarded-For we trust. 0 (the
 # default) means "no proxy": request.remote_addr stays the direct peer and
-# spoofed forwarding headers are ignored. Set to 1 on Cloud Run so logs show the
+# spoofed forwarding headers are ignored. Set to 1 behind a single proxy (e.g. a Cloudflare tunnel) so logs show the
 # real client IP. Never set this higher than the number of proxies you actually
 # control — each hop you trust is a hop a client can forge.
 TRUST_PROXY_HOPS = int(os.getenv("TRUST_PROXY_HOPS", "0"))
@@ -268,7 +268,7 @@ DEV_EMAILS = {
     for e in os.getenv("DEV_EMAILS", "test@gmail.com").split(",") if e.strip()
 }
 
-# The status page reads deployment state with the Cloud Run *runtime* service
+# The status page can read deployment state with a Google Cloud service
 # account through Application Default Credentials. These are identifiers, not
 # secrets; leave them blank outside the deployed service and the developer
 # panel will simply report deployment data as unavailable.
@@ -369,7 +369,7 @@ def public_status_snapshot():
 
 
 def deployment_status_snapshot():
-    """Read the latest trigger build and serving Cloud Run revision for developers."""
+    """Read the latest trigger build and serving revision for developers."""
     configured = all((CLOUD_STATUS_PROJECT_ID, CLOUD_STATUS_REGION, CLOUD_STATUS_SERVICE,
                       CLOUD_STATUS_BUILD_TRIGGER_ID, cloudbuild_v1, run_v2))
     if not configured:
@@ -539,8 +539,8 @@ if not DEBUG and all("127.0.0.1" in o or "localhost" in o for o in ALLOWED_ORIGI
 # attacker and starts locking legitimate teachers out instead.
 if not DEBUG and TRUST_PROXY_HOPS == 0:
     logger.warning(
-        "TRUST_PROXY_HOPS is 0. If this is deployed behind a proxy (Cloud Run "
-        "puts exactly one in front of you), set it to 1 — otherwise every "
+        "TRUST_PROXY_HOPS is 0. If this is deployed behind a proxy "
+        "(e.g. a Cloudflare tunnel), set it to 1 — otherwise every "
         "request looks like it comes from the load balancer and the teacher "
         "signup-code rate limit applies globally instead of per client."
     )
@@ -565,7 +565,7 @@ def security_headers(resp):
     resp.headers.setdefault("X-Frame-Options", "DENY")          # clickjacking
     resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     resp.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
-    # Cloud Run terminates TLS for you, but nothing stops a browser trying the
+    # A proxy usually terminates TLS for you, but nothing stops a browser trying the
     # first request to a custom domain over http — where a Firebase ID token is
     # readable in transit. Only sent when the request already arrived over https,
     # so local http development is unaffected.
@@ -1856,7 +1856,7 @@ MAINTENANCE_FILE = os.path.join(BASE_DIR, 'maintenance.json')
 def maintenance_state():
     """System-wide maintenance switch, read per request so a flip needs no restart
     when the file is edited. `MAINTENANCE_MODE` (on/off) overrides the file's
-    `enabled`, so it can also be flipped from the Cloud Run env. Never raises."""
+    `enabled`, so it can also be flipped from the environment. Never raises."""
     state = {"enabled": False}
     try:
         with open(MAINTENANCE_FILE, encoding='utf-8') as f:
@@ -4225,7 +4225,7 @@ def status_deployment():
 
 
 if __name__ == '__main__':
-    # Bind to 0.0.0.0 and the host-provided PORT (Cloud Run injects this; default
+    # Bind to 0.0.0.0 and the host-provided PORT (default
     # 5000 locally). Debug is off unless FLASK_DEBUG is explicitly set (top of file).
     # NOTE: this dev server is only a fallback — production runs waitress via the
     # Dockerfile's CMD.

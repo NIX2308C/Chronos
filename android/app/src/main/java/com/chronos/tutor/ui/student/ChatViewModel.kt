@@ -125,7 +125,7 @@ class ChatViewModel(
     private fun pollHealth() = viewModelScope.launch {
         while (true) {
             var ok = chatRepo.health()
-            // Cloud Run cold starts: show "waking" while retrying, like the web.
+            // Server cold starts: show "waking" while retrying, like the web.
             repeat(3) {
                 if (ok) return@repeat
                 _state.update { it.copy(status = ServerStatus.WAKING) }

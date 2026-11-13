@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-# Unbuffered stdout/stderr so logs reach Cloud Logging as they happen instead of
+# Unbuffered stdout/stderr so logs reach `docker logs` as they happen instead of
 # sitting in a buffer until the process exits (or gets killed).
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -15,16 +15,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the app.
 COPY . .
 
-# Don't run the app as root. Cloud Run doesn't require it, but a container that
+# Don't run the app as root. Nothing requires it, but a container that
 # never needs root shouldn't have it — it turns "attacker gets code execution"
 # into a meaningfully smaller problem.
 RUN useradd --create-home --uid 10001 chronos && chown -R chronos:chronos /app
 USER chronos
 
-# Cloud Run provides $PORT (defaults to 8080); waitress must bind 0.0.0.0.
+# $PORT defaults to 8080; waitress must bind 0.0.0.0.
 ENV PORT=8080
-# Waitress defaults to 4 threads, but Cloud Run sends up to 80 concurrent
-# requests per instance and nearly every request here is IO-bound (waiting on
+# Waitress defaults to 4 threads, but nearly every request here is IO-bound (waiting on
 # the model, Pinecone, or Firestore rather than burning CPU). More threads means
 # more of that waiting overlaps. Override with WAITRESS_THREADS if you change
 # the instance size or the concurrency setting.

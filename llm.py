@@ -77,7 +77,7 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
 # Free-tier guard. Google's free tier has per-project limits per model (requests a minute and a
 # day, reset at midnight Pacific). These caps stop Chronos before it reaches them and tell the
 # student the tutor is busy, instead of sending requests that would fail. They are counted per
-# server process, so with several Cloud Run instances each gets its own budget. They are a
+# server process, so with several server processes each gets its own budget. They are a
 # backstop: the guarantee of never paying is a Google project with no billing account. 0 = no cap.
 GEMINI_RPM = int(os.getenv("GEMINI_RPM", "9"))
 GEMINI_RPD = int(os.getenv("GEMINI_RPD", "240"))

@@ -5,13 +5,14 @@ reach browser or Android code.
 
   gemini (chosen when GEMINI_API_KEY is set): Google's native Gemini API.
     GEMINI_API_KEY      AI Studio key, read from the environment only
-    GEMINI_MODEL        default model (gemini-flash-latest); CHAT_MODEL / TOOL_MODEL override it
+    GEMINI_MODEL        default model (gemini-3.5-flash-lite); CHAT_MODEL / TOOL_MODEL override it
     GEMINI_RPM / GEMINI_RPD   free-tier caps per model per process (default 9 a minute,
                         240 a day); past them calls raise QuotaExceeded with a student-safe message
   openrouter: OpenRouter's OpenAI-compatible `/api/v1/chat/completions` (or any such endpoint).
     LLM_BASE_URL        chat endpoint root (default https://openrouter.ai/api/v1)
     OPENROUTER_API_KEY  bearer token for chat
-    CHAT_MODEL / TOOL_MODEL   model name sent (default recursive/flint-v1.0:free)
+    OPENROUTER_MODEL    model sent (default nvidia/nemotron-3-super-120b-a12b:free); also the automatic
+                        fallback when Gemini hits its caps or errors (LLM_FALLBACK=0 disables)
   Either way, HTTP 429 from the provider also raises QuotaExceeded.
     EMBED_BASE_URL      embeddings server (default https://chronos-embed.tevproject.com/v1),
                         authenticated with LLM_API_KEY. EmbeddingGemma 300M, 768-d, L2-normalized.
@@ -72,7 +73,7 @@ PROVIDER = (os.getenv("LLM_PROVIDER", "").strip().lower()
             or ("gemini" if GEMINI_API_KEY else "openrouter"))
 GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL",
                             "https://generativelanguage.googleapis.com/v1beta").strip().rstrip("/")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
 # Free-tier guard. Google's free tier has per-project limits per model (requests a minute and a
 # day, reset at midnight Pacific). These caps stop Chronos before it reaches them and tell the
 # student the tutor is busy, instead of sending requests that would fail. They are counted per
@@ -84,7 +85,11 @@ QUOTA_WAIT_S = 20                 # a request waits this long for a per-minute s
 BUSY_MINUTE = "The tutor is busy right now. Please try again in a minute."
 BUSY_DAY = "The tutor has reached its free daily limit. It resets at midnight Pacific time."
 
-DEFAULT_CHAT_MODEL = GEMINI_MODEL if PROVIDER == "gemini" else "recursive/flint-v1.0:free"
+# OpenRouter model: the primary when LLM_PROVIDER=openrouter, and the automatic fallback when Gemini is
+# over its free-tier caps or errors. Fallback is on whenever OPENROUTER_API_KEY is set (FALLBACK=0 turns it off).
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3-super-120b-a12b:free").strip()
+FALLBACK = os.getenv("LLM_FALLBACK", "1").strip().lower() not in ("0", "off", "false", "no")
+DEFAULT_CHAT_MODEL = GEMINI_MODEL if PROVIDER == "gemini" else OPENROUTER_MODEL
 EMBED_BASE_URL = os.getenv("EMBED_BASE_URL", "https://chronos-embed.tevproject.com/v1").strip().rstrip("/")
 # Used only if GET /models on the embedding server cannot be read; normally the id it returns wins.
 EMBED_MODEL = "embeddinggemma"
@@ -571,16 +576,7 @@ def _gemini_stream(model, contents, system, tools, temperature, max_tokens, thin
 
 # ---------- public ----------
 
-def health(model=None):
-    """Raise unless the endpoint is reachable and the key is accepted. Generates nothing."""
-    if PROVIDER == "gemini":
-        if not GEMINI_API_KEY:
-            raise LLMError("GEMINI_API_KEY is not set")
-        url, headers = "%s/models/%s" % (GEMINI_BASE_URL, _gemini_model(model)), {"x-goog-api-key": GEMINI_API_KEY}
-    else:
-        if not CHAT_API_KEY:
-            raise LLMError("OPENROUTER_API_KEY is not set")
-        url, headers = BASE_URL + "/models", {"Authorization": "Bearer " + CHAT_API_KEY}
+def _health_check(url, headers):
     req = urllib.request.Request(url, headers={**headers, "User-Agent": USER_AGENT})
     try:
         with urllib.request.urlopen(req, timeout=min(TIMEOUT_S, 10)) as resp:
@@ -590,6 +586,24 @@ def health(model=None):
     except (urllib.error.URLError, OSError) as e:
         raise LLMError("Could not reach the model endpoint at %s: %s" % (url.split("/models")[0], e)) from e
     return True
+
+
+def health(model=None):
+    """Raise unless the endpoint is reachable and the key is accepted. Generates nothing.
+    On Gemini, a working OpenRouter fallback also counts as healthy."""
+    if PROVIDER == "gemini":
+        if not GEMINI_API_KEY:
+            raise LLMError("GEMINI_API_KEY is not set")
+        try:
+            return _health_check("%s/models/%s" % (GEMINI_BASE_URL, _gemini_model(model)),
+                                 {"x-goog-api-key": GEMINI_API_KEY})
+        except LLMError:
+            if not _can_fall_back():
+                raise
+            return _health_check(BASE_URL + "/models", {"Authorization": "Bearer " + CHAT_API_KEY})
+    if not CHAT_API_KEY:
+        raise LLMError("OPENROUTER_API_KEY is not set")
+    return _health_check(BASE_URL + "/models", {"Authorization": "Bearer " + CHAT_API_KEY})
 
 
 def can_disable_thinking():
@@ -620,11 +634,29 @@ def _open_chat(args, think):
     return _with_thinking_fallback(lambda th: _open("/chat/completions", _body(*args, th)), think)
 
 
+def _can_fall_back():
+    return PROVIDER == "gemini" and FALLBACK and bool(CHAT_API_KEY)
+
+
 def generate(model, contents, system=None, tools=None, temperature=None, json_schema=None, max_tokens=None,
              think=True):
-    """One complete reply. `json_schema={}` asks for any JSON object."""
+    """One complete reply. `json_schema={}` asks for any JSON object.
+
+    On Gemini, a quota stop or provider failure is retried once on OpenRouter (OPENROUTER_MODEL)."""
     if PROVIDER == "gemini":
-        return _gemini_generate(model, contents, system, tools, temperature, json_schema, max_tokens, think)
+        try:
+            return _gemini_generate(model, contents, system, tools, temperature, json_schema, max_tokens, think)
+        except ContextTooLong:
+            raise
+        except LLMError as e:
+            if not _can_fall_back():
+                raise
+            logger.warning("Gemini failed (%s); falling back to OpenRouter %s.", e, OPENROUTER_MODEL)
+            model = OPENROUTER_MODEL
+    return _openrouter_generate(model, contents, system, tools, temperature, json_schema, max_tokens, think)
+
+
+def _openrouter_generate(model, contents, system, tools, temperature, json_schema, max_tokens, think):
     args = (model, contents, system, tools, temperature, json_schema, False, max_tokens)
     with _open_chat(args, think) as resp:
         data = _read_json(resp)
@@ -641,10 +673,27 @@ def generate(model, contents, system=None, tools=None, temperature=None, json_sc
 
 
 def stream(model, contents, system=None, tools=None, temperature=None, max_tokens=None, think=True):
-    """Yield Chunk(text, tool_call, usage) as the reply arrives."""
+    """Yield Chunk(text, tool_call, usage) as the reply arrives.
+
+    On Gemini, a failure before any text has been sent falls back to OpenRouter; after that it propagates."""
     if PROVIDER == "gemini":
-        yield from _gemini_stream(model, contents, system, tools, temperature, max_tokens, think)
-        return
+        started = False
+        try:
+            for chunk in _gemini_stream(model, contents, system, tools, temperature, max_tokens, think):
+                started = started or bool(chunk.text or chunk.tool_call)
+                yield chunk
+            return
+        except ContextTooLong:
+            raise
+        except LLMError as e:
+            if started or not _can_fall_back():
+                raise
+            logger.warning("Gemini failed (%s); falling back to OpenRouter %s.", e, OPENROUTER_MODEL)
+            model = OPENROUTER_MODEL
+    yield from _openrouter_stream(model, contents, system, tools, temperature, max_tokens, think)
+
+
+def _openrouter_stream(model, contents, system, tools, temperature, max_tokens, think):
     cleaner, usage, thinking = _Cleaner(), None, False
     args = (model, contents, system, tools, temperature, None, True, max_tokens)
     with _open_chat(args, think) as resp:

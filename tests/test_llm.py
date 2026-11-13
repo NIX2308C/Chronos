@@ -446,10 +446,41 @@ def _g(*parts, usage=None):
     return out
 
 
-def test_gemini_backend():
-    saved = (llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY, llm.GEMINI_RPM, llm.GEMINI_RPD)
+def test_gemini_falls_back_to_openrouter():
+    saved = (llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY, llm.GEMINI_RPM, llm.GEMINI_RPD, llm.FALLBACK)
     llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY = "gemini", llm.BASE_URL, "gkey"
-    llm.GEMINI_RPM, llm.GEMINI_RPD = 0, 0
+    llm.GEMINI_RPM, llm.GEMINI_RPD, llm.FALLBACK = 0, 0, True
+    try:
+        # A Gemini 429 is answered by OpenRouter with OPENROUTER_MODEL, not the Gemini model name.
+        requests.clear()
+        replies.append((429, {"error": {"message": "quota"}}))
+        replies.append((200, _reply("from openrouter")))
+        assert llm.generate(llm.GEMINI_MODEL, "hi").text == "from openrouter"
+        assert requests[-1]["path"] == "/v1/chat/completions"
+        assert requests[-1]["body"]["model"] == llm.OPENROUTER_MODEL
+        # Same for a stream that fails before sending any text.
+        replies.append((429, {"error": {"message": "quota"}}))
+        replies.append((200, [{"choices": [{"delta": {"content": "streamed"}}]}]))
+        text = "".join(c.text for c in llm.stream(llm.GEMINI_MODEL, "hi"))
+        assert "streamed" in text, text
+        # Fallback off: the quota error reaches the caller.
+        llm.FALLBACK = False
+        replies.append((429, {"error": {"message": "quota"}}))
+        try:
+            llm.generate(llm.GEMINI_MODEL, "hi")
+            raise AssertionError("fallback ran while disabled")
+        except llm.QuotaExceeded:
+            pass
+    finally:
+        llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY, llm.GEMINI_RPM, llm.GEMINI_RPD, llm.FALLBACK = saved
+        llm._quota_minute.clear(); llm._quota_day.clear()
+    print("ok - gemini falls back to OpenRouter on quota/failure")
+
+
+def test_gemini_backend():
+    saved = (llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY, llm.GEMINI_RPM, llm.GEMINI_RPD, llm.FALLBACK)
+    llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY = "gemini", llm.BASE_URL, "gkey"
+    llm.GEMINI_RPM, llm.GEMINI_RPD, llm.FALLBACK = 0, 0, False
     llm._can_disable_thinking = None
     try:
         requests.clear()
@@ -558,7 +589,7 @@ def test_gemini_backend():
         r = c.post("/chat", json={"message": "what is osmosis", "class_id": "c1", "chat_id": "chat1", "stream": True})
         assert b'"code": "model_busy"' in r.data or b'"code":"model_busy"' in r.data, r.data
     finally:
-        llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY, llm.GEMINI_RPM, llm.GEMINI_RPD = saved
+        llm.PROVIDER, llm.GEMINI_BASE_URL, llm.GEMINI_API_KEY, llm.GEMINI_RPM, llm.GEMINI_RPD, llm.FALLBACK = saved
         llm._quota_minute.clear(); llm._quota_day.clear()
         llm._can_disable_thinking = None
     print("ok - gemini: native request shape, thinking, schema, streaming, 429 and free-tier caps")
@@ -580,5 +611,6 @@ if __name__ == "__main__":
         test_chat_and_tool_routes_on_endpoint()
         test_agent_tools_and_thinking_switch()
         test_gemini_backend()
+        test_gemini_falls_back_to_openrouter()
     finally:
         server.shutdown()

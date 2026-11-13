@@ -70,7 +70,8 @@ Add a `.env` file with your keys:
 
 ```env
 TEACHER_SIGNUP_CODE=your-strong-code     # required: gates teacher registration; the app won't start without it
-OPENROUTER_API_KEY=...                    # required; chat model, server side only
+GEMINI_API_KEY=...                        # Google AI Studio key; primary chat model, server side only
+OPENROUTER_API_KEY=...                    # OpenRouter key; fallback chat model, server side only
 LLM_API_KEY=...                           # required; embedding server (chronos-embed), server side only
 PINECONE_API_KEY=...
 FIREBASE_WEB_API_KEY=...                  # Firebase console > Project settings > Web app > apiKey
@@ -131,7 +132,7 @@ A few optional overrides exist too:
 - `MAX_MESSAGES_RETURNED` (cap on messages returned for one conversation, default 500)
 - `ROLE_CACHE_TTL` (seconds a user's role is cached in-process, default 60)
 - `TRUST_PROXY_HOPS` (default 0; set to 1 on Cloud Run so client IPs in the logs are real)
-- `CHAT_MODEL` (the chat model name, default `GEMINI_MODEL` with a Gemini key, else `recursive/flint-v1.0:free` on OpenRouter)
+- `CHAT_MODEL` (the chat model name, default `GEMINI_MODEL` with a Gemini key, else `OPENROUTER_MODEL` on OpenRouter)
 - `TOOL_MODEL` (the model that builds learning activities; defaults to `CHAT_MODEL`)
 - `FLASK_DEBUG`
 
@@ -198,12 +199,14 @@ environment variables only.
 | --- | --- | --- |
 | `LLM_PROVIDER` | `gemini` if `GEMINI_API_KEY` is set, else `openrouter` | Which chat backend |
 | `GEMINI_API_KEY` | none | Google AI Studio key (the newer `AQ.` keys work) |
-| `GEMINI_MODEL` | `gemini-flash-latest` | Gemini model when `CHAT_MODEL` is unset |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Gemini model when `CHAT_MODEL` is unset |
 | `GEMINI_RPM` / `GEMINI_RPD` | `9` / `240` | Free-tier caps per model per server process (0 = off) |
 | `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | Chat endpoint root, **including `/v1`** |
 | `OPENROUTER_API_KEY` | none (required for `openrouter`) | Bearer token for chat |
 | `LLM_API_KEY` | none (required) | Bearer token for the embedding server |
-| `CHAT_MODEL` | `GEMINI_MODEL`, or `recursive/flint-v1.0:free` on OpenRouter | Model for tutoring replies |
+| `OPENROUTER_MODEL` | `nvidia/nemotron-3-super-120b-a12b:free` | OpenRouter model: primary with `LLM_PROVIDER=openrouter`, otherwise the automatic fallback |
+| `LLM_FALLBACK` | `1` | `0` stops Gemini failures/quota stops falling back to OpenRouter |
+| `CHAT_MODEL` | `GEMINI_MODEL`, or `OPENROUTER_MODEL` on OpenRouter | Model for tutoring replies |
 | `TOOL_MODEL` | = `CHAT_MODEL` | Model for quizzes/flashcards/etc. (must follow JSON schemas) |
 | `EMBED_BASE_URL` | `https://chronos-embed.tevproject.com/v1` | Embedding server (uses `LLM_API_KEY`) |
 | `LLM_TIMEOUT_S` | `120` | Read timeout (never below 120) |
@@ -228,8 +231,15 @@ or on any HTTP 429 from the provider, `/chat` returns 503 `{"code": "model_busy"
 counters are per process, so with several Cloud Run instances set `--max-instances=1` or divide
 the caps. Free-tier prompts may be used by Google to improve its products.
 
+### Fallback to OpenRouter
+With both keys set, Gemini is primary and OpenRouter is the fallback. If a Gemini call hits our
+free-tier caps, gets HTTP 429, or fails (after its retries), that call is repeated once on
+`OPENROUTER_MODEL`; a stream falls back only if no text has been sent yet. Only if the fallback
+also fails does the student see the "tutor is busy" error. `/status` counts either backend as healthy.
+Set `LLM_FALLBACK=0` to disable.
+
 ### Chat model (OpenRouter)
-Chat runs on OpenRouter (`recursive/flint-v1.0:free`) at
+Chat runs on OpenRouter (`OPENROUTER_MODEL`, default `nvidia/nemotron-3-super-120b-a12b:free`) at
 `https://openrouter.ai/api/v1`. It is stateless, so `llm.py` sends the full conversation
 every time, trims the oldest turns when the prompt gets long, and streams replies. 5xx and
 network errors retry up to 3 times. Native `tools` is not used: `llm.py` describes tools in

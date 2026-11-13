@@ -25,7 +25,7 @@ Chronos is a course grounded AI tutor. Teachers create courses, upload source ma
 | Course outline (knowledge-base awareness) | `app.py`: `summarize_document`, `save_manifest_entry`, `load_course_manifest`, `manifest_outline`, `rebuild_manifest`; stored at `Classes/{id}.manifest.docs`, built at `/upload`, backfilled from `/rules`, injected by `build_system_instruction` |
 | Native Android | `android/app/src/main/java/com/chronos/tutor/`: `ui/nav/ChronosNav.kt` (routes), `ui/student/` (chat, `ToolWidgets.kt`), `ui/teacher/`, `ui/settings/`, `ui/login/`, `data/` (one repository per area, pure JSON parsers unit-tested in `src/test/`), `net/`; build config in `android/app/build.gradle.kts`. When a Flask response shape changes, update the matching `parse*` in `data/` too |
 | Maintenance mode (system-wide status screen) | Flip `"enabled"` in `maintenance.json` (title/message/detail too) or set env `MAINTENANCE_MODE=on/off` (overrides); `app.py:maintenance_state`, `/maintenance/state`; `web/maintenance.js` overlays every page (`<script src="maintenance.js">` in each `web/*.html`, add it to new pages). Overlay only, API stays up |
-| Tests and deployment | `tests/test_*.py`, Android `src/test/`; `Dockerfile`, `.github/workflows/android.yml`, `firestore.rules`; public `/status` and developer-only `/status/deployment` read Cloud Build/Run via runtime ADC |
+| Tests and deployment | `docker-compose.yml` (Chronos + llama.cpp embedding server, auto-restart, internal `EMBED_BASE_URL`), `tests/test_*.py`, Android `src/test/`; `Dockerfile`, `.github/workflows/android.yml`, `firestore.rules`; public `/status` and developer-only `/status/deployment` read Cloud Build/Run via runtime ADC |
 
 ## Data and trust boundaries
 

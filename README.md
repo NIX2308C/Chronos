@@ -249,6 +249,18 @@ The model reasons by default; a student can switch thinking off from the compose
 with it on, remembers that, and the menu shows "Thinking: always on".
 `OPENROUTER_API_KEY` is required and is only ever read on the server.
 
+### Running Chronos and the embedding server together
+`docker-compose.yml` starts both on one machine: `docker compose up -d --build`. The embedding
+server (llama.cpp serving EmbeddingGemma 300M, `--alias embeddinggemma`) is only reachable from
+Chronos at `http://embed:8080/v1`, so no Cloudflare tunnel is needed for it, and both services use
+`restart: unless-stopped`, so they come back after a crash or a reboot (Docker itself must start at
+boot). Chronos waits for the embedding server's health check. `.env` needs `LLM_API_KEY` (any string;
+it is also the embedding server's `--api-key`), and `CHRONOS_PORT` (default 8080) sets the host port.
+Restart everything with `docker compose restart`, check on it with `docker compose ps` / `logs embed`.
+The model is downloaded once into a Docker volume. Embedding vectors must come from the same model
+as the Pinecone index (EmbeddingGemma, 768-d); if your index was built with a different quantization,
+re-uploading material is not required, but a different *model* is.
+
 ### Embeddings and Pinecone
 Set `EMBED_MODEL_ID=embeddinggemma` in `.env` so the index's recorded model name stays fixed however the
 embedding server is launched (otherwise a different `--alias` or model path makes the startup check refuse to run).

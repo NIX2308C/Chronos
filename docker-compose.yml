@@ -1,0 +1,46 @@
+# Runs Chronos and its embedding model together on one machine:
+#
+#   docker compose up -d --build
+#
+# Both services restart on their own (crash, reboot, Docker restart), and Chronos only
+# starts once the embedding server is healthy. The embedding server is reachable only
+# from Chronos over the compose network (http://embed:8080/v1), so it needs no Cloudflare
+# tunnel and no published port. Secrets and the rest of the config come from `.env`
+# (see README "Running it locally"); LLM_API_KEY is any string you pick, it is shared by
+# both services. Make sure Docker itself starts at boot (Linux: `systemctl enable docker`;
+# Docker Desktop: Settings > "Start Docker Desktop when you sign in").
+services:
+  embed:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    restart: unless-stopped
+    command: >
+      -hf ggml-org/embeddinggemma-300M-GGUF
+      --embeddings
+      --alias embeddinggemma
+      --host 0.0.0.0 --port 8080
+      --api-key ${LLM_API_KEY:?set LLM_API_KEY in .env}
+    volumes:
+      - embed-models:/root/.cache/llama.cpp     # the model downloads once, then is reused
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+  chronos:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      EMBED_BASE_URL: http://embed:8080/v1
+      EMBED_MODEL_ID: embeddinggemma
+      PORT: "8080"
+    ports:
+      - "${CHRONOS_PORT:-8080}:8080"
+    depends_on:
+      embed:
+        condition: service_healthy
+
+volumes:
+  embed-models:
